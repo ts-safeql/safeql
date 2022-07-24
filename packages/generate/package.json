@@ -1,0 +1,32 @@
+{
+  "name": "@testsql/generate",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.ts",
+  "type": "module",
+  "scripts": {
+    "demo": "tsx index.ts",
+    "test": "mocha -r=@esbuild-kit/cjs-loader **/*.test.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@esbuild-kit/cjs-loader": "2.3.0",
+    "@esbuild-kit/esm-loader": "2.4.0",
+    "@types/mocha": "9.1.1",
+    "@types/node": "18.0.1",
+    "mocha": "10.0.0",
+    "nanoid": "4.0.0",
+    "ts-morph": "15.1.0",
+    "tsx": "3.7.0",
+    "typescript": "4.7.4"
+  },
+  "dependencies": {
+    "fp-ts": "2.12.1",
+    "libpg-query": "13.2.5",
+    "pg-connection-string": "2.5.0",
+    "postgres": "https://github.com/porsager/postgres.git",
+    "prexit": "1.0.0"
+  }
+}

@@ -1,0 +1,16 @@
+{
+    "name": "testsql",
+    "version": "1.0.0",
+    "private": true,
+    "workspaces": [
+      "packages/**"
+    ],
+    "engines": {
+      "node": "18.x"
+    },
+    "devDependencies": {
+      "prettier": "2.7.1",
+      "typescript": "4.7.4"
+    },
+    "packageManager": "pnpm@7.5.0"
+  }

@@ -1,0 +1,11 @@
+{
+    "configurations": [
+    {
+        "command": "pnpm demo",
+        "name": "run demo",
+        "request": "launch",
+        "type": "node-terminal",
+        "cwd": "${workspaceFolder}/demo"
+    }
+    ]
+}

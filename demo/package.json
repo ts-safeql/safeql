@@ -1,0 +1,21 @@
+{
+  "name": "testsql",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "demo": "tsx index.ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "tsx": "3.7.0",
+    "typescript": "4.7.4"
+  },
+  "dependencies": {
+    "@testsql/generate": "workspace:*",
+    "postgres": "https://github.com/Newbie012/postgres.git#feat-expose-metadata"
+  }
+}
