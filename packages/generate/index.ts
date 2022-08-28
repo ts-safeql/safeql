@@ -1,1 +1,1 @@
-export { generate } from "./src/generate";
+export { generate, GenerateResult } from "./src/generate";

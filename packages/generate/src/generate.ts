@@ -1,7 +1,7 @@
-import postgres, { PostgresError } from "postgres";
-import { getLeftJoinTables } from "../check";
-import { ColType, defaultTypeMapping } from "./utils/colTypes";
 import { either } from "fp-ts";
+import postgres, { PostgresError } from "postgres";
+import { getLeftJoinTables } from "./utils/getLeftJoinTables";
+import { ColType, defaultTypeMapping } from "./utils/colTypes";
 import { groupBy } from "./utils/groupBy";
 
 let $pgTypesCache: postgres.RowList<PgTypeRow[]> | null = null;
@@ -11,8 +11,10 @@ let $pgColsByTableOidCache: Map<number, PgColRow[]> | null = null;
 type JSToPostgresTypeMap = Record<string, unknown>;
 type Sql = postgres.Sql<JSToPostgresTypeMap>;
 
-type GenerateResult = { result: string | null; stmt: postgres.Statement };
-type GenerateError = { error: string };
+export type GenerateResult = { result: string | null; stmt: postgres.Statement };
+export type GenerateError =
+  | { type: "DuplicateColumns"; error: string; columnName: string }
+  | { type: "PostgresError"; error: string; line: string; position: string };
 
 export async function prepareCache(sql: Sql) {
   $pgTypesCache = $pgTypesCache === null ? await getPgTypes(sql) : $pgTypesCache;
@@ -53,11 +55,21 @@ export async function generate(params: {
       (tableName) => colsCache.find((col) => col.tableName === tableName)!.tableOid
     );
 
-    const colNames = result.columns.map((col) => col.name);
-    const duplicateCols = colNames.filter((colName, index) => colNames.indexOf(colName) != index);
+    const duplicateCols = result.columns.filter((col, index) =>
+      result.columns.find((c, i) => c.name === col.name && i != index)
+    );
 
     if (duplicateCols.length > 0) {
-      return either.left({ error: `duplicate columns: ${duplicateCols.join(", ")}` });
+      const dupes = duplicateCols.map((col) => ({
+        table: colByTableOid.get(col.table)!.find((c) => c.colName === col.name)!.tableName,
+        column: col.name,
+      }));
+
+      return either.left({
+        type: "DuplicateColumns",
+        columnName: `${dupes[0].table}.${dupes[0].column}`,
+        error: `duplicate columns: ${dupes.map(x => `${x.table}.${x.column}`).join(", ")}`,
+      });
     }
 
     const columns = result.columns.map((col): ColumnAnalysisResult => {
@@ -71,7 +83,12 @@ export async function generate(params: {
     });
   } catch (e) {
     if (e instanceof PostgresError) {
-      return either.left({ error: e.message, line: e.line, position: e.position });
+      return either.left({
+        type: "PostgresError",
+        error: e.message,
+        line: e.line,
+        position: e.position,
+      });
     }
 
     throw e;
@@ -101,7 +118,7 @@ function mapColumnAnalysisResultsToTypeLiteral(params: {
 }
 
 function buildInterfacePropertyValue(params: { key: string; value: string; isNullable: boolean }) {
-  return `${params.key}: ${params.isNullable ? `${params.value} | null` : params.value}`;
+  return `${params.key}: ${params.isNullable ? `Nullable<${params.value}>` : params.value}`;
 }
 
 function mapColumnAnalysisResultToPropertySignature(params: {

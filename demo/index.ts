@@ -1,15 +1,35 @@
 import postgres from "postgres";
 
+function createClient() {
+  async function queryOne<T>(query: postgres.PendingQuery<postgres.Row[]>) {
+    const results = await query;
+
+    if (results.length !== 1) {
+      throw new Error(`Expected one result, got ${results.length}`);
+    }
+
+    return results[0];
+  }
+
+  return { queryOne };
+}
+
+type Unknown<T> = T | undefined;
+
 async function main() {
-  ``;
   const sql = postgres("postgres://postgres:postgres@localhost:5432/medflyt_test_sim");
 
-  const results = await Promise.all([
-    sql.unsafe(`SELECT id, "firstName", "lastName" from caregiver LIMIT 1`).describe(),
-    sql.unsafe(`SELECT address from caregiver LIMIT 1`).describe(),
-  ]);
+  const conn = createClient();
 
-  console.log(results);
+  const result = conn.queryOne<{ id: number; assoc_id: number; }>(sql`
+    SELECT
+        caregiver.id,
+        caregiver_agency_assoc.id as assoc_id
+    FROM
+        caregiver
+            JOIN caregiver_agency_assoc ON caregiver.id = caregiver_agency_assoc.caregiver
+  `)
+
 
   await sql.end();
 }

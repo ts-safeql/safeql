@@ -103,7 +103,7 @@ test("select with left join should return all cols from left join as nullable", 
         FROM caregiver
             LEFT JOIN caregiver_agency ON caregiver.id = caregiver_agency.caregiver_id
     `,
-    expected: `{ caregiver_id: number; assoc_id: number | null; }`,
+    expected: `{ caregiver_id: number; assoc_id: Nullable<number>; }`,
   });
 });
 
@@ -116,7 +116,7 @@ test("select with duplicate columns should throw duplicate columns error", async
         FROM caregiver
             JOIN caregiver_agency ON caregiver.id = caregiver_agency.caregiver_id
     `,
-    expectedError: "duplicate columns: id",
+    expectedError: "duplicate columns: caregiver.id, caregiver_agency.id",
   });
 });
 

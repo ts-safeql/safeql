@@ -2,11 +2,12 @@
   "name": "@testsql/generate",
   "version": "1.0.0",
   "description": "",
-  "main": "index.ts",
-  "type": "module",
+  "main": "lib/index.js",
   "scripts": {
     "demo": "tsx index.ts",
-    "test": "mocha -r=@esbuild-kit/cjs-loader **/*.test.ts"
+    "build": "pnpm tsc",
+    "watch": "pnpm tsc --watch",
+    "test": "mocha -r=@esbuild-kit/cjs-loader '**/*.test.ts'"
   },
   "keywords": [],
   "author": "",
