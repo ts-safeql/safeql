@@ -28,6 +28,7 @@
     "libpg-query": "13.2.5",
     "pg-connection-string": "2.5.0",
     "postgres": "https://github.com/porsager/postgres.git",
-    "prexit": "1.0.0"
+    "prexit": "1.0.0",
+    "source-map-support": "0.5.21"
   }
 }

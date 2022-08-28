@@ -40,6 +40,7 @@ importers:
       fp-ts: 2.12.1
       postgres: https://github.com/porsager/postgres.git
       recast: 0.21.2
+      source-map-support: 0.5.21
       synckit: 0.8.1
       ts-pattern: 4.0.5
       tsx: 3.8.0
@@ -54,6 +55,7 @@ importers:
       fp-ts: 2.12.1
       postgres: github.com/porsager/postgres/65dcf0df5c8d3ab37735a16c2e967c7ef7bf6cf6
       recast: 0.21.2
+      source-map-support: 0.5.21
       synckit: 0.8.1
       ts-pattern: 4.0.5
       zod: 3.17.10
@@ -75,6 +77,7 @@ importers:
       pg-connection-string: 2.5.0
       postgres: https://github.com/porsager/postgres.git
       prexit: 1.0.0
+      source-map-support: 0.5.21
       ts-morph: 15.1.0
       tsx: 3.7.0
       typescript: 4.7.4
@@ -84,6 +87,7 @@ importers:
       pg-connection-string: 2.5.0
       postgres: github.com/porsager/postgres/65dcf0df5c8d3ab37735a16c2e967c7ef7bf6cf6
       prexit: 1.0.0
+      source-map-support: 0.5.21
     devDependencies:
       '@esbuild-kit/cjs-loader': 2.3.0
       '@esbuild-kit/esm-loader': 2.4.0
@@ -525,7 +529,6 @@ packages:
 
   /buffer-from/1.1.2:
     resolution: {integrity: sha512-E+XQCRwSbaaiChtv6k6Dwgc+bx+Bs6vuKJHHl5kox/BaKbhiXzqQOwK4cO22yElGp2OCmjwVhT3HmxgyPGnJfQ==}
-    dev: true
 
   /cacache/15.3.0:
     resolution: {integrity: sha512-VVdYzXEn+cnbXpFgWs5hTT7OScegHVmLhJIR8Ufqk3iFD6A6j5iSX1KuBTfNEv4tdJWE2PzA6IVFtcLC7fN9wQ==}
@@ -2152,7 +2155,6 @@ packages:
     dependencies:
       buffer-from: 1.1.2
       source-map: 0.6.1
-    dev: true
 
   /source-map/0.6.1:
     resolution: {integrity: sha512-UjgapumWlbMhkBgzT7Ykc5YXUT46F0iKu8SGXq0bcwP5dz/h0Plj6enJqjz1Zbq2l5WaqYnrVbwWOWMyF3F47g==}

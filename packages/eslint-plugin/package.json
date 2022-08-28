@@ -7,7 +7,7 @@
     "demo": "tsx src/index.ts",
     "build": "pnpm tsc",
     "watch": "pnpm tsc --watch",
-    "test": "pnpm tsx rules.test.ts"
+    "test": "pnpm tsx src/rules/check-sql.test.ts"
   },
   "keywords": [],
   "author": "",
@@ -24,6 +24,7 @@
     "fp-ts": "2.12.1",
     "postgres": "https://github.com/porsager/postgres.git",
     "recast": "0.21.2",
+    "source-map-support": "0.5.21",
     "synckit": "0.8.1",
     "ts-pattern": "4.0.5",
     "zod": "3.17.10",

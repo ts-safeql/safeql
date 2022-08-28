@@ -1,14 +1,17 @@
 import { GenerateResult } from "@testsql/generate";
 import { GenerateError } from "@testsql/generate/src/generate";
-import { ESLintUtils, TSESLint, TSESTree } from "@typescript-eslint/utils";
+import { ESLintUtils, ParserServices, TSESLint, TSESTree } from "@typescript-eslint/utils";
 import { either, json } from "fp-ts";
 import { Either } from "fp-ts/lib/Either";
 import { flow } from "fp-ts/lib/function";
 import * as recast from "recast";
 import { AnyAsyncFn, createSyncFn } from "synckit";
+import * as ts from "typescript";
 import z from "zod";
 import { getSourceLocationFromStringPosition } from "../utils";
 import { assertNever } from "../utils/assertNever";
+import { mapTemplateLiteralToQueryText } from "../utils/postgres.utils";
+import { getBaseTypeOfLiteralType } from "../utils/ts.utils";
 
 const messages = {
   typeInferenceFailed: "Type inference failed {{error}}",
@@ -49,8 +52,24 @@ function check1(context: RuleContext, expr: TSESTree.TaggedTemplateExpression) {
     expr.parent.callee.property.type === "Identifier" &&
     ["queryOne"].includes(expr.parent.callee.property.name)
   ) {
+    const parserServices = ESLintUtils.getParserServices(context);
+    const checker = parserServices?.program?.getTypeChecker();
+
     const tagParent = expr.tag.parent;
-    const queryText = tagParent.quasi.quasis[0].value.raw;
+    const eitherQuery = mapTemplateLiteralToQueryText(tagParent.quasi, parserServices, checker);
+
+    if (either.isLeft(eitherQuery)) {
+      return context.report({
+        messageId: "invalidQuery",
+        node: eitherQuery.left.expr,
+        data: {
+          error: eitherQuery.left.error,
+        },
+      });
+    }
+
+    const queryText = eitherQuery.right;
+
     const typeResult = flow(
       () =>
         syncGenerate({

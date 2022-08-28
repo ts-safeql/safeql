@@ -1,7 +1,8 @@
 import { either } from "fp-ts";
 import postgres, { PostgresError } from "postgres";
-import { getLeftJoinTables } from "./utils/getLeftJoinTables";
+import "source-map-support/register";
 import { ColType, defaultTypeMapping } from "./utils/colTypes";
+import { getLeftJoinTables } from "./utils/getLeftJoinTables";
 import { groupBy } from "./utils/groupBy";
 
 let $pgTypesCache: postgres.RowList<PgTypeRow[]> | null = null;
@@ -68,7 +69,7 @@ export async function generate(params: {
       return either.left({
         type: "DuplicateColumns",
         columnName: `${dupes[0].table}.${dupes[0].column}`,
-        error: `duplicate columns: ${dupes.map(x => `${x.table}.${x.column}`).join(", ")}`,
+        error: `duplicate columns: ${dupes.map((x) => `${x.table}.${x.column}`).join(", ")}`,
       });
     }
 

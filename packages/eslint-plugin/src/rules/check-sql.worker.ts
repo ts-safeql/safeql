@@ -1,9 +1,9 @@
 import { generate } from "@testsql/generate";
 import { json } from "fp-ts";
-import postgres from "postgres";
+import postgres, { Sql } from "postgres";
 import { runAsWorker } from "synckit";
 
-let sql: postgres.Sql<{}> | null = null;
+let connections: Map<string, Sql<{}>> = new Map();
 
 runAsWorker(
   async (params: {
@@ -12,8 +12,10 @@ runAsWorker(
     };
     query: string;
   }) => {
-    if (sql === null) {
+    let sql = connections.get(params.ruleOptions.databaseUrl);
+    if (sql === undefined) {
       sql = postgres(params.ruleOptions.databaseUrl);
+      connections.set(params.ruleOptions.databaseUrl, sql);
     }
 
     const value = await generate({
