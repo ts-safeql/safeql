@@ -1,0 +1,40 @@
+name: CI
+
+# Controls when the workflow will run
+on:
+  pull_request:
+    branches: [master]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+       TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+       TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: pnpm/action-setup@v2.2.2
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18.x
+          cache: "pnpm"
+      - run: pnpm install
+      - run: pnpm build
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: pnpm/action-setup@v2.2.2
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18.x
+          cache: "pnpm"
+      - run: pnpm install
+      - run: pnpm test

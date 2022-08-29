@@ -1,16 +1,23 @@
 {
-    "name": "testsql",
-    "version": "1.0.0",
-    "private": true,
-    "workspaces": [
-      "packages/**"
-    ],
-    "engines": {
-      "node": "18.x"
-    },
-    "devDependencies": {
-      "prettier": "2.7.1",
-      "typescript": "4.7.4"
-    },
-    "packageManager": "pnpm@7.5.0"
-  }
+  "name": "testsql",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "dev": "turbo run dev"
+  },
+  "workspaces": [
+    "packages/**"
+  ],
+  "engines": {
+    "node": "18.x"
+  },
+  "devDependencies": {
+    "prettier": "2.7.1",
+    "turbo": "^1.4.3",
+    "typescript": "4.7.4"
+  },
+  "packageManager": "pnpm@7.9.5"
+}
