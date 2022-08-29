@@ -4,8 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "demo": "tsx index.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "demo": "tsx index.ts"
   },
   "keywords": [],
   "author": "",

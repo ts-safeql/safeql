@@ -1,8 +1,8 @@
 ## TODO
 
 ### Technical tasks
-[ ] (V1) CI - Use a monorepo tool (Consider turborepo/nx/moon.
-[ ] (V1) CI - Add CI.
+[x] (V1) CI - Use a monorepo tool (turborepo).
+[x] (V1) CI - Add CI.
 [ ] (V1) Documentation
 [ ] (V1) Tests - add lots and lots of tests.
 [ ] (V1) Bug - Don't run linter in .js files.
@@ -13,6 +13,7 @@
 [ ] (V2) Feature - Opt-in for branded types (TableId rather than number).
 [ ] (V2) Clean Code - Refactor the code for clarity and robustness.
 [ ] (V2) Config - Multi-database support.
+[ ] (V2)] CI - changesets
 
 ### Product tasks
 [ ] Think of a name for the library (SafeQL?)

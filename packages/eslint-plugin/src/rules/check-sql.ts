@@ -38,7 +38,7 @@ const workerPath = require.resolve("./check-sql.worker");
 
 const syncGenerate = createSyncFn<AnyAsyncFn<either.Either<unknown, string>>>(workerPath, {
   tsRunner: "esbuild-register",
-  timeout: 2000,
+  timeout: 1000 * 60 * 5,
 });
 
 function check1(context: RuleContext, expr: TSESTree.TaggedTemplateExpression) {

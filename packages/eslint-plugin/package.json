@@ -13,14 +13,16 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "esbuild": "0.15.5",
+    "esbuild-register": "3.3.3",
     "tsx": "3.8.0",
     "typescript": "4.7.4"
   },
   "dependencies": {
     "@testsql/generate": "workspace:1.0.0",
-    "@typescript-eslint/parser": "5.31.0",
-    "@typescript-eslint/utils": "5.31.0",
-    "eslint": "8.20.0",
+    "@typescript-eslint/parser": "5.35.1",
+    "@typescript-eslint/utils": "5.35.1",
+    "eslint": "8.23.0",
     "fp-ts": "2.12.1",
     "postgres": "https://github.com/porsager/postgres.git",
     "recast": "0.21.2",
