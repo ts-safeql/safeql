@@ -27,7 +27,7 @@ ruleTester.run("check-sql", rules["check-sql"], {
       options: options,
       code: "const a = conn.queryOne(sql`SELECT 1 as x`);",
       output: "const a = conn.queryOne<{ x: Unknown<number>; }>(sql`SELECT 1 as x`);",
-      errors: [{ messageId: "queryMissingTypeAnnotations" }],
+      errors: [{ messageId: "missingTypeAnnotations" }],
     },
     // {
     //   options: options,
