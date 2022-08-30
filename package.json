@@ -6,7 +6,10 @@
     "build": "turbo run build",
     "test": "turbo run test",
     "lint": "turbo run lint",
-    "watch": "turbo run watch --parallel"
+    "lint!": "turbo run lint!",
+    "watch": "turbo run watch --parallel",
+    "prettier": "prettier --check '**/*.ts'",
+    "prettier!": "prettier --write '**/*.ts'"
   },
   "workspaces": [
     "packages/**"

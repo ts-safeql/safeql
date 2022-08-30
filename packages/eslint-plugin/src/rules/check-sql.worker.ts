@@ -3,7 +3,7 @@ import { json } from "fp-ts";
 import postgres, { Sql } from "postgres";
 import { runAsWorker } from "synckit";
 
-let connections: Map<string, Sql<{}>> = new Map();
+const connections: Map<string, Sql<Record<string, unknown>>> = new Map();
 
 runAsWorker(
   async (params: {

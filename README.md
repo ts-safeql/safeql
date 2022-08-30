@@ -3,8 +3,7 @@
 ### Technical tasks
  - [x] (V1) CI - Use a monorepo tool (turborepo).
  - [x] (V1) CI - Add CI.
- - [ ] (V1) Bug - Don't run linter in .js files.
- - [ ] (V1) Clean Code - Add ESLint & Prettier
+ - [x] (V1) Clean Code - Add ESLint & Prettier
  - [ ] (V1) Config - "migrationsDir" (will require the user to supply  - "shadowDatabaseUrl" as well).
  - [ ] (V1) Config - connVarName and connVarProperties.
  - [ ] (V1) Tests - add lots and lots of tests.
@@ -16,6 +15,7 @@
  - [ ] (V2) Clean Code - Refactor the generate code for clarity and  - robustness.
  - [ ] (V2) Config - Multi-database support.
  - [ ] (V2)] CI - changesets
+ - [ ] (V2) Bug - Don't run linter in .js files.
 
 ### Product tasks
  - [ ] Think of a name for the library (SafeQL?)

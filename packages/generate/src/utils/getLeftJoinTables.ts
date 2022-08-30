@@ -19,7 +19,25 @@ export async function getLeftJoinTables(queryText: string): Promise<string[]> {
   return tables;
 }
 
-function recursiveGetJoinExpr(joinExpr: any, tables: string[]): string[] {
+type JoinExpression = {
+  jointype: string;
+  larg:
+    | {
+        RangeVar: {
+          relname: string;
+        };
+      }
+    | {
+        JoinExpr: JoinExpression;
+      };
+  rarg: {
+    RangeVar: {
+      relname: string;
+    };
+  };
+};
+
+function recursiveGetJoinExpr(joinExpr: JoinExpression, tables: string[]): string[] {
   const newTables =
     joinExpr.jointype === "JOIN_LEFT" ? [...tables, joinExpr.rarg.RangeVar.relname] : tables;
 

@@ -18,9 +18,9 @@ export function toPascalCase(value: string) {
     .replace(new RegExp(/\w/), (s) => s.toUpperCase());
 }
 
-export function assertDefined<T>(value: T | null | undefined, name: string): T {
+export function throwOnNullish<T>(value: T | null | undefined): T {
   if (!isDefined(value)) {
-    throw new Error(`assertDefined of ${name} failed (recieved "${value}"" instead)`);
+    throw new Error(`expected non-null, received ${value}`);
   }
 
   return value;

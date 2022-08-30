@@ -13,6 +13,9 @@
     "lint": {
       "outputs": []
     },
+    "lint!": {
+      "outputs": []
+    },
     "watch": {
       "cache": false
     }

@@ -1,12 +1,14 @@
 import assert from "assert";
 import { before, test } from "mocha";
-import postgres, { Sql } from "postgres";
-import { generate, prepareCache } from "./generate";
-import either from "./utils/either";
 import { nanoid } from "nanoid";
+import { Sql } from "postgres";
+import { generate, prepareCache } from "./generate";
 import { setupTestDatabase } from "./tests/setupTestDb";
+import either from "./utils/either";
 
-function runMigrations(sql: Sql<{}>) {
+type SQL = Sql<Record<string, unknown>>;
+
+function runMigrations(sql: SQL) {
   return sql.unsafe(`
     CREATE TABLE caregiver (
         id SERIAL PRIMARY KEY,
@@ -27,7 +29,7 @@ function runMigrations(sql: Sql<{}>) {
   `);
 }
 
-let sql!: postgres.Sql<{}>;
+let sql!: SQL;
 let dropFn!: () => Promise<number>;
 
 before(async () => {

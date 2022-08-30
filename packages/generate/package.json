@@ -7,7 +7,9 @@
     "demo": "tsx index.ts",
     "build": "pnpm tsc",
     "watch": "pnpm tsc --watch",
-    "test": "mocha -r=@esbuild-kit/cjs-loader '**/*.test.ts'"
+    "test": "mocha -r=@esbuild-kit/cjs-loader '**/*.test.ts'",
+    "lint": "pnpm eslint src",
+    "lint!": "pnpm eslint src --fix"
   },
   "keywords": [],
   "author": "",
@@ -17,6 +19,9 @@
     "@esbuild-kit/esm-loader": "2.4.0",
     "@types/mocha": "9.1.1",
     "@types/node": "18.0.1",
+    "@typescript-eslint/eslint-plugin": "5.36.1",
+    "@typescript-eslint/parser": "5.36.1",
+    "eslint": "8.23.0",
     "mocha": "10.0.0",
     "nanoid": "4.0.0",
     "ts-morph": "15.1.0",

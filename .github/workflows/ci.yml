@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  check:
     runs-on: ubuntu-latest
     env:
        TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
@@ -27,14 +27,6 @@ jobs:
           cache: "pnpm"
       - run: pnpm install
       - run: pnpm build
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: pnpm/action-setup@v2.2.2
-      - uses: actions/setup-node@v3
-        with:
-          node-version: 18.x
-          cache: "pnpm"
-      - run: pnpm install
+      - run: pnpm lint
+      - run: pnpm prettier
       - run: pnpm test
