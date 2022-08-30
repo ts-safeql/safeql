@@ -1,1 +1,1 @@
-export * from "./estree.utils";
+export * as ESTreeUtils from "./estree.utils";

@@ -12,10 +12,12 @@ let $pgColsByTableOidCache: Map<number, PgColRow[]> | null = null;
 type JSToPostgresTypeMap = Record<string, unknown>;
 type Sql = postgres.Sql<JSToPostgresTypeMap>;
 
-export type GenerateResult = { result: string | null; stmt: postgres.Statement };
+export type GenerateResult = { result: string | null; stmt: postgres.Statement; query: string };
 export type GenerateError =
-  | { type: "DuplicateColumns"; error: string; columnName: string }
-  | { type: "PostgresError"; error: string; line: string; position: string };
+  | { type: "DuplicateColumns"; error: string; columnName: string; query: string }
+  | { type: "PostgresError"; error: string; line: string; position: string; query: string };
+
+export type GenerateErrorOf<T extends GenerateError["type"]> = Extract<GenerateError, { type: T }>;
 
 export async function prepareCache(sql: Sql) {
   $pgTypesCache = $pgTypesCache === null ? await getPgTypes(sql) : $pgTypesCache;
@@ -46,7 +48,7 @@ export async function generate(params: {
     const result = await sql.unsafe(query, [], { prepare: true }).describe();
 
     if (result.columns === undefined || result.columns === null || result.columns.length === 0) {
-      return either.right({ result: null, stmt: result });
+      return either.right({ result: null, stmt: result, query: query });
     }
 
     const colByTableOid = $pgColsByTableOidCache;
@@ -68,6 +70,7 @@ export async function generate(params: {
 
       return either.left({
         type: "DuplicateColumns",
+        query: query,
         columnName: `${dupes[0].table}.${dupes[0].column}`,
         error: `duplicate columns: ${dupes.map((x) => `${x.table}.${x.column}`).join(", ")}`,
       });
@@ -81,11 +84,13 @@ export async function generate(params: {
     return either.right({
       result: mapColumnAnalysisResultsToTypeLiteral({ columns, pgTypes, leftTables }),
       stmt: result,
+      query: query,
     });
   } catch (e) {
     if (e instanceof PostgresError) {
       return either.left({
         type: "PostgresError",
+        query: query,
         error: e.message,
         line: e.line,
         position: e.position,

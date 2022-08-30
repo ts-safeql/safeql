@@ -23,7 +23,11 @@ function findByUserFirstName(db: Db, firstName: string) {
   const sql = postgres();
 
   db.queryOne<{ id: number; }>(sql`
-        SELECT id
+    SELECT id FROM caregiver WHERE "firstName" = ${firstName}
+  `);
+
+  db.queryOne<{ id: number; firstName: string; }>(sql`
+        SELECT id, "firstName"
         FROM caregiver
         WHERE
             "firstName" = ${firstName}
@@ -31,10 +35,10 @@ function findByUserFirstName(db: Db, firstName: string) {
 }
 
 function findUserByLastName(db: Db, lastName: string) {
-    const sql = postgres();
-    const id = 200;
+  const sql = postgres();
+  const id = 200;
 
-    const result = db.queryOne<{ id: number; assoc_id: number; firstName: string; }>(sql`
+  const result = db.queryOne<{ id: number; assoc_id: number; firstName: string }>(sql`
         SELECT
             caregiver.id,
             caregiver_agency_assoc.id as assoc_id,
@@ -42,7 +46,7 @@ function findUserByLastName(db: Db, lastName: string) {
         FROM caregiver
             JOIN caregiver_agency_assoc ON caregiver.id = caregiver_agency_assoc.caregiver
         WHERE "lastName" = ${lastName} AND caregiver.id > ${id}
-    `)
+    `);
 }
 
 async function main() {

@@ -1,4 +1,4 @@
-import checkSql from "./check-sql";
+import checkSql from "./check-sql.rule";
 
 export default {
   "check-sql": checkSql,

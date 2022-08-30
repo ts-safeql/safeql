@@ -3,15 +3,17 @@
 ### Technical tasks
 [x] (V1) CI - Use a monorepo tool (turborepo).
 [x] (V1) CI - Add CI.
-[ ] (V1) Documentation
-[ ] (V1) Tests - add lots and lots of tests.
 [ ] (V1) Bug - Don't run linter in .js files.
-[ ] (V1) Bug - Allow passing null inside a query
+[ ] (V1) Clean Code - Add ESLint & Prettier
 [ ] (V1) Config - "migrationsDir" (will require the user to supply "shadowDatabaseUrl" as well).
 [ ] (V1) Config - connVarName and connVarProperties.
-[ ] (V1) Clean Code - Add ESLint & Prettier
+[ ] (V1) Tests - add lots and lots of tests.
+[ ] (V1) Documentation
+[ ] (V1) CI - Make tests pass.
+
 [ ] (V2) Feature - Opt-in for branded types (TableId rather than number).
-[ ] (V2) Clean Code - Refactor the code for clarity and robustness.
+[x] (V2) Clean Code - Refactor the rule code for clarity and robustness.
+[ ] (V2) Clean Code - Refactor the generate code for clarity and robustness.
 [ ] (V2) Config - Multi-database support.
 [ ] (V2)] CI - changesets
 

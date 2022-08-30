@@ -27,7 +27,7 @@ export function mapTemplateLiteralToQueryText(
     if (either.isLeft(pgType)) {
       return either.left({
         error: pgType.left,
-        expr: quasi.expressions[$idx],
+        node: quasi.expressions[$idx],
       });
     }
 
