@@ -1,9 +1,6 @@
 {
   "$schema": "https://turborepo.org/schema.json",
   "pipeline": {
-    "watch": {
-        "dependsOn": ["tsc --watch"]
-    },
     "build": {
       "dependsOn": ["^build"],
       "outputs": ["lib/**"]
@@ -15,6 +12,9 @@
     },
     "lint": {
       "outputs": []
+    },
+    "watch": {
+      "cache": false
     }
   }
 }

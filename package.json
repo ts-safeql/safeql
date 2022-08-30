@@ -6,7 +6,7 @@
     "build": "turbo run build",
     "test": "turbo run test",
     "lint": "turbo run lint",
-    "dev": "turbo run dev"
+    "watch": "turbo run watch --parallel"
   },
   "workspaces": [
     "packages/**"
