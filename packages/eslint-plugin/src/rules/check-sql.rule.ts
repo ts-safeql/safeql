@@ -16,28 +16,42 @@ import { mapTemplateLiteralToQueryText } from "../utils/ts-pg.utils";
 const messages = {
   typeInferenceFailed: "Type inference failed {{error}}",
   invalidQuery: "Error: {{error}}",
+  invalidMigration: "Error: {{error}}",
   missingTypeAnnotations: "Missing type annotations",
   incorrectTypeAnnotations: "Incorrect type annotations",
 };
 
+const baseConnectionSchema = z.object({
+  name: z.string(),
+  operators: z.array(z.string()),
+});
+
+const connectionByMigrationSchema = baseConnectionSchema.merge(
+  z.object({
+    migrationsDir: z.string(),
+    connectionUrl: z.string().optional(),
+    databaseName: z.string(),
+  })
+);
+
+const connectionByDatabaseUrl = baseConnectionSchema.merge(
+  z.object({
+    databaseUrl: z.string(),
+  })
+);
+
 const ruleOptionsSchema = z
   .array(
-    z.union([
-      z.object({
-        databaseUrl: z.string(),
-      }),
-      z.object({
-        migrationsDir: z.string(),
-        connectionUrl: z.string().optional(),
-        databaseName: z.string(),
-      }),
-    ])
+    z.object({
+      connections: z.array(z.union([connectionByDatabaseUrl, connectionByMigrationSchema])),
+    })
   )
   .min(1)
   .max(1);
 
 type MessageIds = keyof typeof messages;
 export type RuleOptions = z.infer<typeof ruleOptionsSchema>;
+export type RuleOptionConnection = RuleOptions[0]["connections"][number];
 type RuleContext = Readonly<TSESLint.RuleContext<MessageIds, RuleOptions>>;
 
 const workerPath = require.resolve("./check-sql.worker");
@@ -47,13 +61,31 @@ const generateSync = createSyncFn<AnyAsyncFn<either.Either<unknown, string>>>(wo
   timeout: 1000 * 60 * 5,
 });
 
-function check1(context: RuleContext, expr: TSESTree.TaggedTemplateExpression, projectDir: string) {
+function check(params: {
+  context: RuleContext;
+  expr: TSESTree.TaggedTemplateExpression;
+  projectDir: string;
+}) {
+  for (const connection of params.context.options[0].connections) {
+    checkByConnection({ ...params, connection });
+  }
+}
+
+function checkByConnection(params: {
+  context: RuleContext;
+  connection: RuleOptionConnection;
+  expr: TSESTree.TaggedTemplateExpression;
+  projectDir: string;
+}) {
+  const { context, expr, projectDir, connection } = params;
   if (
     !ESTreeUtils.isIdentifier(expr.tag) ||
     !ESTreeUtils.isCallExpression(expr.parent) ||
     !ESTreeUtils.isMemberExpression(expr.parent.callee) ||
+    !ESTreeUtils.isIdentifier(expr.parent.callee.object) ||
+    !ESTreeUtils.isEqual(expr.parent.callee.object.name, connection.name) ||
     !ESTreeUtils.isIdentifier(expr.parent.callee.property) ||
-    !ESTreeUtils.isOneOf(expr.parent.callee.property.name, ["queryOne"])
+    !ESTreeUtils.isOneOf(expr.parent.callee.property.name, connection.operators)
   ) {
     return;
   }
@@ -62,7 +94,6 @@ function check1(context: RuleContext, expr: TSESTree.TaggedTemplateExpression, p
   const sqlOperator = expr.parent.callee;
   const sqlOperatorName = expr.parent.callee.property;
   const sqlOperatorType = expr.parent.typeParameters;
-  const ruleOptions = context.options;
 
   const parserServices = ESLintUtils.getParserServices(context);
   const checker = parserServices?.program?.getTypeChecker();
@@ -70,15 +101,19 @@ function check1(context: RuleContext, expr: TSESTree.TaggedTemplateExpression, p
   const run = flow(
     () => mapTemplateLiteralToQueryText(sqlExpression.quasi, parserServices, checker),
     either.mapLeft(reportInvalidQuery),
-    either.chain((query) => generateSync({ query, ruleOptions, projectDir })),
+    either.chain((query) => {
+      return generateSync({ query, connection, projectDir });
+    }),
     either.chain((stringified) => json.parse(stringified)),
     either.chain((parsed) => parsed as unknown as Either<unknown, GenerateResult>),
     either.fold(
-      (error) =>
-        match(error as GenerateError)
+      (error) => {
+        return match(error as GenerateError)
           .with({ type: "DuplicateColumns" }, reportDuplicateColumns)
           .with({ type: "PostgresError" }, reportPostgresError)
-          .exhaustive(),
+          .with({ type: "MigrationError" }, reportMigrationError)
+          .exhaustive();
+      },
       (result) => {
         const isMissingTypeAnnotations = sqlOperatorType === undefined;
 
@@ -127,6 +162,15 @@ function check1(context: RuleContext, expr: TSESTree.TaggedTemplateExpression, p
         position: parseInt(error.position, 10),
         value: error.query,
       }),
+      data: {
+        error: error.error,
+      },
+    });
+  }
+  function reportMigrationError(error: GenerateErrorOf<"MigrationError">) {
+    return context.report({
+      node: sqlExpression,
+      messageId: "invalidQuery",
       data: {
         error: error.error,
       },
@@ -208,7 +252,7 @@ export default createRule({
 
     return {
       TaggedTemplateExpression(expr) {
-        check1(context, expr, projectDir);
+        check({ context, expr, projectDir });
       },
     };
   },

@@ -5,7 +5,8 @@
  - [x] (V1) CI - Add CI.
  - [x] (V1) Clean Code - Add ESLint & Prettier
  - [x] (V1) Config - "migrationsDir" (will require the user to supply  - "shadowDatabaseName" as well).
- - [ ] (V1) Config - connVarName and connVarProperties.
+ - [x] (V1) Feature - Monorepo support in mind
+ - [x] (V1) Config - multiple connections support
  - [ ] (V1) Tests - add lots and lots of tests.
  - [ ] (V1) Example
     - [ ] Prisma

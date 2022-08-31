@@ -1,0 +1,18 @@
+CREATE TABLE users (
+  id INTEGER PRIMARY KEY,
+  name VARCHAR(255),
+  email VARCHAR(255)
+);
+
+CREATE TABLE chat_rooms (
+  id INTEGER PRIMARY KEY,
+  name VARCHAR(255)
+);
+
+CREATE TABLE messages (
+  id INTEGER PRIMARY KEY,
+  chat_room_id INTEGER,
+  user_id INTEGER,
+  message TEXT,
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);

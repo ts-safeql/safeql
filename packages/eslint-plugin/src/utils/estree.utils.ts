@@ -58,3 +58,7 @@ export function isMemberExpression(node?: TSESTree.Node): node is TSESTree.Membe
 export function isOneOf<T extends PropertyKey>(value: unknown, options: T[]): value is T {
   return options.includes(value as T);
 }
+
+export function isEqual<T extends PropertyKey>(value: unknown, expected: T): value is T {
+  return value === expected;
+}

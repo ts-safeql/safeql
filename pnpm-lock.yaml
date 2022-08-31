@@ -50,6 +50,25 @@ importers:
       eslint: 8.23.0
       typescript: 4.8.2
 
+  demos/multi-connections:
+    specifiers:
+      '@safeql-demos/shared': workspace:1.0.0
+      '@safeql/eslint-plugin': workspace:1.0.0
+      '@typescript-eslint/eslint-plugin': ^5.36.1
+      '@typescript-eslint/parser': ^5.36.1
+      eslint: ^8.23.0
+      postgres: github:porsager/postgres
+      typescript: 4.8.2
+    dependencies:
+      '@safeql-demos/shared': link:../shared
+      '@safeql/eslint-plugin': link:../../packages/eslint-plugin
+      postgres: github.com/porsager/postgres/65dcf0df5c8d3ab37735a16c2e967c7ef7bf6cf6
+    devDependencies:
+      '@typescript-eslint/eslint-plugin': 5.36.1_lbwfnm54o3pmr3ypeqp3btnera
+      '@typescript-eslint/parser': 5.36.1_yqf6kl63nyoq5megxukfnom5rm
+      eslint: 8.23.0
+      typescript: 4.8.2
+
   demos/shared:
     specifiers:
       postgres: github:porsager/postgres

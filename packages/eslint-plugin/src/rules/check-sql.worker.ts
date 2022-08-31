@@ -1,19 +1,21 @@
 import { generate } from "@testsql/generate";
-import { json } from "fp-ts";
+import { GenerateError } from "@testsql/generate/src/generate";
+import { either, json, taskEither } from "fp-ts";
+import { pipe } from "fp-ts/lib/function";
 import fs from "node:fs";
 import path from "node:path";
 import postgres, { Sql } from "postgres";
 import { runAsWorker } from "synckit";
 import { match } from "ts-pattern";
 import { initDatabase, mapConnectionOptionsToString, parseConnection } from "../utils/pg.utils";
-import { RuleOptions } from "./check-sql.rule";
+import { RuleOptionConnection } from "./check-sql.rule";
 
 type SQL = Sql<Record<string, unknown>>;
 
 const connections: Map<string, SQL> = new Map();
 
 interface WorkerParams {
-  ruleOptions: RuleOptions;
+  connection: RuleOptionConnection;
   query: string;
   projectDir: string;
 }
@@ -32,10 +34,13 @@ function findOrCreateConnection(databaseUrl: string) {
 }
 
 runAsWorker(async (params: WorkerParams) => {
-  const strategy = mapRuleOptionsToStartegy(params.ruleOptions);
+  const strategy = mapRuleOptionsToStartegy(params.connection);
 
-  const { sql, databaseUrl } = await match(strategy)
-    .with({ type: "databaseUrl" }, async ({ databaseUrl }) => findOrCreateConnection(databaseUrl))
+  // TODO chain all of the flow into one pipe
+  const result = await match(strategy)
+    .with({ type: "databaseUrl" }, async ({ databaseUrl }) =>
+      either.right(findOrCreateConnection(databaseUrl))
+    )
     .with({ type: "migrations" }, async ({ migrationsDir, databaseName, connectionUrl }) => {
       const connectionOptions = { ...parseConnection(connectionUrl), database: databaseName };
       const databaseUrl = mapConnectionOptionsToString(connectionOptions);
@@ -43,13 +48,28 @@ runAsWorker(async (params: WorkerParams) => {
 
       if (isFirst) {
         await initDatabase(connectionOptions);
-        const absoluteMigrationsDir = path.join(params.projectDir, migrationsDir);
-        await runMigrations({ migrationsDir: absoluteMigrationsDir, sql });
+        const migrationsPath = path.join(params.projectDir, migrationsDir);
+        const migrationResult = await runMigrations({ migrationsPath, sql });
+
+        if (either.isLeft(migrationResult)) {
+          return migrationResult;
+        }
       }
 
-      return { sql, isFirst, databaseUrl };
+      return either.right({ sql, isFirst, databaseUrl });
     })
     .exhaustive();
+
+  if (either.isLeft(result)) {
+    return json.stringify(
+      either.left({
+        type: "MigrationError",
+        error: result.left.message,
+      } as GenerateError)
+    );
+  }
+
+  const { databaseUrl, sql } = result.right;
 
   const value = await generate({
     query: params.query,
@@ -60,20 +80,37 @@ runAsWorker(async (params: WorkerParams) => {
   return json.stringify(value);
 });
 
-async function runMigrations(params: { migrationsDir: string; sql: SQL }) {
-  const migrationFiles = await fs.promises
-    .readdir(params.migrationsDir)
-    .then((files) => files.filter((file) => file.endsWith(".sql")));
+async function runMigrations(params: { migrationsPath: string; sql: SQL }) {
+  const runSingleMigrationFileWithSql = (file: string) =>
+    runSingleMigrationFile(params.sql, path.join(params.migrationsPath, file));
 
-  for (const [i, fileName] of migrationFiles.entries()) {
-    const migrationQuery = await fs.promises
-      .readFile(path.join(params.migrationsDir, fileName))
-      .then((x) => x.toString());
+  return pipe(
+    getMigrationFiles(params.migrationsPath),
+    taskEither.chain((files) =>
+      taskEither.sequenceSeqArray(files.map(runSingleMigrationFileWithSql))
+    )
+  )();
+}
 
-    console.log(`(${i + 1}/${migrationFiles.length}) Running ${fileName}`);
+function getMigrationFiles(migrationsDir: string) {
+  return pipe(
+    taskEither.tryCatch(() => fs.promises.readdir(migrationsDir), either.toError),
+    taskEither.mapLeft(
+      (error) => new Error(`Failed to read migrations directory "${migrationsDir}": ${error}`)
+    ),
+    taskEither.map((files) => files.filter((file) => file.endsWith(".sql")))
+  );
+}
 
-    await params.sql.unsafe(migrationQuery);
-  }
+function runSingleMigrationFile(sql: SQL, filePath: string) {
+  return pipe(
+    taskEither.tryCatch(
+      () => fs.promises.readFile(filePath).then((x) => x.toString()),
+      either.toError
+    ),
+    taskEither.chain((content) => taskEither.tryCatch(() => sql.unsafe(content), either.toError)),
+    taskEither.mapLeft((error) => new Error(`Failed to run migration file "${filePath}": ${error}`))
+  );
 }
 
 type Strategy =
@@ -88,18 +125,16 @@ type Strategy =
       databaseName: string;
     };
 
-function mapRuleOptionsToStartegy(ruleOptions: RuleOptions): Strategy {
-  const options = ruleOptions[0];
-
-  if ("databaseUrl" in options) {
-    return { type: "databaseUrl", ...options };
+function mapRuleOptionsToStartegy(connection: RuleOptionConnection): Strategy {
+  if ("databaseUrl" in connection) {
+    return { type: "databaseUrl", ...connection };
   }
 
-  if ("migrationsDir" in options) {
+  if ("migrationsDir" in connection) {
     const DEFAULT_CONNECTION_URL = "postgres://postgres:postgres@localhost:5432/postgres";
 
-    return { type: "migrations", connectionUrl: DEFAULT_CONNECTION_URL, ...options };
+    return { type: "migrations", connectionUrl: DEFAULT_CONNECTION_URL, ...connection };
   }
 
-  return match(options).exhaustive();
+  return match(connection).exhaustive();
 }

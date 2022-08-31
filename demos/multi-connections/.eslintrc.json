@@ -10,9 +10,15 @@
       {
         "connections": [
           {
-            "migrationsDir": "migrations",
-            "databaseName": "safeql_shadow_basic_migrations_raw",
-            "name": "client",
+            "migrationsDir": "migrations_client1",
+            "databaseName": "safeql_shadow_client1",
+            "name": "client1",
+            "operators": ["query", "queryOne", "queryOneOrNone"]
+          },
+          {
+            "migrationsDir": "migrations_client2",
+            "databaseName": "safeql_shadow_client2",
+            "name": "client2",
             "operators": ["query", "queryOne", "queryOneOrNone"]
           }
         ]

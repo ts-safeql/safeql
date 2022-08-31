@@ -1,6 +1,7 @@
 import { ESLintUtils } from "@typescript-eslint/utils";
 import path from "node:path";
 import rules from ".";
+import { RuleOptions } from "./check-sql.rule";
 
 const tsconfigRootDir = path.resolve(__dirname, "../../");
 const project = "tsconfig.json";
@@ -11,7 +12,17 @@ const ruleTester = new ESLintUtils.RuleTester({
   parserOptions: { project, tsconfigRootDir },
 });
 
-const options = [{ databaseUrl: "postgres://postgres:postgres@localhost:5432/medflyt_test_sim" }];
+const options: RuleOptions = [
+  {
+    connections: [
+      {
+        databaseUrl: "postgres://postgres:postgres@localhost:5432/medflyt_test_sim",
+        name: "conn",
+        operators: ["query", "queryOne"]
+      },
+    ],
+  },
+];
 
 ruleTester.run("check-sql", rules["check-sql"], {
   valid: [

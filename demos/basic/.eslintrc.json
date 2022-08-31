@@ -8,7 +8,13 @@
     "@safeql/check-sql": [
       "error",
       {
-        "databaseUrl": "postgres://postgres:postgres@localhost:5432/medflyt_test_sim"
+        "connections": [
+          {
+            "databaseUrl": "postgres://postgres:postgres@localhost:5432/medflyt_test_sim",
+            "name": "client",
+            "operators": ["query", "queryOne", "queryOneOrNone"]
+          }
+        ]
       }
     ]
   }

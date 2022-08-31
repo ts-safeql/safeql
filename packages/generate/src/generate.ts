@@ -22,7 +22,8 @@ type Sql = postgres.Sql<JSToPostgresTypeMap>;
 export type GenerateResult = { result: string | null; stmt: postgres.Statement; query: string };
 export type GenerateError =
   | { type: "DuplicateColumns"; error: string; columnName: string; query: string }
-  | { type: "PostgresError"; error: string; line: string; position: string; query: string };
+  | { type: "PostgresError"; error: string; line: string; position: string; query: string }
+  | { type: "MigrationError"; error: string };
 
 export type GenerateErrorOf<T extends GenerateError["type"]> = Extract<GenerateError, { type: T }>;
 
