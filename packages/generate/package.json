@@ -5,11 +5,11 @@
   "main": "lib/index.js",
   "scripts": {
     "demo": "tsx index.ts",
-    "build": "pnpm tsc",
-    "watch": "pnpm tsc --watch",
+    "build": "tsc",
+    "watch": "tsc --watch",
     "test": "mocha -r=@esbuild-kit/cjs-loader '**/*.test.ts'",
-    "lint": "pnpm eslint src",
-    "lint!": "pnpm eslint src --fix"
+    "lint": "eslint src",
+    "lint!": "eslint src --fix"
   },
   "keywords": [],
   "author": "",

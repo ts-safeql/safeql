@@ -8,8 +8,10 @@ import * as recast from "recast";
 import { AnyAsyncFn, createSyncFn } from "synckit";
 import { match } from "ts-pattern";
 import z from "zod";
+import zodToJsonSchema from "zod-to-json-schema";
 import { ESTreeUtils } from "../utils";
-import { mapTemplateLiteralToQueryText } from "../utils/postgres.utils";
+import { locateNearestPackageJsonDir } from "../utils/node.utils";
+import { mapTemplateLiteralToQueryText } from "../utils/ts-pg.utils";
 
 const messages = {
   typeInferenceFailed: "Type inference failed {{error}}",
@@ -20,15 +22,22 @@ const messages = {
 
 const ruleOptionsSchema = z
   .array(
-    z.object({
-      databaseUrl: z.string(),
-    })
+    z.union([
+      z.object({
+        databaseUrl: z.string(),
+      }),
+      z.object({
+        migrationsDir: z.string(),
+        connectionUrl: z.string().optional(),
+        databaseName: z.string(),
+      }),
+    ])
   )
   .min(1)
   .max(1);
 
 type MessageIds = keyof typeof messages;
-type RuleOptions = z.infer<typeof ruleOptionsSchema>;
+export type RuleOptions = z.infer<typeof ruleOptionsSchema>;
 type RuleContext = Readonly<TSESLint.RuleContext<MessageIds, RuleOptions>>;
 
 const workerPath = require.resolve("./check-sql.worker");
@@ -49,11 +58,13 @@ function check1(context: RuleContext, expr: TSESTree.TaggedTemplateExpression) {
     return;
   }
 
+  const projectDir = locateNearestPackageJsonDir(context.getFilename());
+
   const sqlExpression = expr;
   const sqlOperator = expr.parent.callee;
   const sqlOperatorName = expr.parent.callee.property;
   const sqlOperatorType = expr.parent.typeParameters;
-  const ruleOptions = context.options[0];
+  const ruleOptions = context.options;
 
   const parserServices = ESLintUtils.getParserServices(context);
   const checker = parserServices?.program?.getTypeChecker();
@@ -61,7 +72,7 @@ function check1(context: RuleContext, expr: TSESTree.TaggedTemplateExpression) {
   const run = flow(
     () => mapTemplateLiteralToQueryText(sqlExpression.quasi, parserServices, checker),
     either.mapLeft(reportInvalidQuery),
-    either.chain((query) => generateSync({ query, ruleOptions })),
+    either.chain((query) => generateSync({ query, ruleOptions, projectDir })),
     either.chain((stringified) => json.parse(stringified)),
     either.chain((parsed) => parsed as unknown as Either<unknown, GenerateResult>),
     either.fold(
@@ -191,17 +202,7 @@ export default createRule({
     },
     messages: messages,
     type: "problem",
-    schema: {
-      type: "array",
-      items: {
-        type: "object",
-        properties: { databaseUrl: { type: "string" } },
-        required: ["databaseUrl"],
-        additionalProperties: false,
-      },
-      minItems: 1,
-      maxItems: 1,
-    },
+    schema: zodToJsonSchema(ruleOptionsSchema, { target: "openApi3" }),
   },
   defaultOptions: [],
   create(context) {

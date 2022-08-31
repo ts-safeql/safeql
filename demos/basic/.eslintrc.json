@@ -1,12 +1,15 @@
 {
   "parser": "@typescript-eslint/parser",
-  "plugins": ["@typescript-eslint", "@testsql/eslint-plugin"],
+  "plugins": ["@typescript-eslint", "@safeql/eslint-plugin"],
   "parserOptions": {
     "project": "./tsconfig.json"
   },
   "rules": {
-    "@testsql/check-sql": ["error", {
+    "@safeql/check-sql": [
+      "error",
+      {
         "databaseUrl": "postgres://postgres:postgres@localhost:5432/medflyt_test_sim"
-    }]
+      }
+    ]
   }
 }

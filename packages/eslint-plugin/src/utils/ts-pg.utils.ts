@@ -1,8 +1,8 @@
 import { ParserServices, TSESTree } from "@typescript-eslint/utils";
 import { either } from "fp-ts";
 import * as ts from "typescript";
-import { assertNever } from "../utils/assertNever";
-import { getBaseTypeOfLiteralType } from "../utils/ts.utils";
+import { assertNever } from "./assertNever";
+import { getBaseTypeOfLiteralType } from "./ts.utils";
 
 export function mapTemplateLiteralToQueryText(
   quasi: TSESTree.TemplateLiteral,

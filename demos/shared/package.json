@@ -1,0 +1,10 @@
+{
+  "name": "@safeql-demos/shared",
+  "version": "1.0.0",
+  "devDependencies": {
+    "typescript": "4.7.4"
+  },
+  "dependencies": {
+    "postgres": "https://github.com/porsager/postgres.git"
+  }
+}
