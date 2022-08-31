@@ -21,7 +21,7 @@
     "esbuild-register": "3.3.3",
     "eslint": "8.23.0",
     "tsx": "3.8.0",
-    "typescript": "4.7.4"
+    "typescript": "4.8.2"
   },
   "dependencies": {
     "@testsql/generate": "workspace:1.0.0",
@@ -29,7 +29,7 @@
     "fp-ts": "2.12.1",
     "nanoid": "4.0.0",
     "pg-connection-string": "2.5.0",
-    "postgres": "https://github.com/porsager/postgres.git",
+    "postgres": "github:porsager/postgres",
     "recast": "0.21.2",
     "source-map-support": "0.5.21",
     "synckit": "0.8.1",

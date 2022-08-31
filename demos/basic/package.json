@@ -8,14 +8,14 @@
     "lint!": "eslint src --fix"
   },
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^5.31.0",
-    "@typescript-eslint/parser": "^5.31.0",
-    "eslint": "^8.20.0",
-    "typescript": "4.7.4"
+    "@typescript-eslint/eslint-plugin": "^5.36.1",
+    "@typescript-eslint/parser": "^5.36.1",
+    "eslint": "^8.23.0",
+    "typescript": "4.8.2"
   },
   "dependencies": {
-    "@safeql/eslint-plugin": "workspace:*",
-    "@safeql-demos/shared": "workspace:*",
-    "postgres": "https://github.com/porsager/postgres.git"
+    "@safeql-demos/shared": "workspace:1.0.0",
+    "@safeql/eslint-plugin": "workspace:1.0.0",
+    "postgres": "github:porsager/postgres"
   }
 }
