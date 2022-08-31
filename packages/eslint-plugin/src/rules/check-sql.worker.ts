@@ -28,20 +28,18 @@ function findOrCreateConnection(databaseUrl: string) {
     isFirst = true;
   }
 
-  return { sql, isFirst };
+  return { sql, isFirst, databaseUrl };
 }
 
 runAsWorker(async (params: WorkerParams) => {
   const strategy = mapRuleOptionsToStartegy(params.ruleOptions);
 
-  const { sql } = await match(strategy)
+  const { sql, databaseUrl } = await match(strategy)
     .with({ type: "databaseUrl" }, async ({ databaseUrl }) => findOrCreateConnection(databaseUrl))
     .with({ type: "migrations" }, async ({ migrationsDir, databaseName, connectionUrl }) => {
       const connectionOptions = { ...parseConnection(connectionUrl), database: databaseName };
-
-      const { sql, isFirst } = findOrCreateConnection(
-        mapConnectionOptionsToString(connectionOptions)
-      );
+      const databaseUrl = mapConnectionOptionsToString(connectionOptions);
+      const { sql, isFirst } = findOrCreateConnection(databaseUrl);
 
       if (isFirst) {
         await initDatabase(connectionOptions);
@@ -49,13 +47,14 @@ runAsWorker(async (params: WorkerParams) => {
         await runMigrations({ migrationsDir: absoluteMigrationsDir, sql });
       }
 
-      return { sql, isFirst };
+      return { sql, isFirst, databaseUrl };
     })
     .exhaustive();
 
   const value = await generate({
     query: params.query,
     sql: sql,
+    cacheKey: databaseUrl,
   });
 
   return json.stringify(value);

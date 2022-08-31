@@ -5,9 +5,16 @@ import { ColType, defaultTypeMapping } from "./utils/colTypes";
 import { getLeftJoinTables } from "./utils/getLeftJoinTables";
 import { groupBy } from "./utils/groupBy";
 
-let $pgTypesCache: postgres.RowList<PgTypeRow[]> | null = null;
-let $pgColsCache: PgColRow[] | null = null;
-let $pgColsByTableOidCache: Map<number, PgColRow[]> | null = null;
+type CacheKey = string;
+
+const $cacheMap: Map<
+  CacheKey,
+  {
+    pgTypes: postgres.RowList<PgTypeRow[]>;
+    pgCols: PgColRow[];
+    pgColsByTableOidCache: Map<number, PgColRow[]>;
+  }
+> = new Map();
 
 type JSToPostgresTypeMap = Record<string, unknown>;
 type Sql = postgres.Sql<JSToPostgresTypeMap>;
@@ -19,30 +26,39 @@ export type GenerateError =
 
 export type GenerateErrorOf<T extends GenerateError["type"]> = Extract<GenerateError, { type: T }>;
 
-export async function prepareCache(sql: Sql) {
-  $pgTypesCache = $pgTypesCache === null ? await getPgTypes(sql) : $pgTypesCache;
-  $pgColsCache = $pgColsCache === null ? await getPgCols(sql) : $pgColsCache;
-  $pgColsByTableOidCache =
-    $pgColsByTableOidCache === null ? groupBy($pgColsCache, "tableOid") : $pgColsByTableOidCache;
+async function getDatabaseMetadata(sql: Sql) {
+  const pgTypes = await getPgTypes(sql);
+  const pgCols = await getPgCols(sql);
+  const pgColsByTableOidCache = groupBy(pgCols, "tableOid");
+
+  return { pgTypes, pgCols, pgColsByTableOidCache };
+}
+
+export async function getMetadataFromCacheOrFetch(sql: Sql, cacheKey: CacheKey) {
+  const cache = $cacheMap.get(cacheKey);
+
+  if (cache !== undefined) {
+    return cache;
+  }
+
+  const cacheValue = await getDatabaseMetadata(sql);
+
+  $cacheMap.set(cacheKey, cacheValue);
+
+  return cacheValue;
 }
 
 export async function generate(params: {
   sql: Sql;
   query: string;
-  skipCache?: boolean;
+  cacheMetadata?: boolean;
+  cacheKey: string;
 }): Promise<either.Either<GenerateError, GenerateResult>> {
-  const { sql, query, skipCache = false } = params;
+  const { sql, query, cacheMetadata = true } = params;
 
-  if (skipCache) {
-    $pgTypesCache = await getPgTypes(sql);
-    $pgColsCache = await getPgCols(sql);
-    $pgColsByTableOidCache = groupBy($pgColsCache, "tableOid");
-  } else {
-    await prepareCache(sql);
-    $pgTypesCache = $pgTypesCache as NonNullable<typeof $pgTypesCache>;
-    $pgColsCache = $pgColsCache as NonNullable<typeof $pgColsCache>;
-    $pgColsByTableOidCache = $pgColsByTableOidCache as NonNullable<typeof $pgColsByTableOidCache>;
-  }
+  const { pgCols, pgColsByTableOidCache, pgTypes } = cacheMetadata
+    ? await getMetadataFromCacheOrFetch(sql, params.cacheKey)
+    : await getDatabaseMetadata(sql);
 
   try {
     const result = await sql.unsafe(query, [], { prepare: true }).describe();
@@ -51,11 +67,8 @@ export async function generate(params: {
       return either.right({ result: null, stmt: result, query: query });
     }
 
-    const colByTableOid = $pgColsByTableOidCache;
-    const colsCache = $pgColsCache;
-    const pgTypes = $pgTypesCache;
     const leftTables = (await getLeftJoinTables(query)).map(
-      (tableName) => colsCache.find((col) => col.tableName === tableName)!.tableOid
+      (tableName) => pgCols.find((col) => col.tableName === tableName)!.tableOid
     );
 
     const duplicateCols = result.columns.filter((col, index) =>
@@ -64,7 +77,7 @@ export async function generate(params: {
 
     if (duplicateCols.length > 0) {
       const dupes = duplicateCols.map((col) => ({
-        table: colByTableOid.get(col.table)!.find((c) => c.colName === col.name)!.tableName,
+        table: pgColsByTableOidCache.get(col.table)!.find((c) => c.colName === col.name)!.tableName,
         column: col.name,
       }));
 
@@ -77,7 +90,9 @@ export async function generate(params: {
     }
 
     const columns = result.columns.map((col): ColumnAnalysisResult => {
-      const introspected = colByTableOid.get(col.table)?.find((x) => x.colNum === col.number);
+      const introspected = pgColsByTableOidCache
+        .get(col.table)
+        ?.find((x) => x.colNum === col.number);
       return introspected === undefined ? { described: col } : { described: col, introspected };
     });
 

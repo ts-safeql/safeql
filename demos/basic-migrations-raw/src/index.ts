@@ -1,17 +1,10 @@
+import { Db, Nullable } from "@safeql-demos/shared/client";
 import postgres from "postgres";
-import { Db } from "@safeql-demos/shared/client";
 
-export function check(client: Db, firstName: string) {
+export function check(client: Db) {
   const sql = postgres();
 
-  client.queryOne<{ id: number }>(sql` 
-    SELECT id FROM comments WHERE "firstName" = ${firstName}
+  client.queryOne<{ id: number; post_id: Nullable<number>; body: Nullable<string> }>(sql`
+    SELECT * FROM comments
   `);
-
-  client.queryOne<{ id: number; firstName: string }>(sql`
-        SELECT id, "firstName"
-        FROM caregiver
-        WHERE
-            "firstName" = ${firstName}
-    `);
 }

@@ -2,7 +2,7 @@ import assert from "assert";
 import { before, test } from "mocha";
 import { nanoid } from "nanoid";
 import { Sql } from "postgres";
-import { generate, prepareCache } from "./generate";
+import { generate, getMetadataFromCacheOrFetch } from "./generate";
 import { setupTestDatabase } from "./tests/setupTestDb";
 import either from "./utils/either";
 
@@ -43,7 +43,7 @@ before(async () => {
   sql = testDatabase.sql;
 
   await runMigrations(sql);
-  await prepareCache(sql);
+  await getMetadataFromCacheOrFetch(sql, "test");
 });
 
 after(async () => {
@@ -52,7 +52,7 @@ after(async () => {
 });
 
 const testQuery = async (params: { query: string; expected?: unknown; expectedError?: string }) => {
-  const result = await generate({ sql: sql, query: params.query });
+  const result = await generate({ sql: sql, query: params.query, cacheKey: "test" });
 
   if (either.isLeft(result)) {
     return params.expectedError !== undefined

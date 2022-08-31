@@ -47,7 +47,7 @@ const generateSync = createSyncFn<AnyAsyncFn<either.Either<unknown, string>>>(wo
   timeout: 1000 * 60 * 5,
 });
 
-function check1(context: RuleContext, expr: TSESTree.TaggedTemplateExpression) {
+function check1(context: RuleContext, expr: TSESTree.TaggedTemplateExpression, projectDir: string) {
   if (
     !ESTreeUtils.isIdentifier(expr.tag) ||
     !ESTreeUtils.isCallExpression(expr.parent) ||
@@ -57,8 +57,6 @@ function check1(context: RuleContext, expr: TSESTree.TaggedTemplateExpression) {
   ) {
     return;
   }
-
-  const projectDir = locateNearestPackageJsonDir(context.getFilename());
 
   const sqlExpression = expr;
   const sqlOperator = expr.parent.callee;
@@ -206,9 +204,11 @@ export default createRule({
   },
   defaultOptions: [],
   create(context) {
+    const projectDir = locateNearestPackageJsonDir(context.getFilename());
+
     return {
       TaggedTemplateExpression(expr) {
-        check1(context, expr);
+        check1(context, expr, projectDir);
       },
     };
   },
