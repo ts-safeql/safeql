@@ -1,6 +1,7 @@
+import { InvalidQueryError } from "@safeql/shared";
 import { ParserServices, TSESTree } from "@typescript-eslint/utils";
 import { either } from "fp-ts";
-import * as ts from "typescript";
+import ts from "typescript";
 import { assertNever } from "./assertNever";
 import { getBaseTypeOfLiteralType } from "./ts.utils";
 
@@ -25,10 +26,7 @@ export function mapTemplateLiteralToQueryText(
     );
 
     if (either.isLeft(pgType)) {
-      return either.left({
-        error: pgType.left,
-        node: quasi.expressions[$idx],
-      });
+      return either.left(InvalidQueryError.of(pgType.left, quasi.expressions[$idx]));
     }
 
     const pgTypeValue = pgType.right;

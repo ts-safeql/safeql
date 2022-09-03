@@ -15,8 +15,8 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "5.36.1",
-    "@typescript-eslint/parser": "5.36.1",
+    "@typescript-eslint/eslint-plugin": "^5.36.1",
+    "@typescript-eslint/parser": "^5.36.1",
     "esbuild": "0.15.5",
     "esbuild-register": "3.3.3",
     "eslint": "8.23.0",
@@ -24,8 +24,9 @@
     "typescript": "4.8.2"
   },
   "dependencies": {
-    "@testsql/generate": "workspace:1.0.0",
-    "@typescript-eslint/utils": "5.35.1",
+    "@safeql/generate": "workspace:1.0.0",
+    "@safeql/shared": "workspace:1.0.0",
+    "@typescript-eslint/utils": "^5.35.1",
     "fp-ts": "2.12.1",
     "nanoid": "4.0.0",
     "pg-connection-string": "2.5.0",

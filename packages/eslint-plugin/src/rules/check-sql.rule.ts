@@ -1,9 +1,9 @@
-import { GenerateResult } from "@testsql/generate";
-import { GenerateError, GenerateErrorOf } from "@testsql/generate/src/generate";
+import { GenerateResult } from "@safeql/generate";
+import { DuplicateColumnsError, InvalidQueryError, PostgresError } from "@safeql/shared";
 import { ESLintUtils, TSESLint, TSESTree } from "@typescript-eslint/utils";
 import { either, json } from "fp-ts";
 import { Either } from "fp-ts/lib/Either";
-import { flow } from "fp-ts/lib/function";
+import { flow, pipe } from "fp-ts/lib/function";
 import * as recast from "recast";
 import { AnyAsyncFn, createSyncFn } from "synckit";
 import { match } from "ts-pattern";
@@ -12,13 +12,14 @@ import zodToJsonSchema from "zod-to-json-schema";
 import { ESTreeUtils } from "../utils";
 import { locateNearestPackageJsonDir } from "../utils/node.utils";
 import { mapTemplateLiteralToQueryText } from "../utils/ts-pg.utils";
+import { WorkerError, WorkerResult } from "./check-sql.worker";
 
 const messages = {
   typeInferenceFailed: "Type inference failed {{error}}",
-  invalidQuery: "Error: {{error}}",
-  invalidMigration: "Error: {{error}}",
-  missingTypeAnnotations: "Missing type annotations",
-  incorrectTypeAnnotations: "Incorrect type annotations",
+  error: "{{error}}",
+  invalidQuery: "Invalid Query: {{error}}",
+  missingTypeAnnotations: "Query is missing type annotation",
+  incorrectTypeAnnotations: "Query has incorrect type annotation",
 };
 
 const baseConnectionSchema = z.object({
@@ -98,20 +99,27 @@ function checkByConnection(params: {
   const parserServices = ESLintUtils.getParserServices(context);
   const checker = parserServices?.program?.getTypeChecker();
 
-  const run = flow(
-    () => mapTemplateLiteralToQueryText(sqlExpression.quasi, parserServices, checker),
-    either.mapLeft(reportInvalidQuery),
-    either.chain((query) => {
-      return generateSync({ query, connection, projectDir });
-    }),
-    either.chain((stringified) => json.parse(stringified)),
-    either.chain((parsed) => parsed as unknown as Either<unknown, GenerateResult>),
+  const generateEither = flow(
+    generateSync,
+    either.chain(json.parse),
+    either.chainW((parsed) => parsed as unknown as Either<WorkerError, WorkerResult>),
+    either.mapLeft((error) => error as unknown as WorkerError)
+  );
+
+  pipe(
+    either.Do,
+    either.chain(() => mapTemplateLiteralToQueryText(sqlExpression.quasi, parserServices, checker)),
+    either.chainW((query) => generateEither({ query, connection, projectDir })),
     either.fold(
       (error) => {
-        return match(error as GenerateError)
-          .with({ type: "DuplicateColumns" }, reportDuplicateColumns)
-          .with({ type: "PostgresError" }, reportPostgresError)
-          .with({ type: "MigrationError" }, reportMigrationError)
+        return match(error)
+          .with({ _tag: "DuplicateColumnsError" }, reportDuplicateColumns)
+          .with({ _tag: "PostgresError" }, reportPostgresError)
+          .with({ _tag: "InvalidMigrationError" }, reportBaseError)
+          .with({ _tag: "InvalidMigrationsPathError" }, reportBaseError)
+          .with({ _tag: "DatabaseInitializationError" }, reportBaseError)
+          .with({ _tag: "InternalError" }, reportBaseError)
+          .with({ _tag: "InvalidQueryError" }, reportInvalidQueryError)
           .exhaustive();
       },
       (result) => {
@@ -128,51 +136,50 @@ function checkByConnection(params: {
     )
   );
 
-  run();
-
-  function reportInvalidQuery(params: { node: TSESTree.Node; error: string }) {
+  function reportInvalidQueryError(error: InvalidQueryError) {
     return context.report({
       messageId: "invalidQuery",
-      node: params.node,
-      data: { error: params.error },
+      node: error.node,
+      data: { error: error.message },
     });
   }
 
-  function reportDuplicateColumns(error: GenerateErrorOf<"DuplicateColumns">) {
+  function reportBaseError(error: WorkerError) {
+    return context.report({
+      node: sqlExpression,
+      messageId: "error",
+      data: {
+        error: error.message,
+      },
+    });
+  }
+
+  function reportDuplicateColumns(error: DuplicateColumnsError) {
     return context.report({
       node: sqlExpression,
       messageId: "invalidQuery",
       loc: ESTreeUtils.getSourceLocationFromStringPosition({
         loc: sqlExpression.loc,
-        position: error.query.search(error.columnName) + 1,
-        value: error.query,
+        position: error.queryText.search(error.columns[0]) + 1,
+        value: error.queryText,
       }),
       data: {
-        error: JSON.stringify(error.error),
+        error: error.message,
       },
     });
   }
 
-  function reportPostgresError(error: GenerateErrorOf<"PostgresError">) {
+  function reportPostgresError(error: PostgresError) {
     return context.report({
       node: sqlExpression,
       messageId: "invalidQuery",
       loc: ESTreeUtils.getSourceLocationFromStringPosition({
         loc: sqlExpression.loc,
         position: parseInt(error.position, 10),
-        value: error.query,
+        value: error.queryText,
       }),
       data: {
-        error: error.error,
-      },
-    });
-  }
-  function reportMigrationError(error: GenerateErrorOf<"MigrationError">) {
-    return context.report({
-      node: sqlExpression,
-      messageId: "invalidQuery",
-      data: {
-        error: error.error,
+        error: error.message,
       },
     });
   }

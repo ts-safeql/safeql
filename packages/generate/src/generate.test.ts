@@ -1,10 +1,10 @@
 import assert from "assert";
+import { either } from "fp-ts";
 import { before, test } from "mocha";
 import { nanoid } from "nanoid";
 import { Sql } from "postgres";
 import { generate, getMetadataFromCacheOrFetch } from "./generate";
 import { setupTestDatabase } from "./tests/setupTestDb";
-import either from "./utils/either";
 
 type SQL = Sql<Record<string, unknown>>;
 
@@ -56,8 +56,8 @@ const testQuery = async (params: { query: string; expected?: unknown; expectedEr
 
   if (either.isLeft(result)) {
     return params.expectedError !== undefined
-      ? assert.equal(result.left.error, params.expectedError)
-      : assert.fail(result.left.error);
+      ? assert.equal(result.left.message, params.expectedError)
+      : assert.fail(result.left.message);
   }
 
   assert.equal(result.right.result, params.expected);
@@ -118,7 +118,7 @@ test("select with duplicate columns should throw duplicate columns error", async
         FROM caregiver
             JOIN caregiver_agency ON caregiver.id = caregiver_agency.caregiver_id
     `,
-    expectedError: "duplicate columns: caregiver.id, caregiver_agency.id",
+    expectedError: "Duplicate columns: caregiver.id, caregiver_agency.id",
   });
 });
 

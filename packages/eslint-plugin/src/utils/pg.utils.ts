@@ -1,4 +1,7 @@
-import { spawn } from "child_process";
+import { DatabaseInitializationError } from "@safeql/shared";
+import { spawn, ChildProcessWithoutNullStreams } from "child_process";
+import { taskEither } from "fp-ts";
+import { pipe } from "fp-ts/lib/function";
 import { parse } from "pg-connection-string";
 
 export interface ConnectionOptions {
@@ -45,22 +48,13 @@ export function parseConnection(databaseUrl: string): ConnectionOptions {
   };
 }
 
-export async function initDatabase(connection: ConnectionOptions) {
-  try {
-    try {
-      await dropDatabase(connection);
-    } catch (x) {
-      console.log(x);
-    }
-    await createDatabase(connection);
-  } catch (e) {
-    if (!(e instanceof Error)) {
-      throw e;
-    }
-
-    console.log(-1);
-    console.error("Failed initializing database:", e.toString());
-  }
+export function initDatabase(connection: ConnectionOptions) {
+  return pipe(
+    taskEither.Do,
+    taskEither.chain(() => dropDatabase(connection)),
+    taskEither.altW(() => taskEither.right(undefined)),
+    taskEither.chain(() => createDatabase(connection)),
+  );
 }
 
 export function createDatabase(connection: ConnectionOptions) {
@@ -80,10 +74,7 @@ export function createDatabase(connection: ConnectionOptions) {
     }
   );
 
-  return new Promise((resolve, reject) => {
-    exec.stderr.on("data", (x) => reject(x.toString()));
-    exec.on("exit", (code) => (code === 0 ? resolve(code) : reject(code)));
-  });
+  return execToTaskEither(exec, DatabaseInitializationError.to);
 }
 
 export function dropDatabase(connection: ConnectionOptions) {
@@ -98,17 +89,28 @@ export function dropDatabase(connection: ConnectionOptions) {
       connection.port.toString(),
       "-U",
       connection.user,
-      "--force"
+      "--force",
     ],
     {
       env: { ...process.env, PGPASSWORD: connection.password },
     }
   );
 
-  return new Promise((resolve, reject) => {
-    exec.stderr.on("data", (x) => reject(x.toString()));
-    exec.on("exit", (code) => (code === 0 ? resolve(code) : reject(code)));
-  });
+  return execToTaskEither(exec, DatabaseInitializationError.to);
+}
+
+function execToTaskEither<L extends Error>(
+  exec: ChildProcessWithoutNullStreams,
+  mapLeft: (error: unknown) => L
+) {
+  return taskEither.tryCatch(
+    () =>
+      new Promise<void>((resolve, reject) => {
+        exec.stderr.on("data", (x) => reject(x.toString()));
+        exec.on("exit", (code) => (code === 0 ? resolve() : reject(code)));
+      }),
+    mapLeft
+  );
 }
 
 function isDefined<T>(value: T | null | undefined): value is T {

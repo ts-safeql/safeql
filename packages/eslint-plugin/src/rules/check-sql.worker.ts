@@ -1,7 +1,14 @@
-import { generate } from "@testsql/generate";
-import { GenerateError } from "@testsql/generate/src/generate";
-import { either, json, taskEither } from "fp-ts";
+import { generate } from "@safeql/generate";
+import { GenerateError, GenerateParams, GenerateResult } from "@safeql/generate/src/generate";
+import {
+  DatabaseInitializationError,
+  InternalError,
+  InvalidMigrationError,
+  InvalidMigrationsPathError,
+} from "@safeql/shared";
+import { either, json, option, taskEither } from "fp-ts";
 import { pipe } from "fp-ts/lib/function";
+import { TaskEither } from "fp-ts/lib/TaskEither";
 import fs from "node:fs";
 import path from "node:path";
 import postgres, { Sql } from "postgres";
@@ -20,85 +27,105 @@ interface WorkerParams {
   projectDir: string;
 }
 
-function findOrCreateConnection(databaseUrl: string) {
-  let sql = connections.get(databaseUrl);
-  let isFirst = false;
-
-  if (sql === undefined) {
-    sql = postgres(databaseUrl, { max: 1 });
-    connections.set(databaseUrl, sql);
-    isFirst = true;
-  }
-
-  return { sql, isFirst, databaseUrl };
-}
-
 runAsWorker(async (params: WorkerParams) => {
+  const result = await pipe(
+    taskEither.Do,
+    taskEither.chain(() => workerHandler(params))
+  )();
+
+  return json.stringify(result);
+});
+
+export type WorkerError =
+  | InvalidMigrationsPathError
+  | InvalidMigrationError
+  | InternalError
+  | DatabaseInitializationError
+  | GenerateError;
+export type WorkerResult = GenerateResult;
+
+function workerHandler(params: WorkerParams): TaskEither<WorkerError, WorkerResult> {
   const strategy = mapRuleOptionsToStartegy(params.connection);
 
-  // TODO chain all of the flow into one pipe
-  const result = await match(strategy)
-    .with({ type: "databaseUrl" }, async ({ databaseUrl }) =>
-      either.right(findOrCreateConnection(databaseUrl))
+  const connnectionPayload = match(strategy)
+    .with({ type: "databaseUrl" }, ({ databaseUrl }) =>
+      taskEither.right(getOrCreateConnection(databaseUrl))
     )
-    .with({ type: "migrations" }, async ({ migrationsDir, databaseName, connectionUrl }) => {
+    .with({ type: "migrations" }, ({ migrationsDir, databaseName, connectionUrl }) => {
       const connectionOptions = { ...parseConnection(connectionUrl), database: databaseName };
       const databaseUrl = mapConnectionOptionsToString(connectionOptions);
-      const { sql, isFirst } = findOrCreateConnection(databaseUrl);
+      const { sql, isFirst } = getOrCreateConnection(databaseUrl);
+      const connectionPayload: ConnectionPayload = { sql, isFirst, databaseUrl };
 
       if (isFirst) {
-        await initDatabase(connectionOptions);
         const migrationsPath = path.join(params.projectDir, migrationsDir);
-        const migrationResult = await runMigrations({ migrationsPath, sql });
 
-        if (either.isLeft(migrationResult)) {
-          return migrationResult;
-        }
+        return pipe(
+          taskEither.Do,
+          taskEither.chainW(() => initDatabase(connectionOptions)),
+          taskEither.chainW(() => runMigrations({ migrationsPath, sql })),
+          taskEither.map(() => connectionPayload)
+        );
       }
 
-      return either.right({ sql, isFirst, databaseUrl });
+      return taskEither.right(connectionPayload);
     })
     .exhaustive();
 
-  if (either.isLeft(result)) {
-    return json.stringify(
-      either.left({
-        type: "MigrationError",
-        error: result.left.message,
-      } as GenerateError)
-    );
-  }
+  const generateTask = (params: GenerateParams) => {
+    return taskEither.tryCatch(() => {
+      return generate(params);
+    }, InternalError.to);
+  };
 
-  const { databaseUrl, sql } = result.right;
+  return pipe(
+    connnectionPayload,
+    taskEither.chainW(({ sql, databaseUrl }) => {
+      return generateTask({ sql, query: params.query, cacheKey: databaseUrl });
+    }),
+    taskEither.chainW(taskEither.fromEither)
+  );
+}
 
-  const value = await generate({
-    query: params.query,
-    sql: sql,
-    cacheKey: databaseUrl,
-  });
+interface ConnectionPayload {
+  sql: SQL;
+  databaseUrl: string;
+  isFirst: boolean;
+}
 
-  return json.stringify(value);
-});
+function getOrCreateConnection(databaseUrl: string): ConnectionPayload {
+  return pipe(
+    connections.get(databaseUrl),
+    option.fromNullable,
+    option.foldW(
+      () => {
+        const sql = postgres(databaseUrl);
+        connections.set(databaseUrl, sql);
+        return { sql: sql, databaseUrl, isFirst: true };
+      },
+      (sql) => ({ sql, databaseUrl, isFirst: false })
+    )
+  );
+}
 
-async function runMigrations(params: { migrationsPath: string; sql: SQL }) {
+function runMigrations(params: { migrationsPath: string; sql: SQL }) {
   const runSingleMigrationFileWithSql = (file: string) =>
     runSingleMigrationFile(params.sql, path.join(params.migrationsPath, file));
 
   return pipe(
-    getMigrationFiles(params.migrationsPath),
-    taskEither.chain((files) =>
-      taskEither.sequenceSeqArray(files.map(runSingleMigrationFileWithSql))
-    )
-  )();
+    taskEither.Do,
+    taskEither.chain(() => getMigrationFiles(params.migrationsPath)),
+    taskEither.chainW((files) => {
+      return taskEither.sequenceSeqArray(files.map(runSingleMigrationFileWithSql));
+    })
+  );
 }
 
-function getMigrationFiles(migrationsDir: string) {
+function getMigrationFiles(migrationsPath: string) {
   return pipe(
-    taskEither.tryCatch(() => fs.promises.readdir(migrationsDir), either.toError),
-    taskEither.mapLeft(
-      (error) => new Error(`Failed to read migrations directory "${migrationsDir}": ${error}`)
-    ),
-    taskEither.map((files) => files.filter((file) => file.endsWith(".sql")))
+    taskEither.tryCatch(() => fs.promises.readdir(migrationsPath), either.toError),
+    taskEither.map((files) => files.filter((file) => file.endsWith(".sql"))),
+    taskEither.mapLeft(InvalidMigrationsPathError.fromErrorC(migrationsPath))
   );
 }
 
@@ -109,7 +136,7 @@ function runSingleMigrationFile(sql: SQL, filePath: string) {
       either.toError
     ),
     taskEither.chain((content) => taskEither.tryCatch(() => sql.unsafe(content), either.toError)),
-    taskEither.mapLeft((error) => new Error(`Failed to run migration file "${filePath}": ${error}`))
+    taskEither.mapLeft(InvalidMigrationError.fromErrorC(filePath))
   );
 }
 

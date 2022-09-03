@@ -1,9 +1,11 @@
 import { either } from "fp-ts";
-import postgres, { PostgresError } from "postgres";
+import { Either } from "fp-ts/lib/Either";
+import postgres, { PostgresError as OriginalPostgresError } from "postgres";
 import "source-map-support/register";
 import { ColType, defaultTypeMapping } from "./utils/colTypes";
 import { getLeftJoinTables } from "./utils/getLeftJoinTables";
 import { groupBy } from "./utils/groupBy";
+import { DuplicateColumnsError, PostgresError } from "@safeql/shared";
 
 type CacheKey = string;
 
@@ -20,12 +22,7 @@ type JSToPostgresTypeMap = Record<string, unknown>;
 type Sql = postgres.Sql<JSToPostgresTypeMap>;
 
 export type GenerateResult = { result: string | null; stmt: postgres.Statement; query: string };
-export type GenerateError =
-  | { type: "DuplicateColumns"; error: string; columnName: string; query: string }
-  | { type: "PostgresError"; error: string; line: string; position: string; query: string }
-  | { type: "MigrationError"; error: string };
-
-export type GenerateErrorOf<T extends GenerateError["type"]> = Extract<GenerateError, { type: T }>;
+export type GenerateError = DuplicateColumnsError | PostgresError;
 
 async function getDatabaseMetadata(sql: Sql) {
   const pgTypes = await getPgTypes(sql);
@@ -49,12 +46,16 @@ export async function getMetadataFromCacheOrFetch(sql: Sql, cacheKey: CacheKey) 
   return cacheValue;
 }
 
-export async function generate(params: {
+export interface GenerateParams {
   sql: Sql;
   query: string;
   cacheMetadata?: boolean;
   cacheKey: string;
-}): Promise<either.Either<GenerateError, GenerateResult>> {
+}
+
+export async function generate(
+  params: GenerateParams
+): Promise<Either<GenerateError, GenerateResult>> {
   const { sql, query, cacheMetadata = true } = params;
 
   const { pgCols, pgColsByTableOidCache, pgTypes } = cacheMetadata
@@ -82,12 +83,12 @@ export async function generate(params: {
         column: col.name,
       }));
 
-      return either.left({
-        type: "DuplicateColumns",
-        query: query,
-        columnName: `${dupes[0].table}.${dupes[0].column}`,
-        error: `duplicate columns: ${dupes.map((x) => `${x.table}.${x.column}`).join(", ")}`,
-      });
+      return either.left(
+        DuplicateColumnsError.of({
+          queryText: query,
+          columns: dupes.map((x) => `${x.table}.${x.column}`),
+        })
+      );
     }
 
     const columns = result.columns.map((col): ColumnAnalysisResult => {
@@ -103,14 +104,15 @@ export async function generate(params: {
       query: query,
     });
   } catch (e) {
-    if (e instanceof PostgresError) {
-      return either.left({
-        type: "PostgresError",
-        query: query,
-        error: e.message,
-        line: e.line,
-        position: e.position,
-      });
+    if (e instanceof OriginalPostgresError) {
+      return either.left(
+        PostgresError.of({
+          queryText: query,
+          message: e.message,
+          line: e.line,
+          position: e.position,
+        })
+      );
     }
 
     throw e;

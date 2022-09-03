@@ -1,5 +1,5 @@
 {
-  "name": "@testsql/generate",
+  "name": "@safeql/generate",
   "version": "1.0.0",
   "description": "",
   "main": "lib/index.js",
@@ -29,6 +29,7 @@
     "typescript": "4.8.2"
   },
   "dependencies": {
+    "@safeql/shared": "workspace:1.0.0",
     "fp-ts": "2.12.1",
     "libpg-query": "13.2.5",
     "pg-connection-string": "2.5.0",
