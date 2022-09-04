@@ -1,17 +1,16 @@
 import postgres from "postgres";
 import { Db } from "@safeql-demos/shared/client";
 
-export function check(client: Db, firstName: string) {
+type ID = number;
+
+export function check(client: Db, idsFromParameter: ID[]) {
   const sql = postgres();
 
   client.queryOne<{ id: number }>(sql`
-    SELECT id FROM caregiver WHERE "firstName" = ${firstName}
+    SELECT id
+    FROM caregiver
+    WHERE TRUE
+        AND id = ANY(${idsFromParameter})
+        AND "firstName" = ${"John"} -- string literal
   `);
-
-  client.queryOne<{ id: number; firstName: string }>(sql`
-        SELECT id, "firstName"
-        FROM caregiver
-        WHERE
-            "firstName" = ${firstName}
-    `);
 }

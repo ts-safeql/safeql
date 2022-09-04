@@ -1,14 +1,14 @@
 import { InvalidQueryError } from "@safeql/shared";
 import { ParserServices, TSESTree } from "@typescript-eslint/utils";
 import { either } from "fp-ts";
-import ts from "typescript";
-import { assertNever } from "./assertNever";
-import { getBaseTypeOfLiteralType } from "./ts.utils";
+import { pipe } from "fp-ts/lib/function";
+import ts, { TypeChecker } from "typescript";
+import { TSESTreeToTSNode } from "@typescript-eslint/typescript-estree";
 
 export function mapTemplateLiteralToQueryText(
   quasi: TSESTree.TemplateLiteral,
   parser: ParserServices,
-  typeChecker: ts.TypeChecker
+  checker: ts.TypeChecker
 ) {
   let $idx = 0;
   let $queryText = "";
@@ -20,13 +20,15 @@ export function mapTemplateLiteralToQueryText(
       break;
     }
 
-    const pgType = mapTsTypeToPgType(
-      typeChecker.getTypeAtLocation(parser.esTreeNodeToTSNodeMap.get(quasi.expressions[$idx])),
-      typeChecker
+    const expression = quasi.expressions[$idx];
+
+    const pgType = pipe(
+      mapExpressionToTsTypeString({ expression, parser, checker }),
+      mapTsTypeStringToPgType
     );
 
     if (either.isLeft(pgType)) {
-      return either.left(InvalidQueryError.of(pgType.left, quasi.expressions[$idx]));
+      return either.left(InvalidQueryError.of(pgType.left, expression));
     }
 
     const pgTypeValue = pgType.right;
@@ -37,24 +39,56 @@ export function mapTemplateLiteralToQueryText(
   return either.right($queryText);
 }
 
-function mapTsTypeToPgType(type: ts.Type, typeChecker: ts.TypeChecker) {
-  const baseType = getBaseTypeOfLiteralType(type, typeChecker);
+function mapExpressionToTsTypeString(params: {
+  expression: TSESTree.Expression;
+  parser: ParserServices;
+  checker: ts.TypeChecker;
+}) {
+  const tsNode = params.parser.esTreeNodeToTSNodeMap.get(params.expression);
+  const tsType = params.checker.getTypeAtLocation(tsNode);
+  return {
+    node: tsNode,
+    type: tsType,
+    checker: params.checker,
+  };
+}
 
-  switch (baseType.type) {
-    case "any":
-    case "invalid":
-      return either.left(`The type "${baseType}" is not supported`);
-    case "unknown":
-      return either.left(`The type "${baseType.value}" is not supported`);
-    case "bigint":
-      return either.right("bigint");
-    case "boolean":
-      return either.right("boolean");
-    case "number":
-      return either.right("int");
-    case "string":
-      return either.right("text");
-    default:
-      assertNever(baseType);
+const tsTypeToPgTypeMap: Record<string, string> = {
+  number: "int",
+  string: "text",
+  boolean: "boolean",
+  bigint: "bigint",
+  any: "text",
+  unknown: "text",
+};
+
+const tsKindToPgTypeMap: Record<number, string> = {
+  [ts.SyntaxKind.StringLiteral]: "text",
+  [ts.SyntaxKind.NumericLiteral]: "int",
+  [ts.SyntaxKind.TrueKeyword]: "boolean",
+  [ts.SyntaxKind.FalseKeyword]: "boolean",
+  [ts.SyntaxKind.BigIntLiteral]: "bigint",
+};
+
+function mapTsTypeStringToPgType(params: {
+  checker: TypeChecker;
+  node: TSESTreeToTSNode<TSESTree.Expression>;
+  type: ts.Type;
+}) {
+  if (params.node.kind in tsKindToPgTypeMap) {
+    return either.right(tsKindToPgTypeMap[params.node.kind]);
   }
+
+  const typeStr = params.checker.typeToString(params.type);
+  const singularType = typeStr.replace(/\[\]$/, "");
+  const isArray = typeStr !== singularType;
+  const isSignularTypeSupported = singularType in tsTypeToPgTypeMap;
+
+  if (isSignularTypeSupported) {
+    return isArray
+      ? either.right(`${tsTypeToPgTypeMap[singularType]}[]`)
+      : either.right(tsTypeToPgTypeMap[singularType]);
+  }
+
+  return either.left(`the type "${typeStr}" is not supported`);
 }

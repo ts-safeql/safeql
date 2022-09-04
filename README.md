@@ -7,7 +7,7 @@
  - [x] (V1) Config - "migrationsDir" (will require the user to supply  - "shadowDatabaseName" as well).
  - [x] (V1) Feature - Monorepo support in mind
  - [x] (V1) Config - multiple connections support
- - [ ] (V1) Feature - support array arg.
+ - [x] (V1) Feature - support array arg.
  - [ ] (V1) Tests - add lots and lots of tests.
  - [ ] (V1) Example
     - [ ] Prisma
@@ -17,6 +17,7 @@
 
  - [ ] (V2) Feature - Opt-in for branded types (TableId rather than  - number).
  - [ ] (V2) Feature - support custom args.
+ - [ ] (V2) Feature - support ternary operation args.
  - [x] (V2) Clean Code - Refactor the rule code for clarity and  - robustness.
  - [ ] (V2) Feature - Watch for migration folder changes for database invalidation.
  - [ ] (V2) Feature - Shadow caching.
