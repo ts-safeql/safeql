@@ -1,5 +1,5 @@
 {
-  "name": "@safeql-demos/basic-migrations-raw",
+  "name": "@safeql/test-utils",
   "version": "1.0.0",
   "scripts": {
     "build": "tsc",
@@ -8,15 +8,20 @@
     "lint!": "eslint src --fix",
     "clean": "rm -rf lib"
   },
+  "main": "lib/index.js",
+  "types": "src/index.ts",
   "devDependencies": {
+    "@types/node": "18.0.1",
     "@typescript-eslint/eslint-plugin": "^5.36.1",
     "@typescript-eslint/parser": "^5.36.1",
+    "@typescript-eslint/utils": "^5.35.1",
     "eslint": "^8.23.0",
     "typescript": "4.8.2"
   },
   "dependencies": {
-    "@safeql-demos/shared": "workspace:1.0.0",
-    "@safeql/eslint-plugin": "workspace:1.0.0",
+    "@safeql/shared": "workspace:1.0.0",
+    "pg-connection-string": "2.5.0",
+    "pnpm": "^7.10.0",
     "postgres": "github:porsager/postgres"
   }
 }

@@ -1,7 +1,7 @@
+import { isDefined } from "@safeql/shared";
 import { spawn } from "child_process";
 import { parse } from "pg-connection-string";
 import postgres from "postgres";
-import { isDefined } from "../utils/isDefined";
 
 interface ConnectionOptions {
   host: string;

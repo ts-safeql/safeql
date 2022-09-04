@@ -9,7 +9,8 @@
     "lint!": "turbo run lint!",
     "watch": "turbo run watch --parallel",
     "prettier": "prettier --check '**/*.ts'",
-    "prettier!": "prettier --write '**/*.ts'"
+    "prettier!": "prettier --write '**/*.ts'",
+    "clean": "turbo run clean"
   },
   "workspaces": [
     "packages/**"

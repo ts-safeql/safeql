@@ -24,7 +24,7 @@ importers:
     dependencies:
       '@safeql-demos/shared': link:../shared
       '@safeql/eslint-plugin': link:../../packages/eslint-plugin
-      postgres: github.com/porsager/postgres/65dcf0df5c8d3ab37735a16c2e967c7ef7bf6cf6
+      postgres: github.com/porsager/postgres/b49ed8e9f3c41b664b41b7eb0aa27063207e4cdd
     devDependencies:
       '@typescript-eslint/eslint-plugin': 5.36.1_lbwfnm54o3pmr3ypeqp3btnera
       '@typescript-eslint/parser': 5.36.1_yqf6kl63nyoq5megxukfnom5rm
@@ -43,7 +43,7 @@ importers:
     dependencies:
       '@safeql-demos/shared': link:../shared
       '@safeql/eslint-plugin': link:../../packages/eslint-plugin
-      postgres: github.com/porsager/postgres/65dcf0df5c8d3ab37735a16c2e967c7ef7bf6cf6
+      postgres: github.com/porsager/postgres/b49ed8e9f3c41b664b41b7eb0aa27063207e4cdd
     devDependencies:
       '@typescript-eslint/eslint-plugin': 5.36.1_lbwfnm54o3pmr3ypeqp3btnera
       '@typescript-eslint/parser': 5.36.1_yqf6kl63nyoq5megxukfnom5rm
@@ -62,7 +62,7 @@ importers:
     dependencies:
       '@safeql-demos/shared': link:../shared
       '@safeql/eslint-plugin': link:../../packages/eslint-plugin
-      postgres: github.com/porsager/postgres/65dcf0df5c8d3ab37735a16c2e967c7ef7bf6cf6
+      postgres: github.com/porsager/postgres/b49ed8e9f3c41b664b41b7eb0aa27063207e4cdd
     devDependencies:
       '@typescript-eslint/eslint-plugin': 5.36.1_lbwfnm54o3pmr3ypeqp3btnera
       '@typescript-eslint/parser': 5.36.1_yqf6kl63nyoq5megxukfnom5rm
@@ -74,7 +74,7 @@ importers:
       postgres: github:porsager/postgres
       typescript: 4.8.2
     dependencies:
-      postgres: github.com/porsager/postgres/65dcf0df5c8d3ab37735a16c2e967c7ef7bf6cf6
+      postgres: github.com/porsager/postgres/b49ed8e9f3c41b664b41b7eb0aa27063207e4cdd
     devDependencies:
       typescript: 4.8.2
 
@@ -107,7 +107,7 @@ importers:
       fp-ts: 2.12.1
       nanoid: 4.0.0
       pg-connection-string: 2.5.0
-      postgres: github.com/porsager/postgres/65dcf0df5c8d3ab37735a16c2e967c7ef7bf6cf6
+      postgres: github.com/porsager/postgres/b49ed8e9f3c41b664b41b7eb0aa27063207e4cdd
       recast: 0.21.2
       source-map-support: 0.5.21
       synckit: 0.8.1
@@ -128,6 +128,7 @@ importers:
       '@esbuild-kit/cjs-loader': 2.3.0
       '@esbuild-kit/esm-loader': 2.4.0
       '@safeql/shared': workspace:1.0.0
+      '@safeql/test-utils': workspace:1.0.0
       '@types/mocha': 9.1.1
       '@types/node': 18.0.1
       '@typescript-eslint/eslint-plugin': 5.36.1
@@ -146,10 +147,11 @@ importers:
       typescript: 4.8.2
     dependencies:
       '@safeql/shared': link:../shared
+      '@safeql/test-utils': link:../test-utils
       fp-ts: 2.12.1
       libpg-query: 13.2.5
       pg-connection-string: 2.5.0
-      postgres: github.com/porsager/postgres/65dcf0df5c8d3ab37735a16c2e967c7ef7bf6cf6
+      postgres: github.com/porsager/postgres/b49ed8e9f3c41b664b41b7eb0aa27063207e4cdd
       prexit: 1.0.0
       source-map-support: 0.5.21
     devDependencies:
@@ -174,6 +176,31 @@ importers:
       '@typescript-eslint/utils': ^5.35.1
       eslint: ^8.23.0
       typescript: 4.8.2
+    devDependencies:
+      '@types/node': 18.0.1
+      '@typescript-eslint/eslint-plugin': 5.36.1_lbwfnm54o3pmr3ypeqp3btnera
+      '@typescript-eslint/parser': 5.36.1_yqf6kl63nyoq5megxukfnom5rm
+      '@typescript-eslint/utils': 5.36.1_yqf6kl63nyoq5megxukfnom5rm
+      eslint: 8.23.0
+      typescript: 4.8.2
+
+  packages/test-utils:
+    specifiers:
+      '@safeql/shared': workspace:1.0.0
+      '@types/node': 18.0.1
+      '@typescript-eslint/eslint-plugin': ^5.36.1
+      '@typescript-eslint/parser': ^5.36.1
+      '@typescript-eslint/utils': ^5.35.1
+      eslint: ^8.23.0
+      pg-connection-string: 2.5.0
+      pnpm: ^7.10.0
+      postgres: github:porsager/postgres
+      typescript: 4.8.2
+    dependencies:
+      '@safeql/shared': link:../shared
+      pg-connection-string: 2.5.0
+      pnpm: 7.10.0
+      postgres: github.com/porsager/postgres/b49ed8e9f3c41b664b41b7eb0aa27063207e4cdd
     devDependencies:
       '@types/node': 18.0.1
       '@typescript-eslint/eslint-plugin': 5.36.1_lbwfnm54o3pmr3ypeqp3btnera
@@ -727,7 +754,7 @@ packages:
     dev: false
 
   /concat-map/0.0.1:
-    resolution: {integrity: sha512-/Srv4dswyQNBfohGpz9o6Yb3Gz3SrUDqBH5rTuhGR7ahtlbYKnVxw2bCFMRljaA7EXHaXZ8wsHdodFvbkhKmqg==}
+    resolution: {integrity: sha1-2Klr13/Wjfd5OnMDajug1UBdR3s=}
 
   /console-control-strings/1.1.0:
     resolution: {integrity: sha512-ty/fTekppD2fIwRvnZAVdeOiGd1c7YXEixbgJTNzqcxJWKQnjJ/V1bNEEE6hygpM3WjwHFUVK6HTjWSzV4a8sQ==}
@@ -2095,6 +2122,12 @@ packages:
     resolution: {integrity: sha512-JU3teHTNjmE2VCGFzuY8EXzCDVwEqB2a8fsIvwaStHhAWJEeVd1o1QD80CU6+ZdEXXSLbSsuLwJjkCBWqRQUVA==}
     engines: {node: '>=8.6'}
 
+  /pnpm/7.10.0:
+    resolution: {integrity: sha512-DGjcJ3OAHRtyqZJek6OzqLir7hqNaayX4FxMKSXlnpgQRVZsU2jtym/FlR1PS4VmSy+p1Ps/aPz62iHNG0eReQ==}
+    engines: {node: '>=14.6'}
+    hasBin: true
+    dev: false
+
   /prelude-ls/1.2.1:
     resolution: {integrity: sha512-vkcDPrRZo1QZLbn5RLGPpg/WmIQ65qoWWhcGKf/b5eplkkarX0m9z8ppCat4mlOqUsWpyNuYgO3VRyrYHSzX5g==}
     engines: {node: '>= 0.8.0'}
@@ -2678,8 +2711,8 @@ packages:
     resolution: {integrity: sha512-IHXnQYQuOOOL/XgHhgl8YjNxBHi3xX0mVcHmqsvJgcxKkEczPshoWdxqyFwsARpf41E0v9U95WUROqsHHxt0UQ==}
     dev: false
 
-  github.com/porsager/postgres/65dcf0df5c8d3ab37735a16c2e967c7ef7bf6cf6:
-    resolution: {tarball: https://codeload.github.com/porsager/postgres/tar.gz/65dcf0df5c8d3ab37735a16c2e967c7ef7bf6cf6}
+  github.com/porsager/postgres/b49ed8e9f3c41b664b41b7eb0aa27063207e4cdd:
+    resolution: {tarball: https://codeload.github.com/porsager/postgres/tar.gz/b49ed8e9f3c41b664b41b7eb0aa27063207e4cdd}
     name: postgres
     version: 3.2.4
     prepare: true

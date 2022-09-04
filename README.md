@@ -9,6 +9,7 @@
  - [x] (V1) Config - multiple connections support
  - [x] (V1) Feature - support array arg.
  - [ ] (V1) Tests - add lots and lots of tests.
+ - [ ] (V1) Chore - figure out whether I should use --save-exact or not
  - [ ] (V1) Example
     - [ ] Prisma
     - [ ] Sequalize

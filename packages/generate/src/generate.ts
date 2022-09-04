@@ -4,7 +4,7 @@ import postgres, { PostgresError as OriginalPostgresError } from "postgres";
 import "source-map-support/register";
 import { ColType, defaultTypeMapping } from "./utils/colTypes";
 import { getLeftJoinTables } from "./utils/getLeftJoinTables";
-import { groupBy } from "./utils/groupBy";
+import { groupBy } from "@safeql/shared";
 import { DuplicateColumnsError, PostgresError } from "@safeql/shared";
 
 type CacheKey = string;

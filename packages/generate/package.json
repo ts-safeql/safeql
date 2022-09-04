@@ -9,7 +9,8 @@
     "watch": "tsc --watch",
     "test": "mocha -r=@esbuild-kit/cjs-loader '**/*.test.ts'",
     "lint": "eslint src",
-    "lint!": "eslint src --fix"
+    "lint!": "eslint src --fix",
+    "clean": "rm -rf lib"
   },
   "keywords": [],
   "author": "",
@@ -30,6 +31,7 @@
   },
   "dependencies": {
     "@safeql/shared": "workspace:1.0.0",
+    "@safeql/test-utils": "workspace:1.0.0",
     "fp-ts": "2.12.1",
     "libpg-query": "13.2.5",
     "pg-connection-string": "2.5.0",

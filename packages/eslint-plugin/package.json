@@ -9,7 +9,8 @@
     "watch": "tsc --watch",
     "test": "tsx src/rules/check-sql.test.ts",
     "lint": "eslint src",
-    "lint!": "eslint src --fix"
+    "lint!": "eslint src --fix",
+    "clean": "rm -rf lib"
   },
   "keywords": [],
   "author": "",

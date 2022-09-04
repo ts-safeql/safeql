@@ -5,7 +5,8 @@
     "build": "tsc",
     "watch": "tsc --watch",
     "lint": "eslint src",
-    "lint!": "eslint src --fix"
+    "lint!": "eslint src --fix",
+    "clean": "rm -rf lib"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^5.36.1",
