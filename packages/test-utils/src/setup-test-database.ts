@@ -1,5 +1,6 @@
 import { isDefined } from "@safeql/shared";
 import { spawn } from "child_process";
+import { nanoid } from "nanoid";
 import { parse } from "pg-connection-string";
 import postgres from "postgres";
 
@@ -18,7 +19,11 @@ export async function setupTestDatabase(params: { databaseName: string; postgres
 
   await initDatabase(connection);
 
-  return { drop, sql };
+  return { drop, sql, databaseUrl: params.postgresUrl, postgresUrl: params.postgresUrl };
+}
+
+export function generateTestDatabaseName() {
+  return `test_${nanoid()}`;
 }
 
 function parseConnection(databaseUrl: string): ConnectionOptions {

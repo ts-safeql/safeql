@@ -82,6 +82,7 @@ importers:
     specifiers:
       '@safeql/generate': workspace:1.0.0
       '@safeql/shared': workspace:1.0.0
+      '@safeql/test-utils': workspace:1.0.0
       '@typescript-eslint/eslint-plugin': ^5.36.1
       '@typescript-eslint/parser': ^5.36.1
       '@typescript-eslint/utils': ^5.35.1
@@ -103,6 +104,7 @@ importers:
     dependencies:
       '@safeql/generate': link:../generate
       '@safeql/shared': link:../shared
+      '@safeql/test-utils': link:../test-utils
       '@typescript-eslint/utils': 5.36.1_yqf6kl63nyoq5megxukfnom5rm
       fp-ts: 2.12.1
       nanoid: 4.0.0
@@ -192,12 +194,14 @@ importers:
       '@typescript-eslint/parser': ^5.36.1
       '@typescript-eslint/utils': ^5.35.1
       eslint: ^8.23.0
+      nanoid: 4.0.0
       pg-connection-string: 2.5.0
       pnpm: ^7.10.0
       postgres: github:porsager/postgres
       typescript: 4.8.2
     dependencies:
       '@safeql/shared': link:../shared
+      nanoid: 4.0.0
       pg-connection-string: 2.5.0
       pnpm: 7.10.0
       postgres: github.com/porsager/postgres/b49ed8e9f3c41b664b41b7eb0aa27063207e4cdd

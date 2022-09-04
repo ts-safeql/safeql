@@ -29,7 +29,6 @@
     "@safeql/shared": "workspace:1.0.0",
     "@typescript-eslint/utils": "^5.35.1",
     "fp-ts": "2.12.1",
-    "nanoid": "4.0.0",
     "pg-connection-string": "2.5.0",
     "postgres": "github:porsager/postgres",
     "recast": "0.21.2",

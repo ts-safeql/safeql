@@ -1,10 +1,10 @@
+import { generateTestDatabaseName, setupTestDatabase } from "@safeql/test-utils";
 import assert from "assert";
-import { either } from "fp-ts";
+import { either, option, taskEither } from "fp-ts";
+import { pipe } from "fp-ts/lib/function";
 import { before, test } from "mocha";
-import { nanoid } from "nanoid";
 import { Sql } from "postgres";
 import { generate, getMetadataFromCacheOrFetch } from "./generate";
-import { setupTestDatabase } from "./tests/setupTestDb";
 
 type SQL = Sql<Record<string, unknown>>;
 
@@ -33,9 +33,8 @@ let sql!: SQL;
 let dropFn!: () => Promise<number>;
 
 before(async () => {
-  const databaseName = `test_${nanoid()}`;
   const testDatabase = await setupTestDatabase({
-    databaseName,
+    databaseName: generateTestDatabaseName(),
     postgresUrl: "postgres://postgres:postgres@localhost:5432/postgres",
   });
 
@@ -52,15 +51,25 @@ after(async () => {
 });
 
 const testQuery = async (params: { query: string; expected?: unknown; expectedError?: string }) => {
-  const result = await generate({ sql: sql, query: params.query, cacheKey: "test" });
-
-  if (either.isLeft(result)) {
-    return params.expectedError !== undefined
-      ? assert.equal(result.left.message, params.expectedError)
-      : assert.fail(result.left.message);
-  }
-
-  assert.equal(result.right.result, params.expected);
+  return pipe(
+    taskEither.tryCatch(
+      () => generate({ sql: sql, query: params.query, cacheKey: "test" }),
+      either.toError
+    ),
+    taskEither.chainW(taskEither.fromEither),
+    taskEither.match(
+      (error) =>
+        pipe(
+          params.expectedError,
+          option.fromNullable,
+          option.fold(
+            () => assert.fail(error.message),
+            (expectedError) => assert.strictEqual(error.message, expectedError)
+          )
+        ),
+      ({ result }) => assert.equal(result, params.expected)
+    )
+  )();
 };
 
 test("select columns", async () => {
@@ -122,9 +131,37 @@ test("select with duplicate columns should throw duplicate columns error", async
   });
 });
 
-test("insert into table", async () => {
+test("insert into table with returning", async () => {
   await testQuery({
     query: `INSERT INTO caregiver (first_name, last_name) VALUES (null, null) RETURNING id`,
     expected: `{ id: number; }`,
+  });
+});
+
+test("insert into table without returning", async () => {
+  await testQuery({
+    query: `INSERT INTO caregiver (first_name, last_name) VALUES (null, null)`,
+    expected: null,
+  });
+});
+
+test("select with incorrect operation", async () => {
+  await testQuery({
+    query: `SELECT id FROM caregiver WHERE first_name = 1`,
+    expectedError: "operator does not exist: text = integer",
+  });
+});
+
+test("select where int column = any(array)", async () => {
+  await testQuery({
+    query: `SELECT id FROM caregiver WHERE id = ANY($1::int[])`,
+    expected: "{ id: number; }",
+  });
+});
+
+test("select with syntax error", async () => {
+  await testQuery({
+    query: `SELECT id FROM caregiver WHERE`,
+    expectedError: "syntax error at end of input",
   });
 });

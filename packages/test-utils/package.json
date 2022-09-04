@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@safeql/shared": "workspace:1.0.0",
+    "nanoid": "4.0.0",
     "pg-connection-string": "2.5.0",
     "pnpm": "^7.10.0",
     "postgres": "github:porsager/postgres"

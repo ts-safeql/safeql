@@ -50,10 +50,10 @@ const ruleOptionsSchema = z
   .min(1)
   .max(1);
 
-type MessageIds = keyof typeof messages;
+export type RuleMessage = keyof typeof messages;
 export type RuleOptions = z.infer<typeof ruleOptionsSchema>;
 export type RuleOptionConnection = RuleOptions[0]["connections"][number];
-type RuleContext = Readonly<TSESLint.RuleContext<MessageIds, RuleOptions>>;
+type RuleContext = Readonly<TSESLint.RuleContext<RuleMessage, RuleOptions>>;
 
 const workerPath = require.resolve("./check-sql.worker");
 
@@ -236,7 +236,7 @@ function areTypesEqual(current: string, generated: string | null) {
 
 const createRule = ESLintUtils.RuleCreator(() => `https://github.com/Newbie012/testsql`)<
   RuleOptions,
-  MessageIds
+  RuleMessage
 >;
 
 export default createRule({
