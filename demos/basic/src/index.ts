@@ -6,11 +6,11 @@ type ID = number;
 export function check(client: Db, idsFromParameter: ID[]) {
   const sql = postgres();
 
-  client.queryOne<{ id: number }>(sql`
-    SELECT id
-    FROM caregiver
+  client.query<{ id: number; name: string }>(sql`
+    SELECT *
+    FROM person
     WHERE TRUE
         AND id = ANY(${idsFromParameter})
-        AND "firstName" = ${"John"} -- string literal
+        AND name = ${"John"} -- string literal
   `);
 }

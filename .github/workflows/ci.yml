@@ -26,8 +26,8 @@ jobs:
           - 5432:5432
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
     env:
-       TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-       TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+      TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
     steps:
       - uses: actions/checkout@v3
       - uses: pnpm/action-setup@v2.2.2
@@ -37,6 +37,13 @@ jobs:
           cache: "pnpm"
       - run: pnpm install
       - run: pnpm build
+      - run: pnpm tsx src/setup
+        working-directory: ./demos/basic
+        env:
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGHOST: localhost
+          PGDATABASE: postgres
       - run: pnpm lint
       - run: pnpm prettier
       - run: pnpm test

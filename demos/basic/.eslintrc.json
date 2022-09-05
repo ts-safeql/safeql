@@ -10,9 +10,9 @@
       {
         "connections": [
           {
-            "databaseUrl": "postgres://postgres:postgres@localhost:5432/medflyt_test_sim",
+            "databaseUrl": "postgres://postgres:postgres@localhost:5432/safeql_basic",
             "name": "client",
-            "operators": ["query", "queryOne", "queryOneOrNone"]
+            "operators": ["query"]
           }
         ]
       }

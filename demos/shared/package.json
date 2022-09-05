@@ -5,6 +5,7 @@
     "typescript": "4.8.2"
   },
   "dependencies": {
+    "@types/node": "^18.7.15",
     "postgres": "github:porsager/postgres"
   }
 }

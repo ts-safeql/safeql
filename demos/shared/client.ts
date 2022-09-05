@@ -1,6 +1,14 @@
-import postgres from "postgres";
+import postgres, { RowList } from "postgres";
 
 export function createClient() {
+  async function query<T>(
+    query: postgres.PendingQuery<postgres.Row[]>
+  ) {
+    const results = await query;
+
+    return results as RowList<T[]>;
+  }
+
   async function queryOne<T>(query: postgres.PendingQuery<postgres.Row[]>): Promise<T> {
     const results = await query;
 
@@ -11,7 +19,7 @@ export function createClient() {
     return results[0] as T;
   }
 
-  return { queryOne };
+  return { query, queryOne };
 }
 
 export type Unknown<T> = T | undefined;
