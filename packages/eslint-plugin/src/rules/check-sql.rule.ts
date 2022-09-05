@@ -32,12 +32,14 @@ const connectionByMigrationSchema = baseConnectionSchema.merge(
     migrationsDir: z.string(),
     connectionUrl: z.string().optional(),
     databaseName: z.string(),
+    keepAlive: z.boolean().optional(),
   })
 );
 
 const connectionByDatabaseUrl = baseConnectionSchema.merge(
   z.object({
     databaseUrl: z.string(),
+    keepAlive: z.boolean().optional(),
   })
 );
 

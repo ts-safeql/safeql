@@ -12,6 +12,10 @@ interface ConnectionOptions {
   database: string;
 }
 
+export function mapConnectionOptionsToString(connectionOptions: ConnectionOptions): string {
+  return `postgres://${connectionOptions.user}:${connectionOptions.password}@${connectionOptions.host}:${connectionOptions.port}/${connectionOptions.database}`;
+}
+
 export async function setupTestDatabase(params: { databaseName: string; postgresUrl: string }) {
   const connection = { ...parseConnection(params.postgresUrl), database: params.databaseName };
   const drop = () => dropDatabase(connection);
@@ -19,11 +23,13 @@ export async function setupTestDatabase(params: { databaseName: string; postgres
 
   await initDatabase(connection);
 
-  return { drop, sql, databaseUrl: params.postgresUrl, postgresUrl: params.postgresUrl };
+  const databaseUrl = mapConnectionOptionsToString(connection);
+
+  return { drop, sql, databaseUrl: databaseUrl, databaseName: params.databaseName };
 }
 
 export function generateTestDatabaseName() {
-  return `test_${nanoid()}`;
+  return `safeql_test_${nanoid()}`;
 }
 
 function parseConnection(databaseUrl: string): ConnectionOptions {

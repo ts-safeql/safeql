@@ -80,9 +80,11 @@ importers:
 
   packages/eslint-plugin:
     specifiers:
+      '@esbuild-kit/cjs-loader': 2.3.0
       '@safeql/generate': workspace:1.0.0
       '@safeql/shared': workspace:1.0.0
       '@safeql/test-utils': workspace:1.0.0
+      '@types/mocha': 9.1.1
       '@typescript-eslint/eslint-plugin': ^5.36.1
       '@typescript-eslint/parser': ^5.36.1
       '@typescript-eslint/utils': ^5.35.1
@@ -90,7 +92,7 @@ importers:
       esbuild-register: 3.3.3
       eslint: 8.23.0
       fp-ts: 2.12.1
-      nanoid: 4.0.0
+      mocha: 10.0.0
       pg-connection-string: 2.5.0
       postgres: github:porsager/postgres
       recast: 0.21.2
@@ -107,7 +109,6 @@ importers:
       '@safeql/test-utils': link:../test-utils
       '@typescript-eslint/utils': 5.36.1_yqf6kl63nyoq5megxukfnom5rm
       fp-ts: 2.12.1
-      nanoid: 4.0.0
       pg-connection-string: 2.5.0
       postgres: github.com/porsager/postgres/b49ed8e9f3c41b664b41b7eb0aa27063207e4cdd
       recast: 0.21.2
@@ -117,11 +118,14 @@ importers:
       zod: 3.17.10
       zod-to-json-schema: 3.17.0_zod@3.17.10
     devDependencies:
+      '@esbuild-kit/cjs-loader': 2.3.0
+      '@types/mocha': 9.1.1
       '@typescript-eslint/eslint-plugin': 5.36.1_lbwfnm54o3pmr3ypeqp3btnera
       '@typescript-eslint/parser': 5.36.1_yqf6kl63nyoq5megxukfnom5rm
       esbuild: 0.15.5
       esbuild-register: 3.3.3_esbuild@0.15.5
       eslint: 8.23.0
+      mocha: 10.0.0
       tsx: 3.8.0
       typescript: 4.8.2
 
@@ -139,7 +143,6 @@ importers:
       fp-ts: 2.12.1
       libpg-query: 13.2.5
       mocha: 10.0.0
-      nanoid: 4.0.0
       pg-connection-string: 2.5.0
       postgres: github:porsager/postgres
       prexit: 1.0.0
@@ -165,7 +168,6 @@ importers:
       '@typescript-eslint/parser': 5.36.1_yqf6kl63nyoq5megxukfnom5rm
       eslint: 8.23.0
       mocha: 10.0.0
-      nanoid: 4.0.0
       ts-morph: 15.1.0
       tsx: 3.7.0
       typescript: 4.8.2
@@ -1962,6 +1964,7 @@ packages:
     resolution: {integrity: sha512-IgBP8piMxe/gf73RTQx7hmnhwz0aaEXYakvqZyE302IXW3HyVNhdNGC+O2MwMAVhLEnvXlvKtGbtJf6wvHihCg==}
     engines: {node: ^14 || ^16 || >=18}
     hasBin: true
+    dev: false
 
   /natural-compare/1.4.0:
     resolution: {integrity: sha512-OWND8ei3VtNC9h7V60qff3SVobHr996CTwgxubgyQYEpg290h9J0buyECNNJexkFm5sOajh5G116RYA1c8ZMSw==}

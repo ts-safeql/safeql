@@ -7,7 +7,7 @@
     "demo": "tsx src/index.ts",
     "build": "tsc",
     "watch": "tsc --watch",
-    "test": "tsx src/rules/check-sql.test.ts",
+    "test": "mocha -r=@esbuild-kit/cjs-loader '**/*.test.ts'",
     "lint": "eslint src",
     "lint!": "eslint src --fix",
     "clean": "rm -rf lib"
@@ -16,17 +16,21 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@esbuild-kit/cjs-loader": "2.3.0",
+    "@types/mocha": "9.1.1",
     "@typescript-eslint/eslint-plugin": "^5.36.1",
     "@typescript-eslint/parser": "^5.36.1",
     "esbuild": "0.15.5",
     "esbuild-register": "3.3.3",
     "eslint": "8.23.0",
+    "mocha": "10.0.0",
     "tsx": "3.8.0",
     "typescript": "4.8.2"
   },
   "dependencies": {
     "@safeql/generate": "workspace:1.0.0",
     "@safeql/shared": "workspace:1.0.0",
+    "@safeql/test-utils": "workspace:1.0.0",
     "@typescript-eslint/utils": "^5.35.1",
     "fp-ts": "2.12.1",
     "pg-connection-string": "2.5.0",

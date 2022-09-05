@@ -33,6 +33,10 @@ runAsWorker(async (params: WorkerParams) => {
     taskEither.chain(() => workerHandler(params))
   )();
 
+  if (params.connection.keepAlive === false) {
+    closeConnection(params.connection);
+  }
+
   return json.stringify(result);
 });
 
@@ -164,4 +168,27 @@ function mapRuleOptionsToStartegy(connection: RuleOptionConnection): Strategy {
   }
 
   return match(connection).exhaustive();
+}
+
+function closeConnection(connection: RuleOptionConnection) {
+  const strategy = mapRuleOptionsToStartegy(connection);
+
+  match(strategy)
+    .with({ type: "databaseUrl" }, ({ databaseUrl }) => {
+      const sql = connections.get(databaseUrl);
+      if (sql) {
+        sql.end();
+        connections.delete(databaseUrl);
+      }
+    })
+    .with({ type: "migrations" }, ({ connectionUrl, databaseName }) => {
+      const connectionOptions = { ...parseConnection(connectionUrl), database: databaseName };
+      const databaseUrl = mapConnectionOptionsToString(connectionOptions);
+      const sql = connections.get(databaseUrl);
+      if (sql) {
+        sql.end();
+        connections.delete(databaseUrl);
+      }
+    })
+    .exhaustive();
 }
