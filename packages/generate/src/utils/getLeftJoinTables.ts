@@ -42,10 +42,7 @@ function recursiveGetJoinExpr(joinExpr: JoinExpression, tables: string[]): strin
     joinExpr.jointype === "JOIN_LEFT" ? [...tables, joinExpr.rarg.RangeVar.relname] : tables;
 
   if ("JoinExpr" in joinExpr.larg) {
-    return recursiveGetJoinExpr(joinExpr.larg.JoinExpr, [
-      ...tables,
-      joinExpr.rarg.RangeVar.relname,
-    ]);
+    return recursiveGetJoinExpr(joinExpr.larg.JoinExpr, newTables);
   }
 
   return newTables;
