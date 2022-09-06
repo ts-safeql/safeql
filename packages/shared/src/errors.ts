@@ -4,11 +4,9 @@ import { TSESTree } from "@typescript-eslint/types";
 export class DatabaseInitializationError extends Error {
   _tag = "DatabaseInitializationError" as const;
 
-  pgError: string;
-
-  constructor(pgError: string) {
-    super(`Database initialization failed (${pgError})`);
-    this.pgError = pgError;
+  constructor(message: string) {
+    super(`Database initialization failed (${message})`);
+    this.message = message;
   }
 
   static of(pgError: string) {
@@ -26,7 +24,7 @@ export class DatabaseInitializationError extends Error {
   toJSON() {
     return {
       _tag: this._tag,
-      pgError: this.pgError,
+      message: this.message,
     };
   }
 }
@@ -35,12 +33,11 @@ export class InvalidMigrationsPathError extends Error {
   _tag = "InvalidMigrationsPathError" as const;
 
   migrationsPath: string;
-  pgError: string;
 
-  constructor(migrationsPath: string, pgError: string) {
-    super(`Failed to read migrations directory "${migrationsPath}" (${pgError})`);
+  constructor(migrationsPath: string, message: string) {
+    super(`Failed to read migrations directory "${migrationsPath}" (${message})`);
     this.migrationsPath = migrationsPath;
-    this.pgError = pgError;
+    this.message = message;
   }
 
   static of(filePath: string, pgError: string) {
@@ -55,7 +52,7 @@ export class InvalidMigrationsPathError extends Error {
     return {
       _tag: this._tag,
       migrationsPath: this.migrationsPath,
-      pgError: this.pgError,
+      message: this.message,
     };
   }
 }
@@ -64,12 +61,11 @@ export class InvalidMigrationError extends Error {
   _tag = "InvalidMigrationError" as const;
 
   filePath: string;
-  pgError: string;
 
-  constructor(filePath: string, pgError: string) {
-    super(`Failed to run migration "${path.basename(filePath)}" (${pgError})`);
+  constructor(filePath: string, message: string) {
+    super(`Failed to run migration "${path.basename(filePath)}" (${message})`);
     this.filePath = filePath;
-    this.pgError = pgError;
+    this.message = message;
   }
 
   static of(filePath: string, pgError: string) {
@@ -84,7 +80,7 @@ export class InvalidMigrationError extends Error {
     return {
       _tag: this._tag,
       filePath: this.filePath,
-      pgError: this.pgError,
+      message: this.message,
     };
   }
 }

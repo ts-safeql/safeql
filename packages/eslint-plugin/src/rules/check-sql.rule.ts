@@ -1,18 +1,24 @@
 import { GenerateResult } from "@safeql/generate";
-import { DuplicateColumnsError, InvalidQueryError, PostgresError } from "@safeql/shared";
+import {
+  DuplicateColumnsError,
+  InternalError,
+  InvalidQueryError,
+  PostgresError,
+} from "@safeql/shared";
 import { ESLintUtils, TSESLint, TSESTree } from "@typescript-eslint/utils";
 import { either, json } from "fp-ts";
 import { Either } from "fp-ts/lib/Either";
-import { flow, pipe } from "fp-ts/lib/function";
+import { flow, identity, pipe } from "fp-ts/lib/function";
 import * as recast from "recast";
-import { AnyAsyncFn, createSyncFn } from "synckit";
+import { createSyncFn } from "synckit";
 import { match } from "ts-pattern";
 import z from "zod";
 import zodToJsonSchema from "zod-to-json-schema";
 import { ESTreeUtils } from "../utils";
 import { locateNearestPackageJsonDir } from "../utils/node.utils";
 import { mapTemplateLiteralToQueryText } from "../utils/ts-pg.utils";
-import { WorkerError, WorkerResult } from "./check-sql.worker";
+import { WorkerError, WorkerParams, WorkerResult } from "./check-sql.worker";
+import pgParser from "libpg-query";
 
 const messages = {
   typeInferenceFailed: "Type inference failed {{error}}",
@@ -59,7 +65,9 @@ type RuleContext = Readonly<TSESLint.RuleContext<RuleMessage, RuleOptions>>;
 
 const workerPath = require.resolve("./check-sql.worker");
 
-const generateSync = createSyncFn<AnyAsyncFn<either.Either<unknown, string>>>(workerPath, {
+const generateSync = createSyncFn<
+  (params: WorkerParams) => Promise<either.Either<unknown, string>>
+>(workerPath, {
   tsRunner: "esbuild-register",
   timeout: 1000 * 60 * 5,
 });
@@ -108,10 +116,17 @@ function checkByConnection(params: {
     either.mapLeft((error) => error as unknown as WorkerError)
   );
 
+  const pgParseQuery = flow(pgParser.parseQuerySync, either.tryCatchK(identity, InternalError.to));
+
   pipe(
     either.Do,
-    either.chain(() => mapTemplateLiteralToQueryText(sqlExpression.quasi, parserServices, checker)),
-    either.chainW((query) => generateEither({ query, connection, projectDir })),
+    either.bind("query", () =>
+      mapTemplateLiteralToQueryText(sqlExpression.quasi, parserServices, checker)
+    ),
+    either.bindW("pgParsed", ({ query }) => pgParseQuery(query)),
+    either.chainW(({ query, pgParsed }) =>
+      generateEither({ query, pgParsed, connection, projectDir })
+    ),
     either.fold(
       (error) => {
         return match(error)

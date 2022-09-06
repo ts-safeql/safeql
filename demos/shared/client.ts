@@ -1,9 +1,7 @@
 import postgres, { RowList } from "postgres";
 
 export function createClient() {
-  async function query<T>(
-    query: postgres.PendingQuery<postgres.Row[]>
-  ) {
+  async function query<T>(query: postgres.PendingQuery<postgres.Row[]>) {
     const results = await query;
 
     return results as RowList<T[]>;

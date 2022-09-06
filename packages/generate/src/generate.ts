@@ -1,11 +1,10 @@
+import { DuplicateColumnsError, groupBy, PostgresError } from "@safeql/shared";
 import { either } from "fp-ts";
 import { Either } from "fp-ts/lib/Either";
 import postgres, { PostgresError as OriginalPostgresError } from "postgres";
 import "source-map-support/register";
 import { ColType, defaultTypeMapping } from "./utils/colTypes";
-import { getLeftJoinTables } from "./utils/getLeftJoinTables";
-import { groupBy } from "@safeql/shared";
-import { DuplicateColumnsError, PostgresError } from "@safeql/shared";
+import { getLeftJoinTablesFromParsed } from "./utils/getLeftJoinTables";
 
 type CacheKey = string;
 
@@ -49,6 +48,7 @@ export async function getMetadataFromCacheOrFetch(sql: Sql, cacheKey: CacheKey) 
 export interface GenerateParams {
   sql: Sql;
   query: string;
+  pgParsed: unknown;
   cacheMetadata?: boolean;
   cacheKey: string;
 }
@@ -69,7 +69,7 @@ export async function generate(
       return either.right({ result: null, stmt: result, query: query });
     }
 
-    const leftTables = (await getLeftJoinTables(query)).map(
+    const leftTables = getLeftJoinTablesFromParsed(params.pgParsed).map(
       (tableName) => pgCols.find((col) => col.tableName === tableName)!.tableOid
     );
 

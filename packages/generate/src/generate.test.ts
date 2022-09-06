@@ -1,7 +1,9 @@
+import { InternalError } from "@safeql/shared";
 import { generateTestDatabaseName, setupTestDatabase } from "@safeql/test-utils";
 import assert from "assert";
-import { either, option, taskEither } from "fp-ts";
-import { pipe } from "fp-ts/lib/function";
+import { option, taskEither } from "fp-ts";
+import { flow, identity, pipe } from "fp-ts/lib/function";
+import { parseQuery } from "libpg-query";
 import { before, test } from "mocha";
 import { Sql } from "postgres";
 import { generate, getMetadataFromCacheOrFetch } from "./generate";
@@ -50,13 +52,18 @@ after(async () => {
   await dropFn();
 });
 
+const generateTE = flow(generate, taskEither.tryCatchK(identity, InternalError.to));
+const parseQueryTE = flow(parseQuery, taskEither.tryCatchK(identity, InternalError.to));
+
 const testQuery = async (params: { query: string; expected?: unknown; expectedError?: string }) => {
+  const { query } = params;
+  const cacheKey = "test";
+
   return pipe(
-    taskEither.tryCatch(
-      () => generate({ sql: sql, query: params.query, cacheKey: "test" }),
-      either.toError
-    ),
-    taskEither.chainW(taskEither.fromEither),
+    taskEither.Do,
+    taskEither.bind("pgParsed", () => parseQueryTE(params.query)),
+    taskEither.bind("result", ({ pgParsed }) => generateTE({ sql, pgParsed, query, cacheKey })),
+    taskEither.chainW(({ result }) => taskEither.fromEither(result)),
     taskEither.match(
       (error) =>
         pipe(
@@ -162,6 +169,6 @@ test("select where int column = any(array)", async () => {
 test("select with syntax error", async () => {
   await testQuery({
     query: `SELECT id FROM caregiver WHERE`,
-    expectedError: "syntax error at end of input",
+    expectedError: "Internal error: syntax error at end of input",
   });
 });

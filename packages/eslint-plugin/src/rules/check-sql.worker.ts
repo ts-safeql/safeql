@@ -21,10 +21,11 @@ type SQL = Sql<Record<string, unknown>>;
 
 const connections: Map<string, SQL> = new Map();
 
-interface WorkerParams {
+export interface WorkerParams {
   connection: RuleOptionConnection;
   query: string;
   projectDir: string;
+  pgParsed: unknown;
 }
 
 runAsWorker(async (params: WorkerParams) => {
@@ -85,7 +86,12 @@ function workerHandler(params: WorkerParams): TaskEither<WorkerError, WorkerResu
   return pipe(
     connnectionPayload,
     taskEither.chainW(({ sql, databaseUrl }) => {
-      return generateTask({ sql, query: params.query, cacheKey: databaseUrl });
+      return generateTask({
+        sql,
+        query: params.query,
+        cacheKey: databaseUrl,
+        pgParsed: params.pgParsed,
+      });
     }),
     taskEither.chainW(taskEither.fromEither)
   );

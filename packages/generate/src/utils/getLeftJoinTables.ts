@@ -1,8 +1,11 @@
-import parser from "libpg-query";
-
-export async function getLeftJoinTables(queryText: string): Promise<string[]> {
-  const parsed = await parser.parseQuery(queryText);
+export function getLeftJoinTablesFromParsed($parsed: unknown): string[] {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const parsed = $parsed as any;
   const tables = [];
+
+  if (parsed.stmts === undefined) {
+    return [];
+  }
 
   for (const stmt of parsed.stmts) {
     if (!("SelectStmt" in stmt.stmt) || !("fromClause" in stmt.stmt.SelectStmt)) {

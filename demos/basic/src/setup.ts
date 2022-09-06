@@ -1,10 +1,10 @@
-import { execSync } from "node:child_process";
+import { execSync } from "child_process";
 import postgres from "postgres";
 
 async function main() {
   // 1. Drop the database if exists
   console.log("Dropping database if exists...");
-  execSync(`psql -c "DROP DATABASE IF EXISTS safeql_basic;"`);
+  execSync(`psql -c "DROP DATABASE IF EXISTS safeql_basic WITH (FORCE);"`);
 
   // 2. Create a new database
   console.log("Creating database...");

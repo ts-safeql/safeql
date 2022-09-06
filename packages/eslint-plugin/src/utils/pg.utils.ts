@@ -53,7 +53,7 @@ export function initDatabase(connection: ConnectionOptions) {
     taskEither.Do,
     taskEither.chain(() => dropDatabase(connection)),
     taskEither.altW(() => taskEither.right(undefined)),
-    taskEither.chain(() => createDatabase(connection)),
+    taskEither.chain(() => createDatabase(connection))
   );
 }
 

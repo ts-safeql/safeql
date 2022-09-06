@@ -190,7 +190,6 @@ RuleTester.describe("check-sql", () => {
         `,
         errors: [{ messageId: "invalidQuery" }],
       },
-      
     ],
   });
 });

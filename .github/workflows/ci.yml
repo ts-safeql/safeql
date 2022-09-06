@@ -45,5 +45,5 @@ jobs:
           PGHOST: localhost
           PGDATABASE: postgres
       - run: pnpm lint
-      - run: pnpm prettier
+      - run: pnpm run prettier
       - run: pnpm test

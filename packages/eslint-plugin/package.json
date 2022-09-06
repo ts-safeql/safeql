@@ -7,7 +7,7 @@
     "demo": "tsx src/index.ts",
     "build": "tsc",
     "watch": "tsc --watch",
-    "test": "mocha -r=@esbuild-kit/cjs-loader '**/*.test.ts'",
+    "test": "mocha -r=@esbuild-kit/cjs-loader '**/*.test.ts' --timeout 10000",
     "lint": "eslint src",
     "lint!": "eslint src --fix",
     "clean": "rm -rf lib"
@@ -23,6 +23,7 @@
     "esbuild": "0.15.7",
     "esbuild-register": "^3.3.3",
     "eslint": "^8.23.0",
+    "libpg-query": "^13.2.5",
     "mocha": "^10.0.0",
     "tsx": "3.9.0",
     "typescript": "^4.8.2"
@@ -41,5 +42,8 @@
     "ts-pattern": "^4.0.5",
     "zod": "^3.18.0",
     "zod-to-json-schema": "^3.17.1"
+  },
+  "peerDependencies": {
+    "libpg-query": "^13.2.5"
   }
 }
