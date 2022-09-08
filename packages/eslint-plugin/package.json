@@ -1,6 +1,6 @@
 {
   "name": "@safeql/eslint-plugin",
-  "version": "1.0.0",
+  "version": "0.0.0",
   "description": "",
   "main": "lib/index.js",
   "scripts": {
@@ -29,9 +29,9 @@
     "typescript": "^4.8.2"
   },
   "dependencies": {
-    "@safeql/generate": "workspace:1.0.0",
-    "@safeql/shared": "workspace:1.0.0",
-    "@safeql/test-utils": "workspace:1.0.0",
+    "@safeql/generate": "workspace:0.0.0",
+    "@safeql/shared": "workspace:0.0.0",
+    "@safeql/test-utils": "workspace:0.0.0",
     "@typescript-eslint/utils": "^5.36.2",
     "fp-ts": "^2.12.3",
     "pg-connection-string": "2.5.0",
@@ -40,7 +40,7 @@
     "source-map-support": "^0.5.21",
     "synckit": "^0.8.4",
     "ts-pattern": "^4.0.5",
-    "zod": "^3.18.0",
+    "zod": "^3.19.0",
     "zod-to-json-schema": "^3.17.1"
   },
   "peerDependencies": {

@@ -5,18 +5,18 @@ importers:
   .:
     specifiers:
       prettier: 2.7.1
-      turbo: ^1.4.5
+      turbo: ^1.4.6
       typescript: 4.8.2
     devDependencies:
       prettier: 2.7.1
-      turbo: 1.4.5
+      turbo: 1.4.6
       typescript: 4.8.2
 
   demos/basic:
     specifiers:
-      '@safeql-demos/shared': workspace:1.0.0
-      '@safeql/eslint-plugin': workspace:1.0.0
-      '@types/node': ^18.7.15
+      '@safeql-demos/shared': workspace:0.0.0
+      '@safeql/eslint-plugin': workspace:0.0.0
+      '@types/node': ^18.7.16
       '@typescript-eslint/eslint-plugin': ^5.36.2
       '@typescript-eslint/parser': ^5.36.2
       eslint: ^8.23.0
@@ -26,7 +26,7 @@ importers:
     dependencies:
       '@safeql-demos/shared': link:../shared
       '@safeql/eslint-plugin': link:../../packages/eslint-plugin
-      '@types/node': 18.7.15
+      '@types/node': 18.7.16
       postgres: github.com/porsager/postgres/b49ed8e9f3c41b664b41b7eb0aa27063207e4cdd
     devDependencies:
       '@typescript-eslint/eslint-plugin': 5.36.2_iurrlxgqcgk5svigzxakafpeuu
@@ -37,8 +37,8 @@ importers:
 
   demos/basic-migrations-raw:
     specifiers:
-      '@safeql-demos/shared': workspace:1.0.0
-      '@safeql/eslint-plugin': workspace:1.0.0
+      '@safeql-demos/shared': workspace:0.0.0
+      '@safeql/eslint-plugin': workspace:0.0.0
       '@typescript-eslint/eslint-plugin': ^5.36.2
       '@typescript-eslint/parser': ^5.36.2
       eslint: ^8.23.0
@@ -56,8 +56,8 @@ importers:
 
   demos/multi-connections:
     specifiers:
-      '@safeql-demos/shared': workspace:1.0.0
-      '@safeql/eslint-plugin': workspace:1.0.0
+      '@safeql-demos/shared': workspace:0.0.0
+      '@safeql/eslint-plugin': workspace:0.0.0
       '@typescript-eslint/eslint-plugin': ^5.36.2
       '@typescript-eslint/parser': ^5.36.2
       eslint: ^8.23.0
@@ -75,11 +75,11 @@ importers:
 
   demos/shared:
     specifiers:
-      '@types/node': ^18.7.15
+      '@types/node': ^18.7.16
       postgres: github:porsager/postgres
       typescript: 4.8.2
     dependencies:
-      '@types/node': 18.7.15
+      '@types/node': 18.7.16
       postgres: github.com/porsager/postgres/b49ed8e9f3c41b664b41b7eb0aa27063207e4cdd
     devDependencies:
       typescript: 4.8.2
@@ -87,9 +87,9 @@ importers:
   packages/eslint-plugin:
     specifiers:
       '@esbuild-kit/cjs-loader': 2.3.3
-      '@safeql/generate': workspace:1.0.0
-      '@safeql/shared': workspace:1.0.0
-      '@safeql/test-utils': workspace:1.0.0
+      '@safeql/generate': workspace:0.0.0
+      '@safeql/shared': workspace:0.0.0
+      '@safeql/test-utils': workspace:0.0.0
       '@types/mocha': 9.1.1
       '@typescript-eslint/eslint-plugin': ^5.36.2
       '@typescript-eslint/parser': ^5.36.2
@@ -108,7 +108,7 @@ importers:
       ts-pattern: ^4.0.5
       tsx: 3.9.0
       typescript: ^4.8.2
-      zod: ^3.18.0
+      zod: ^3.19.0
       zod-to-json-schema: ^3.17.1
     dependencies:
       '@safeql/generate': link:../generate
@@ -122,8 +122,8 @@ importers:
       source-map-support: 0.5.21
       synckit: 0.8.4
       ts-pattern: 4.0.5
-      zod: 3.18.0
-      zod-to-json-schema: 3.17.1_zod@3.18.0
+      zod: 3.19.0
+      zod-to-json-schema: 3.17.1_zod@3.19.0
     devDependencies:
       '@esbuild-kit/cjs-loader': 2.3.3
       '@types/mocha': 9.1.1
@@ -140,10 +140,10 @@ importers:
   packages/generate:
     specifiers:
       '@esbuild-kit/cjs-loader': ^2.3.3
-      '@safeql/shared': workspace:1.0.0
-      '@safeql/test-utils': workspace:1.0.0
+      '@safeql/shared': workspace:0.0.0
+      '@safeql/test-utils': workspace:0.0.0
       '@types/mocha': ^9.1.1
-      '@types/node': ^18.7.15
+      '@types/node': ^18.7.16
       '@typescript-eslint/eslint-plugin': ^5.36.2
       '@typescript-eslint/parser': ^5.36.2
       eslint: ^8.23.0
@@ -165,7 +165,7 @@ importers:
     devDependencies:
       '@esbuild-kit/cjs-loader': 2.3.3
       '@types/mocha': 9.1.1
-      '@types/node': 18.7.15
+      '@types/node': 18.7.16
       '@typescript-eslint/eslint-plugin': 5.36.2_iurrlxgqcgk5svigzxakafpeuu
       '@typescript-eslint/parser': 5.36.2_yqf6kl63nyoq5megxukfnom5rm
       eslint: 8.23.0
@@ -176,14 +176,14 @@ importers:
 
   packages/shared:
     specifiers:
-      '@types/node': ^18.7.15
+      '@types/node': ^18.7.16
       '@typescript-eslint/eslint-plugin': ^5.36.2
       '@typescript-eslint/parser': ^5.36.2
       '@typescript-eslint/utils': ^5.36.2
       eslint: ^8.23.0
       typescript: ^4.8.2
     devDependencies:
-      '@types/node': 18.7.15
+      '@types/node': 18.7.16
       '@typescript-eslint/eslint-plugin': 5.36.2_iurrlxgqcgk5svigzxakafpeuu
       '@typescript-eslint/parser': 5.36.2_yqf6kl63nyoq5megxukfnom5rm
       '@typescript-eslint/utils': 5.36.2_yqf6kl63nyoq5megxukfnom5rm
@@ -192,8 +192,8 @@ importers:
 
   packages/test-utils:
     specifiers:
-      '@safeql/shared': workspace:1.0.0
-      '@types/node': ^18.7.15
+      '@safeql/shared': workspace:0.0.0
+      '@types/node': ^18.7.16
       '@typescript-eslint/eslint-plugin': ^5.36.2
       '@typescript-eslint/parser': ^5.36.2
       '@typescript-eslint/utils': ^5.36.2
@@ -208,7 +208,7 @@ importers:
       pg-connection-string: 2.5.0
       postgres: github.com/porsager/postgres/b49ed8e9f3c41b664b41b7eb0aa27063207e4cdd
     devDependencies:
-      '@types/node': 18.7.15
+      '@types/node': 18.7.16
       '@typescript-eslint/eslint-plugin': 5.36.2_iurrlxgqcgk5svigzxakafpeuu
       '@typescript-eslint/parser': 5.36.2_yqf6kl63nyoq5megxukfnom5rm
       '@typescript-eslint/utils': 5.36.2_yqf6kl63nyoq5megxukfnom5rm
@@ -287,8 +287,8 @@ packages:
   /@humanwhocodes/object-schema/1.2.1:
     resolution: {integrity: sha512-ZnQMnLV4e7hDlUvw8H+U8ASL02SS2Gn6+9Ac3wGGLIe7+je2AeAOxPY+izIPJDfFDb7eDjev0Us8MO1iFRN8hA==}
 
-  /@mapbox/node-pre-gyp/1.0.9:
-    resolution: {integrity: sha512-aDF3S3rK9Q2gey/WAttUlISduDItz5BU3306M9Eyv6/oS40aMprnopshtlKTykxRNIBEZuRMaZAnbrQ4QtKGyw==}
+  /@mapbox/node-pre-gyp/1.0.10:
+    resolution: {integrity: sha512-4ySo4CjzStuprMwk35H5pPbkymjv1SF3jGLj6rAHp/xT/RF7TL7bd9CTm1xDY49K2qF7jmR/g7k+SkLETP6opA==}
     hasBin: true
     dependencies:
       detect-libc: 2.0.1
@@ -362,8 +362,8 @@ packages:
     resolution: {integrity: sha512-Z61JK7DKDtdKTWwLeElSEBcWGRLY8g95ic5FoQqI9CMx0ns/Ghep3B4DfcEimiKMvtamNVULVNKEsiwV3aQmXw==}
     dev: true
 
-  /@types/node/18.7.15:
-    resolution: {integrity: sha512-XnjpaI8Bgc3eBag2Aw4t2Uj/49lLBSStHWfqKvIuXD7FIrZyMLWp8KuAFHAqxMZYTF9l08N1ctUn9YNybZJVmQ==}
+  /@types/node/18.7.16:
+    resolution: {integrity: sha512-EQHhixfu+mkqHMZl1R2Ovuvn47PUw18azMJOTwSZr9/fhzHNGXAJ0ma0dayRVchprpCj0Kc1K1xKoWaATWF1qg==}
 
   /@typescript-eslint/eslint-plugin/5.36.2_iurrlxgqcgk5svigzxakafpeuu:
     resolution: {integrity: sha512-OwwR8LRwSnI98tdc2z7mJYgY60gf7I9ZfGjN5EjCwwns9bdTuQfAXcsjSB2wSQ/TVNYSGKf4kzVXbNGaZvwiXw==}
@@ -1522,7 +1522,7 @@ packages:
     resolution: {integrity: sha512-Y0IHcZyxbX4WHwWNa5KFDufYSiVIb+uPyZQDdom1ODxCfqko/ubLj+rzHeSDeaRRsEzgKc22x/jBRka7BMT2vQ==}
     requiresBuild: true
     dependencies:
-      '@mapbox/node-pre-gyp': 1.0.9
+      '@mapbox/node-pre-gyp': 1.0.10
       node-addon-api: 1.7.2
       node-gyp: 8.4.1
     transitivePeerDependencies:
@@ -2174,137 +2174,137 @@ packages:
       fsevents: 2.3.2
     dev: true
 
-  /turbo-android-arm64/1.4.5:
-    resolution: {integrity: sha512-cKPJVyS1A2BBVbcH8XVeBArtEjHxioEm9zQa3Hv68usQOOFW+KOjH+0fGvjqMrWztLVFhE+npeVsnyu/6AmRew==}
+  /turbo-android-arm64/1.4.6:
+    resolution: {integrity: sha512-YxSlHc64CF5J7yNUMiLBHkeLyzrpe75Oy7tivWb3z7ySG44BXPikk4HDJZPh0T1ELvukDwuPKkvDukJ2oCLJpA==}
     cpu: [arm64]
     os: [android]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo-darwin-64/1.4.5:
-    resolution: {integrity: sha512-cK6LjkziSfopTznpfx3EdW/C11xFlK01tYxNj0XPoBW4vNb1zLsfrI/HIwp0SzdNLqzCBwOJBK0VB07Q1MmlxQ==}
+  /turbo-darwin-64/1.4.6:
+    resolution: {integrity: sha512-f6uto7LLpjwZ6iZSF+8uaDpuiTji6xmnWDxNuW23DBE8iv5mxehHd+6Ys851uKDRrPb3QdCu9ctyigKTAla5Vg==}
     cpu: [x64]
     os: [darwin]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo-darwin-arm64/1.4.5:
-    resolution: {integrity: sha512-hnixteVmfllup0//mGr2AZOff8oJ9dEydRU/EvbyIJ7PdkSct8758YnP5l2yMyxxipHHALSwchOKcySoaPBLRw==}
+  /turbo-darwin-arm64/1.4.6:
+    resolution: {integrity: sha512-o9C6e5XyuMHQwE0fEhUxfpXxvNr2QXXWX8nxIjygxeF19AqKbk/s08vZBOEmXV6/gx/pRhZ1S2nf0PIUjKBD/Q==}
     cpu: [arm64]
     os: [darwin]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo-freebsd-64/1.4.5:
-    resolution: {integrity: sha512-DDNSDiKJF/F1qbSNlvRs2UO79iMPlKFw/ZcVCDKXRjMI5uMRujMIfNnoStAg6kifYZJ0KIxnzdsbbJFtCTgPhQ==}
+  /turbo-freebsd-64/1.4.6:
+    resolution: {integrity: sha512-Gg9VOUo6McXYKGevcYjGUSmMryZyZggvpdPh7Dw3QTcT8Tsy6OBtq6WnJ2O4kFDsMigyKtEOJPceD9vDMZt3yQ==}
     cpu: [x64]
     os: [freebsd]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo-freebsd-arm64/1.4.5:
-    resolution: {integrity: sha512-pFU8ujUp7XU527NM04P4foDjOKfi8f0rNJqREU6AMxawiMI6y0oyHc3W4VNKm0Y9IsjcfguZKZRMPeQ0n7LgJA==}
+  /turbo-freebsd-arm64/1.4.6:
+    resolution: {integrity: sha512-W7VrcneWFN1QENKt5cpAPSsf9ArYBBAm3VtPBZEO5tX8kuahGlah1SKdKJXrRxYOY82wyNxDagS/rHpBlrAAzw==}
     cpu: [arm64]
     os: [freebsd]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo-linux-32/1.4.5:
-    resolution: {integrity: sha512-Y5pnIetm4CwxbG1YQbvnTmjROPjQjX03ktHvmoekBleU1coYGShGPd9iarQZ96XkeaRevfwfSJ90AnDGwc3/QQ==}
+  /turbo-linux-32/1.4.6:
+    resolution: {integrity: sha512-76j/zsui6mWPX8pZVMGgF8eiKHPmKuGa2lo0A/Ja0HUvdYCOGUfHsWJGVVIeYbuEp3jsKyVt7OnMDeH9CqO6bg==}
     cpu: [ia32]
     os: [linux]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo-linux-64/1.4.5:
-    resolution: {integrity: sha512-tiTusM7mYib3iLmVOWmxhsg6xU3EArjOL4l3yh9rYBdArhDJk+DrhXkbJkYOYgNSWUEfPeBs0lzSkfTIQ2H21g==}
+  /turbo-linux-64/1.4.6:
+    resolution: {integrity: sha512-z4A37Xm7lZyO9ddtGnvQHWMrsAKX6vFBxdbtb9MY76VRblo7lWSuk4LwCeM+T+ZDJ9LBFiF7aD/diRShlLx9jA==}
     cpu: [x64]
     os: [linux]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo-linux-arm/1.4.5:
-    resolution: {integrity: sha512-5BsTRsoZeUWXWau4t4CNdL6NjlDdXrh8suhj5YolXUVCe039A5IutS7Dgd4i8dV1BovFCU3bz38dqQI2Qst5eQ==}
+  /turbo-linux-arm/1.4.6:
+    resolution: {integrity: sha512-Uh/V3oaAdhyZW6FKPpKihAxQo3EbvLaVNnzzkBmBnvHRkqoDJHhpuG72V7nn8pzxVbJ1++NEVjvbc2kmKFvGjg==}
     cpu: [arm]
     os: [linux]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo-linux-arm64/1.4.5:
-    resolution: {integrity: sha512-R03HPqb0tJtqsGF4P3oPWsggdpTe9CZiBEtzATFpL7WVzm/Dsimy1Wcj07v6gCWdgi/mWmRt+OcZfGhnf7mibQ==}
+  /turbo-linux-arm64/1.4.6:
+    resolution: {integrity: sha512-FW1jmOpZfOoVVvml338N0MPnYjiMyYWTaMb4T+IosgGYymcUE3xJjfXJcqfU/9/uKTyY8zG0qr9/5rw2kpMS2Q==}
     cpu: [arm64]
     os: [linux]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo-linux-mips64le/1.4.5:
-    resolution: {integrity: sha512-08+WhWCx2Bp6wKH8im4Z2iEBCgiWJLZbNbZ8YHxamwlIk1JsklyCCMikMSWb0GmpKi7EIjdmtPRQY2CyoBefpg==}
+  /turbo-linux-mips64le/1.4.6:
+    resolution: {integrity: sha512-iWaL3Pwj52BH3T2M8nXScmbSnq4+x47MYK7lJMG7FsZGAIoT5ToO1Wt1iX3GRHTcnIZYm/kCfJ1ptK/NCossLA==}
     cpu: [mipsel]
     os: [linux]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo-linux-ppc64le/1.4.5:
-    resolution: {integrity: sha512-feGjTOYcCbg12Y6JzL8nxaUOzjqqYtO6vtxrJy16yVCd2k2htd18iZ1kLjWKDZA94vdyW5lfyAGsAQik2eAC4A==}
+  /turbo-linux-ppc64le/1.4.6:
+    resolution: {integrity: sha512-Af/KlUmpiORDyELxT7byXNWl3fefErGQMJfeqXEtAdhs8OCKQWuU+lchcZbiBZYNpL+lZoa3PAmP9Fpx7R4plA==}
     cpu: [ppc64]
     os: [linux]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo-windows-32/1.4.5:
-    resolution: {integrity: sha512-O4tOnGmVJrR1JOKepuUvx/kqgaU6eMEjYUihJlvQmz9pTA/ecs8HrTGyXrabbmp5YdUmF2qsXaAcOvEuJaNPmQ==}
+  /turbo-windows-32/1.4.6:
+    resolution: {integrity: sha512-NBd+XPlRSaR//lVN13Q9DOqK3CbowSvafIyGsO4jfvMsGTdyNDL6AYtFsvTKW91/G7ZhATmSEkPn2pZRuhP/DA==}
     cpu: [ia32]
     os: [win32]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo-windows-64/1.4.5:
-    resolution: {integrity: sha512-3W9gGq9h2szhestsoA1XqN9hV0wCRpGCEV6fbb3q9EaJY8K9Tff8By0mi+fE31OKHY4om+PHg595q7kybcyG/Q==}
+  /turbo-windows-64/1.4.6:
+    resolution: {integrity: sha512-86AbmG+CjzVTpn4RGtwU2CYy4zSyAc9bIQ4pDGLIpCJg6JlD11duaiMJh0SCU/HCqWLJjWDI4qD+f9WNbgPsyQ==}
     cpu: [x64]
     os: [win32]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo-windows-arm64/1.4.5:
-    resolution: {integrity: sha512-/77f6OJM/4MqYEoCMER5MZTbfJZuVN22R9mc7iJDFOrNJrwvAWiAx98Fvo7WEVpMjGFUEq4Wi0UV5SpMAGU3bA==}
+  /turbo-windows-arm64/1.4.6:
+    resolution: {integrity: sha512-V+pWcqhTtmQQ3ew8qEjYtUwzyW6tO1RgvP+6OKzItYzTnMTr1Fe42Q21V+tqRNxuNfFDKsgVJdk2p5wB87bvyQ==}
     cpu: [arm64]
     os: [win32]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo/1.4.5:
-    resolution: {integrity: sha512-imAyc1kZusjzMWY4RO572FWws8x6CoM5mX7D3qtMjdGuqOBNBhPTIaJ0LmQLu+xzuKIOlJ5m/2587CsHOJTdgw==}
+  /turbo/1.4.6:
+    resolution: {integrity: sha512-FKtBXlOJ7YjSK22yj4sJLCtDcHFElypt7xw9cZN7Wyv9x4XBrTmh5KP6RmcGnRR1/GJlTNwD2AY2T9QTPnHh+g==}
     hasBin: true
     requiresBuild: true
     optionalDependencies:
-      turbo-android-arm64: 1.4.5
-      turbo-darwin-64: 1.4.5
-      turbo-darwin-arm64: 1.4.5
-      turbo-freebsd-64: 1.4.5
-      turbo-freebsd-arm64: 1.4.5
-      turbo-linux-32: 1.4.5
-      turbo-linux-64: 1.4.5
-      turbo-linux-arm: 1.4.5
-      turbo-linux-arm64: 1.4.5
-      turbo-linux-mips64le: 1.4.5
-      turbo-linux-ppc64le: 1.4.5
-      turbo-windows-32: 1.4.5
-      turbo-windows-64: 1.4.5
-      turbo-windows-arm64: 1.4.5
+      turbo-android-arm64: 1.4.6
+      turbo-darwin-64: 1.4.6
+      turbo-darwin-arm64: 1.4.6
+      turbo-freebsd-64: 1.4.6
+      turbo-freebsd-arm64: 1.4.6
+      turbo-linux-32: 1.4.6
+      turbo-linux-64: 1.4.6
+      turbo-linux-arm: 1.4.6
+      turbo-linux-arm64: 1.4.6
+      turbo-linux-mips64le: 1.4.6
+      turbo-linux-ppc64le: 1.4.6
+      turbo-windows-32: 1.4.6
+      turbo-windows-64: 1.4.6
+      turbo-windows-arm64: 1.4.6
     dev: true
 
   /type-check/0.4.0:
@@ -2427,16 +2427,16 @@ packages:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
     engines: {node: '>=10'}
 
-  /zod-to-json-schema/3.17.1_zod@3.18.0:
+  /zod-to-json-schema/3.17.1_zod@3.19.0:
     resolution: {integrity: sha512-h1WLfvkdwM6lcRt5q09ytNh2OKcU13vY9D0FetN/7Erdd7lVraIiMkEnObg3KELm5EQlMqvi0r5nzMa0EA+8qw==}
     peerDependencies:
       zod: ^3.17.10
     dependencies:
-      zod: 3.18.0
+      zod: 3.19.0
     dev: false
 
-  /zod/3.18.0:
-    resolution: {integrity: sha512-gwTm8RfUCe8l9rDwN5r2A17DkAa8Ez4Yl4yXqc5VqeGaXaJahzYYXbTwvhroZi0SNBqTwh/bKm2N0mpCzuw4bA==}
+  /zod/3.19.0:
+    resolution: {integrity: sha512-Yw0qvUsCNGBe5YacikdMt5gVYeUuaEFVDIHKMfElrGSaBhwR3CQK6vOzgfAJOjTdGIhEeoaj8GtT+NDZrepZbw==}
     dev: false
 
   github.com/porsager/postgres/b49ed8e9f3c41b664b41b7eb0aa27063207e4cdd:
