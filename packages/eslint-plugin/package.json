@@ -1,8 +1,13 @@
 {
   "name": "@safeql/eslint-plugin",
-  "version": "0.0.0",
-  "description": "",
+  "version": "0.0.1",
   "main": "lib/index.js",
+  "license": "MIT",
+  "repository": "https://github.com/ts-safeql/safeql/tree/master/packages/eslint-plugin",
+  "files": [
+    "lib",
+    "package.json"
+  ],
   "scripts": {
     "demo": "tsx src/index.ts",
     "build": "tsc",
@@ -12,9 +17,6 @@
     "lint!": "eslint src --fix",
     "clean": "rm -rf lib"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "devDependencies": {
     "@esbuild-kit/cjs-loader": "2.3.3",
     "@types/mocha": "9.1.1",
@@ -29,9 +31,9 @@
     "typescript": "^4.8.2"
   },
   "dependencies": {
-    "@safeql/generate": "workspace:0.0.0",
-    "@safeql/shared": "workspace:0.0.0",
-    "@safeql/test-utils": "workspace:0.0.0",
+    "@safeql/generate": "workspace:0.0.1",
+    "@safeql/shared": "workspace:0.0.1",
+    "@safeql/test-utils": "workspace:0.0.1",
     "@typescript-eslint/utils": "^5.36.2",
     "fp-ts": "^2.12.3",
     "pg-connection-string": "2.5.0",

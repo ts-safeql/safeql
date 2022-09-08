@@ -251,7 +251,7 @@ function areTypesEqual(current: string, generated: string | null) {
   return current.replace(omitRegex, "") === `<${generated}>`.replace(omitRegex, "");
 }
 
-const createRule = ESLintUtils.RuleCreator(() => `https://github.com/Newbie012/testsql`)<
+const createRule = ESLintUtils.RuleCreator(() => `https://github.com/ts-safeql/safeql`)<
   RuleOptions,
   RuleMessage
 >;

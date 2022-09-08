@@ -1,6 +1,14 @@
 {
   "name": "@safeql/shared",
-  "version": "0.0.0",
+  "version": "0.0.1",
+  "main": "lib/index.js",
+  "types": "src/index.ts",
+  "license": "MIT",
+  "repository": "https://github.com/ts-safeql/safeql/tree/master/packages/eslint-plugin",
+  "files": [
+    "lib",
+    "package.json"
+  ],
   "scripts": {
     "build": "tsc",
     "watch": "tsc --watch",
@@ -8,8 +16,6 @@
     "lint!": "eslint src --fix",
     "clean": "rm -rf lib"
   },
-  "main": "lib/index.js",
-  "types": "src/index.ts",
   "devDependencies": {
     "@types/node": "^18.7.16",
     "@typescript-eslint/eslint-plugin": "^5.36.2",

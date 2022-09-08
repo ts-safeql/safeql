@@ -9,8 +9,8 @@ import {
 import { either, json, option, taskEither } from "fp-ts";
 import { pipe } from "fp-ts/lib/function";
 import { TaskEither } from "fp-ts/lib/TaskEither";
-import fs from "node:fs";
-import path from "node:path";
+import fs from "fs";
+import path from "path";
 import postgres, { Sql } from "postgres";
 import { runAsWorker } from "synckit";
 import { match } from "ts-pattern";

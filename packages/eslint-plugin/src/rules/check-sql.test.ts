@@ -2,7 +2,7 @@ import { generateTestDatabaseName, setupTestDatabase } from "@safeql/test-utils"
 import { ESLintUtils } from "@typescript-eslint/utils";
 import { RuleTester } from "@typescript-eslint/utils/dist/ts-eslint";
 import { after, before, describe, it } from "mocha";
-import path from "node:path";
+import path from "path";
 import { Sql } from "postgres";
 import rules from ".";
 import { RuleOptionConnection, RuleOptions } from "./check-sql.rule";

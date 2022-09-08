@@ -1,4 +1,4 @@
-import path from "node:path";
+import path from "path";
 import { TSESTree } from "@typescript-eslint/types";
 
 export class DatabaseInitializationError extends Error {
