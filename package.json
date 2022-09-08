@@ -1,5 +1,6 @@
 {
   "name": "testsql",
+  "description": "Validate and auto-generate TypeScript types from raw SQL queries in PostgreSQL.",
   "version": "0.0.0",
   "license": "MIT",
   "private": true,
