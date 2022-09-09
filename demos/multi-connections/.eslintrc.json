@@ -1,11 +1,11 @@
 {
   "parser": "@typescript-eslint/parser",
-  "plugins": ["@typescript-eslint", "@safeql/eslint-plugin"],
+  "plugins": ["@typescript-eslint", "@ts-safeql/eslint-plugin"],
   "parserOptions": {
     "project": "./tsconfig.json"
   },
   "rules": {
-    "@safeql/check-sql": [
+    "@ts-safeql/check-sql": [
       "error",
       {
         "connections": [

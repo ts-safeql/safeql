@@ -1,4 +1,4 @@
-import { generateTestDatabaseName, setupTestDatabase } from "@safeql/test-utils";
+import { generateTestDatabaseName, setupTestDatabase } from "@ts-safeql/test-utils";
 import { ESLintUtils } from "@typescript-eslint/utils";
 import { RuleTester } from "@typescript-eslint/utils/dist/ts-eslint";
 import { after, before, describe, it } from "mocha";

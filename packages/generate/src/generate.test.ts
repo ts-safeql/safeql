@@ -1,5 +1,5 @@
-import { InternalError } from "@safeql/shared";
-import { generateTestDatabaseName, setupTestDatabase } from "@safeql/test-utils";
+import { InternalError } from "@ts-safeql/shared";
+import { generateTestDatabaseName, setupTestDatabase } from "@ts-safeql/test-utils";
 import assert from "assert";
 import { option, taskEither } from "fp-ts";
 import { flow, identity, pipe } from "fp-ts/lib/function";

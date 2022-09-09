@@ -1,10 +1,10 @@
-import { GenerateResult } from "@safeql/generate";
+import { GenerateResult } from "@ts-safeql/generate";
 import {
   DuplicateColumnsError,
   InternalError,
   InvalidQueryError,
   PostgresError,
-} from "@safeql/shared";
+} from "@ts-safeql/shared";
 import { ESLintUtils, TSESLint, TSESTree } from "@typescript-eslint/utils";
 import { either, json } from "fp-ts";
 import { Either } from "fp-ts/lib/Either";

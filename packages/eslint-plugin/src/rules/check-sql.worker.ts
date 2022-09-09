@@ -1,11 +1,11 @@
-import { generate } from "@safeql/generate";
-import { GenerateError, GenerateParams, GenerateResult } from "@safeql/generate/src/generate";
+import { generate } from "@ts-safeql/generate";
+import { GenerateError, GenerateParams, GenerateResult } from "@ts-safeql/generate/src/generate";
 import {
   DatabaseInitializationError,
   InternalError,
   InvalidMigrationError,
   InvalidMigrationsPathError,
-} from "@safeql/shared";
+} from "@ts-safeql/shared";
 import { either, json, option, taskEither } from "fp-ts";
 import { pipe } from "fp-ts/lib/function";
 import { TaskEither } from "fp-ts/lib/TaskEither";

@@ -1,5 +1,5 @@
 {
-  "name": "@safeql/shared",
+  "name": "@ts-safeql/shared",
   "version": "0.0.1",
   "main": "lib/index.js",
   "types": "src/index.ts",

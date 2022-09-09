@@ -1,4 +1,4 @@
-# @safeql/eslint-plugin
+# @ts-safeql/eslint-plugin
 
 ## 0.0.1
 
@@ -6,6 +6,6 @@
 
 - initial release
 - Updated dependencies
-  - @safeql/generate@0.0.1
-  - @safeql/shared@0.0.1
-  - @safeql/test-utils@0.0.1
+  - @ts-safeql/generate@0.0.1
+  - @ts-safeql/shared@0.0.1
+  - @ts-safeql/test-utils@0.0.1

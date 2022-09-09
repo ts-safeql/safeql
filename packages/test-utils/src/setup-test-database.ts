@@ -1,4 +1,4 @@
-import { isDefined } from "@safeql/shared";
+import { isDefined } from "@ts-safeql/shared";
 import { spawn } from "child_process";
 import { nanoid } from "nanoid";
 import { parse } from "pg-connection-string";

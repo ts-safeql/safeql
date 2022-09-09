@@ -1,5 +1,5 @@
 {
-  "name": "@safeql/generate",
+  "name": "@ts-safeql/generate",
   "version": "0.0.1",
   "description": "",
   "main": "lib/index.js",
@@ -31,8 +31,8 @@
     "typescript": "^4.8.2"
   },
   "dependencies": {
-    "@safeql/shared": "workspace:0.0.1",
-    "@safeql/test-utils": "workspace:0.0.1",
+    "@ts-safeql/shared": "workspace:0.0.1",
+    "@ts-safeql/test-utils": "workspace:0.0.1",
     "fp-ts": "^2.12.3",
     "pg-connection-string": "^2.5.0",
     "postgres": "github:porsager/postgres",

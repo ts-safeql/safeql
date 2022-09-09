@@ -1,4 +1,4 @@
-import { InternalError } from "@safeql/shared";
+import { InternalError } from "@ts-safeql/shared";
 import assert from "assert";
 import { taskEither } from "fp-ts";
 import { flow, identity, pipe } from "fp-ts/lib/function";

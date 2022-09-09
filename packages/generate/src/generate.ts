@@ -1,4 +1,4 @@
-import { DuplicateColumnsError, groupBy, PostgresError } from "@safeql/shared";
+import { DuplicateColumnsError, groupBy, PostgresError } from "@ts-safeql/shared";
 import { either } from "fp-ts";
 import { Either } from "fp-ts/lib/Either";
 import postgres, { PostgresError as OriginalPostgresError } from "postgres";

@@ -1,4 +1,4 @@
-import { DatabaseInitializationError } from "@safeql/shared";
+import { DatabaseInitializationError } from "@ts-safeql/shared";
 import { spawn, ChildProcessWithoutNullStreams } from "child_process";
 import { taskEither } from "fp-ts";
 import { pipe } from "fp-ts/lib/function";

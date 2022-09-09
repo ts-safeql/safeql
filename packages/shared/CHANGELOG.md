@@ -1,4 +1,4 @@
-# @safeql/shared
+# @ts-safeql/shared
 
 ## 0.0.1
 

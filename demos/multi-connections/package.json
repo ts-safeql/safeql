@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "@safeql-demos/shared": "workspace:*",
-    "@safeql/eslint-plugin": "workspace:*",
+    "@ts-safeql/eslint-plugin": "workspace:*",
     "postgres": "github:porsager/postgres"
   }
 }

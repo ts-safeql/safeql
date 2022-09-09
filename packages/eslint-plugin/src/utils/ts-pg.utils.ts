@@ -1,4 +1,4 @@
-import { InvalidQueryError } from "@safeql/shared";
+import { InvalidQueryError } from "@ts-safeql/shared";
 import { ParserServices, TSESTree } from "@typescript-eslint/utils";
 import { either } from "fp-ts";
 import { pipe } from "fp-ts/lib/function";
