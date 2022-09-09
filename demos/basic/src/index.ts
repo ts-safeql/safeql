@@ -1,5 +1,5 @@
 import postgres from "postgres";
-import { Db } from "@safeql-demos/shared/client";
+import { Db } from "@ts-safeql-demos/shared/client";
 
 type ID = number;
 

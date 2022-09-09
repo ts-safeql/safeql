@@ -1,4 +1,4 @@
-import { Db, Nullable } from "@safeql-demos/shared/client";
+import { Db, Nullable } from "@ts-safeql-demos/shared/client";
 import postgres from "postgres";
 
 export function check(client1: Db, client2: Db) {
