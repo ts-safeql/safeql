@@ -164,6 +164,14 @@ RuleTester.describe("check-sql", () => {
       {
         filename,
         options: options,
+        name: "select computed column without type annotation (with Prisma.sql)",
+        code: "const result = conn.query(Prisma.sql`SELECT 1 as x`);",
+        output: "const result = conn.query<{ x: Unknown<number>; }>(Prisma.sql`SELECT 1 as x`);",
+        errors: [{ messageId: "missingTypeAnnotations" }],
+      },
+      {
+        filename,
+        options: options,
         name: "select column without type annotation",
         code: "const result = conn.query(sql`select id from caregiver`);",
         output: "const result = conn.query<{ id: number; }>(sql`select id from caregiver`);",

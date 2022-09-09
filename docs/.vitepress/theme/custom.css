@@ -1,0 +1,15 @@
+:root {
+  --vp-c-brand-darker: hsl(211, 60%, 38%);
+  --vp-c-brand-dark: hsl(211, 60%, 48%);
+  --vp-c-brand: hsl(211, 60%, 58%);
+  --vp-c-brand-light: hsl(211, 60%, 68%);
+  --vp-c-brand-lighter: hsl(211, 60%, 78%);
+}
+
+.error {
+    --vp-code-line-highlight-color: var(--vp-c-red-dimm-2);
+}
+
+.error code span.highlighted span {
+    color: var(--vp-c-red-light) !important;
+}

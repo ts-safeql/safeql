@@ -82,6 +82,20 @@ function check(params: {
   }
 }
 
+function isTagMemberValid(expr: TSESTree.TaggedTemplateExpression) {
+  // For example conn.query(sql``)
+  if (ESTreeUtils.isIdentifier(expr.tag)) {
+    return true;
+  }
+
+  // For example conn.query(Provider.sql``)
+  if (ESTreeUtils.isMemberExpression(expr.tag) && ESTreeUtils.isIdentifier(expr.tag.property)) {
+    return true;
+  }
+
+  return false;
+}
+
 function checkByConnection(params: {
   context: RuleContext;
   connection: RuleOptionConnection;
@@ -90,7 +104,7 @@ function checkByConnection(params: {
 }) {
   const { context, expr, projectDir, connection } = params;
   if (
-    !ESTreeUtils.isIdentifier(expr.tag) ||
+    !isTagMemberValid(expr) ||
     !ESTreeUtils.isCallExpression(expr.parent) ||
     !ESTreeUtils.isMemberExpression(expr.parent.callee) ||
     !ESTreeUtils.isIdentifier(expr.parent.callee.object) ||

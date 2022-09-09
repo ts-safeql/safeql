@@ -16,7 +16,8 @@
     "clean": "turbo run clean"
   },
   "workspaces": [
-    "packages/**"
+    "packages/**",
+    "docs"
   ],
   "engines": {
     "node": "18.x"

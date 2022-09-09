@@ -12,9 +12,9 @@
  - [x] (V1) Chore - figure out whether I should use --save-exact or not
  - [ ] (V1) Example
     - [ ] Prisma
-    - [ ] Sequalize
- - [ ] (V1) Documentation
- - [ ] (V1) CI - Make tests pass.
+    - [ ] Sequelize
+ - [x] (V1) Documentation
+ - [x] (V1) CI - Make tests pass.
 
  - [ ] (V2) Feature - Opt-in for branded types (TableId rather than  - number).
  - [ ] (V2) Feature - support custom args.
