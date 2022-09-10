@@ -1,44 +1,34 @@
-## TODO
+<h1 align="center">SafeQL</h1>
+<p align="center">
+  Write SQL Queries With Confidence •
+  <a href="https://safeql.dev">Get started</a>
+</p>
 
-### Technical tasks
- - [x] (V1) CI - Use a monorepo tool (turborepo).
- - [x] (V1) CI - Add CI.
- - [x] (V1) Clean Code - Add ESLint & Prettier
- - [x] (V1) Config - "migrationsDir" (will require the user to supply  - "shadowDatabaseName" as well).
- - [x] (V1) Feature - Monorepo support in mind
- - [x] (V1) Config - multiple connections support
- - [x] (V1) Feature - support array arg.
- - [x] (V1) Tests - add lots and lots of tests.
- - [x] (V1) Chore - figure out whether I should use --save-exact or not
- - [ ] (V1) Example
-    - [ ] Prisma
-    - [ ] Sequelize
- - [x] (V1) Documentation
- - [x] (V1) CI - Make tests pass.
+[![npm version](https://badge.fury.io/js/@ts-safeql%2Feslint-plugin.svg)](https://badge.fury.io/js/@ts-safeql%2Feslint-plugin)
 
- - [ ] (V2) Feature - Opt-in for branded types (TableId rather than  - number).
- - [ ] (V2) Feature - support custom args.
- - [ ] (V2) Feature - support ternary operation args.
- - [x] (V2) Clean Code - Refactor the rule code for clarity and  - robustness.
- - [ ] (V2) Feature - Watch for migration folder changes for database invalidation.
- - [ ] (V2) Feature - Shadow caching.
- - [ ] (V2) Clean Code - Refactor the generate code for clarity and  - robustness.
- - [ ] (V2) Config - Multi-database support.
- - [ ] (V2) Feature - sql views
- - [ ] (V2) Feature - sql fragments
- - [ ] (V2) Feature - add default value for "shadowDatabaseName" (safeql_shadow_{package-name}_)
- - [ ] (V2)] CI - changesets
- - [ ] (V2) Bug - Don't run linter in .js files.
- - [ ] (V2) Performance - Improve overall performance.
- - [ ] (V2) Clean Code - Improve database initialization code flow.
+## Features
 
-### Product tasks
- - [x] (V1) Think of a name for the library: SafeQL
- - [ ] (V2) Logo (https://bit.ly/3dZISKp)
+- ### Automatic Type Inference & Validation:
 
-### Known issues
-- Given the following code, The plugin won't throw an error, since it looks at the first possible type (consider disallowing unions):
-```ts
-const value: number | string = 'foo';
-conn.query(sql`SELECT col FROM table WHER int_col = ${value}); // BUG!
-``` 
+  SafeQL automatically infers the type of the query result based on the query itself.
+
+- ### Compatible With Popular SQL Libraries:
+
+  SafeQL works with any PostgreSQL client, including Prisma, Sequelize, pg, postgres, and more.
+
+- ### Easy To Use
+
+  SafeQL was built in mind to be easy to use and integrate with your existing codebase.
+
+- ### Built with Monorepos & Microservices in mind:
+
+  SafeQL was built with monorepos and microservices in mind, and it's easy to use with multiple databases.
+  
+
+## Install
+
+I would recommend follow the instructions in the [documentation](https://www.safeql.dev/guide/getting-started.html).
+
+```
+npm install --save-dev @ts-safeql/eslint-plugin libpg-query
+```
