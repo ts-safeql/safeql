@@ -13,7 +13,8 @@
     "watch": "turbo run watch --parallel",
     "prettier": "prettier --check '**/*.ts'",
     "prettier!": "prettier --write '**/*.ts'",
-    "clean": "turbo run clean"
+    "clean": "turbo run clean",
+    "release": "pnpm build && pnpm changeset publish"
   },
   "workspaces": [
     "packages/**",
