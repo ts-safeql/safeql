@@ -19,7 +19,7 @@ hero:
 features:
   - icon: ⚡️
     title: Automatic Type Inference & Validation
-    details: SafeQl automatically infers the type of the query result based on the query itself.
+    details: SafeQL automatically infers the type of the query result based on the query itself.
   - icon: 🖖
     title: Compatible With Popular SQL Libraries
     details: SafeQL works with any PostgreSQL client, including Prisma, Sequelize, pg, postgres, and more.

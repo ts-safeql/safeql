@@ -4,11 +4,11 @@ layout: doc
 
 # SafeQL :heart: Prisma
 
-SafeQL is compatible with [Prisma](https://www.prisma.io/) which [supports raw queries](https://www.prisma.io/docs/concepts/components/prisma-client/raw-database-access) as well, and it's really easy to use!
+SafeQL is compatible with [Prisma](https://www.prisma.io/) which [supports raw queries](https://www.prisma.io/docs/concepts/components/prisma-client/raw-database-access) as well, and very straightforward to use!
 
 First, Make sure you've added `@ts-safeql/eslint-plugin` to your ESLint plugins:
 
-```json{2}
+```json{3}
 // .eslintrc.json
 {
   "plugins": [..., "@ts-safeql/eslint-plugin"],
@@ -50,3 +50,16 @@ Lastly, you'll be able to write queries like this:
 ```typescript
 const query = prisma.$queryRaw(sql`SELECT * FROM users`);
 ```
+
+Lastly, SafeQL will be able to lint your queries like so:
+
+<div class="error">
+
+```typescript{3}
+const query = prisma.$queryRaw(
+    Prisma.sql`SELECT idd FROM users`
+                      ~~~ Error: column "idd" does not exist
+);
+```
+
+</div>

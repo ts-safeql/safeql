@@ -5,7 +5,7 @@ layout: doc
 # Getting Started
 
 ::: warning EXPERIMENTAL
-SafeQL is still in an experimental stage, and it's not recommended to use it in production yet.
+SafeQL is still in the experimental stage, and it's not recommended to use it in production yet.
 :::
 
 ## Prerequisites

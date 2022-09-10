@@ -32,13 +32,13 @@ function createClient() {
 export const myClient = createClient();
 ```
 
-Personally I would recommend using a more robust `createClient` function, but for the sake of simplicity we'll use this one.
+I would recommend using a more robust `createClient` function, but for simplicity's sake, we'll use this one.
 
 :::
 
 First, Make sure you've added `@ts-safeql/eslint-plugin` to your ESLint plugins:
 
-```json{2}
+```json{3}
 // .eslintrc.json
 {
   "plugins": [..., "@ts-safeql/eslint-plugin"],
@@ -75,11 +75,16 @@ Second, add the following rule to your ESLint config:
 }
 ```
 
-Lastly, you'll be able to write queries like this:
+Lastly, SafeQL will be able to lint your queries like so:
 
-```typescript
+<div class="error">
+
+```typescript{5}
 import { sql } from "postgres";
 import { myClient } from "./myClient"; // Read the note above
 
-const query = myClient.query(sql`SELECT * FROM users`);
+const query = myClient.query(sql`SELECT idd FROM users`);
+                                        ~~~ Error: column "idd" does not exist
 ```
+
+</div>

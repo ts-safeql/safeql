@@ -88,10 +88,10 @@ Check out [@ts-safeql-demos/basic-migrations-raw](https://github.com/ts-safeql/s
 
 ::: info Why do we need a shadow database?
 The shadow database is used to run the migrations on it, and then compare the raw queries against it.
-Every time ESLint initializes the query (When VSCode boots up, or when your run ESLint from the cli), the shadow database is dropped and recreated.
+The shadow database is dropped and recreated every time ESLint initializes the query (When VSCode boots up, or when you run ESLint from the terminal).
 :::
 
-## 2. Advanced example of multiple databases with a different connection url
+## 2. An advanced example of multiple databases with a different connection url
 
 ::: tip DEMO
 Check out [@ts-safeql-demos/multi-connections](https://github.com/ts-safeql/safeql/tree/main/demos/multi-connections) for a working example.
@@ -136,7 +136,7 @@ If your'e using migrations and your postgres database URL is different than
 ```
 postgres://postgres:postgres@localhost:5432/postgres
 ```
-then you must supply an appropriate `connectionUrl`.
+Then you have to supply an appropriate `connectionUrl`.
 :::
 
 

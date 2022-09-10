@@ -4,9 +4,9 @@ layout: doc
 
 # Introduction
 
-SafeQL is an [ESLint](https://eslint.org/) plugin that helps you write Postgres SQL queries in a safe way by:
+SafeQL is an [ESLint](https://eslint.org/) plugin that helps you write SQL (PostgreSQL) queries safely by:
 
-1. Warn you when you've misspelled a query (could be a column, table, function, etc)
+1. Warn you when you've misspelled a query (could be a column, table, function, etc.)
 
 <div class="error">
 
@@ -17,7 +17,7 @@ client.query(sql`SELECT idd FROM comments`);
 
 </div>
 
-2. Warn you about type errors (e.g. trying to compare a string to an integer)
+2. Warn you about type errors (e.g., trying to compare a string to an integer)
 
 <div class="error">
 
@@ -60,10 +60,10 @@ There are many well known popular SQL libraries out there, such as [Prisma](http
 
 ### It's a plugin, not an SQL library
 
-SafeQL was never meant to replace your current SQL library. It's a plugin that you can use to add extra functionality to your existing SQL library. This means that you can use SafeQL with any SQL library that you want. You can even use SafeQL with multiple SQL libraries at the same time.
+SafeQL was never meant to replace your current SQL library. Instead, It's a plugin that you can use to add extra functionality to your existing SQL library. It means that you can use SafeQL with any SQL library that you want. You can even use SafeQL with multiple SQL libraries at the same time.
 
 ## Why should I write raw queries in the first place?
 
 While using our favorite SQL library, sometimes it fails to provide the extra functionality that we need.
-In can be due to a missing feature, performance issue, or a complex query that is hard to write using the library's API.
-In these cases, they library will point you to write a raw query, and here's the point where SafeQL comes in.
+It can be due to a missing feature, performance issue, or a complex query that is hard to write using the library's API.
+In these cases, the library will point you to write a raw query, and here's the point where SafeQL comes in.
