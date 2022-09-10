@@ -1,5 +1,11 @@
 # @ts-safeql/eslint-plugin
 
+## 0.0.2
+
+### Patch Changes
+
+- bababca: Support X.sql`` syntax
+
 ## 0.0.1
 
 ### Patch Changes
