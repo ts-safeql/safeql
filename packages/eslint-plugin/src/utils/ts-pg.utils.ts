@@ -70,11 +70,44 @@ const tsKindToPgTypeMap: Record<number, string> = {
   [ts.SyntaxKind.BigIntLiteral]: "bigint",
 };
 
+const tsFlagToPgTypeMap: Record<number, string> = {
+  [ts.TypeFlags.String]: "text",
+  [ts.TypeFlags.Number]: "int",
+  [ts.TypeFlags.Boolean]: "boolean",
+  [ts.TypeFlags.BigInt]: "bigint",
+  [ts.TypeFlags.NumberLiteral]: "int",
+  [ts.TypeFlags.StringLiteral]: "text",
+  [ts.TypeFlags.BooleanLiteral]: "boolean",
+  [ts.TypeFlags.BigIntLiteral]: "bigint",
+};
+
 function mapTsTypeStringToPgType(params: {
   checker: TypeChecker;
   node: TSESTreeToTSNode<TSESTree.Expression>;
   type: ts.Type;
 }) {
+  if (params.node.kind === ts.SyntaxKind.ConditionalExpression) {
+    const whenTrue = params.checker.getTypeAtLocation(params.node.whenTrue);
+    const whenTrueType = tsFlagToPgTypeMap[whenTrue.flags];
+
+    const whenFalse = params.checker.getTypeAtLocation(params.node.whenFalse);
+    const whenFalseType = tsFlagToPgTypeMap[whenFalse.flags];
+
+    if (whenTrueType === undefined || whenFalseType === undefined) {
+      return either.left(
+        `Unsupported conditional expression flags (true = ${whenTrue.flags}, false = ${whenFalse.flags})`
+      );
+    }
+
+    if (whenTrueType !== whenFalseType) {
+      return either.left(
+        `Conditional expression must have the same type (true = ${whenTrueType}, false = ${whenFalseType})`
+      );
+    }
+
+    return either.right(whenTrueType);
+  }
+
   if (params.node.kind in tsKindToPgTypeMap) {
     return either.right(tsKindToPgTypeMap[params.node.kind]);
   }

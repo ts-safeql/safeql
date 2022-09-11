@@ -10,7 +10,19 @@ export function check(client: Db, idsFromParameter: ID[]) {
     SELECT *
     FROM person
     WHERE TRUE
+        AND id = ${idsFromParameter[0] > 5 ? 5 : 5}
         AND id = ANY(${idsFromParameter})
         AND name = ${"John"} -- string literal
+  `);
+
+  // Conditional expression
+  client.query<{ id: number }>(sql`
+    SELECT id FROM starship WHERE id = ${idsFromParameter[0] > 5 ? 5 : 5}
+  `);
+
+  const x: number | null = 5;
+
+  client.query<{ id: number }>(sql`
+    SELECT id FROM starship WHERE id = ${x ?? 10}
   `);
 }
