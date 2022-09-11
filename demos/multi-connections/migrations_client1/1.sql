@@ -1,5 +1,5 @@
 CREATE TABLE comments (
-  id serial PRIMARY KEY,
+  id integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
   post_id integer REFERENCES posts(id),
   body text
 );
