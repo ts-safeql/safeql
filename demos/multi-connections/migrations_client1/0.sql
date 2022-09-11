@@ -1,10 +1,10 @@
 CREATE TABLE users (
-  id serial PRIMARY KEY,
+  id integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
   name text
 );
 
 CREATE TABLE posts (
-  id serial PRIMARY KEY,
+  id integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
   user_id integer REFERENCES users(id),
   title text,
   body text,

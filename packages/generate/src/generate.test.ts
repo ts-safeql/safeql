@@ -13,18 +13,18 @@ type SQL = Sql<Record<string, unknown>>;
 function runMigrations(sql: SQL) {
   return sql.unsafe(`
     CREATE TABLE caregiver (
-        id SERIAL PRIMARY KEY,
+        id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
         first_name TEXT NOT NULL,
         last_name TEXT NOT NULL
     );
 
     CREATE TABLE agency (
-        id SERIAL PRIMARY KEY,
+        id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
         name TEXT NOT NULL
     );
 
     CREATE TABLE caregiver_agency (
-        id SERIAL PRIMARY KEY,
+        id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
         caregiver_id INT NOT NULL REFERENCES caregiver(id),
         agency_id INT NOT NULL REFERENCES agency(id)
     );

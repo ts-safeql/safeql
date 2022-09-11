@@ -18,12 +18,12 @@ async function main() {
   console.log("Creating tables...");
   await sql.unsafe(`
     CREATE TABLE person (
-        id SERIAL PRIMARY KEY,
+        id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
         name VARCHAR(255) NOT NULL
     );
 
     CREATE TABLE starship (
-        id SERIAL PRIMARY KEY,
+        id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
         name VARCHAR(255) NOT NULL,
         captain_id INTEGER REFERENCES person(id)
     );
