@@ -4,7 +4,7 @@
   <a href="https://safeql.dev">Get started</a>
 </p>
 
-[![npm version](https://badge.fury.io/js/@ts-safeql%2Feslint-plugin.svg)](https://badge.fury.io/js/@ts-safeql%2Feslint-plugin)
+[![npm version](https://badge.fury.io/js/@ts-safeql%2Feslint-plugin.svg)](https://www.npmjs.com/package/@ts-safeql/eslint-plugin)
 
 ## Install
 
