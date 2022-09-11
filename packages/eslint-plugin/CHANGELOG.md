@@ -1,5 +1,11 @@
 # @ts-safeql/eslint-plugin
 
+## 0.0.3
+
+### Patch Changes
+
+- 52bfc3c: Support conditional expression syntax inside queries
+
 ## 0.0.2
 
 ### Patch Changes
