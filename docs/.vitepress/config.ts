@@ -4,6 +4,9 @@ export default defineConfig({
   title: "SafeQL",
   description: "Write SQL queries with confidence!",
   themeConfig: {
+    editLink: {
+        pattern: "https://github.com/ts-safeql/safeql/tree/main/docs/:path",
+    },
     logo: "/ts-logo.svg",
     sidebar: [
       {
