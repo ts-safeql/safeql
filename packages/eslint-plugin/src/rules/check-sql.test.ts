@@ -151,6 +151,18 @@ RuleTester.describe("check-sql", () => {
             }
         `,
       },
+      {
+        name: "select statement with conditional expression",
+        filename,
+        options: options,
+        code: `
+            function run(flag: boolean) {
+                const result = conn.query<{ name: string }>(sql\`
+                    select name from agency where id = \${flag ? 1 : 2}
+                \`);
+            }
+        `,
+      },
     ],
     invalid: [
       {
@@ -197,6 +209,26 @@ RuleTester.describe("check-sql", () => {
             }
         `,
         errors: [{ messageId: "invalidQuery" }],
+      },
+      {
+        filename,
+        options: options,
+        name: "select statement with invalid conditional expression",
+        code: `
+            function run(flag: boolean) {
+                const result = conn.query<{ name: string }>(sql\`
+                    select name from agency where id = \${flag ? 1 : 'foo'}
+                \`);
+            }
+        `,
+        errors: [
+          {
+            messageId: "invalidQuery",
+            data: {
+              error: "Conditional expression must have the same type (true = int, false = text)",
+            },
+          },
+        ],
       },
     ],
   });
