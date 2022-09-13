@@ -37,8 +37,7 @@ jobs:
           cache: "pnpm"
       - run: pnpm install
       - run: pnpm build
-      - run: pnpm tsx src/setup
-        working-directory: ./demos/basic
+      - run: pnpm run setup
         env:
           PGUSER: postgres
           PGPASSWORD: postgres

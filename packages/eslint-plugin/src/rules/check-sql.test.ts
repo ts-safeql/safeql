@@ -22,6 +22,7 @@ const runMigrations1 = <TTypes extends Record<string, unknown>>(sql: Sql<TTypes>
     CREATE TABLE caregiver (
         id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
         first_name TEXT NOT NULL,
+        middle_name TEXT,
         last_name TEXT NOT NULL
     );
 
@@ -44,15 +45,6 @@ RuleTester.describe("check-sql", () => {
   RuleTester.it = it;
   const databaseName = generateTestDatabaseName();
 
-  const connOption: RuleOptionConnection = {
-    databaseUrl: `postgres://postgres:postgres@localhost:5432/${databaseName}`,
-    name: "conn",
-    operators: ["query"],
-    keepAlive: false,
-  };
-
-  const options: RuleOptions = [{ connections: [connOption] }];
-
   let sql!: Sql<Record<string, unknown>>;
   let dropFn!: () => Promise<number>;
 
@@ -73,26 +65,39 @@ RuleTester.describe("check-sql", () => {
     await dropFn();
   });
 
-  ruleTester.run("basic", rules["check-sql"], {
+  const baseConnnection: RuleOptionConnection = {
+    databaseUrl: `postgres://postgres:postgres@localhost:5432/${databaseName}`,
+    name: "conn",
+    operators: ["query"],
+    keepAlive: false,
+  };
+
+  function withBaseConnection(options: Partial<RuleOptionConnection>): RuleOptions {
+    return [{ connections: [{ ...baseConnnection, ...options }] }];
+  }
+
+  const baseOptions: RuleOptions = [{ connections: [baseConnnection] }];
+
+  ruleTester.run("base", rules["check-sql"], {
     valid: [
       {
         name: "select computed property",
         filename,
-        options: options,
+        options: baseOptions,
         code: "const result = conn.query<{ x: Unknown<number>; }>(sql`SELECT 1 as x`);",
       },
       {
         name: "select column from table",
         filename,
-        options: options,
+        options: baseOptions,
         code: "const result = conn.query<{ id: number; }>(sql`select id from caregiver`);",
       },
       {
         name: "select * from table",
         filename,
-        options: options,
+        options: baseOptions,
         code: `
-              const result = conn.query<{ id: number; first_name: string; last_name: string; }>(sql\`
+              const result = conn.query<{ id: number; first_name: string; middle_name: Nullable<string>; last_name: string; }>(sql\`
                   select * from caregiver
               \`);
           `,
@@ -100,7 +105,7 @@ RuleTester.describe("check-sql", () => {
       {
         name: "select from table with inner joins",
         filename,
-        options: options,
+        options: baseOptions,
         code: `
             const result = conn.query<{ caregiver_id: number; agency_id: number; }>(sql\`
                 select
@@ -115,7 +120,7 @@ RuleTester.describe("check-sql", () => {
       {
         name: "select from table with left join",
         filename,
-        options: options,
+        options: baseOptions,
         code: `
             const result = conn.query<{ caregiver_id: number; agency_id: Nullable<number>; }>(sql\`
                 select
@@ -130,7 +135,7 @@ RuleTester.describe("check-sql", () => {
       {
         name: "select from table where int column equals to ts number arg",
         filename,
-        options: options,
+        options: baseOptions,
         code: `
             function run(id: number) {
                 const result = conn.query<{ name: string }>(sql\`
@@ -142,7 +147,7 @@ RuleTester.describe("check-sql", () => {
       {
         name: "select from table where int column in an array of ts arg",
         filename,
-        options: options,
+        options: baseOptions,
         code: `
             function run(ids: number[]) {
                 const result = conn.query<{ name: string }>(sql\`
@@ -154,7 +159,7 @@ RuleTester.describe("check-sql", () => {
       {
         name: "select statement with conditional expression",
         filename,
-        options: options,
+        options: baseOptions,
         code: `
             function run(flag: boolean) {
                 const result = conn.query<{ name: string }>(sql\`
@@ -167,7 +172,7 @@ RuleTester.describe("check-sql", () => {
     invalid: [
       {
         filename,
-        options: options,
+        options: baseOptions,
         name: "select computed column without type annotation",
         code: "const result = conn.query(sql`SELECT 1 as x`);",
         output: "const result = conn.query<{ x: Unknown<number>; }>(sql`SELECT 1 as x`);",
@@ -175,7 +180,7 @@ RuleTester.describe("check-sql", () => {
       },
       {
         filename,
-        options: options,
+        options: baseOptions,
         name: "select computed column without type annotation (with Prisma.sql)",
         code: "const result = conn.query(Prisma.sql`SELECT 1 as x`);",
         output: "const result = conn.query<{ x: Unknown<number>; }>(Prisma.sql`SELECT 1 as x`);",
@@ -183,7 +188,7 @@ RuleTester.describe("check-sql", () => {
       },
       {
         filename,
-        options: options,
+        options: baseOptions,
         name: "select column without type annotation",
         code: "const result = conn.query(sql`select id from caregiver`);",
         output: "const result = conn.query<{ id: number; }>(sql`select id from caregiver`);",
@@ -191,7 +196,7 @@ RuleTester.describe("check-sql", () => {
       },
       {
         filename,
-        options: options,
+        options: baseOptions,
         name: "select column with incorrect type annotation",
         code: "const result = conn.query<{ id: string; }>(sql`select id from caregiver`);",
         output: "const result = conn.query<{ id: number; }>(sql`select id from caregiver`);",
@@ -199,7 +204,7 @@ RuleTester.describe("check-sql", () => {
       },
       {
         filename,
-        options: options,
+        options: baseOptions,
         name: "select from table where int column equals to ts string arg",
         code: `
             function run(names: string[]) {
@@ -212,7 +217,7 @@ RuleTester.describe("check-sql", () => {
       },
       {
         filename,
-        options: options,
+        options: baseOptions,
         name: "select statement with invalid conditional expression",
         code: `
             function run(flag: boolean) {
@@ -231,5 +236,35 @@ RuleTester.describe("check-sql", () => {
         ],
       },
     ],
+  });
+
+  ruleTester.run("base with transform", rules["check-sql"], {
+    valid: [
+      {
+        name: "transform as ${type}[]",
+        filename,
+        options: withBaseConnection({ transform: "${type}[]" }),
+        code: "const result = conn.query<{ id: number; }[]>(sql`select id from caregiver`);",
+      },
+      {
+        name: "transform as ['${type}[]']",
+        filename,
+        options: withBaseConnection({ transform: ["${type}[]"] }),
+        code: "const result = conn.query<{ id: number; }[]>(sql`select id from caregiver`);",
+      },
+      {
+        name: "transform as [['Nullable', 'Maybe']]",
+        filename,
+        options: withBaseConnection({ transform: [["Nullable", "Maybe"]] }),
+        code: "const result = conn.query<{ middle_name: Maybe<string>; }>(sql`select middle_name from caregiver`);",
+      },
+      {
+        name: "transform as ['${type}[]', ['Nullable', 'Maybe']]",
+        filename,
+        options: withBaseConnection({ transform: ["${type}[]", ["Nullable", "Maybe"]] }),
+        code: "const result = conn.query<{ middle_name: Maybe<string>; }[]>(sql`select middle_name from caregiver`);",
+      },
+    ],
+    invalid: [],
   });
 });

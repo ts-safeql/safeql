@@ -9,6 +9,7 @@ import { ESLintUtils, TSESLint, TSESTree } from "@typescript-eslint/utils";
 import { either, json } from "fp-ts";
 import { Either } from "fp-ts/lib/Either";
 import { flow, identity, pipe } from "fp-ts/lib/function";
+import pgParser from "libpg-query";
 import * as recast from "recast";
 import { createSyncFn } from "synckit";
 import { match } from "ts-pattern";
@@ -17,8 +18,8 @@ import zodToJsonSchema from "zod-to-json-schema";
 import { ESTreeUtils } from "../utils";
 import { locateNearestPackageJsonDir } from "../utils/node.utils";
 import { mapTemplateLiteralToQueryText } from "../utils/ts-pg.utils";
+import { withTransformType } from "./check-sql.utils";
 import { WorkerError, WorkerParams, WorkerResult } from "./check-sql.worker";
-import pgParser from "libpg-query";
 
 const messages = {
   typeInferenceFailed: "Type inference failed {{error}}",
@@ -31,6 +32,9 @@ const messages = {
 const baseConnectionSchema = z.object({
   name: z.string(),
   operators: z.array(z.string()),
+  transform: z
+    .union([z.string(), z.array(z.union([z.string(), z.tuple([z.string(), z.string()])]))])
+    .optional(),
 });
 
 const connectionByMigrationSchema = baseConnectionSchema.merge(
@@ -153,15 +157,17 @@ function checkByConnection(params: {
           .with({ _tag: "InvalidQueryError" }, reportInvalidQueryError)
           .exhaustive();
       },
+
       (result) => {
         const isMissingTypeAnnotations = sqlOperatorType === undefined;
+        const resultWithTransformed = withTransformType(result, connection.transform);
 
         if (isMissingTypeAnnotations) {
-          return reportMissingTypeAnnotations(result);
+          return reportMissingTypeAnnotations(resultWithTransformed);
         }
 
-        if (isIncorrectTypeAnnotations(result, sqlOperatorType)) {
-          return reportIncorrectTypeAnnotations(result, sqlOperatorType);
+        if (isIncorrectTypeAnnotations(resultWithTransformed, sqlOperatorType)) {
+          return reportIncorrectTypeAnnotations(resultWithTransformed, sqlOperatorType);
         }
       }
     )

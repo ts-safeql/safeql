@@ -1,7 +1,7 @@
 import { execSync } from "child_process";
 import postgres from "postgres";
 
-const DATABASE_NAME = "safeql_basic";
+const DATABASE_NAME = "safeql_basic_transform_type";
 
 async function main() {
   // 1. Drop the database if exists
