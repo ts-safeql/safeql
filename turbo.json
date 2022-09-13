@@ -10,6 +10,10 @@
       "outputs": [""],
       "inputs": ["src/**/*.ts", "test/**/*.ts"]
     },
+    "setup": {
+      "dependsOn": ["build"],
+      "outputs": []
+    },
     "lint": {
       "outputs": []
     },
