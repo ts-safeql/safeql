@@ -11,7 +11,7 @@
       "inputs": ["src/**/*.ts", "test/**/*.ts"]
     },
     "setup": {
-      "dependsOn": ["build"],
+      "cache": false,
       "outputs": []
     },
     "lint": {

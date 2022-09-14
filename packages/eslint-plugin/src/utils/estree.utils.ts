@@ -22,7 +22,16 @@ export function getSourceLocationFromStringPosition(params: {
     })();
 
   if (errorInLine === 0) {
-    return params.loc;
+    return {
+      start: {
+        line: params.loc.start.line + errorInLine,
+        column: params.loc.start.column + errorFromColumn + 1,
+      },
+      end: {
+        line: params.loc.start.line + errorInLine,
+        column: params.loc.start.column + errorToColumn + 1,
+      },
+    };
   }
 
   return {
