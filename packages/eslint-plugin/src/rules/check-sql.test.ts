@@ -65,37 +65,45 @@ RuleTester.describe("check-sql", () => {
     await dropFn();
   });
 
-  const baseConnnection: RuleOptionConnection = {
-    databaseUrl: `postgres://postgres:postgres@localhost:5432/${databaseName}`,
-    name: "conn",
-    operators: ["query"],
-    keepAlive: false,
+  const connections = {
+    base: {
+      databaseUrl: `postgres://postgres:postgres@localhost:5432/${databaseName}`,
+      name: "conn",
+      operators: ["query"],
+      keepAlive: false,
+    },
+    withTagName: {
+      databaseUrl: `postgres://postgres:postgres@localhost:5432/${databaseName}`,
+      tagName: "sql",
+      keepAlive: false,
+    },
   };
 
-  function withBaseConnection(options: Partial<RuleOptionConnection>): RuleOptions {
-    return [{ connections: [{ ...baseConnnection, ...options }] }];
+  function withConnection(
+    connection: RuleOptionConnection,
+    options?: Partial<RuleOptionConnection>
+  ): RuleOptions {
+    return [{ connections: [{ ...connection, ...options }] }];
   }
-
-  const baseOptions: RuleOptions = [{ connections: [baseConnnection] }];
 
   ruleTester.run("base", rules["check-sql"], {
     valid: [
       {
         name: "select computed property",
         filename,
-        options: baseOptions,
+        options: withConnection(connections.base),
         code: "const result = conn.query<{ x: Unknown<number>; }>(sql`SELECT 1 as x`);",
       },
       {
         name: "select column from table",
         filename,
-        options: baseOptions,
+        options: withConnection(connections.base),
         code: "const result = conn.query<{ id: number; }>(sql`select id from caregiver`);",
       },
       {
         name: "select * from table",
         filename,
-        options: baseOptions,
+        options: withConnection(connections.base),
         code: `
               const result = conn.query<{ id: number; first_name: string; middle_name: Nullable<string>; last_name: string; }>(sql\`
                   select * from caregiver
@@ -105,7 +113,7 @@ RuleTester.describe("check-sql", () => {
       {
         name: "select from table with inner joins",
         filename,
-        options: baseOptions,
+        options: withConnection(connections.base),
         code: `
             const result = conn.query<{ caregiver_id: number; agency_id: number; }>(sql\`
                 select
@@ -120,7 +128,7 @@ RuleTester.describe("check-sql", () => {
       {
         name: "select from table with left join",
         filename,
-        options: baseOptions,
+        options: withConnection(connections.base),
         code: `
             const result = conn.query<{ caregiver_id: number; agency_id: Nullable<number>; }>(sql\`
                 select
@@ -135,7 +143,7 @@ RuleTester.describe("check-sql", () => {
       {
         name: "select from table where int column equals to ts number arg",
         filename,
-        options: baseOptions,
+        options: withConnection(connections.base),
         code: `
             function run(id: number) {
                 const result = conn.query<{ name: string }>(sql\`
@@ -147,7 +155,7 @@ RuleTester.describe("check-sql", () => {
       {
         name: "select from table where int column in an array of ts arg",
         filename,
-        options: baseOptions,
+        options: withConnection(connections.base),
         code: `
             function run(ids: number[]) {
                 const result = conn.query<{ name: string }>(sql\`
@@ -159,7 +167,7 @@ RuleTester.describe("check-sql", () => {
       {
         name: "select statement with conditional expression",
         filename,
-        options: baseOptions,
+        options: withConnection(connections.base),
         code: `
             function run(flag: boolean) {
                 const result = conn.query<{ name: string }>(sql\`
@@ -172,39 +180,47 @@ RuleTester.describe("check-sql", () => {
     invalid: [
       {
         filename,
-        options: baseOptions,
+        options: withConnection(connections.base),
         name: "select computed column without type annotation",
         code: "const result = conn.query(sql`SELECT 1 as x`);",
         output: "const result = conn.query<{ x: Unknown<number>; }>(sql`SELECT 1 as x`);",
-        errors: [{ messageId: "missingTypeAnnotations" }],
+        errors: [
+          { messageId: "missingTypeAnnotations", line: 1, column: 16, endLine: 1, endColumn: 26 },
+        ],
       },
       {
         filename,
-        options: baseOptions,
+        options: withConnection(connections.base),
         name: "select computed column without type annotation (with Prisma.sql)",
         code: "const result = conn.query(Prisma.sql`SELECT 1 as x`);",
         output: "const result = conn.query<{ x: Unknown<number>; }>(Prisma.sql`SELECT 1 as x`);",
-        errors: [{ messageId: "missingTypeAnnotations" }],
+        errors: [
+          { messageId: "missingTypeAnnotations", line: 1, column: 16, endLine: 1, endColumn: 26 },
+        ],
       },
       {
         filename,
-        options: baseOptions,
+        options: withConnection(connections.base),
         name: "select column without type annotation",
         code: "const result = conn.query(sql`select id from caregiver`);",
         output: "const result = conn.query<{ id: number; }>(sql`select id from caregiver`);",
-        errors: [{ messageId: "missingTypeAnnotations" }],
+        errors: [
+          { messageId: "missingTypeAnnotations", line: 1, column: 16, endLine: 1, endColumn: 26 },
+        ],
       },
       {
         filename,
-        options: baseOptions,
+        options: withConnection(connections.base),
         name: "select column with incorrect type annotation",
         code: "const result = conn.query<{ id: string; }>(sql`select id from caregiver`);",
         output: "const result = conn.query<{ id: number; }>(sql`select id from caregiver`);",
-        errors: [{ messageId: "incorrectTypeAnnotations" }],
+        errors: [
+          { messageId: "incorrectTypeAnnotations", line: 1, column: 27, endLine: 1, endColumn: 42 },
+        ],
       },
       {
         filename,
-        options: baseOptions,
+        options: withConnection(connections.base),
         name: "select from table where int column equals to ts string arg",
         code: `
             function run(names: string[]) {
@@ -213,11 +229,11 @@ RuleTester.describe("check-sql", () => {
                 \`);
             }
         `,
-        errors: [{ messageId: "invalidQuery" }],
+        errors: [{ messageId: "invalidQuery", line: 4, column: 54, endLine: 4, endColumn: 55 }],
       },
       {
         filename,
-        options: baseOptions,
+        options: withConnection(connections.base),
         name: "select statement with invalid conditional expression",
         code: `
             function run(flag: boolean) {
@@ -232,6 +248,10 @@ RuleTester.describe("check-sql", () => {
             data: {
               error: "Conditional expression must have the same type (true = int, false = text)",
             },
+            line: 4,
+            column: 58,
+            endLine: 4,
+            endColumn: 74,
           },
         ],
       },
@@ -243,28 +263,75 @@ RuleTester.describe("check-sql", () => {
       {
         name: "transform as ${type}[]",
         filename,
-        options: withBaseConnection({ transform: "${type}[]" }),
+        options: withConnection(connections.base, { transform: "${type}[]" }),
         code: "const result = conn.query<{ id: number; }[]>(sql`select id from caregiver`);",
       },
       {
         name: "transform as ['${type}[]']",
         filename,
-        options: withBaseConnection({ transform: ["${type}[]"] }),
+        options: withConnection(connections.base, { transform: ["${type}[]"] }),
         code: "const result = conn.query<{ id: number; }[]>(sql`select id from caregiver`);",
       },
       {
         name: "transform as [['Nullable', 'Maybe']]",
         filename,
-        options: withBaseConnection({ transform: [["Nullable", "Maybe"]] }),
+        options: withConnection(connections.base, { transform: [["Nullable", "Maybe"]] }),
         code: "const result = conn.query<{ middle_name: Maybe<string>; }>(sql`select middle_name from caregiver`);",
       },
       {
         name: "transform as ['${type}[]', ['Nullable', 'Maybe']]",
         filename,
-        options: withBaseConnection({ transform: ["${type}[]", ["Nullable", "Maybe"]] }),
+        options: withConnection(connections.base, {
+          transform: ["${type}[]", ["Nullable", "Maybe"]],
+        }),
         code: "const result = conn.query<{ middle_name: Maybe<string>; }[]>(sql`select middle_name from caregiver`);",
       },
     ],
     invalid: [],
+  });
+
+  ruleTester.run("connection with tagName", rules["check-sql"], {
+    valid: [
+      {
+        name: "tagName as sql",
+        filename,
+        options: withConnection(connections.withTagName),
+        code: "sql<{ id: number }>`select id from caregiver`",
+      },
+      {
+        name: "tagName and transform as sql (Postgres.js)",
+        filename,
+        options: withConnection(connections.withTagName, { transform: "${type}[]" }),
+        code: "sql<{ id: number }[]>`select id from caregiver`",
+      },
+      {
+        name: "sql tagName inside a function",
+        filename,
+        options: withConnection(connections.withTagName),
+        code: "const result = conn.query(sql<{ id: number }>`select id from caregiver`);",
+      },
+    ],
+    invalid: [
+      {
+        name: "tagName without type annotations",
+        filename,
+        options: withConnection(connections.withTagName),
+        code: "sql`select id from caregiver`",
+        output: "sql<{ id: number; }>`select id from caregiver`",
+        errors: [
+          { messageId: "missingTypeAnnotations", line: 1, column: 1, endLine: 1, endColumn: 4 },
+        ],
+      },
+      {
+        name: "tagName without type annotations inside a function",
+        filename,
+        options: withConnection(connections.withTagName),
+        code: "const result = conn.query(sql`select id from caregiver`)",
+        output: "const result = conn.query(sql<{ id: number; }>`select id from caregiver`)",
+        errors: [
+          { messageId: "missingTypeAnnotations", line: 1, column: 27, endLine: 1, endColumn: 30 },
+        ],
+      },
+    ],
   });
 });
