@@ -37,10 +37,8 @@ Second, add the following rule to your ESLint config:
       {
         "connections": [
           {
-            // The migrations path:
-            "migrationsDir": "./your_migrations_folder_path",
-            // A shadow database name (see explanation in Configuration):
-            "databaseName": "my_db_shadow",
+            // ...
+
             // The name of the variable that holds the connection:
             "name": "sequelize",
             // An array of operators that wraps the raw query:
