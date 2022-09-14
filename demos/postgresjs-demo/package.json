@@ -1,5 +1,5 @@
 {
-  "name": "@ts-safeql-demos/basic",
+  "name": "@ts-safeql-demos/postgresjs-demo",
   "version": "0.0.0",
   "scripts": {
     "build": "tsc",
