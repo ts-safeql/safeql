@@ -1,14 +1,6 @@
 import { GenerateResult } from "@ts-safeql/generate";
-import {
-  DuplicateColumnsError,
-  InternalError,
-  InvalidQueryError,
-  PostgresError,
-} from "@ts-safeql/shared";
+import { InternalError } from "@ts-safeql/shared";
 import { ESLintUtils, TSESLint, TSESTree } from "@typescript-eslint/utils";
-import { either, json } from "fp-ts";
-import { Either } from "fp-ts/lib/Either";
-import { flow, identity, pipe } from "fp-ts/lib/function";
 import pgParser from "libpg-query";
 import * as recast from "recast";
 import { createSyncFn } from "synckit";
@@ -16,9 +8,18 @@ import { match } from "ts-pattern";
 import z from "zod";
 import zodToJsonSchema from "zod-to-json-schema";
 import { ESTreeUtils } from "../utils";
+import { E, flow, identity, J, pipe } from "../utils/fp-ts";
 import { locateNearestPackageJsonDir } from "../utils/node.utils";
 import { mapTemplateLiteralToQueryText } from "../utils/ts-pg.utils";
-import { withTransformType } from "./check-sql.utils";
+import {
+  reportBaseError,
+  reportDuplicateColumns,
+  reportIncorrectTypeAnnotations,
+  reportInvalidQueryError,
+  reportMissingTypeAnnotations,
+  reportPostgresError,
+  withTransformType,
+} from "./check-sql.utils";
 import { WorkerError, WorkerParams, WorkerResult } from "./check-sql.worker";
 
 const messages = {
@@ -29,70 +30,90 @@ const messages = {
   incorrectTypeAnnotations: "Query has incorrect type annotation",
 };
 
-const baseConnectionSchema = z.object({
-  name: z.string(),
-  operators: z.array(z.string()),
+const baseSchema = z.object({
   transform: z
     .union([z.string(), z.array(z.union([z.string(), z.tuple([z.string(), z.string()])]))])
     .optional(),
+  keepAlive: z.boolean().optional(),
 });
 
-const connectionByMigrationSchema = baseConnectionSchema.merge(
-  z.object({
-    migrationsDir: z.string(),
-    connectionUrl: z.string().optional(),
-    databaseName: z.string(),
-    keepAlive: z.boolean().optional(),
-  })
-);
+const identifyByNameAndOperators = z.object({
+  name: z.string(),
+  operators: z.array(z.string()),
+});
 
-const connectionByDatabaseUrl = baseConnectionSchema.merge(
-  z.object({
-    databaseUrl: z.string(),
-    keepAlive: z.boolean().optional(),
-  })
-);
+const identifyByTagName = z.object({
+  tagName: z.string(),
+});
 
-const ruleOptionsSchema = z
-  .array(
-    z.object({
-      connections: z.array(z.union([connectionByDatabaseUrl, connectionByMigrationSchema])),
-    })
-  )
-  .min(1)
-  .max(1);
+const connectByMigrationSchema = z.object({
+  migrationsDir: z.string(),
+  connectionUrl: z.string().optional(),
+  databaseName: z.string(),
+});
+
+const connectByDatabaseUrl = z.object({
+  databaseUrl: z.string(),
+  keepAlive: z.boolean().optional(),
+});
+
+const schema = baseSchema.extend({
+  connections: z.array(
+    z.union([
+      baseSchema.merge(connectByMigrationSchema.merge(identifyByNameAndOperators)),
+      baseSchema.merge(connectByMigrationSchema.merge(identifyByTagName)),
+      baseSchema.merge(connectByDatabaseUrl.merge(identifyByNameAndOperators)),
+      baseSchema.merge(connectByDatabaseUrl.merge(identifyByTagName)),
+    ])
+  ),
+});
+
+const ruleOptionsSchema = z.array(schema).min(1).max(1);
 
 export type RuleMessage = keyof typeof messages;
 export type RuleOptions = z.infer<typeof ruleOptionsSchema>;
 export type RuleOptionConnection = RuleOptions[0]["connections"][number];
-type RuleContext = Readonly<TSESLint.RuleContext<RuleMessage, RuleOptions>>;
+export type RuleContext = Readonly<TSESLint.RuleContext<RuleMessage, RuleOptions>>;
 
 const workerPath = require.resolve("./check-sql.worker");
 
-const generateSync = createSyncFn<
-  (params: WorkerParams) => Promise<either.Either<unknown, string>>
->(workerPath, {
-  tsRunner: "esbuild-register",
-  timeout: 1000 * 60 * 5,
-});
+const generateSync = createSyncFn<(params: WorkerParams) => Promise<E.Either<unknown, string>>>(
+  workerPath,
+  {
+    tsRunner: "esbuild-register",
+    timeout: 1000 * 60 * 5,
+  }
+);
 
 function check(params: {
   context: RuleContext;
-  expr: TSESTree.TaggedTemplateExpression;
+  tag: TSESTree.TaggedTemplateExpression;
   projectDir: string;
 }) {
   for (const connection of params.context.options[0].connections) {
-    checkByConnection({ ...params, connection });
+    checkConnection({ ...params, connection });
   }
 }
 
-function isTagMemberValid(expr: TSESTree.TaggedTemplateExpression) {
-  // For example conn.query(sql``)
+function isTagMemberValid(
+  expr: TSESTree.TaggedTemplateExpression
+): expr is TSESTree.TaggedTemplateExpression &
+  (
+    | {
+        tag: TSESTree.Identifier;
+      }
+    | {
+        tag: TSESTree.MemberExpression & {
+          property: TSESTree.Identifier;
+        };
+      }
+  ) {
+  // For example sql``
   if (ESTreeUtils.isIdentifier(expr.tag)) {
     return true;
   }
 
-  // For example conn.query(Provider.sql``)
+  // For example Provider.sql``
   if (ESTreeUtils.isMemberExpression(expr.tag) && ESTreeUtils.isIdentifier(expr.tag.property)) {
     return true;
   }
@@ -100,164 +121,169 @@ function isTagMemberValid(expr: TSESTree.TaggedTemplateExpression) {
   return false;
 }
 
-function checkByConnection(params: {
-  context: RuleContext;
-  connection: RuleOptionConnection;
-  expr: TSESTree.TaggedTemplateExpression;
-  projectDir: string;
-}) {
-  const { context, expr, projectDir, connection } = params;
-  if (
-    !isTagMemberValid(expr) ||
-    !ESTreeUtils.isCallExpression(expr.parent) ||
-    !ESTreeUtils.isMemberExpression(expr.parent.callee) ||
-    !ESTreeUtils.isIdentifier(expr.parent.callee.object) ||
-    !ESTreeUtils.isEqual(expr.parent.callee.object.name, connection.name) ||
-    !ESTreeUtils.isIdentifier(expr.parent.callee.property) ||
-    !ESTreeUtils.isOneOf(expr.parent.callee.property.name, connection.operators)
-  ) {
-    return;
+function getASTStartegyByConnection(connection: RuleOptionConnection) {
+  if ("tagName" in connection) {
+    return { strategy: "tag" as const, ...connection };
   }
 
-  const sqlExpression = expr;
-  const sqlOperator = expr.parent.callee;
-  const sqlOperatorName = expr.parent.callee.property;
-  const sqlOperatorType = expr.parent.typeParameters;
+  return { strategy: "call" as const, ...connection };
+}
 
-  const parserServices = ESLintUtils.getParserServices(context);
-  const checker = parserServices?.program?.getTypeChecker();
+function checkConnection(params: {
+  context: RuleContext;
+  connection: RuleOptionConnection;
+  tag: TSESTree.TaggedTemplateExpression;
+  projectDir: string;
+}) {
+  const strategy = getASTStartegyByConnection(params.connection);
 
-  const generateEither = flow(
-    generateSync,
-    either.chain(json.parse),
-    either.chainW((parsed) => parsed as unknown as Either<WorkerError, WorkerResult>),
-    either.mapLeft((error) => error as unknown as WorkerError)
-  );
+  return match(strategy)
+    .with({ strategy: "tag" }, (connection) => {
+      return checkConnectionByTagExpression({ ...params, connection });
+    })
+    .with({ strategy: "call" }, (connection) => {
+      return checkConnectionByCallExpression({ ...params, connection });
+    })
+    .exhaustive();
+}
 
-  const pgParseQuery = flow(pgParser.parseQuerySync, either.tryCatchK(identity, InternalError.to));
+const pgParseQueryE = flow(pgParser.parseQuerySync, E.tryCatchK(identity, InternalError.to));
 
-  pipe(
-    either.Do,
-    either.bind("query", () =>
-      mapTemplateLiteralToQueryText(sqlExpression.quasi, parserServices, checker)
+const generateSyncE = flow(
+  generateSync,
+  E.chain(J.parse),
+  E.chainW((parsed) => parsed as unknown as E.Either<WorkerError, WorkerResult>),
+  E.mapLeft((error) => error as unknown as WorkerError)
+);
+
+function reportCheck(params: {
+  context: RuleContext;
+  tag: TSESTree.TaggedTemplateExpression;
+  connection: RuleOptionConnection;
+  projectDir: string;
+  typeParameters: TSESTree.TSTypeParameterInstantiation | undefined;
+  baseNode: TSESTree.BaseNode;
+}) {
+  const { context, tag, connection, projectDir, typeParameters, baseNode } = params;
+
+  return pipe(
+    E.Do,
+    E.bind("parser", () => E.of(ESLintUtils.getParserServices(context))),
+    E.bind("checker", ({ parser }) => E.of(parser.program.getTypeChecker())),
+    E.bind("query", ({ parser, checker }) =>
+      mapTemplateLiteralToQueryText(tag.quasi, parser, checker)
     ),
-    either.bindW("pgParsed", ({ query }) => pgParseQuery(query)),
-    either.chainW(({ query, pgParsed }) =>
-      generateEither({ query, pgParsed, connection, projectDir })
-    ),
-    either.fold(
+    E.bindW("pgParsed", ({ query }) => pgParseQueryE(query)),
+    E.chainW(({ query, pgParsed }) => generateSyncE({ query, pgParsed, connection, projectDir })),
+    E.fold(
       (error) => {
         return match(error)
-          .with({ _tag: "DuplicateColumnsError" }, reportDuplicateColumns)
-          .with({ _tag: "PostgresError" }, reportPostgresError)
-          .with({ _tag: "InvalidMigrationError" }, reportBaseError)
-          .with({ _tag: "InvalidMigrationsPathError" }, reportBaseError)
-          .with({ _tag: "DatabaseInitializationError" }, reportBaseError)
-          .with({ _tag: "InternalError" }, reportBaseError)
-          .with({ _tag: "InvalidQueryError" }, reportInvalidQueryError)
+          .with({ _tag: "DuplicateColumnsError" }, (error) => {
+            return reportDuplicateColumns({ context, error, tag });
+          })
+          .with({ _tag: "PostgresError" }, (error) => {
+            return reportPostgresError({ context, error, tag });
+          })
+          .with({ _tag: "InvalidQueryError" }, (error) => {
+            return reportInvalidQueryError({ context, error });
+          })
+          .with(
+            { _tag: "InvalidMigrationError" },
+            { _tag: "InvalidMigrationsPathError" },
+            { _tag: "DatabaseInitializationError" },
+            { _tag: "InternalError" },
+            (error) => {
+              return reportBaseError({ context, error, tag });
+            }
+          )
           .exhaustive();
       },
-
       (result) => {
-        const isMissingTypeAnnotations = sqlOperatorType === undefined;
+        const isMissingTypeAnnotations = typeParameters === undefined;
         const resultWithTransformed = withTransformType(result, connection.transform);
 
         if (isMissingTypeAnnotations) {
-          return reportMissingTypeAnnotations(resultWithTransformed);
+          return reportMissingTypeAnnotations({
+            tag: tag,
+            context: context,
+            baseNode: baseNode,
+            result: resultWithTransformed,
+          });
         }
 
-        if (isIncorrectTypeAnnotations(resultWithTransformed, sqlOperatorType)) {
-          return reportIncorrectTypeAnnotations(resultWithTransformed, sqlOperatorType);
+        if (isIncorrectTypeAnnotations(resultWithTransformed, typeParameters)) {
+          return reportIncorrectTypeAnnotations({
+            context,
+            result: resultWithTransformed,
+            typeParameters: typeParameters,
+          });
         }
       }
     )
   );
+}
 
-  function reportInvalidQueryError(error: InvalidQueryError) {
-    return context.report({
-      messageId: "invalidQuery",
-      node: error.node,
-      data: { error: error.message },
-    });
-  }
+function checkConnectionByTagExpression(params: {
+  context: RuleContext;
+  connection: RuleOptionConnection & z.infer<typeof identifyByTagName>;
+  tag: TSESTree.TaggedTemplateExpression;
+  projectDir: string;
+}) {
+  const { context, tag, projectDir, connection } = params;
 
-  function reportBaseError(error: WorkerError) {
-    return context.report({
-      node: sqlExpression,
-      messageId: "error",
-      data: {
-        error: error.message,
-      },
-    });
-  }
-
-  function reportDuplicateColumns(error: DuplicateColumnsError) {
-    return context.report({
-      node: sqlExpression,
-      messageId: "invalidQuery",
-      loc: ESTreeUtils.getSourceLocationFromStringPosition({
-        loc: sqlExpression.loc,
-        position: error.queryText.search(error.columns[0]) + 1,
-        value: error.queryText,
-      }),
-      data: {
-        error: error.message,
-      },
-    });
-  }
-
-  function reportPostgresError(error: PostgresError) {
-    return context.report({
-      node: sqlExpression,
-      messageId: "invalidQuery",
-      loc: ESTreeUtils.getSourceLocationFromStringPosition({
-        loc: sqlExpression.loc,
-        position: parseInt(error.position, 10),
-        value: error.queryText,
-      }),
-      data: {
-        error: error.message,
-      },
-    });
-  }
-
-  function reportMissingTypeAnnotations(result: GenerateResult) {
-    return context.report({
-      node: sqlOperator,
-      messageId: "missingTypeAnnotations",
-      fix: (fixer) => {
-        return fixer.replaceTextRange(
-          [sqlOperatorName.range[0], sqlOperatorName.range[1]],
-          `${sqlOperatorName.name}<${result.result}>`
-        );
-      },
-    });
-  }
-
-  function reportIncorrectTypeAnnotations(
-    { result }: GenerateResult,
-    sqlOperatorType: TSESTree.TSTypeParameterInstantiation
+  if (
+    (ESTreeUtils.isIdentifier(tag.tag) && tag.tag.name === connection.tagName) ||
+    (ESTreeUtils.isMemberExpression(tag.tag) &&
+      ESTreeUtils.isIdentifier(tag.tag.object) &&
+      ESTreeUtils.isIdentifier(tag.tag.property) &&
+      ESTreeUtils.isEqual(connection.tagName, `${tag.tag.object.name}.${tag.tag.property.name}`))
   ) {
-    return context.report({
-      node: sqlOperatorType.params[0],
-      messageId: "incorrectTypeAnnotations",
-      fix: (fixer) => {
-        return fixer.replaceTextRange(
-          [sqlOperatorType.range[0], sqlOperatorType.range[1]],
-          `<${result}>`
-        );
-      },
+    return reportCheck({
+      context,
+      tag,
+      connection,
+      projectDir,
+      baseNode: tag.tag,
+      typeParameters: tag.typeParameters,
     });
   }
+}
 
-  function isIncorrectTypeAnnotations(
-    { result }: GenerateResult,
-    sqlOperatorType: TSESTree.TSTypeParameterInstantiation
+function checkConnectionByCallExpression(params: {
+  context: RuleContext;
+  connection: RuleOptionConnection & z.infer<typeof identifyByNameAndOperators>;
+  tag: TSESTree.TaggedTemplateExpression;
+  projectDir: string;
+}) {
+  const { context, tag, projectDir, connection } = params;
+
+  if (
+    isTagMemberValid(tag) &&
+    ESTreeUtils.isCallExpression(tag.parent) &&
+    ESTreeUtils.isMemberExpression(tag.parent.callee) &&
+    ESTreeUtils.isIdentifier(tag.parent.callee.object) &&
+    ESTreeUtils.isEqual(tag.parent.callee.object.name, connection.name) &&
+    ESTreeUtils.isIdentifier(tag.parent.callee.property) &&
+    ESTreeUtils.isOneOf(tag.parent.callee.property.name, connection.operators)
   ) {
-    const currentType = recast.print(sqlOperatorType).code;
-
-    return !areTypesEqual(currentType, result);
+    return reportCheck({
+      context,
+      tag,
+      connection,
+      projectDir,
+      baseNode: tag.parent.callee,
+      typeParameters: tag.parent.typeParameters,
+    });
   }
+}
+
+function isIncorrectTypeAnnotations(
+  { result }: GenerateResult,
+  sqlOperatorType: TSESTree.TSTypeParameterInstantiation
+) {
+  const currentType = recast.print(sqlOperatorType).code;
+
+  return !areTypesEqual(currentType, result);
 }
 
 // TODO this should be improved.
@@ -296,7 +322,7 @@ export default createRule({
 
     return {
       TaggedTemplateExpression(expr) {
-        check({ context, expr, projectDir });
+        check({ context, tag: expr, projectDir });
       },
     };
   },
