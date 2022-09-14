@@ -1,7 +1,7 @@
 {
   "name": "@ts-safeql/docs",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "scripts": {
     "docs:dev": "vitepress dev",
     "docs:build": "vitepress build",
