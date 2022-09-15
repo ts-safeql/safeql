@@ -1,0 +1,30 @@
+{
+  "name": "@ts-safeql/sql-tag",
+  "version": "0.0.0",
+  "description": "",
+  "main": "lib/index.js",
+  "license": "MIT",
+  "repository": "https://github.com/ts-safeql/safeql/tree/master/packages/eslint-plugin",
+  "files": [
+    "lib",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "test": "mocha -r=@esbuild-kit/cjs-loader '**/*.test.ts'",
+    "lint": "eslint src",
+    "lint!": "eslint src --fix",
+    "clean": "rm -rf lib"
+  },
+  "devDependencies": {
+    "@esbuild-kit/cjs-loader": "^2.3.3",
+    "@types/mocha": "^9.1.1",
+    "@types/node": "^18.7.16",
+    "@typescript-eslint/eslint-plugin": "^5.36.2",
+    "@typescript-eslint/parser": "^5.36.2",
+    "eslint": "^8.23.0",
+    "mocha": "^10.0.0",
+    "typescript": "^4.8.2"
+  }
+}
