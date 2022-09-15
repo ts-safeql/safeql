@@ -20,6 +20,5 @@ export function createClient() {
   return { query, queryOne };
 }
 
-export type Unknown<T> = T | undefined;
 export type Nullable<T> = T | null;
 export type Db = ReturnType<typeof createClient>;

@@ -1,4 +1,5 @@
 import { DuplicateColumnsError, groupBy, PostgresError } from "@ts-safeql/shared";
+import { ParsedQuery } from "@ts-safeql/shared";
 import { either } from "fp-ts";
 import { Either } from "fp-ts/lib/Either";
 import postgres, { PostgresError as OriginalPostgresError } from "postgres";
@@ -48,7 +49,7 @@ export async function getMetadataFromCacheOrFetch(sql: Sql, cacheKey: CacheKey) 
 export interface GenerateParams {
   sql: Sql;
   query: string;
-  pgParsed: unknown;
+  pgParsed: ParsedQuery.Root;
   cacheMetadata?: boolean;
   cacheKey: string;
 }
@@ -69,10 +70,6 @@ export async function generate(
       return either.right({ result: null, stmt: result, query: query });
     }
 
-    const leftTables = getLeftJoinTablesFromParsed(params.pgParsed).map(
-      (tableName) => pgCols.find((col) => col.tableName === tableName)!.tableOid
-    );
-
     const duplicateCols = result.columns.filter((col, index) =>
       result.columns.find((c, i) => c.name === col.name && i != index)
     );
@@ -90,6 +87,10 @@ export async function generate(
         })
       );
     }
+
+    const leftTables = getLeftJoinTablesFromParsed(params.pgParsed).map(
+      (tableName) => pgCols.find((col) => col.tableName === tableName)!.tableOid
+    );
 
     const columns = result.columns.map((col): ColumnAnalysisResult => {
       const introspected = pgColsByTableOidCache
@@ -162,15 +163,46 @@ function mapColumnAnalysisResultToPropertySignature(params: {
     });
   }
 
-  const typename = params.pgTypes.find((type) => type.oid === params.col.described.type);
-  const tsType =
-    typename !== undefined ? defaultTypeMapping[typename.name] ?? "unknown" : "unknown";
+  const nonTableColumnType = getTsTypeFromPgTypeOid({
+    pgTypeOid: params.col.described.type,
+    pgTypes: params.pgTypes,
+  });
 
   return buildInterfacePropertyValue({
     key: params.col.described.name,
-    value: `Unknown<${tsType}>`,
+    value: nonTableColumnType,
     isNullable: false,
   });
+}
+
+function getTsTypeFromPgTypeOid(params: { pgTypes: PgTypeRow[]; pgTypeOid: number }) {
+  const pgType = params.pgTypes.find((type) => type.oid === params.pgTypeOid);
+
+  if (pgType === undefined) {
+    return "unknown";
+  }
+
+  return getTsTypeFromPgType({ pgTypeName: pgType.name });
+}
+
+function getTsTypeFromPgType(params: { pgTypeName: ColType | `_${ColType}` }) {
+  const { isArray, pgType } = parsePgType(params.pgTypeName);
+  const tsType = defaultTypeMapping[pgType] ?? "any";
+
+  return isArray ? `Array<${tsType}>` : tsType;
+}
+
+function isPgTypeArray(pgType: ColType | `_${ColType}`): pgType is `_${ColType}` {
+  return pgType.startsWith("_");
+}
+
+function parsePgType(pgType: ColType | `_${ColType}`) {
+  const isArray = isPgTypeArray(pgType);
+
+  return {
+    isArray: isArray,
+    pgType: isArray ? (pgType.slice(1) as ColType) : pgType,
+  };
 }
 
 interface PgTypeRow {

@@ -23,5 +23,8 @@
     "@typescript-eslint/utils": "^5.36.2",
     "eslint": "^8.23.0",
     "typescript": "^4.8.2"
+  },
+  "dependencies": {
+    "postgres": "github:porsager/postgres"
   }
 }

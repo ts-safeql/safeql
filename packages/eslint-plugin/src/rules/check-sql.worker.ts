@@ -5,6 +5,7 @@ import {
   InternalError,
   InvalidMigrationError,
   InvalidMigrationsPathError,
+  ParsedQuery,
 } from "@ts-safeql/shared";
 import { either, json, option, taskEither } from "fp-ts";
 import { pipe } from "fp-ts/lib/function";
@@ -25,7 +26,7 @@ export interface WorkerParams {
   connection: RuleOptionConnection;
   query: string;
   projectDir: string;
-  pgParsed: unknown;
+  pgParsed: ParsedQuery.Root;
 }
 
 runAsWorker(async (params: WorkerParams) => {

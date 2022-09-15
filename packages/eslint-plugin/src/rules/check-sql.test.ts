@@ -89,10 +89,28 @@ RuleTester.describe("check-sql", () => {
   ruleTester.run("base", rules["check-sql"], {
     valid: [
       {
-        name: "select computed property",
+        name: "select non-table column",
         filename,
         options: withConnection(connections.base),
-        code: "const result = conn.query<{ x: Unknown<number>; }>(sql`SELECT 1 as x`);",
+        code: "const result = conn.query<{ x: number; }>(sql`SELECT 1 as x`);",
+      },
+      {
+        name: "select array_agg(stmt)",
+        filename,
+        options: withConnection(connections.base),
+        code: "sql<{ ids: Array<number>; }[]>`SELECT ARRAY_AGG(id ORDER BY id) AS ids FROM caregiver`",
+      },
+      {
+        name: "select exists(stmt",
+        filename,
+        options: withConnection(connections.base),
+        code: "sql<{ exists: boolean }[]>`SELECT EXISTS(select id FROM caregiver)`",
+      },
+      {
+        name: "select not exists(stmt)",
+        filename,
+        options: withConnection(connections.base),
+        code: "sql<{ not_exists: boolean }[]>`SELECT NOT EXISTS(select id FROM caregiver) as not_exists`",
       },
       {
         name: "select column from table",
@@ -183,7 +201,7 @@ RuleTester.describe("check-sql", () => {
         options: withConnection(connections.base),
         name: "select computed column without type annotation",
         code: "const result = conn.query(sql`SELECT 1 as x`);",
-        output: "const result = conn.query<{ x: Unknown<number>; }>(sql`SELECT 1 as x`);",
+        output: "const result = conn.query<{ x: number; }>(sql`SELECT 1 as x`);",
         errors: [
           { messageId: "missingTypeAnnotations", line: 1, column: 16, endLine: 1, endColumn: 26 },
         ],
@@ -193,7 +211,7 @@ RuleTester.describe("check-sql", () => {
         options: withConnection(connections.base),
         name: "select computed column without type annotation (with Prisma.sql)",
         code: "const result = conn.query(Prisma.sql`SELECT 1 as x`);",
-        output: "const result = conn.query<{ x: Unknown<number>; }>(Prisma.sql`SELECT 1 as x`);",
+        output: "const result = conn.query<{ x: number; }>(Prisma.sql`SELECT 1 as x`);",
         errors: [
           { messageId: "missingTypeAnnotations", line: 1, column: 16, endLine: 1, endColumn: 26 },
         ],
