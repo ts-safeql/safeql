@@ -14,7 +14,8 @@
     "prettier": "prettier --check '**/*.ts'",
     "prettier!": "prettier --write '**/*.ts'",
     "clean": "turbo run clean",
-    "release": "pnpm build && pnpm changeset publish",
+    "release": "pnpm build && changeset publish",
+    "version": "changeset version && pnpm i --frozen-lockfile=false",
     "setup": "turbo run setup"
   },
   "workspaces": [
