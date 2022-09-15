@@ -1,5 +1,5 @@
 import { GenerateResult } from "@ts-safeql/generate";
-import { InternalError } from "@ts-safeql/shared";
+import { PostgresError } from "@ts-safeql/shared";
 import { ESLintUtils, TSESLint, TSESTree } from "@typescript-eslint/utils";
 import pgParser from "libpg-query";
 import * as recast from "recast";
@@ -8,7 +8,7 @@ import { match } from "ts-pattern";
 import z from "zod";
 import zodToJsonSchema from "zod-to-json-schema";
 import { ESTreeUtils } from "../utils";
-import { E, flow, identity, J, pipe } from "../utils/fp-ts";
+import { E, flow, J, pipe } from "../utils/fp-ts";
 import { locateNearestPackageJsonDir } from "../utils/node.utils";
 import { mapTemplateLiteralToQueryText } from "../utils/ts-pg.utils";
 import {
@@ -147,7 +147,14 @@ function checkConnection(params: {
     .exhaustive();
 }
 
-const pgParseQueryE = flow(pgParser.parseQuerySync, E.tryCatchK(identity, InternalError.to));
+const pgParseQueryE = (query: string) => {
+  return pipe(
+    E.tryCatch(
+      () => pgParser.parseQuerySync(query),
+      (error) => PostgresError.to(query, error)
+    )
+  );
+};
 
 const generateSyncE = flow(
   generateSync,

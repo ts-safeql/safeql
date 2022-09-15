@@ -96,7 +96,7 @@ test("select column as camelCase", async () => {
 test("select non-table column", async () =>
   await testQuery({
     query: `SELECT 1 as count`,
-    expected: `{ count: Unknown<number>; }`,
+    expected: `{ count: number; }`,
   }));
 
 test("select with an inner join", async () => {

@@ -1,14 +1,14 @@
-export function getLeftJoinTablesFromParsed($parsed: unknown): string[] {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const parsed = $parsed as any;
+import { ParsedQuery } from "@ts-safeql/shared";
+
+export function getLeftJoinTablesFromParsed(parsedQuery: ParsedQuery.Root): string[] {
   const tables = [];
 
-  if (parsed.stmts === undefined) {
+  if (parsedQuery.stmts === undefined) {
     return [];
   }
 
-  for (const stmt of parsed.stmts) {
-    if (!("SelectStmt" in stmt.stmt) || !("fromClause" in stmt.stmt.SelectStmt)) {
+  for (const stmt of parsedQuery.stmts) {
+    if (stmt.stmt.SelectStmt?.fromClause === undefined) {
       return [];
     }
 
@@ -22,29 +22,11 @@ export function getLeftJoinTablesFromParsed($parsed: unknown): string[] {
   return tables;
 }
 
-type JoinExpression = {
-  jointype: string;
-  larg:
-    | {
-        RangeVar: {
-          relname: string;
-        };
-      }
-    | {
-        JoinExpr: JoinExpression;
-      };
-  rarg: {
-    RangeVar: {
-      relname: string;
-    };
-  };
-};
-
-function recursiveGetJoinExpr(joinExpr: JoinExpression, tables: string[]): string[] {
+function recursiveGetJoinExpr(joinExpr: ParsedQuery.JoinExpr, tables: string[]): string[] {
   const newTables =
-    joinExpr.jointype === "JOIN_LEFT" ? [...tables, joinExpr.rarg.RangeVar.relname] : tables;
+    joinExpr.jointype === "JOIN_LEFT" ? [...tables, joinExpr.rarg!.RangeVar!.relname] : tables;
 
-  if ("JoinExpr" in joinExpr.larg) {
+  if (joinExpr.larg?.JoinExpr !== undefined) {
     return recursiveGetJoinExpr(joinExpr.larg.JoinExpr, newTables);
   }
 
