@@ -2,14 +2,14 @@
 layout: doc
 ---
 
-# SafeQL :muscle: Sequelize
+# SafeQL :sparkles: node-postgres
 
-SafeQL is compatible with [Sequelize](https://sequelize.org/) which [supports raw queries](https://sequelize.org/master/manual/raw-queries.html) as well!
+SafeQL is compatible with [node-postgres](https://node-postgres.com/) which is the most popular postgres library in the ecosystem!
 
 ::: info PLEASE NOTE
-Sequelize doesn't come with a built-in SQL template tag (` sql`` `).
+node-postgres doesn't come with a built-in SQL template tag (` sql`` `).
 
-Thus, you'll need to install [@ts-safeql/sql-tag](/libraries/sql-tag/introduction.html) in order to use SafeQL with Sequelize.
+Thus, you'll need to install [@ts-safeql/sql-tag](/libraries/sql-tag/introduction.html) in order to use SafeQL with node-postgres.
 
 ---
 
@@ -45,7 +45,7 @@ Second, add the following rule to your ESLint config:
             // ...
 
             // The name of the variable that holds the connection:
-            "name": "sequelize",
+            "name": "client",
             // An array of operators that wraps the raw query:
             "operators": ["query"]
           }
@@ -59,7 +59,7 @@ Second, add the following rule to your ESLint config:
 Lastly, you'll be able to write queries like this:
 
 ```typescript
-const query = sequelize.query(sql`SELECT * FROM users`);
+const query = client.query(sql`SELECT * FROM users`);
 ```
 
 Lastly, SafeQL will be able to lint your queries like so:
@@ -67,8 +67,8 @@ Lastly, SafeQL will be able to lint your queries like so:
 <div class="error">
 
 ```typescript{2}
-const query = sequelize.query(sql`SELECT idd FROM users`);
-                                         ~~~ Error: column "idd" does not exist
+const query = client.query(sql`SELECT idd FROM users`);
+                                      ~~~ Error: column "idd" does not exist
 ```
 
 </div>
