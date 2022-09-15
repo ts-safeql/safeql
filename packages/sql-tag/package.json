@@ -1,6 +1,6 @@
 {
   "name": "@ts-safeql/sql-tag",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "",
   "main": "lib/index.js",
   "license": "MIT",
