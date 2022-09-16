@@ -112,6 +112,10 @@ function mapTsTypeStringToPgType(params: {
     return either.right(tsKindToPgTypeMap[params.node.kind]);
   }
 
+  if (params.type.flags in tsFlagToPgTypeMap) {
+    return either.right(tsFlagToPgTypeMap[params.type.flags]);
+  }
+
   const typeStr = params.checker.typeToString(params.type);
   const singularType = typeStr.replace(/\[\]$/, "");
   const isArray = typeStr !== singularType;
