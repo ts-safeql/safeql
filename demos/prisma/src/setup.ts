@@ -10,6 +10,7 @@ const DATABASE_NAME = "safeql_prisma_demo";
 async function main() {
   execSync(`psql -c "DROP DATABASE IF EXISTS ${DATABASE_NAME} WITH (FORCE);"`);
   execSync(`psql -U postgres -c "CREATE DATABASE ${DATABASE_NAME};"`);
+  execSync(`pnpm prisma generate`, { stdio: "inherit" });
   execSync(`pnpm prisma migrate deploy`, { stdio: "inherit" });
 
   const prisma = new PrismaClient();
