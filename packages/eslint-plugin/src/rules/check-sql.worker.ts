@@ -7,14 +7,12 @@ import {
   InvalidMigrationsPathError,
   ParsedQuery,
 } from "@ts-safeql/shared";
-import { either, json, option, taskEither } from "fp-ts";
-import { pipe } from "fp-ts/lib/function";
-import { TaskEither } from "fp-ts/lib/TaskEither";
 import fs from "fs";
 import path from "path";
 import postgres, { Sql } from "postgres";
 import { runAsWorker } from "synckit";
 import { match } from "ts-pattern";
+import { E, J, O, pipe, TE } from "../utils/fp-ts";
 import { initDatabase, mapConnectionOptionsToString, parseConnection } from "../utils/pg.utils";
 import { RuleOptionConnection } from "./check-sql.rule";
 
@@ -31,15 +29,15 @@ export interface WorkerParams {
 
 runAsWorker(async (params: WorkerParams) => {
   const result = await pipe(
-    taskEither.Do,
-    taskEither.chain(() => workerHandler(params))
+    TE.Do,
+    TE.chain(() => workerHandler(params))
   )();
 
   if (params.connection.keepAlive === false) {
     closeConnection(params.connection);
   }
 
-  return json.stringify(result);
+  return J.stringify(result);
 });
 
 export type WorkerError =
@@ -50,12 +48,12 @@ export type WorkerError =
   | GenerateError;
 export type WorkerResult = GenerateResult;
 
-function workerHandler(params: WorkerParams): TaskEither<WorkerError, WorkerResult> {
+function workerHandler(params: WorkerParams): TE.TaskEither<WorkerError, WorkerResult> {
   const strategy = mapRuleOptionsToStartegy(params.connection);
 
   const connnectionPayload = match(strategy)
     .with({ type: "databaseUrl" }, ({ databaseUrl }) =>
-      taskEither.right(getOrCreateConnection(databaseUrl))
+      TE.right(getOrCreateConnection(databaseUrl))
     )
     .with({ type: "migrations" }, ({ migrationsDir, databaseName, connectionUrl }) => {
       const connectionOptions = { ...parseConnection(connectionUrl), database: databaseName };
@@ -67,26 +65,26 @@ function workerHandler(params: WorkerParams): TaskEither<WorkerError, WorkerResu
         const migrationsPath = path.join(params.projectDir, migrationsDir);
 
         return pipe(
-          taskEither.Do,
-          taskEither.chainW(() => initDatabase(connectionOptions)),
-          taskEither.chainW(() => runMigrations({ migrationsPath, sql })),
-          taskEither.map(() => connectionPayload)
+          TE.Do,
+          TE.chainW(() => initDatabase(connectionOptions)),
+          TE.chainW(() => runMigrations({ migrationsPath, sql })),
+          TE.map(() => connectionPayload)
         );
       }
 
-      return taskEither.right(connectionPayload);
+      return TE.right(connectionPayload);
     })
     .exhaustive();
 
   const generateTask = (params: GenerateParams) => {
-    return taskEither.tryCatch(() => {
+    return TE.tryCatch(() => {
       return generate(params);
     }, InternalError.to);
   };
 
   return pipe(
     connnectionPayload,
-    taskEither.chainW(({ sql, databaseUrl }) => {
+    TE.chainW(({ sql, databaseUrl }) => {
       return generateTask({
         sql,
         query: params.query,
@@ -94,7 +92,7 @@ function workerHandler(params: WorkerParams): TaskEither<WorkerError, WorkerResu
         pgParsed: params.pgParsed,
       });
     }),
-    taskEither.chainW(taskEither.fromEither)
+    TE.chainW(TE.fromEither)
   );
 }
 
@@ -106,9 +104,8 @@ interface ConnectionPayload {
 
 function getOrCreateConnection(databaseUrl: string): ConnectionPayload {
   return pipe(
-    connections.get(databaseUrl),
-    option.fromNullable,
-    option.foldW(
+    O.fromNullable(connections.get(databaseUrl)),
+    O.foldW(
       () => {
         const sql = postgres(databaseUrl);
         connections.set(databaseUrl, sql);
@@ -120,34 +117,53 @@ function getOrCreateConnection(databaseUrl: string): ConnectionPayload {
 }
 
 function runMigrations(params: { migrationsPath: string; sql: SQL }) {
-  const runSingleMigrationFileWithSql = (file: string) =>
-    runSingleMigrationFile(params.sql, path.join(params.migrationsPath, file));
+  const runSingleMigrationFileWithSql = (filePath: string) => {
+    return runSingleMigrationFile(params.sql, filePath);
+  };
 
   return pipe(
-    taskEither.Do,
-    taskEither.chain(() => getMigrationFiles(params.migrationsPath)),
-    taskEither.chainW((files) => {
-      return taskEither.sequenceSeqArray(files.map(runSingleMigrationFileWithSql));
-    })
+    TE.Do,
+    TE.chain(() => getMigrationFiles(params.migrationsPath)),
+    TE.chainW((files) => TE.sequenceSeqArray(files.map(runSingleMigrationFileWithSql)))
   );
+}
+
+function findDeepSqlFiles(migrationsPath: string) {
+  const sqlFilePaths: string[] = [];
+
+  function findDeepSqlFilesRecursively(dir: string) {
+    const files = fs.readdirSync(dir);
+
+    files.forEach((file) => {
+      const filePath = path.join(dir, file);
+      const isDirectory = fs.statSync(filePath).isDirectory();
+
+      if (isDirectory) {
+        findDeepSqlFilesRecursively(filePath);
+      } else if (filePath.endsWith(".sql")) {
+        sqlFilePaths.push(filePath);
+      }
+    });
+  }
+
+  findDeepSqlFilesRecursively(migrationsPath);
+
+  return sqlFilePaths;
 }
 
 function getMigrationFiles(migrationsPath: string) {
   return pipe(
-    taskEither.tryCatch(() => fs.promises.readdir(migrationsPath), either.toError),
-    taskEither.map((files) => files.filter((file) => file.endsWith(".sql"))),
-    taskEither.mapLeft(InvalidMigrationsPathError.fromErrorC(migrationsPath))
+    E.tryCatch(() => findDeepSqlFiles(migrationsPath), E.toError),
+    TE.fromEither,
+    TE.mapLeft(InvalidMigrationsPathError.fromErrorC(migrationsPath))
   );
 }
 
 function runSingleMigrationFile(sql: SQL, filePath: string) {
   return pipe(
-    taskEither.tryCatch(
-      () => fs.promises.readFile(filePath).then((x) => x.toString()),
-      either.toError
-    ),
-    taskEither.chain((content) => taskEither.tryCatch(() => sql.unsafe(content), either.toError)),
-    taskEither.mapLeft(InvalidMigrationError.fromErrorC(filePath))
+    TE.tryCatch(() => fs.promises.readFile(filePath).then((x) => x.toString()), E.toError),
+    TE.chain((content) => TE.tryCatch(() => sql.unsafe(content), E.toError)),
+    TE.mapLeft(InvalidMigrationError.fromErrorC(filePath))
   );
 }
 

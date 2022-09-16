@@ -56,19 +56,27 @@ Second, add the following rule to your ESLint config:
 }
 ```
 
-Lastly, you'll be able to write queries like this:
-
-```typescript
-const query = sequelize.query(sql`SELECT * FROM users`);
-```
-
 Lastly, SafeQL will be able to lint your queries like so:
 
 <div class="error">
 
-```typescript{2}
+```typescript{7,11}
+import { Sequelize } from "sequelize";
+
+const sequelize = new Sequelize();
+
+// Before
+const query = sequelize.query("SELECT idd FROM users");
+                                      ~~~ Error: column "idd" does not exist
+
+// After bug fix
+const query = sequelize.query("SELECT id FROM users");
+              ~~~~~~~~~~~~~~~ Error: Query is missing type annotation
+
+// After: ✅
 const query = sequelize.query(sql`SELECT idd FROM users`);
-                                         ~~~ Error: column "idd" does not exist
 ```
 
 </div>
+
+

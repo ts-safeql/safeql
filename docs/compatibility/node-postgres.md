@@ -56,19 +56,26 @@ Second, add the following rule to your ESLint config:
 }
 ```
 
-Lastly, you'll be able to write queries like this:
-
-```typescript
-const query = client.query(sql`SELECT * FROM users`);
-```
-
 Lastly, SafeQL will be able to lint your queries like so:
 
 <div class="error">
 
-```typescript{2}
+```typescript{7,11}
+import { Client } from "pg";
+
+const client = new Client();
+
+// Before
+const query = client.query("SELECT idd FROM users");
+                                   ~~~ Error: column "idd" does not exist
+
+// After bug fix
+const query = client.query("SELECT id FROM users");
+              ~~~~~~~~~~~~ Error: Query is missing type annotation
+
+// After: ✅
 const query = client.query(sql`SELECT idd FROM users`);
-                                      ~~~ Error: column "idd" does not exist
 ```
 
 </div>
+
