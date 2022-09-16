@@ -1,5 +1,11 @@
 # @ts-safeql/eslint-plugin
 
+## 0.0.7
+
+### Patch Changes
+
+- 6b99b38: improve sql migrations detection by deeply lookup inside the specified migrationsDir
+
 ## 0.0.6
 
 ### Patch Changes
