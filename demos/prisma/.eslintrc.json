@@ -1,0 +1,23 @@
+{
+  "parser": "@typescript-eslint/parser",
+  "plugins": ["@typescript-eslint", "@ts-safeql/eslint-plugin"],
+  "parserOptions": {
+    "project": "./tsconfig.json"
+  },
+  "rules": {
+    "@ts-safeql/check-sql": [
+      "error",
+      {
+        "connections": [
+          {
+            "migrationsDir": "./prisma/migrations",
+            "databaseName": "safeql_shadow_prisma",
+            "name": "prisma",
+            "operators": ["$executeRaw", "$queryRaw"],
+            "transform": "${type}[]"
+          }
+        ]
+      }
+    ]
+  }
+}
