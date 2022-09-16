@@ -1,6 +1,6 @@
 {
   "name": "@ts-safeql/eslint-plugin",
-  "version": "0.0.7",
+  "version": "0.0.6",
   "main": "lib/index.js",
   "license": "MIT",
   "repository": "https://github.com/ts-safeql/safeql/tree/master/packages/eslint-plugin",
