@@ -31,7 +31,7 @@ async function run() {
 async function test(name: string, fn: () => Promise<void>) {
   try {
     await fn();
-    console.log(`✅ ${name}`); 
+    console.log(`✅ ${name}`);
   } catch (error) {
     console.log(`❌ ${name}`);
     console.error(error);

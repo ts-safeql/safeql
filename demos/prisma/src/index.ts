@@ -5,9 +5,8 @@ async function main() {
 
   const [r2] = await prisma.$queryRaw<{ id: number }[]>(Prisma.sql`SELECT id FROM "User" LIMIT 1`);
   const r1 = await prisma.user.findFirst({ select: { id: true } });
-  
 
-  console.log({r1, r2});
+  console.log({ r1, r2 });
 }
 
 main();
