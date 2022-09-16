@@ -1,5 +1,4 @@
 import { execSync } from "child_process";
-import { PrismaClient } from "@prisma/client";
 import { config } from "dotenv";
 import path from "path";
 
@@ -13,6 +12,7 @@ async function main() {
   execSync(`pnpm prisma generate`, { stdio: "inherit" });
   execSync(`pnpm prisma migrate deploy`, { stdio: "inherit" });
 
+  const { PrismaClient } = await import("@prisma/client");
   const prisma = new PrismaClient();
 
   await prisma.user.createMany({
