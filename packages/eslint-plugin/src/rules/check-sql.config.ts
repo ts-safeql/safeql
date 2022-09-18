@@ -81,3 +81,7 @@ function getConfigFromFile(
 function isConfigFileRuleOptions(options: Options): options is UserConfigFile {
   return "useConfigFile" in options;
 }
+
+export function defineConfig(config: z.infer<typeof Config>) {
+  return config;
+}

@@ -126,10 +126,6 @@ export type Options = z.infer<typeof Options>;
 export const RuleOptions = z.array(Options).min(1).max(1);
 export type RuleOptions = z.infer<typeof RuleOptions>;
 
-export function defineConfig(config: z.infer<typeof Config>) {
-  return config;
-}
-
 export type RuleContext = Readonly<TSESLint.RuleContext<RuleMessage, RuleOptions>>;
 
 const workerPath = require.resolve("./check-sql.worker");

@@ -1,1 +1,1 @@
-export { defineConfig } from "./src/rules/check-sql.rule";
+export { defineConfig } from "./src/rules/check-sql.config";
