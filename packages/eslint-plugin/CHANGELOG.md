@@ -1,5 +1,11 @@
 # @ts-safeql/eslint-plugin
 
+## 0.0.9
+
+### Patch Changes
+
+- 853f943: fixed an issue where using a config file with invalid state kept a temporary config file
+
 ## 0.0.8
 
 ### Patch Changes
