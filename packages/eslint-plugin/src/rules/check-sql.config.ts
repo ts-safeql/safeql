@@ -5,11 +5,6 @@ import z from "zod";
 import { E, pipe } from "../utils/fp-ts";
 import { Config, Options, RuleContext, UserConfigFile } from "./check-sql.rule";
 
-type GetConfigFromFileError = {
-  type: "ESBUILD_ERROR" | "NOT_FOUND" | "INVALID";
-  message: string;
-};
-
 export function getConfigFromFileWithContext(params: { context: RuleContext; projectDir: string }) {
   if (!isConfigFileRuleOptions(params.context.options[0])) {
     return params.context.options[0];
@@ -17,65 +12,55 @@ export function getConfigFromFileWithContext(params: { context: RuleContext; pro
 
   return pipe(
     getConfigFromFile(params.projectDir),
-    E.getOrElseW(({ type, message }) => {
-      throw new Error(`safeql: ${type} ${message}`);
+    E.getOrElseW((message) => {
+      throw new Error(`safeql: ${message}`);
     })
   );
 }
 
-function getConfigFromFile(
-  projectDir: string
-): E.Either<GetConfigFromFileError, z.infer<typeof Config>> {
-  return pipe(
-    E.Do,
-    E.bindW("configFilePath", () => E.right(path.join(projectDir, "safeql.config.ts"))),
-    E.bindW("tempFileName", () => E.right(`safeql.config.temp-${Date.now()}.js`)),
-    E.bindW("tempFilePath", ({ tempFileName }) => E.right(path.join(projectDir, tempFileName))),
-    E.chainW((params) => {
-      return fs.existsSync(params.configFilePath)
-        ? E.right(params)
-        : E.left({ type: "NOT_FOUND" as const, message: "safeql.config.ts not found" });
-    }),
-    E.chainFirstW(({ configFilePath, tempFilePath }) => {
-      return E.tryCatch(
-        () => {
-          const result = esbuild.buildSync({
-            entryPoints: [configFilePath],
-            write: false,
-            format: "cjs",
-          });
+function getConfigFromFile(projectDir: string): E.Either<string, Config> {
+  const configFilePath = path.join(projectDir, "safeql.config.ts");
+  const tempFileName = `safeql.config.temp-${Date.now()}.js`;
+  const tempFilePath = path.join(projectDir, tempFileName);
 
-          return fs.writeFileSync(tempFilePath, result.outputFiles[0].text);
-        },
-        (error) => ({ type: "ESBUILD_ERROR" as const, message: `${error}` })
-      );
-    }),
-    E.bindW("rawConfig", ({ tempFilePath }) => {
-      return E.tryCatch(
-        () => {
-          // eslint-disable-next-line @typescript-eslint/no-var-requires
-          return require(tempFilePath).default;
-        },
-        (error) => ({
-          type: "INVALID" as const,
-          message: `${error}`,
-        })
-      );
-    }),
-    E.bindW("config", ({ rawConfig }) =>
-      E.tryCatch(
-        () => Config.parse(rawConfig),
-        (error) => ({ type: "INVALID" as const, message: `${error}` })
-      )
-    ),
-    E.chainFirstW(({ tempFilePath }) =>
-      E.tryCatch(
-        () => fs.unlinkSync(tempFilePath),
-        (error) => ({ type: "INVALID" as const, message: `${error}` })
-      )
-    ),
-    E.map(({ config }) => config)
-  );
+  const removeIfExists = (filePath: string) => {
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+  };
+
+  try {
+    if (!fs.existsSync(configFilePath)) {
+      throw new Error(`safeql.config.ts was not found at ${projectDir}`);
+    }
+
+    const result = esbuild.buildSync({
+      entryPoints: [configFilePath],
+      write: false,
+      format: "cjs",
+    });
+
+    fs.writeFileSync(tempFilePath, result.outputFiles[0].text);
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const rawConfig = require(tempFilePath).default;
+
+    if (rawConfig === undefined) {
+      throw new Error(`safeql.config.ts must export a default value`);
+    }
+
+    const config = Config.safeParse(rawConfig);
+
+    if (!config.success) {
+      throw new Error(`safeql.config.ts is invalid: ${config.error.message}`);
+    }
+
+    return E.right(config.data);
+  } catch (error) {
+    return E.left(`${error}`);
+  } finally {
+    removeIfExists(tempFilePath);
+  }
 }
 
 function isConfigFileRuleOptions(options: Options): options is UserConfigFile {
