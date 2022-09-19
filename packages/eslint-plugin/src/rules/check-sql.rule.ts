@@ -9,6 +9,7 @@ import z from "zod";
 import zodToJsonSchema from "zod-to-json-schema";
 import { ESTreeUtils } from "../utils";
 import { E, flow, J, pipe } from "../utils/fp-ts";
+import { memoize } from "../utils/memoize";
 import { locateNearestPackageJsonDir } from "../utils/node.utils";
 import { mapTemplateLiteralToQueryText } from "../utils/ts-pg.utils";
 import { getConfigFromFileWithContext } from "./check-sql.config";
@@ -384,7 +385,12 @@ export default createRule({
   defaultOptions: [],
   create(context) {
     const projectDir = locateNearestPackageJsonDir(context.getFilename());
-    const config = getConfigFromFileWithContext({ context, projectDir });
+    const config = memoize({
+      name: "config",
+      prefix: projectDir,
+      expiry: 2000,
+      value: () => getConfigFromFileWithContext({ context, projectDir }),
+    });
 
     return {
       TaggedTemplateExpression(tag) {
