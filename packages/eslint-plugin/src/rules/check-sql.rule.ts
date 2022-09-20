@@ -1,22 +1,24 @@
 import { GenerateResult } from "@ts-safeql/generate";
 import { PostgresError } from "@ts-safeql/shared";
-import { ESLintUtils, TSESLint, TSESTree } from "@typescript-eslint/utils";
+import { ESLintUtils, ParserServices, TSESLint, TSESTree } from "@typescript-eslint/utils";
 import pgParser from "libpg-query";
-import * as recast from "recast";
 import { createSyncFn } from "synckit";
 import { match } from "ts-pattern";
+import ts from "typescript";
 import z from "zod";
 import zodToJsonSchema from "zod-to-json-schema";
 import { ESTreeUtils } from "../utils";
 import { E, flow, J, pipe } from "../utils/fp-ts";
 import { locateNearestPackageJsonDir } from "../utils/node.utils";
 import { mapTemplateLiteralToQueryText } from "../utils/ts-pg.utils";
+import { tsTypeToText } from "../utils/ts.utils";
 import { getConfigFromFileWithContext } from "./check-sql.config";
 import {
   reportBaseError,
   reportDuplicateColumns,
   reportIncorrectTypeAnnotations,
   reportInvalidQueryError,
+  reportInvalidTypeAnnotations,
   reportMissingTypeAnnotations,
   reportPostgresError,
   withTransformType,
@@ -27,8 +29,11 @@ const messages = {
   typeInferenceFailed: "Type inference failed {{error}}",
   error: "{{error}}",
   invalidQuery: "Invalid Query: {{error}}",
-  missingTypeAnnotations: "Query is missing type annotation",
-  incorrectTypeAnnotations: "Query has incorrect type annotation",
+  missingTypeAnnotations: "Query is missing type annotation\n\tFix with: {{fix}}",
+  incorrectTypeAnnotations:
+    "Query has incorrect type annotation.\n\tExpected: {{expected}}`\n\tActual: {{actual}}",
+  invalidTypeAnnotations:
+    "Query has invalid type annotation (SafeQL does not support it. If you think it should, please open an issue)",
 };
 export type RuleMessage = keyof typeof messages;
 
@@ -226,10 +231,10 @@ function reportCheck(params: {
   tag: TSESTree.TaggedTemplateExpression;
   connection: RuleOptionConnection;
   projectDir: string;
-  typeParameters: TSESTree.TSTypeParameterInstantiation | undefined;
+  typeParameter: TSESTree.TSTypeParameterInstantiation | undefined;
   baseNode: TSESTree.BaseNode;
 }) {
-  const { context, tag, connection, projectDir, typeParameters, baseNode } = params;
+  const { context, tag, connection, projectDir, typeParameter, baseNode } = params;
 
   return pipe(
     E.Do,
@@ -239,7 +244,9 @@ function reportCheck(params: {
       mapTemplateLiteralToQueryText(tag.quasi, parser, checker)
     ),
     E.bindW("pgParsed", ({ query }) => pgParseQueryE(query)),
-    E.chainW(({ query, pgParsed }) => generateSyncE({ query, pgParsed, connection, projectDir })),
+    E.bindW("result", ({ query, pgParsed }) =>
+      generateSyncE({ query, pgParsed, connection, projectDir })
+    ),
     E.fold(
       (error) => {
         return match(error)
@@ -263,8 +270,8 @@ function reportCheck(params: {
           )
           .exhaustive();
       },
-      (result) => {
-        const isMissingTypeAnnotations = typeParameters === undefined;
+      ({ result, checker, parser }) => {
+        const isMissingTypeAnnotations = typeParameter === undefined;
         const resultWithTransformed = withTransformType(result, connection.transform);
 
         if (isMissingTypeAnnotations) {
@@ -276,11 +283,27 @@ function reportCheck(params: {
           });
         }
 
-        if (isIncorrectTypeAnnotations(resultWithTransformed, typeParameters)) {
+        const typeAnnotationState = getTypeAnnotationState({
+          result: resultWithTransformed,
+          typeParameter: typeParameter,
+          checker: checker,
+          parser: parser,
+        });
+
+        if (typeAnnotationState === "INVALID" || typeAnnotationState === "UNKNOWN") {
+          return reportInvalidTypeAnnotations({
+            context: context,
+            typeParameter: typeParameter,
+          });
+        }
+
+        if (!typeAnnotationState.isEqual) {
           return reportIncorrectTypeAnnotations({
             context,
             result: resultWithTransformed,
-            typeParameters: typeParameters,
+            typeParameter: typeParameter,
+            expected: typeAnnotationState.current,
+            actual: typeAnnotationState.generated,
           });
         }
       }
@@ -309,7 +332,7 @@ function checkConnectionByTagExpression(params: {
       connection,
       projectDir,
       baseNode: tag.tag,
-      typeParameters: tag.typeParameters,
+      typeParameter: tag.typeParameters,
     });
   }
 }
@@ -337,29 +360,52 @@ function checkConnectionByCallExpression(params: {
       connection,
       projectDir,
       baseNode: tag.parent.callee,
-      typeParameters: tag.parent.typeParameters,
+      typeParameter: tag.parent.typeParameters,
     });
   }
 }
 
-function isIncorrectTypeAnnotations(
-  { result }: GenerateResult,
-  sqlOperatorType: TSESTree.TSTypeParameterInstantiation
-) {
-  const currentType = recast.print(sqlOperatorType).code;
+function getTypeAnnotationState(params: {
+  result: GenerateResult;
+  typeParameter: TSESTree.TSTypeParameterInstantiation;
+  parser: ParserServices;
+  checker: ts.TypeChecker;
+}) {
+  const {
+    result: { result },
+    typeParameter,
+    parser,
+    checker,
+  } = params;
 
-  return !areTypesEqual(currentType, result);
+  if (typeParameter.params.length !== 1) {
+    return "INVALID" as const;
+  }
+
+  const typeNode = typeParameter.params[0];
+  const current = tsTypeToText({ checker, parser, typeNode });
+
+  if (current === "UNKNOWN") {
+    return "UNKNOWN" as const;
+  }
+
+  return getTypesEquality(current, result);
 }
 
 // TODO this should be improved.
-function areTypesEqual(current: string, generated: string | null) {
-  if (generated === null) {
-    return false;
+function getTypesEquality(current: string | null, generated: string | null) {
+  if (current === null && generated === null) {
+    return { isEqual: true, current, generated };
+  }
+
+  if (current === null || generated === null) {
+    return { isEqual: false, current, generated };
   }
 
   const omitRegex = /[\n ;]/g;
+  const isEqual = current.replace(omitRegex, "") === generated.replace(omitRegex, "");
 
-  return current.replace(omitRegex, "") === `<${generated}>`.replace(omitRegex, "");
+  return { isEqual, current, generated };
 }
 
 const createRule = ESLintUtils.RuleCreator(() => `https://github.com/ts-safeql/safeql`)<
