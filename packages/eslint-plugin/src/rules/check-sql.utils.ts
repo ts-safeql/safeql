@@ -134,19 +134,39 @@ export function reportMissingTypeAnnotations(params: {
     messageId: "missingTypeAnnotations",
     loc: baseNode.loc,
     fix: (fixer) => fixer.insertTextAfterRange(baseNode.range, `<${result.result}>`),
+    data: {
+      fix: result.result,
+    },
   });
 }
 
 export function reportIncorrectTypeAnnotations(params: {
   context: RuleContext;
   result: GenerateResult;
-  typeParameters: TSESTree.TSTypeParameterInstantiation;
+  typeParameter: TSESTree.TSTypeParameterInstantiation;
+  expected: string | null;
+  actual: string | null;
 }) {
-  const { context, result, typeParameters } = params;
+  const { context, result, typeParameter } = params;
 
   return context.report({
-    node: typeParameters.params[0],
+    node: typeParameter.params[0],
     messageId: "incorrectTypeAnnotations",
-    fix: (fixer) => fixer.replaceText(typeParameters, `<${result.result}>`),
+    fix: (fixer) => fixer.replaceText(typeParameter, `<${result.result}>`),
+    data: {
+      expected: params.expected,
+      actual: params.actual,
+    },
+  });
+}
+export function reportInvalidTypeAnnotations(params: {
+  context: RuleContext;
+  typeParameter: TSESTree.TSTypeParameterInstantiation;
+}) {
+  const { context, typeParameter } = params;
+
+  return context.report({
+    node: typeParameter.params[0],
+    messageId: "invalidTypeAnnotations",
   });
 }

@@ -194,6 +194,33 @@ RuleTester.describe("check-sql", () => {
             }
         `,
       },
+      {
+        name: "select statement with type reference",
+        filename,
+        options: withConnection(connections.base),
+        code: `
+            type Agency = { name: string };
+            function run() {
+                const result = conn.query<Agency>(sql\`
+                    select name from agency
+                \`);
+            }
+        `,
+      },
+
+      {
+        name: "select statement with interface",
+        filename,
+        options: withConnection(connections.base),
+        code: `
+            interface Agency { name: string }
+            function run() {
+                const result = conn.query<Agency>(sql\`
+                    select name from agency
+                \`);
+            }
+        `,
+      },
     ],
     invalid: [
       {
@@ -270,6 +297,40 @@ RuleTester.describe("check-sql", () => {
             column: 58,
             endLine: 4,
             endColumn: 74,
+          },
+        ],
+      },
+      {
+        filename,
+        options: withConnection(connections.base),
+        name: "select statement with invalid type reference",
+        code: `
+            type Agency = { name: string };
+            function run() {
+                const result = conn.query<Agency>(sql\`
+                    select id from agency where id = \${1}
+                \`);
+            }
+        `,
+        output: `
+            type Agency = { name: string };
+            function run() {
+                const result = conn.query<{ id: number; }>(sql\`
+                    select id from agency where id = \${1}
+                \`);
+            }
+        `,
+        errors: [
+          {
+            messageId: "incorrectTypeAnnotations",
+            data: {
+              expected: "{ name: string; }",
+              actual: "{ id: number; }",
+            },
+            line: 4,
+            column: 43,
+            endLine: 4,
+            endColumn: 49,
           },
         ],
       },
