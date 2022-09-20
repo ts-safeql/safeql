@@ -1,5 +1,11 @@
 # @ts-safeql/eslint-plugin
 
+## 0.0.10
+
+### Patch Changes
+
+- 1a55018: allow to compare actual type against type reference (sql<TypeReference>)
+
 ## 0.0.9
 
 ### Patch Changes
