@@ -1,10 +1,15 @@
-import { DuplicateColumnsError, groupBy, PostgresError } from "@ts-safeql/shared";
-import { ParsedQuery } from "@ts-safeql/shared";
+import {
+  defaultTypeMapping,
+  DuplicateColumnsError,
+  groupBy,
+  ParsedQuery,
+  PostgresError,
+} from "@ts-safeql/shared";
 import { either } from "fp-ts";
 import { Either } from "fp-ts/lib/Either";
 import postgres, { PostgresError as OriginalPostgresError } from "postgres";
 import "source-map-support/register";
-import { ColType, defaultTypeMapping } from "./utils/colTypes";
+import { ColType } from "./utils/colTypes";
 import { getLeftJoinTablesFromParsed } from "./utils/getLeftJoinTables";
 
 type CacheKey = string;
@@ -52,6 +57,9 @@ export interface GenerateParams {
   pgParsed: ParsedQuery.Root;
   cacheMetadata?: boolean;
   cacheKey: string;
+  overrides?: Partial<{
+    types: Record<string, string>;
+  }>;
 }
 
 export async function generate(
@@ -99,8 +107,10 @@ export async function generate(
       return introspected === undefined ? { described: col } : { described: col, introspected };
     });
 
+    const typesMap = { ...defaultTypeMapping, ...params.overrides?.types };
+
     return either.right({
-      result: mapColumnAnalysisResultsToTypeLiteral({ columns, pgTypes, leftTables }),
+      result: mapColumnAnalysisResultsToTypeLiteral({ columns, pgTypes, leftTables, typesMap }),
       stmt: result,
       query: query,
     });
@@ -128,12 +138,14 @@ function mapColumnAnalysisResultsToTypeLiteral(params: {
   columns: ColumnAnalysisResult[];
   pgTypes: PgTypeRow[];
   leftTables: number[];
+  typesMap: Record<string, string>;
 }) {
   const properties = params.columns.map((col) => {
     const propertySignature = mapColumnAnalysisResultToPropertySignature({
       col,
       pgTypes: params.pgTypes,
       leftTables: params.leftTables,
+      typesMap: params.typesMap,
     });
 
     return `${propertySignature};`;
@@ -150,9 +162,10 @@ function mapColumnAnalysisResultToPropertySignature(params: {
   col: ColumnAnalysisResult;
   pgTypes: PgTypeRow[];
   leftTables: number[];
+  typesMap: Record<string, string>;
 }) {
   if ("introspected" in params.col) {
-    const tsType = defaultTypeMapping[params.col.introspected.colType];
+    const tsType = params.typesMap[params.col.introspected.colType];
     const value = params.col.introspected.colNotNull ? tsType : `Nullable<${tsType}>`;
     const isFromLeftJoin = params.leftTables.includes(params.col.introspected.tableOid);
 
@@ -166,6 +179,7 @@ function mapColumnAnalysisResultToPropertySignature(params: {
   const nonTableColumnType = getTsTypeFromPgTypeOid({
     pgTypeOid: params.col.described.type,
     pgTypes: params.pgTypes,
+    typesMap: params.typesMap,
   });
 
   return buildInterfacePropertyValue({
@@ -175,19 +189,26 @@ function mapColumnAnalysisResultToPropertySignature(params: {
   });
 }
 
-function getTsTypeFromPgTypeOid(params: { pgTypes: PgTypeRow[]; pgTypeOid: number }) {
+function getTsTypeFromPgTypeOid(params: {
+  pgTypes: PgTypeRow[];
+  pgTypeOid: number;
+  typesMap: Record<string, string>;
+}) {
   const pgType = params.pgTypes.find((type) => type.oid === params.pgTypeOid);
 
   if (pgType === undefined) {
     return "unknown";
   }
 
-  return getTsTypeFromPgType({ pgTypeName: pgType.name });
+  return getTsTypeFromPgType({ pgTypeName: pgType.name, typesMap: params.typesMap });
 }
 
-function getTsTypeFromPgType(params: { pgTypeName: ColType | `_${ColType}` }) {
+function getTsTypeFromPgType(params: {
+  pgTypeName: ColType | `_${ColType}`;
+  typesMap: Record<string, string>;
+}) {
   const { isArray, pgType } = parsePgType(params.pgTypeName);
-  const tsType = defaultTypeMapping[pgType] ?? "any";
+  const tsType = params.typesMap[pgType] ?? "any";
 
   return isArray ? `Array<${tsType}>` : tsType;
 }

@@ -104,3 +104,17 @@ type NonEmptyArray<T> = readonly [T, ...ReadonlyArray<T>];
 export function isNonEmpty<T>(array: ReadonlyArray<T> | undefined): array is NonEmptyArray<T> {
   return array !== undefined && array.length > 0;
 }
+
+export function objectKeys<T extends object>(obj: T): (keyof T)[] {
+  return Object.keys(obj) as (keyof T)[];
+}
+
+export function objectKeysNonEmpty<T extends object>(obj: T): [keyof T, ...(keyof T)[]] {
+  const keys = objectKeys(obj);
+
+  if (keys.length === 0) {
+    throw new Error("expected non-empty object");
+  }
+
+  return keys as [keyof T, ...(keyof T)[]];
+}
