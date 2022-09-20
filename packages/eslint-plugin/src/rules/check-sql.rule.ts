@@ -1,5 +1,5 @@
 import { GenerateResult } from "@ts-safeql/generate";
-import { PostgresError } from "@ts-safeql/shared";
+import { objectKeysNonEmpty, PostgresError, defaultTypeMapping } from "@ts-safeql/shared";
 import { ESLintUtils, ParserServices, TSESLint, TSESTree } from "@typescript-eslint/utils";
 import pgParser from "libpg-query";
 import { createSyncFn } from "synckit";
@@ -54,6 +54,16 @@ const baseSchema = z.object({
    * Whether or not keep the connection alive. Change it only if you know what you're doing.
    */
   keepAlive: z.boolean().optional(),
+
+  /**
+   * Override defaults
+   */
+  overrides: z
+    .object({
+      types: z.record(z.enum(objectKeysNonEmpty(defaultTypeMapping)), z.string()),
+    })
+    .partial()
+    .optional(),
 });
 
 const identifyByNameAndOperators = z.object({

@@ -413,4 +413,31 @@ RuleTester.describe("check-sql", () => {
       },
     ],
   });
+
+  ruleTester.run("connection with overrides.types", rules["check-sql"], {
+    valid: [
+      {
+        name: 'with { int4: "Integer" }',
+        filename,
+        options: withConnection(connections.withTagName, {
+          overrides: { types: { int4: "Integer" } },
+        }),
+        code: "sql<{ id: Integer }>`select id from caregiver`",
+      },
+    ],
+    invalid: [
+      {
+        name: 'with { int4: "Integer" } while { id: number }',
+        filename,
+        options: withConnection(connections.withTagName, {
+          overrides: { types: { int4: "Integer" } },
+        }),
+        code: "sql<{ id: number }>`select id from caregiver`",
+        output: "sql<{ id: Integer; }>`select id from caregiver`",
+        errors: [
+          { messageId: "incorrectTypeAnnotations", line: 1, column: 5, endLine: 1, endColumn: 19 },
+        ],
+      },
+    ],
+  });
 });
