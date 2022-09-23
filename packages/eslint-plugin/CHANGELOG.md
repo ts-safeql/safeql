@@ -1,5 +1,59 @@
 # @ts-safeql/eslint-plugin
 
+## 0.0.11
+
+### Patch Changes
+
+- 69b874e: you can now override the default types (e.g. timestamp -> DateTime) by adding an `overrides` property to the config:
+
+  ```ts
+  // safeql.config.ts
+  import { definedConfig } from "@ts-safeql/eslint-plugin";
+
+  export default definedConfig({
+    // ...
+    overrides: {
+      types: {
+        timestamp: "DateTime",
+      },
+    },
+  });
+  ```
+
+  or
+
+  ```json
+  // .eslintrc.json
+  {
+    // ...
+    "connections": {
+      // ...,
+      "overrides": {
+        "types": {
+          "timestamp": "DateTime"
+        }
+      }
+    }
+  }
+  ```
+
+- Updated dependencies [69b874e]
+  - @ts-safeql/generate@0.0.3
+  - @ts-safeql/shared@0.0.3
+  - @ts-safeql/test-utils@0.0.3
+
+## 0.0.10
+
+### Patch Changes
+
+- 1a55018: allow to compare actual type against type reference (sql<TypeReference>)
+
+## 0.0.9
+
+### Patch Changes
+
+- 853f943: fixed an issue where using a config file with invalid state kept a temporary config file
+
 ## 0.0.8
 
 ### Patch Changes

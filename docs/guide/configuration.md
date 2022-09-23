@@ -8,7 +8,7 @@ layout: doc
 
 Make sure you've added `@ts-safeql/eslint-plugin` to your ESLint plugins:
 
-```json{2}
+```json{3}
 // .eslintrc.json
 {
   "plugins": [..., "@ts-safeql/eslint-plugin"],

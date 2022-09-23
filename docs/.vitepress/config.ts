@@ -34,6 +34,28 @@ export default defineConfig({
           { text: "Usage", link: "/libraries/sql-tag/usage" },
         ],
       },
+      {
+        text: "API",
+        items: [
+          { text: "useConfigFile", link: "/api/index.md#useconfigfile" },
+          {
+            text: "connections",
+            link: "/api/index.md#connections",
+            items: [
+              { text: "databaseUrl", link: "/api/index.md#connections-databaseurl" },
+              { text: "migrationsDir", link: "/api/index.md#connections-migrationsdir" },
+              { text: "connectionUrl", link: "/api/index.md#connections-connectionurl" },
+              { text: "databaseName", link: "/api/index.md#connections-databasename" },
+              { text: "tagName", link: "/api/index.md#connections-tagname" },
+              { text: "name", link: "/api/index.md#connections-name" },
+              { text: "operators", link: "/api/index.md#connections-operators" },
+              { text: "transform", link: "/api/index.md#connections-transform" },
+              { text: "keepAlive", link: "/api/index.md#connections-keepalive" },
+              { text: "overrides.types", link: "/api/index.md#connections-overrides-types" },
+            ],
+          },
+        ],
+      },
     ],
     socialLinks: [
       {

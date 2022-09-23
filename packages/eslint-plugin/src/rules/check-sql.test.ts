@@ -194,6 +194,33 @@ RuleTester.describe("check-sql", () => {
             }
         `,
       },
+      {
+        name: "select statement with type reference",
+        filename,
+        options: withConnection(connections.base),
+        code: `
+            type Agency = { name: string };
+            function run() {
+                const result = conn.query<Agency>(sql\`
+                    select name from agency
+                \`);
+            }
+        `,
+      },
+
+      {
+        name: "select statement with interface",
+        filename,
+        options: withConnection(connections.base),
+        code: `
+            interface Agency { name: string }
+            function run() {
+                const result = conn.query<Agency>(sql\`
+                    select name from agency
+                \`);
+            }
+        `,
+      },
     ],
     invalid: [
       {
@@ -273,6 +300,40 @@ RuleTester.describe("check-sql", () => {
           },
         ],
       },
+      {
+        filename,
+        options: withConnection(connections.base),
+        name: "select statement with invalid type reference",
+        code: `
+            type Agency = { name: string };
+            function run() {
+                const result = conn.query<Agency>(sql\`
+                    select id from agency where id = \${1}
+                \`);
+            }
+        `,
+        output: `
+            type Agency = { name: string };
+            function run() {
+                const result = conn.query<{ id: number; }>(sql\`
+                    select id from agency where id = \${1}
+                \`);
+            }
+        `,
+        errors: [
+          {
+            messageId: "incorrectTypeAnnotations",
+            data: {
+              expected: "{ name: string; }",
+              actual: "{ id: number; }",
+            },
+            line: 4,
+            column: 43,
+            endLine: 4,
+            endColumn: 49,
+          },
+        ],
+      },
     ],
   });
 
@@ -348,6 +409,33 @@ RuleTester.describe("check-sql", () => {
         output: "const result = conn.query(sql<{ id: number; }>`select id from caregiver`)",
         errors: [
           { messageId: "missingTypeAnnotations", line: 1, column: 27, endLine: 1, endColumn: 30 },
+        ],
+      },
+    ],
+  });
+
+  ruleTester.run("connection with overrides.types", rules["check-sql"], {
+    valid: [
+      {
+        name: 'with { int4: "Integer" }',
+        filename,
+        options: withConnection(connections.withTagName, {
+          overrides: { types: { int4: "Integer" } },
+        }),
+        code: "sql<{ id: Integer }>`select id from caregiver`",
+      },
+    ],
+    invalid: [
+      {
+        name: 'with { int4: "Integer" } while { id: number }',
+        filename,
+        options: withConnection(connections.withTagName, {
+          overrides: { types: { int4: "Integer" } },
+        }),
+        code: "sql<{ id: number }>`select id from caregiver`",
+        output: "sql<{ id: Integer; }>`select id from caregiver`",
+        errors: [
+          { messageId: "incorrectTypeAnnotations", line: 1, column: 5, endLine: 1, endColumn: 19 },
         ],
       },
     ],
