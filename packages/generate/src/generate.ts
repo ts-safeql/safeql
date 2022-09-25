@@ -2,8 +2,10 @@ import {
   defaultTypeMapping,
   DuplicateColumnsError,
   groupBy,
+  IdentiferCase,
   ParsedQuery,
   PostgresError,
+  toCase,
 } from "@ts-safeql/shared";
 import { either } from "fp-ts";
 import { Either } from "fp-ts/lib/Either";
@@ -57,6 +59,7 @@ export interface GenerateParams {
   pgParsed: ParsedQuery.Root;
   cacheMetadata?: boolean;
   cacheKey: string;
+  fieldTransform: IdentiferCase | undefined;
   overrides?: Partial<{
     types: Record<string, string>;
   }>;
@@ -110,7 +113,13 @@ export async function generate(
     const typesMap = { ...defaultTypeMapping, ...params.overrides?.types };
 
     return either.right({
-      result: mapColumnAnalysisResultsToTypeLiteral({ columns, pgTypes, leftTables, typesMap }),
+      result: mapColumnAnalysisResultsToTypeLiteral({
+        columns,
+        pgTypes,
+        leftTables,
+        typesMap,
+        fieldTransform: params.fieldTransform,
+      }),
       stmt: result,
       query: query,
     });
@@ -139,6 +148,7 @@ function mapColumnAnalysisResultsToTypeLiteral(params: {
   pgTypes: PgTypeRow[];
   leftTables: number[];
   typesMap: Record<string, string>;
+  fieldTransform: IdentiferCase | undefined;
 }) {
   const properties = params.columns.map((col) => {
     const propertySignature = mapColumnAnalysisResultToPropertySignature({
@@ -146,6 +156,7 @@ function mapColumnAnalysisResultsToTypeLiteral(params: {
       pgTypes: params.pgTypes,
       leftTables: params.leftTables,
       typesMap: params.typesMap,
+      fieldTransform: params.fieldTransform,
     });
 
     return `${propertySignature};`;
@@ -163,14 +174,16 @@ function mapColumnAnalysisResultToPropertySignature(params: {
   pgTypes: PgTypeRow[];
   leftTables: number[];
   typesMap: Record<string, string>;
+  fieldTransform: IdentiferCase | undefined;
 }) {
   if ("introspected" in params.col) {
     const tsType = params.typesMap[params.col.introspected.colType];
     const value = params.col.introspected.colNotNull ? tsType : `Nullable<${tsType}>`;
     const isFromLeftJoin = params.leftTables.includes(params.col.introspected.tableOid);
+    const key = params.col.described.name ?? params.col.introspected.colName;
 
     return buildInterfacePropertyValue({
-      key: params.col.described.name ?? params.col.introspected.colName,
+      key: toCase(key, params.fieldTransform),
       value: value,
       isNullable: isFromLeftJoin,
     });
@@ -183,7 +196,7 @@ function mapColumnAnalysisResultToPropertySignature(params: {
   });
 
   return buildInterfacePropertyValue({
-    key: params.col.described.name,
+    key: toCase(params.col.described.name, params.fieldTransform),
     value: nonTableColumnType,
     isNullable: false,
   });
