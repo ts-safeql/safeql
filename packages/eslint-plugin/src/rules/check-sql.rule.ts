@@ -439,14 +439,14 @@ export default createRule({
     schema: zodToJsonSchema(RuleOptions, { target: "openApi3" }),
   },
   defaultOptions: [],
-  create(context, rules) {
+  create(context) {
     const projectDir = memoize({
       key: context.getFilename(),
       value: () => locateNearestPackageJsonDir(context.getFilename()),
     });
 
     const config = memoize({
-      key: JSON.stringify({ rules, projectDir, key: "cache" }),
+      key: JSON.stringify({ key: "config", options: context.options, projectDir }),
       value: () => getConfigFromFileWithContext({ context, projectDir }),
     });
 
