@@ -231,6 +231,15 @@ to be an array of objects, you can use the following:
 
 :::
 
+### `connections.fieldTransform`
+
+Transform the (column) field key. Can be one of the following:
+
+- `"snake"` - `userId` → `user_id`
+- `"camel"` - `user_id` → `userId`
+- `"pascal"` - `user_id` → `UserId`
+- `"screaming snake"` - `user_id` → `USER_ID`
+
 ### `connections.keepAlive`
 
 True by default. If set to false, the connection will be closed after the query is executed. This

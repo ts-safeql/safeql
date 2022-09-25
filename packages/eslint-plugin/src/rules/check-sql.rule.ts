@@ -51,6 +51,15 @@ const baseSchema = z.object({
     .optional(),
 
   /**
+   * Transform the (column) field key. Can be one of the following:
+   * - `"snake"` - `userId` → `user_id`
+   * - `"camel"` - `user_id` → `userId`
+   * - `"pascal"` - `user_id` → `UserId`
+   * - `"screaming snake"` - `user_id` → `USER_ID`
+   */
+  fieldTransform: z.enum(["snake", "pascal", "camel", "screaming snake"]).optional(),
+
+  /**
    * Whether or not keep the connection alive. Change it only if you know what you're doing.
    */
   keepAlive: z.boolean().optional(),
