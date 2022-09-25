@@ -55,9 +55,9 @@ And now you'll be able to write queries like this:
 const query = myDb.rawQuery(sql`SELECT * FROM users`);
 ```
 
-## Example 2: Migrations with Shadow Database
+## Example 2: Migrations
 
-To avoid having to keep your database up to date with your schema manually, SafeQL also offers a way to synchronize a "shadow database" with your `.sql` migration files with the [`migrationsDir` option](https://safeql.dev/api/index.html#connections-migrationsdir).
+To avoid having to keep your database up to date with your schema manually, configure the [`connections.migrationsDir` option](https://safeql.dev/api/index.html#connections-migrationsdir) to automatically synchronize the changes in your `.sql` migrations files to a "shadow database", which will also be used to get the type information from your queries.
 
 ::: tip DEMO
 Check out [@ts-safeql-demos/basic-migrations-raw](https://github.com/ts-safeql/safeql/tree/main/demos/basic-migrations-raw) for a working example.
