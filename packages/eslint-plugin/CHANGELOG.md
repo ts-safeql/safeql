@@ -1,5 +1,15 @@
 # @ts-safeql/eslint-plugin
 
+## 0.0.12
+
+### Patch Changes
+
+- 3d3ca50: allow (column) field case transformation (e.g `"fieldTransform": "camel"` - `user_id` → `userId`)
+- Updated dependencies [3d3ca50]
+  - @ts-safeql/generate@0.0.4
+  - @ts-safeql/shared@0.0.4
+  - @ts-safeql/test-utils@0.0.4
+
 ## 0.0.11
 
 ### Patch Changes

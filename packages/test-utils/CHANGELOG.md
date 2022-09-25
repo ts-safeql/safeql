@@ -1,5 +1,12 @@
 # @ts-safeql/test-utils
 
+## 0.0.4
+
+### Patch Changes
+
+- Updated dependencies [3d3ca50]
+  - @ts-safeql/shared@0.0.4
+
 ## 0.0.3
 
 ### Patch Changes
