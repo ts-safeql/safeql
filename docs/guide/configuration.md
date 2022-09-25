@@ -55,7 +55,48 @@ And now you'll be able to write queries like this:
 const query = myDb.rawQuery(sql`SELECT * FROM users`);
 ```
 
-## Example 2: Migrations
+## Example 2: Multiple databases connected to your apps
+
+Connect using multiple databases and credentials used by multiple apps
+
+::: tip DEMO
+Check out [@ts-safeql-demos/basic](https://github.com/ts-safeql/safeql/tree/main/demos/basic) for a working example.
+:::
+
+```json
+// .eslintrc.json
+{
+  // ...
+  "rules": {
+    // ...
+    "@ts-safeql/check-sql": [
+      "error",
+      {
+        "connections": [
+          {
+            // The URL of the database:
+            "databaseUrl": "postgres://postgres:postgres@localhost:5432/my_database_1",
+            // The name of the variable that holds the connection:
+            "name": "myDb1",
+            // An array of operators that wraps the raw query:
+            "operators": ["rawQuery"]
+          },
+          {
+            // The URL of the database:
+            "databaseUrl": "postgres://postgres:postgres@localhost:5432/my_database_2",
+            // The name of the variable that holds the connection:
+            "name": "myDb2",
+            // An array of operators that wraps the raw query:
+            "operators": ["query"]
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+## Example 3: Migrations
 
 To avoid having to keep your database up to date with your schema manually, configure the [`connections.migrationsDir` option](https://safeql.dev/api/index.html#connections-migrationsdir) to automatically synchronize the changes in your `.sql` migrations files to a "shadow database", which will also be used to get the type information from your queries.
 
@@ -95,7 +136,7 @@ The shadow database is used to run the migrations on it, and then compare the ra
 The shadow database is dropped and recreated every time ESLint initializes the query (When VS Code boots up, or when you run ESLint from the terminal).
 :::
 
-## Example 3: Multiple databases with a different connection URLs
+## Example 4: Multiple migration configurations
 
 ::: tip DEMO
 Check out [@ts-safeql-demos/multi-connections](https://github.com/ts-safeql/safeql/tree/main/demos/multi-connections) for a working example.
@@ -112,19 +153,19 @@ Check out [@ts-safeql-demos/multi-connections](https://github.com/ts-safeql/safe
       {
         "connections": [
           {
-            "migrationsDir": "./migrations_db1",
+            "migrationsDir": "./packages/a/migrations",
             "databaseName": "db1_shadow",
             "name": "db1",
             "operators": ["rawQuery"],
             // Read more about this below
-            "connectionUrl": "postgres://pguser1:password1@localhost:5432/postgres"
+            "connectionUrl": "postgres://pguser:password@localhost:5432/postgres"
           },
           {
-            "migrationsDir": "./migrations_db2",
+            "migrationsDir": "./packages/b/migrations",
             "databaseName": "db2_shadow",
             "name": "db2",
             "operators": ["rawQuery"],
-            "connectionUrl": "postgres://pguser2:password2@localhost:5432/postgres"
+            "connectionUrl": "postgres://pguser:password@localhost:5432/postgres"
           }
         ]
       }
