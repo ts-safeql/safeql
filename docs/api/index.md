@@ -235,7 +235,7 @@ to be an array of objects, you can use the following:
 
 Transform the (column) field key. Can be one of the following:
 
-- `"snake"` - `user_id` → `userId`
+- `"snake"` - `userId` → `user_id`
 - `"camel"` - `user_id` → `userId`
 - `"pascal"` - `user_id` → `UserId`
 - `"screaming snake"` - `user_id` → `USER_ID`
