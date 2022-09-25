@@ -62,7 +62,9 @@ const testQuery = async (params: { query: string; expected?: unknown; expectedEr
   return pipe(
     taskEither.Do,
     taskEither.bind("pgParsed", () => parseQueryTE(params.query)),
-    taskEither.bind("result", ({ pgParsed }) => generateTE({ sql, pgParsed, query, cacheKey })),
+    taskEither.bind("result", ({ pgParsed }) =>
+      generateTE({ sql, pgParsed, query, cacheKey, fieldTransform: undefined })
+    ),
     taskEither.chainW(({ result }) => taskEither.fromEither(result)),
     taskEither.match(
       (error) =>
