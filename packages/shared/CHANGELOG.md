@@ -1,5 +1,11 @@
 # @ts-safeql/shared
 
+## 0.0.4
+
+### Patch Changes
+
+- 3d3ca50: allow (column) field case transformation (e.g `"fieldTransform": "camel"` - `user_id` → `userId`)
+
 ## 0.0.3
 
 ### Patch Changes
