@@ -440,4 +440,63 @@ RuleTester.describe("check-sql", () => {
       },
     ],
   });
+
+  ruleTester.run("connection with fieldTransform", rules["check-sql"], {
+    valid: [
+      {
+        name: "transform to snake case",
+        filename,
+        options: withConnection(connections.withTagName, { fieldTransform: "snake" }),
+        code: 'sql<{ my_number: number }>`select 1 as "MyNumber"`',
+      },
+      {
+        name: "transform non-table column to camel case",
+        filename,
+        options: withConnection(connections.withTagName, { fieldTransform: "camel" }),
+        code: 'sql<{ myNumber: number }>`select 1 as "my_number"`',
+      },
+      {
+        name: "transform table column to camel case",
+        filename,
+        options: withConnection(connections.withTagName, { fieldTransform: "camel" }),
+        code: "sql<{ firstName: string }>`select first_name from caregiver`",
+      },
+      {
+        name: "transform non-table column to pascal case",
+        filename,
+        options: withConnection(connections.withTagName, { fieldTransform: "pascal" }),
+        code: 'sql<{ MyNumber: number }>`select 1 as "my_number"`',
+      },
+      {
+        name: "transform table column to pascal case",
+        filename,
+        options: withConnection(connections.withTagName, { fieldTransform: "pascal" }),
+        code: "sql<{ FirstName: string }>`select first_name from caregiver`",
+      },
+      {
+        name: "transform non-table column to screaming snake case",
+        filename,
+        options: withConnection(connections.withTagName, { fieldTransform: "screaming snake" }),
+        code: 'sql<{ MY_NUMBER: number }>`select 1 as "my_number"`',
+      },
+      {
+        name: "transform table column to screaming snake case",
+        filename,
+        options: withConnection(connections.withTagName, { fieldTransform: "screaming snake" }),
+        code: "sql<{ FIRST_NAME: string }>`select first_name from caregiver`",
+      },
+    ],
+    invalid: [
+      {
+        name: "with camelCase while result is snake_case",
+        filename,
+        options: withConnection(connections.withTagName, { fieldTransform: "camel" }),
+        code: "sql<{ first_name: string }>`select first_name from caregiver`",
+        output: "sql<{ firstName: string; }>`select first_name from caregiver`",
+        errors: [
+          { messageId: "incorrectTypeAnnotations", line: 1, column: 5, endLine: 1, endColumn: 27 },
+        ],
+      },
+    ],
+  });
 });

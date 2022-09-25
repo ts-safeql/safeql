@@ -282,21 +282,27 @@ importers:
 
   packages/shared:
     specifiers:
+      '@esbuild-kit/cjs-loader': ^2.3.3
+      '@types/mocha': ^9.1.1
       '@types/node': ^18.7.16
       '@typescript-eslint/eslint-plugin': ^5.36.2
       '@typescript-eslint/parser': ^5.36.2
       '@typescript-eslint/utils': ^5.36.2
       eslint: ^8.23.0
+      mocha: ^10.0.0
       postgres: github:porsager/postgres
       typescript: ^4.8.2
     dependencies:
-      postgres: github.com/porsager/postgres/b49ed8e9f3c41b664b41b7eb0aa27063207e4cdd
+      postgres: github.com/porsager/postgres/9a61b9fcec2f4d21d1c6c4e14c73d88010a28406
     devDependencies:
+      '@esbuild-kit/cjs-loader': 2.3.3
+      '@types/mocha': 9.1.1
       '@types/node': 18.7.16
       '@typescript-eslint/eslint-plugin': 5.36.2_iurrlxgqcgk5svigzxakafpeuu
       '@typescript-eslint/parser': 5.36.2_yqf6kl63nyoq5megxukfnom5rm
       '@typescript-eslint/utils': 5.36.2_yqf6kl63nyoq5megxukfnom5rm
       eslint: 8.23.0
+      mocha: 10.0.0
       typescript: 4.8.2
 
   packages/sql-tag:
@@ -4380,6 +4386,14 @@ packages:
 
   /zod/3.19.0:
     resolution: {integrity: sha512-Yw0qvUsCNGBe5YacikdMt5gVYeUuaEFVDIHKMfElrGSaBhwR3CQK6vOzgfAJOjTdGIhEeoaj8GtT+NDZrepZbw==}
+    dev: false
+
+  github.com/porsager/postgres/9a61b9fcec2f4d21d1c6c4e14c73d88010a28406:
+    resolution: {tarball: https://codeload.github.com/porsager/postgres/tar.gz/9a61b9fcec2f4d21d1c6c4e14c73d88010a28406}
+    name: postgres
+    version: 3.2.4
+    prepare: true
+    requiresBuild: true
     dev: false
 
   github.com/porsager/postgres/b49ed8e9f3c41b664b41b7eb0aa27063207e4cdd:
