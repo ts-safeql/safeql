@@ -219,16 +219,13 @@ Check out [@ts-safeql-demos/multi-connections](https://github.com/ts-safeql/safe
             "migrationsDir": "./packages/a/migrations",
             "databaseName": "db1_shadow",
             "name": "db1",
-            "operators": ["rawQuery"],
-            // Read more about this below
-            "connectionUrl": "postgres://pguser:password@localhost:5432/postgres"
+            "operators": ["rawQuery"]
           },
           {
             "migrationsDir": "./packages/b/migrations",
             "databaseName": "db2_shadow",
             "name": "db2",
-            "operators": ["rawQuery"],
-            "connectionUrl": "postgres://pguser:password@localhost:5432/postgres"
+            "operators": ["rawQuery"]
           }
         ]
       }
