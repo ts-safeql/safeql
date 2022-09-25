@@ -144,6 +144,9 @@ postgres://postgres:postgres@localhost:5432/postgres
 :::
 
 The `connectionUrl` **IS NOT** the database and credentials your app uses - it is instead the
-default database and superuser credentials, which will be used to create the shadow database.
+default database and superuser credentials which are used to create the shadow database.
+
+If you don't want to provide superuser credentials, you can also provide a role which has the
+permissions to run `createdb` and `dropdb`.
 
 By default, the `connectionUrl` is set `postgres://postgres:postgres@localhost:5432/postgres`, but if you're using a different credentials, you'll need to change it to your needs.
