@@ -122,7 +122,9 @@ Check out [@ts-safeql-demos/basic-migrations-raw](https://github.com/ts-safeql/s
             // The name of the variable that holds the connection:
             "name": "myDb",
             // An array of operators that wraps the raw query:
-            "operators": ["rawQuery"]
+            "operators": ["rawQuery"],
+            // To connect using alternate superuser credentials, see below
+            // "connectionUrl": "postgres://pguser:password@localhost:5432/postgres"
           }
         ]
       }
@@ -135,6 +137,24 @@ Check out [@ts-safeql-demos/basic-migrations-raw](https://github.com/ts-safeql/s
 The shadow database is used to run the migrations on it, and then compare the raw queries against it.
 The shadow database is dropped and recreated every time ESLint initializes the query (When VS Code boots up, or when you run ESLint from the terminal).
 :::
+
+### What is `connectionUrl` and should I configure it?
+
+::: info TL;DR
+If you're using migrations and your PostgreSQL superuser credentials are different
+than the default below, you will need to configure `connectionUrl`.
+```
+postgres://postgres:postgres@localhost:5432/postgres
+```
+:::
+
+The `connectionUrl` **IS NOT** the database and credentials your app uses - it is instead the
+default database and superuser credentials which are used to create the shadow database.
+
+If you don't want to provide superuser credentials, you can also provide a role which has the
+permissions to run `createdb` and `dropdb`.
+
+By default, the `connectionUrl` is set `postgres://postgres:postgres@localhost:5432/postgres`, but if you're using a different credentials, you'll need to change it to your needs.
 
 ## Example 4: Multiple migration configurations
 
@@ -156,6 +176,49 @@ Check out [@ts-safeql-demos/multi-connections](https://github.com/ts-safeql/safe
             "migrationsDir": "./packages/a/migrations",
             "databaseName": "db1_shadow",
             "name": "db1",
+            "operators": ["rawQuery"]
+          },
+          {
+            "migrationsDir": "./packages/b/migrations",
+            "databaseName": "db2_shadow",
+            "name": "db2",
+            "operators": ["rawQuery"]
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+## Example 5: Mixing `databaseUrl` and `migrationsDir` configurations
+
+::: tip DEMO
+Check out [@ts-safeql-demos/multi-connections](https://github.com/ts-safeql/safeql/tree/main/demos/multi-connections) for a working example.
+:::
+
+```json
+// .eslintrc.json
+{
+  // ...
+  "rules": {
+    // ...
+    "@ts-safeql/check-sql": [
+      "error",
+      {
+        "connections": [
+          {
+            // The URL of the database:
+            "databaseUrl": "postgres://postgres:postgres@localhost:5432/my_database",
+            // The name of the variable that holds the connection:
+            "name": "myDb",
+            // An array of operators that wraps the raw query:
+            "operators": ["rawQuery"]
+          },
+          {
+            "migrationsDir": "./packages/a/migrations",
+            "databaseName": "db1_shadow",
+            "name": "db1",
             "operators": ["rawQuery"],
             // Read more about this below
             "connectionUrl": "postgres://pguser:password@localhost:5432/postgres"
@@ -173,21 +236,3 @@ Check out [@ts-safeql-demos/multi-connections](https://github.com/ts-safeql/safe
   }
 }
 ```
-
-### What is `connectionUrl` and should I configure it?
-
-::: info TL;DR
-If you're using migrations and your PostgreSQL superuser credentials are different
-than the default below, you will need to configure `connectionUrl`.
-```
-postgres://postgres:postgres@localhost:5432/postgres
-```
-:::
-
-The `connectionUrl` **IS NOT** the database and credentials your app uses - it is instead the
-default database and superuser credentials which are used to create the shadow database.
-
-If you don't want to provide superuser credentials, you can also provide a role which has the
-permissions to run `createdb` and `dropdb`.
-
-By default, the `connectionUrl` is set `postgres://postgres:postgres@localhost:5432/postgres`, but if you're using a different credentials, you'll need to change it to your needs.
