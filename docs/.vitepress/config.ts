@@ -50,7 +50,6 @@ export default defineConfig({
               { text: "name", link: "/api/index.md#connections-name" },
               { text: "operators", link: "/api/index.md#connections-operators" },
               { text: "transform", link: "/api/index.md#connections-transform" },
-              { text: "transform", link: "/api/index.md#connections-transform" },
               { text: "fieldTransform", link: "/api/index.md#connections-fieldtransform" },
               { text: "keepAlive", link: "/api/index.md#connections-keepalive" },
               { text: "overrides.types", link: "/api/index.md#connections-overrides-types" },
