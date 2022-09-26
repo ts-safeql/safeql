@@ -4,5 +4,7 @@ export async function check(id: number) {
   const sql = postgres();
 
   sql<{ id: number }[]>`SELECT id FROM person`;
-  sql<{ id: number }[]>`SELECT id FROM person WHERE id = ${id}`;
+
+  type Person = { id: number };
+  sql<Person[]>`SELECT id FROM person WHERE id = ${id}`;
 }
