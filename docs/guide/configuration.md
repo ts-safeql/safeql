@@ -173,13 +173,13 @@ Check out [@ts-safeql-demos/multi-connections](https://github.com/ts-safeql/safe
       {
         "connections": [
           {
-            "migrationsDir": "./packages/a/migrations",
+            "migrationsDir": "./db1/migrations",
             "databaseName": "db1_shadow",
             "name": "db1",
             "operators": ["rawQuery"]
           },
           {
-            "migrationsDir": "./packages/b/migrations",
+            "migrationsDir": "./db2/migrations",
             "databaseName": "db2_shadow",
             "name": "db2",
             "operators": ["rawQuery"]
