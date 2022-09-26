@@ -195,10 +195,6 @@ Check out [@ts-safeql-demos/multi-connections](https://github.com/ts-safeql/safe
 
 ## Example 5: Mixing `databaseUrl` and `migrationsDir` configurations
 
-::: tip DEMO
-Check out [@ts-safeql-demos/multi-connections](https://github.com/ts-safeql/safeql/tree/main/demos/multi-connections) for a working example.
-:::
-
 ```json
 // .eslintrc.json
 {
