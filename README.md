@@ -22,7 +22,7 @@ npm install --save-dev @ts-safeql/eslint-plugin libpg-query
 
 - #### 🖖 Compatible With Popular SQL Libraries:
 
-  SafeQL works with any PostgreSQL client, including Prisma, Sequelize, pg, postgres, and more.
+  SafeQL works with any PostgreSQL client, including Prisma, Sequelize, pg, Postgres.js, and more.
 
 - #### 🛠️ Easy To Use
 
