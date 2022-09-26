@@ -60,7 +60,7 @@ const query = myDb.rawQuery(sql`SELECT * FROM users`);
 Connect using multiple databases and credentials used by multiple apps
 
 ::: tip DEMO
-Check out [@ts-safeql-demos/basic](https://github.com/ts-safeql/safeql/tree/main/demos/basic) for a working example.
+Check out [@ts-safeql-demos/multi-connections](https://github.com/ts-safeql/safeql/tree/main/demos/multi-connections) for a working example.
 :::
 
 ```json
