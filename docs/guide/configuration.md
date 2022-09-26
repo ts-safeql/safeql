@@ -98,7 +98,7 @@ Check out [@ts-safeql-demos/multi-connections](https://github.com/ts-safeql/safe
 
 ## Example 3: Migrations
 
-If your project contains `.sql` migration files, configuring [`connections.migrationsDir` option](https://safeql.dev/api/index.html#connections-migrationsdir) instead of `databaseUrl` will automatically synchronize the changes in your migrations to a separate "shadow database", which will also be used to retrieve type information related to your queries.
+If your project contains `.sql` migration files, configuring [`connections.migrationsDir` option](/api/index.html#connections-migrationsdir) instead of `databaseUrl` will automatically synchronize the changes in your migrations to a separate "shadow database", which will also be used to retrieve type information related to your queries.
 
 This is beneficial in cases where it is impossible or inconvenient to manually keep your database in sync with your migrations.
 
