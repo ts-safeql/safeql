@@ -3,8 +3,8 @@ import fs from "fs";
 import path from "path";
 
 const FAKE_SRC_PATH = path.join(__dirname, "..", "_fake_src");
-const MAX_TIME = /* 40 seconds */ 40 * 1000;
-const TOTAL_FILES = 5000;
+const MAX_TIME = /* 50 seconds */ 50 * 1000;
+const TOTAL_FILES = 3000;
 
 async function before() {
   const value = await fs.promises.readFile("./src/original.ts", "utf8");
@@ -28,10 +28,13 @@ async function test() {
     execSync(`pnpm eslint ${FAKE_SRC_PATH}`, { stdio: "inherit" });
     const end = Date.now();
 
+    const perFile = ((end - start) / TOTAL_FILES).toFixed(2);
+
     console.log(`
-        Total time: ${end - start}ms
-        Average time per file: ${(end - start) / TOTAL_FILES}ms
-        `);
+      Total files: ${TOTAL_FILES}
+      Total time: ${(end - start).toFixed(2)}ms
+      Per file: ${perFile} ms
+    `);
 
     if (end - start > MAX_TIME) {
       throw new Error(`Test took too long: ${end - start}ms. Max time: ${MAX_TIME}ms`);
