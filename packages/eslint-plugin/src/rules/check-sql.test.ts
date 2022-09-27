@@ -98,7 +98,7 @@ RuleTester.describe("check-sql", () => {
         name: "select array_agg(stmt)",
         filename,
         options: withConnection(connections.base),
-        code: "sql<{ ids: Array<number>; }[]>`SELECT ARRAY_AGG(id ORDER BY id) AS ids FROM caregiver`",
+        code: "sql<{ ids: number[]; }[]>`SELECT ARRAY_AGG(id ORDER BY id) AS ids FROM caregiver`",
       },
       {
         name: "select exists(stmt",

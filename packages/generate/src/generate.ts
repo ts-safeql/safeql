@@ -223,7 +223,7 @@ function getTsTypeFromPgType(params: {
   const { isArray, pgType } = parsePgType(params.pgTypeName);
   const tsType = params.typesMap[pgType] ?? "any";
 
-  return isArray ? `Array<${tsType}>` : tsType;
+  return isArray ? `${tsType}[]` : tsType;
 }
 
 function isPgTypeArray(pgType: ColType | `_${ColType}`): pgType is `_${ColType}` {
