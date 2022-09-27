@@ -1,5 +1,11 @@
 # @ts-safeql/generate
 
+## 0.0.5
+
+### Patch Changes
+
+- 1467215: when returning an array column, return an array type instead of identifer (e.g instead of `Array<type>` return `type[]`).
+
 ## 0.0.4
 
 ### Patch Changes
