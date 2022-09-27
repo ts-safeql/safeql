@@ -1,5 +1,12 @@
 # @ts-safeql/eslint-plugin
 
+## 0.0.13
+
+### Patch Changes
+
+- a49dbbf: fixed a bug that caused the plugin to crash when esbuild was not installed
+- e374733: improve lint speed by up to 33%
+
 ## 0.0.12
 
 ### Patch Changes
