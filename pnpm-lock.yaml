@@ -79,6 +79,27 @@ importers:
       tsx: 3.9.0
       typescript: 4.8.2
 
+  demos/big-project:
+    specifiers:
+      '@ts-safeql/eslint-plugin': workspace:*
+      '@types/node': ^18.7.16
+      '@typescript-eslint/eslint-plugin': ^5.36.2
+      '@typescript-eslint/parser': ^5.36.2
+      eslint: ^8.23.0
+      postgres: github:porsager/postgres
+      tsx: ^3.9.0
+      typescript: ^4.8.2
+    dependencies:
+      '@ts-safeql/eslint-plugin': link:../../packages/eslint-plugin
+      '@types/node': 18.7.16
+      postgres: github.com/porsager/postgres/9a61b9fcec2f4d21d1c6c4e14c73d88010a28406
+    devDependencies:
+      '@typescript-eslint/eslint-plugin': 5.36.2_iurrlxgqcgk5svigzxakafpeuu
+      '@typescript-eslint/parser': 5.36.2_yqf6kl63nyoq5megxukfnom5rm
+      eslint: 8.23.0
+      tsx: 3.9.0
+      typescript: 4.8.2
+
   demos/from-config-file:
     specifiers:
       '@ts-safeql/eslint-plugin': workspace:*
