@@ -22,7 +22,7 @@ features:
     details: SafeQL automatically infers the type of the query result based on the query itself.
   - icon: 🖖
     title: Compatible With Popular SQL Libraries
-    details: SafeQL works with any PostgreSQL client, including Prisma, Sequelize, pg, postgres, and more.
+    details: SafeQL works with any PostgreSQL client, including Prisma, Sequelize, pg, Postgres.js, and more.
   - icon: 🛠️
     title: Easy To Use
     details: SafeQL was built in mind to be easy to use and integrate with your existing codebase.
