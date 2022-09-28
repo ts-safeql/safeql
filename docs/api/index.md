@@ -80,7 +80,7 @@ The database URL that the plugin will use to infer the types of the queries, and
 
 ### `connections.migrationsDir`
 
-The path to the directory where the [database migrations](https://www.prisma.io/dataguide/types/relational/what-are-database-migrations) are located. For example:
+The path to the directory where your [database migrations](https://www.prisma.io/dataguide/types/relational/what-are-database-migrations) are located (only `.sql` migration files supported currently). For example:
 
 ```json
 {
