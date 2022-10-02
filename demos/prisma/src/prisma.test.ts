@@ -1,8 +1,6 @@
 import { Prisma, PrismaClient } from "@prisma/client";
 import assert from "assert";
 
-type Nullable<T> = T | null;
-
 import { config } from "dotenv";
 import path from "path";
 
@@ -20,9 +18,9 @@ async function run() {
 
   test(`SELECT * FROM "User"`, async () => {
     return assert.deepEqual(
-      await prisma.$queryRaw<
-        { id: number; createdAt: Date; email: string; name: Nullable<string> }[]
-      >(Prisma.sql`SELECT * FROM "User"`),
+      await prisma.$queryRaw<{ id: number; createdAt: Date; email: string; name: string | null }[]>(
+        Prisma.sql`SELECT * FROM "User"`
+      ),
       await prisma.user.findMany()
     );
   });

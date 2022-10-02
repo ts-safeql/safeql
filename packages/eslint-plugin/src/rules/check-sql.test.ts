@@ -123,7 +123,7 @@ RuleTester.describe("check-sql", () => {
         filename,
         options: withConnection(connections.base),
         code: `
-              const result = conn.query<{ id: number; first_name: string; middle_name: Nullable<string>; last_name: string; }>(sql\`
+              const result = conn.query<{ id: number; first_name: string; middle_name: string | null; last_name: string; }>(sql\`
                   select * from caregiver
               \`);
           `,
@@ -148,7 +148,7 @@ RuleTester.describe("check-sql", () => {
         filename,
         options: withConnection(connections.base),
         code: `
-            const result = conn.query<{ caregiver_id: number; agency_id: Nullable<number>; }>(sql\`
+            const result = conn.query<{ caregiver_id: number; agency_id: number | null; }>(sql\`
                 select
                     caregiver.id as caregiver_id,
                     agency.id as agency_id
