@@ -1,5 +1,17 @@
 # @ts-safeql/eslint-plugin
 
+## 0.0.15
+
+### Patch Changes
+
+- fbdfb61: Change autofix fromNullable generic (e.g. `Nullable<string>`) to type union format (e.g. string | null)
+- 7bf6f6a: update packages postgres dependency to 3.3.0
+- Updated dependencies [fbdfb61]
+- Updated dependencies [7bf6f6a]
+  - @ts-safeql/generate@0.0.6
+  - @ts-safeql/shared@0.0.5
+  - @ts-safeql/test-utils@0.0.5
+
 ## 0.0.14
 
 ### Patch Changes

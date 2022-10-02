@@ -1,5 +1,15 @@
 # @ts-safeql/generate
 
+## 0.0.6
+
+### Patch Changes
+
+- fbdfb61: Change autofix fromNullable generic (e.g. `Nullable<string>`) to type union format (e.g. string | null)
+- 7bf6f6a: update packages postgres dependency to 3.3.0
+- Updated dependencies [7bf6f6a]
+  - @ts-safeql/shared@0.0.5
+  - @ts-safeql/test-utils@0.0.5
+
 ## 0.0.5
 
 ### Patch Changes
