@@ -29,6 +29,6 @@
     "typescript": "^4.8.2"
   },
   "dependencies": {
-    "postgres": "github:porsager/postgres"
+    "postgres": "^3.3.0"
   }
 }

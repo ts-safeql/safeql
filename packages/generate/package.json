@@ -35,7 +35,7 @@
     "@ts-safeql/test-utils": "workspace:0.0.4",
     "fp-ts": "^2.12.3",
     "pg-connection-string": "^2.5.0",
-    "postgres": "github:porsager/postgres",
+    "postgres": "^3.3.0",
     "source-map-support": "^0.5.21"
   }
 }

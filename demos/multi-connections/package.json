@@ -16,6 +16,6 @@
   "dependencies": {
     "@ts-safeql-demos/shared": "workspace:*",
     "@ts-safeql/eslint-plugin": "workspace:*",
-    "postgres": "github:porsager/postgres"
+    "postgres": "^3.3.0"
   }
 }
