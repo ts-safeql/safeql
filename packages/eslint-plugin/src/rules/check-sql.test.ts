@@ -354,7 +354,9 @@ RuleTester.describe("check-sql", () => {
       {
         name: "transform as [['middle_name', 'x_middle_name']]",
         filename,
-        options: withConnection(connections.base, { transform: [["middle_name", "x_middle_name"]] }),
+        options: withConnection(connections.base, {
+          transform: [["middle_name", "x_middle_name"]],
+        }),
         code: "const result = conn.query<{ x_middle_name: string | null; }>(sql`select middle_name from caregiver`);",
       },
       {
