@@ -38,6 +38,8 @@ jobs:
       - run: pnpm install
       - run: pnpm run setup build lint test
         env:
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
           PGUSER: postgres
           PGPASSWORD: postgres
           PGHOST: localhost
