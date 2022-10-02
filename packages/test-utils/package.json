@@ -28,6 +28,6 @@
     "@ts-safeql/shared": "workspace:0.0.4",
     "nanoid": "^4.0.0",
     "pg-connection-string": "^2.5.0",
-    "postgres": "github:porsager/postgres"
+    "postgres": "^3.3.0"
   }
 }

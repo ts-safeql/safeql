@@ -22,14 +22,14 @@ importers:
       '@typescript-eslint/eslint-plugin': ^5.36.2
       '@typescript-eslint/parser': ^5.36.2
       eslint: ^8.23.0
-      postgres: github:porsager/postgres
+      postgres: ^3.3.0
       tsx: ^3.9.0
       typescript: ^4.8.2
     dependencies:
       '@ts-safeql-demos/shared': link:../shared
       '@ts-safeql/eslint-plugin': link:../../packages/eslint-plugin
       '@types/node': 18.7.16
-      postgres: github.com/porsager/postgres/9a61b9fcec2f4d21d1c6c4e14c73d88010a28406
+      postgres: 3.3.0
     devDependencies:
       '@typescript-eslint/eslint-plugin': 5.36.2_iurrlxgqcgk5svigzxakafpeuu
       '@typescript-eslint/parser': 5.36.2_yqf6kl63nyoq5megxukfnom5rm
@@ -44,12 +44,12 @@ importers:
       '@typescript-eslint/eslint-plugin': ^5.36.2
       '@typescript-eslint/parser': ^5.36.2
       eslint: ^8.23.0
-      postgres: github:porsager/postgres
+      postgres: ^3.3.0
       typescript: ^4.8.2
     dependencies:
       '@ts-safeql-demos/shared': link:../shared
       '@ts-safeql/eslint-plugin': link:../../packages/eslint-plugin
-      postgres: github.com/porsager/postgres/9a61b9fcec2f4d21d1c6c4e14c73d88010a28406
+      postgres: 3.3.0
     devDependencies:
       '@typescript-eslint/eslint-plugin': 5.36.2_iurrlxgqcgk5svigzxakafpeuu
       '@typescript-eslint/parser': 5.36.2_yqf6kl63nyoq5megxukfnom5rm
@@ -64,14 +64,14 @@ importers:
       '@typescript-eslint/eslint-plugin': ^5.36.2
       '@typescript-eslint/parser': ^5.36.2
       eslint: ^8.23.0
-      postgres: github:porsager/postgres
+      postgres: ^3.3.0
       tsx: ^3.9.0
       typescript: ^4.8.2
     dependencies:
       '@ts-safeql-demos/shared': link:../shared
       '@ts-safeql/eslint-plugin': link:../../packages/eslint-plugin
       '@types/node': 18.7.16
-      postgres: github.com/porsager/postgres/9a61b9fcec2f4d21d1c6c4e14c73d88010a28406
+      postgres: 3.3.0
     devDependencies:
       '@typescript-eslint/eslint-plugin': 5.36.2_iurrlxgqcgk5svigzxakafpeuu
       '@typescript-eslint/parser': 5.36.2_yqf6kl63nyoq5megxukfnom5rm
@@ -86,13 +86,13 @@ importers:
       '@typescript-eslint/eslint-plugin': ^5.36.2
       '@typescript-eslint/parser': ^5.36.2
       eslint: ^8.23.0
-      postgres: github:porsager/postgres
+      postgres: ^3.3.0
       tsx: ^3.9.0
       typescript: ^4.8.2
     dependencies:
       '@ts-safeql/eslint-plugin': link:../../packages/eslint-plugin
       '@types/node': 18.7.16
-      postgres: github.com/porsager/postgres/9a61b9fcec2f4d21d1c6c4e14c73d88010a28406
+      postgres: 3.3.0
     devDependencies:
       '@typescript-eslint/eslint-plugin': 5.36.2_iurrlxgqcgk5svigzxakafpeuu
       '@typescript-eslint/parser': 5.36.2_yqf6kl63nyoq5megxukfnom5rm
@@ -107,13 +107,13 @@ importers:
       '@typescript-eslint/eslint-plugin': ^5.36.2
       '@typescript-eslint/parser': ^5.36.2
       eslint: ^8.23.0
-      postgres: github:porsager/postgres
+      postgres: ^3.3.0
       tsx: ^3.9.0
       typescript: ^4.8.2
     dependencies:
       '@ts-safeql/eslint-plugin': link:../../packages/eslint-plugin
       '@types/node': 18.7.16
-      postgres: github.com/porsager/postgres/9a61b9fcec2f4d21d1c6c4e14c73d88010a28406
+      postgres: 3.3.0
     devDependencies:
       '@typescript-eslint/eslint-plugin': 5.36.2_iurrlxgqcgk5svigzxakafpeuu
       '@typescript-eslint/parser': 5.36.2_yqf6kl63nyoq5megxukfnom5rm
@@ -128,12 +128,12 @@ importers:
       '@typescript-eslint/eslint-plugin': ^5.36.2
       '@typescript-eslint/parser': ^5.36.2
       eslint: ^8.23.0
-      postgres: github:porsager/postgres
+      postgres: ^3.3.0
       typescript: ^4.8.2
     dependencies:
       '@ts-safeql-demos/shared': link:../shared
       '@ts-safeql/eslint-plugin': link:../../packages/eslint-plugin
-      postgres: github.com/porsager/postgres/9a61b9fcec2f4d21d1c6c4e14c73d88010a28406
+      postgres: 3.3.0
     devDependencies:
       '@typescript-eslint/eslint-plugin': 5.36.2_iurrlxgqcgk5svigzxakafpeuu
       '@typescript-eslint/parser': 5.36.2_yqf6kl63nyoq5megxukfnom5rm
@@ -148,14 +148,14 @@ importers:
       '@typescript-eslint/eslint-plugin': ^5.36.2
       '@typescript-eslint/parser': ^5.36.2
       eslint: ^8.23.0
-      postgres: github:porsager/postgres
+      postgres: ^3.3.0
       tsx: ^3.9.0
       typescript: ^4.8.2
     dependencies:
       '@ts-safeql-demos/shared': link:../shared
       '@ts-safeql/eslint-plugin': link:../../packages/eslint-plugin
       '@types/node': 18.7.16
-      postgres: github.com/porsager/postgres/9a61b9fcec2f4d21d1c6c4e14c73d88010a28406
+      postgres: 3.3.0
     devDependencies:
       '@typescript-eslint/eslint-plugin': 5.36.2_iurrlxgqcgk5svigzxakafpeuu
       '@typescript-eslint/parser': 5.36.2_yqf6kl63nyoq5megxukfnom5rm
@@ -193,11 +193,11 @@ importers:
   demos/shared:
     specifiers:
       '@types/node': ^18.7.16
-      postgres: github:porsager/postgres
+      postgres: ^3.3.0
       typescript: ^4.8.2
     dependencies:
       '@types/node': 18.7.16
-      postgres: github.com/porsager/postgres/9a61b9fcec2f4d21d1c6c4e14c73d88010a28406
+      postgres: 3.3.0
     devDependencies:
       typescript: 4.8.2
 
@@ -228,7 +228,7 @@ importers:
       libpg-query: ^13.2.5
       mocha: ^10.0.0
       pg-connection-string: 2.5.0
-      postgres: github:porsager/postgres
+      postgres: ^3.3.0
       recast: ^0.21.2
       source-map-support: ^0.5.21
       synckit: ^0.8.4
@@ -245,7 +245,7 @@ importers:
       esbuild: 0.15.7
       fp-ts: 2.12.3
       pg-connection-string: 2.5.0
-      postgres: github.com/porsager/postgres/9a61b9fcec2f4d21d1c6c4e14c73d88010a28406
+      postgres: 3.3.0
       recast: 0.21.2
       source-map-support: 0.5.21
       synckit: 0.8.4
@@ -278,7 +278,7 @@ importers:
       libpg-query: ^13.2.5
       mocha: ^10.0.0
       pg-connection-string: ^2.5.0
-      postgres: github:porsager/postgres
+      postgres: ^3.3.0
       source-map-support: ^0.5.21
       tsx: ^3.9.0
       typescript: ^4.8.2
@@ -287,7 +287,7 @@ importers:
       '@ts-safeql/test-utils': link:../test-utils
       fp-ts: 2.12.3
       pg-connection-string: 2.5.0
-      postgres: github.com/porsager/postgres/9a61b9fcec2f4d21d1c6c4e14c73d88010a28406
+      postgres: 3.3.0
       source-map-support: 0.5.21
     devDependencies:
       '@esbuild-kit/cjs-loader': 2.3.3
@@ -311,10 +311,10 @@ importers:
       '@typescript-eslint/utils': ^5.36.2
       eslint: ^8.23.0
       mocha: ^10.0.0
-      postgres: github:porsager/postgres
+      postgres: ^3.3.0
       typescript: ^4.8.2
     dependencies:
-      postgres: github.com/porsager/postgres/9a61b9fcec2f4d21d1c6c4e14c73d88010a28406
+      postgres: 3.3.0
     devDependencies:
       '@esbuild-kit/cjs-loader': 2.3.3
       '@types/mocha': 9.1.1
@@ -356,13 +356,13 @@ importers:
       eslint: ^8.23.0
       nanoid: ^4.0.0
       pg-connection-string: ^2.5.0
-      postgres: github:porsager/postgres
+      postgres: ^3.3.0
       typescript: ^4.8.2
     dependencies:
       '@ts-safeql/shared': link:../shared
       nanoid: 4.0.0
       pg-connection-string: 2.5.0
-      postgres: github.com/porsager/postgres/9a61b9fcec2f4d21d1c6c4e14c73d88010a28406
+      postgres: 3.3.0
     devDependencies:
       '@types/node': 18.7.16
       '@typescript-eslint/eslint-plugin': 5.36.2_iurrlxgqcgk5svigzxakafpeuu
@@ -3331,6 +3331,10 @@ packages:
       source-map-js: 1.0.2
     dev: true
 
+  /postgres/3.3.0:
+    resolution: {integrity: sha512-6bZk3JK1iUP+bEqWzKJh7z3zw1bWHPolzzwj1zu0KBnh2WWsrr48ic8Cy064TU/08poxC0gaZgwcoxr0WDCiCw==}
+    dev: false
+
   /preact/10.10.6:
     resolution: {integrity: sha512-w0mCL5vICUAZrh1DuHEdOWBjxdO62lvcO++jbzr8UhhYcTbFkpegLH9XX+7MadjTl/y0feoqwQ/zAnzkc/EGog==}
     dev: true
@@ -4385,12 +4389,4 @@ packages:
 
   /zod/3.19.0:
     resolution: {integrity: sha512-Yw0qvUsCNGBe5YacikdMt5gVYeUuaEFVDIHKMfElrGSaBhwR3CQK6vOzgfAJOjTdGIhEeoaj8GtT+NDZrepZbw==}
-    dev: false
-
-  github.com/porsager/postgres/9a61b9fcec2f4d21d1c6c4e14c73d88010a28406:
-    resolution: {tarball: https://codeload.github.com/porsager/postgres/tar.gz/9a61b9fcec2f4d21d1c6c4e14c73d88010a28406}
-    name: postgres
-    version: 3.2.4
-    prepare: true
-    requiresBuild: true
     dev: false

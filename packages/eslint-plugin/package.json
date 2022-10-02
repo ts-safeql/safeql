@@ -37,7 +37,7 @@
     "esbuild": "0.15.7",
     "fp-ts": "^2.12.3",
     "pg-connection-string": "2.5.0",
-    "postgres": "github:porsager/postgres",
+    "postgres": "^3.3.0",
     "recast": "^0.21.2",
     "source-map-support": "^0.5.21",
     "synckit": "^0.8.4",

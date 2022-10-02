@@ -6,6 +6,6 @@
   },
   "dependencies": {
     "@types/node": "^18.7.16",
-    "postgres": "github:porsager/postgres"
+    "postgres": "^3.3.0"
   }
 }
