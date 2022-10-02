@@ -123,7 +123,7 @@ RuleTester.describe("check-sql", () => {
         filename,
         options: withConnection(connections.base),
         code: `
-              const result = conn.query<{ id: number; first_name: string; middle_name: Nullable<string>; last_name: string; }>(sql\`
+              const result = conn.query<{ id: number; first_name: string; middle_name: string | null; last_name: string; }>(sql\`
                   select * from caregiver
               \`);
           `,
@@ -148,7 +148,7 @@ RuleTester.describe("check-sql", () => {
         filename,
         options: withConnection(connections.base),
         code: `
-            const result = conn.query<{ caregiver_id: number; agency_id: Nullable<number>; }>(sql\`
+            const result = conn.query<{ caregiver_id: number; agency_id: number | null; }>(sql\`
                 select
                     caregiver.id as caregiver_id,
                     agency.id as agency_id
@@ -352,18 +352,20 @@ RuleTester.describe("check-sql", () => {
         code: "const result = conn.query<{ id: number; }[]>(sql`select id from caregiver`);",
       },
       {
-        name: "transform as [['Nullable', 'Maybe']]",
-        filename,
-        options: withConnection(connections.base, { transform: [["Nullable", "Maybe"]] }),
-        code: "const result = conn.query<{ middle_name: Maybe<string>; }>(sql`select middle_name from caregiver`);",
-      },
-      {
-        name: "transform as ['${type}[]', ['Nullable', 'Maybe']]",
+        name: "transform as [['middle_name', 'x_middle_name']]",
         filename,
         options: withConnection(connections.base, {
-          transform: ["${type}[]", ["Nullable", "Maybe"]],
+          transform: [["middle_name", "x_middle_name"]],
         }),
-        code: "const result = conn.query<{ middle_name: Maybe<string>; }[]>(sql`select middle_name from caregiver`);",
+        code: "const result = conn.query<{ x_middle_name: string | null; }>(sql`select middle_name from caregiver`);",
+      },
+      {
+        name: "transform as ['${type}[]', ['middle_name', 'x_middle_name']]",
+        filename,
+        options: withConnection(connections.base, {
+          transform: ["${type}[]", ["middle_name", "x_middle_name"]],
+        }),
+        code: "const result = conn.query<{ x_middle_name: string | null; }[]>(sql`select middle_name from caregiver`);",
       },
     ],
     invalid: [],
