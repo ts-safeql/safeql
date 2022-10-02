@@ -62,7 +62,9 @@ const testQuery = async (params: { query: string; expected?: unknown; expectedEr
   return pipe(
     taskEither.Do,
     taskEither.bind("pgParsed", () => parseQueryTE(params.query)),
-    taskEither.bind("result", ({ pgParsed }) => generateTE({ sql, pgParsed, query, cacheKey })),
+    taskEither.bind("result", ({ pgParsed }) =>
+      generateTE({ sql, pgParsed, query, cacheKey, fieldTransform: undefined })
+    ),
     taskEither.chainW(({ result }) => taskEither.fromEither(result)),
     taskEither.match(
       (error) =>
@@ -121,7 +123,7 @@ test("select with left join should return all cols from left join as nullable", 
         FROM caregiver
             LEFT JOIN caregiver_agency ON caregiver.id = caregiver_agency.caregiver_id
     `,
-    expected: `{ caregiver_id: number; assoc_id: Nullable<number>; }`,
+    expected: `{ caregiver_id: number; assoc_id: number | null; }`,
   });
 });
 

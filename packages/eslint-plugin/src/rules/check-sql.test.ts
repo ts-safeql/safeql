@@ -98,7 +98,7 @@ RuleTester.describe("check-sql", () => {
         name: "select array_agg(stmt)",
         filename,
         options: withConnection(connections.base),
-        code: "sql<{ ids: Array<number>; }[]>`SELECT ARRAY_AGG(id ORDER BY id) AS ids FROM caregiver`",
+        code: "sql<{ ids: number[]; }[]>`SELECT ARRAY_AGG(id ORDER BY id) AS ids FROM caregiver`",
       },
       {
         name: "select exists(stmt",
@@ -123,7 +123,7 @@ RuleTester.describe("check-sql", () => {
         filename,
         options: withConnection(connections.base),
         code: `
-              const result = conn.query<{ id: number; first_name: string; middle_name: Nullable<string>; last_name: string; }>(sql\`
+              const result = conn.query<{ id: number; first_name: string; middle_name: string | null; last_name: string; }>(sql\`
                   select * from caregiver
               \`);
           `,
@@ -148,7 +148,7 @@ RuleTester.describe("check-sql", () => {
         filename,
         options: withConnection(connections.base),
         code: `
-            const result = conn.query<{ caregiver_id: number; agency_id: Nullable<number>; }>(sql\`
+            const result = conn.query<{ caregiver_id: number; agency_id: number | null; }>(sql\`
                 select
                     caregiver.id as caregiver_id,
                     agency.id as agency_id
@@ -352,18 +352,20 @@ RuleTester.describe("check-sql", () => {
         code: "const result = conn.query<{ id: number; }[]>(sql`select id from caregiver`);",
       },
       {
-        name: "transform as [['Nullable', 'Maybe']]",
-        filename,
-        options: withConnection(connections.base, { transform: [["Nullable", "Maybe"]] }),
-        code: "const result = conn.query<{ middle_name: Maybe<string>; }>(sql`select middle_name from caregiver`);",
-      },
-      {
-        name: "transform as ['${type}[]', ['Nullable', 'Maybe']]",
+        name: "transform as [['middle_name', 'x_middle_name']]",
         filename,
         options: withConnection(connections.base, {
-          transform: ["${type}[]", ["Nullable", "Maybe"]],
+          transform: [["middle_name", "x_middle_name"]],
         }),
-        code: "const result = conn.query<{ middle_name: Maybe<string>; }[]>(sql`select middle_name from caregiver`);",
+        code: "const result = conn.query<{ x_middle_name: string | null; }>(sql`select middle_name from caregiver`);",
+      },
+      {
+        name: "transform as ['${type}[]', ['middle_name', 'x_middle_name']]",
+        filename,
+        options: withConnection(connections.base, {
+          transform: ["${type}[]", ["middle_name", "x_middle_name"]],
+        }),
+        code: "const result = conn.query<{ x_middle_name: string | null; }[]>(sql`select middle_name from caregiver`);",
       },
     ],
     invalid: [],
@@ -409,6 +411,92 @@ RuleTester.describe("check-sql", () => {
         output: "const result = conn.query(sql<{ id: number; }>`select id from caregiver`)",
         errors: [
           { messageId: "missingTypeAnnotations", line: 1, column: 27, endLine: 1, endColumn: 30 },
+        ],
+      },
+    ],
+  });
+
+  ruleTester.run("connection with overrides.types", rules["check-sql"], {
+    valid: [
+      {
+        name: 'with { int4: "Integer" }',
+        filename,
+        options: withConnection(connections.withTagName, {
+          overrides: { types: { int4: "Integer" } },
+        }),
+        code: "sql<{ id: Integer }>`select id from caregiver`",
+      },
+    ],
+    invalid: [
+      {
+        name: 'with { int4: "Integer" } while { id: number }',
+        filename,
+        options: withConnection(connections.withTagName, {
+          overrides: { types: { int4: "Integer" } },
+        }),
+        code: "sql<{ id: number }>`select id from caregiver`",
+        output: "sql<{ id: Integer; }>`select id from caregiver`",
+        errors: [
+          { messageId: "incorrectTypeAnnotations", line: 1, column: 5, endLine: 1, endColumn: 19 },
+        ],
+      },
+    ],
+  });
+
+  ruleTester.run("connection with fieldTransform", rules["check-sql"], {
+    valid: [
+      {
+        name: "transform to snake case",
+        filename,
+        options: withConnection(connections.withTagName, { fieldTransform: "snake" }),
+        code: 'sql<{ my_number: number }>`select 1 as "MyNumber"`',
+      },
+      {
+        name: "transform non-table column to camel case",
+        filename,
+        options: withConnection(connections.withTagName, { fieldTransform: "camel" }),
+        code: 'sql<{ myNumber: number }>`select 1 as "my_number"`',
+      },
+      {
+        name: "transform table column to camel case",
+        filename,
+        options: withConnection(connections.withTagName, { fieldTransform: "camel" }),
+        code: "sql<{ firstName: string }>`select first_name from caregiver`",
+      },
+      {
+        name: "transform non-table column to pascal case",
+        filename,
+        options: withConnection(connections.withTagName, { fieldTransform: "pascal" }),
+        code: 'sql<{ MyNumber: number }>`select 1 as "my_number"`',
+      },
+      {
+        name: "transform table column to pascal case",
+        filename,
+        options: withConnection(connections.withTagName, { fieldTransform: "pascal" }),
+        code: "sql<{ FirstName: string }>`select first_name from caregiver`",
+      },
+      {
+        name: "transform non-table column to screaming snake case",
+        filename,
+        options: withConnection(connections.withTagName, { fieldTransform: "screaming snake" }),
+        code: 'sql<{ MY_NUMBER: number }>`select 1 as "my_number"`',
+      },
+      {
+        name: "transform table column to screaming snake case",
+        filename,
+        options: withConnection(connections.withTagName, { fieldTransform: "screaming snake" }),
+        code: "sql<{ FIRST_NAME: string }>`select first_name from caregiver`",
+      },
+    ],
+    invalid: [
+      {
+        name: "with camelCase while result is snake_case",
+        filename,
+        options: withConnection(connections.withTagName, { fieldTransform: "camel" }),
+        code: "sql<{ first_name: string }>`select first_name from caregiver`",
+        output: "sql<{ firstName: string; }>`select first_name from caregiver`",
+        errors: [
+          { messageId: "incorrectTypeAnnotations", line: 1, column: 5, endLine: 1, endColumn: 27 },
         ],
       },
     ],

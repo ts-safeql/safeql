@@ -1,5 +1,90 @@
 # @ts-safeql/eslint-plugin
 
+## 0.0.15
+
+### Patch Changes
+
+- fbdfb61: Change autofix fromNullable generic (e.g. `Nullable<string>`) to type union format (e.g. string | null)
+- 7bf6f6a: update packages postgres dependency to 3.3.0
+- Updated dependencies [fbdfb61]
+- Updated dependencies [7bf6f6a]
+  - @ts-safeql/generate@0.0.6
+  - @ts-safeql/shared@0.0.5
+  - @ts-safeql/test-utils@0.0.5
+
+## 0.0.14
+
+### Patch Changes
+
+- 1467215: when returning an array column, return an array type instead of identifer (e.g instead of `Array<type>` return `type[]`).
+- Updated dependencies [1467215]
+  - @ts-safeql/generate@0.0.5
+
+## 0.0.13
+
+### Patch Changes
+
+- a49dbbf: fixed a bug that caused the plugin to crash when esbuild was not installed
+- e374733: improve lint speed by up to 33%
+
+## 0.0.12
+
+### Patch Changes
+
+- 3d3ca50: allow (column) field case transformation (e.g `"fieldTransform": "camel"` - `user_id` → `userId`)
+- Updated dependencies [3d3ca50]
+  - @ts-safeql/generate@0.0.4
+  - @ts-safeql/shared@0.0.4
+  - @ts-safeql/test-utils@0.0.4
+
+## 0.0.11
+
+### Patch Changes
+
+- 69b874e: you can now override the default types (e.g. timestamp -> DateTime) by adding an `overrides` property to the config:
+
+  ```ts
+  // safeql.config.ts
+  import { definedConfig } from "@ts-safeql/eslint-plugin";
+
+  export default definedConfig({
+    // ...
+    overrides: {
+      types: {
+        timestamp: "DateTime",
+      },
+    },
+  });
+  ```
+
+  or
+
+  ```json
+  // .eslintrc.json
+  {
+    // ...
+    "connections": {
+      // ...,
+      "overrides": {
+        "types": {
+          "timestamp": "DateTime"
+        }
+      }
+    }
+  }
+  ```
+
+- Updated dependencies [69b874e]
+  - @ts-safeql/generate@0.0.3
+  - @ts-safeql/shared@0.0.3
+  - @ts-safeql/test-utils@0.0.3
+
+## 0.0.10
+
+### Patch Changes
+
+- 1a55018: allow to compare actual type against type reference (sql<TypeReference>)
+
 ## 0.0.9
 
 ### Patch Changes

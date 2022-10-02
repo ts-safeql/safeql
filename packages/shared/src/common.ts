@@ -2,30 +2,6 @@ export function isDefined<T>(value: T | null | undefined): value is NonNullable<
   return value !== undefined && value !== null;
 }
 
-export function withDefault<T>(value: T | null | undefined, fallback: T): T {
-  return isDefined(value) ? value : fallback;
-}
-
-export function toPascalCase(value: string) {
-  return `${value}`
-    .replace(new RegExp(/[-_]+/, "g"), " ")
-    .replace(new RegExp(/[^\w\s]/, "g"), "")
-    .replace(
-      new RegExp(/\s+(.)(\w+)/, "g"),
-      ($1, $2, $3) => `${$2.toUpperCase() + $3.toLowerCase()}`
-    )
-    .replace(new RegExp(/\s/, "g"), "")
-    .replace(new RegExp(/\w/), (s) => s.toUpperCase());
-}
-
-export function throwOnNullish<T>(value: T | null | undefined): T {
-  if (!isDefined(value)) {
-    throw new Error(`expected non-null, received ${value}`);
-  }
-
-  return value;
-}
-
 export function fmap<T, R>(v: T | null | undefined, predicate: (v: T) => R): R | null {
   if (!isDefined(v)) {
     return null;
@@ -74,33 +50,25 @@ export function groupBy<T, K extends Array<keyof T>>(
   return new Map(Array.from(topLevelGroups, ([k, v]) => [k, groupBy(v, ...kr)])) as GroupedBy<T, K>;
 }
 
-interface Primitives {
-  string: string;
-  boolean: boolean;
-  number: number;
-}
-
-export function assertPrimitive<Type extends "string" | "boolean" | "number">(
-  value: unknown,
-  type: Type
-): Primitives[Type] {
-  if (typeof value !== type) {
-    throw new Error(`Expected ${type} but got ${typeof value}`);
-  }
-
-  return value as Primitives[Type];
-}
-
-export function pick<T, K extends keyof T>(object: T, keys: K[]) {
-  return keys.reduce((obj, key) => {
-    if (object && key in object) {
-      obj[key] = object[key];
-    }
-    return obj;
-  }, {} as { [key in K]: T[key] });
-}
-
 type NonEmptyArray<T> = readonly [T, ...ReadonlyArray<T>];
 export function isNonEmpty<T>(array: ReadonlyArray<T> | undefined): array is NonEmptyArray<T> {
   return array !== undefined && array.length > 0;
+}
+
+export function objectKeys<T extends object>(obj: T): (keyof T)[] {
+  return Object.keys(obj) as (keyof T)[];
+}
+
+export function objectKeysNonEmpty<T extends object>(obj: T): [keyof T, ...(keyof T)[]] {
+  const keys = objectKeys(obj);
+
+  if (keys.length === 0) {
+    throw new Error("expected non-empty object");
+  }
+
+  return keys as [keyof T, ...(keyof T)[]];
+}
+
+export function assertNever(caseType: never): never {
+  throw new Error(`assertNever: ${caseType}`);
 }

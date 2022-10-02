@@ -90,6 +90,8 @@ function workerHandler(params: WorkerParams): TE.TaskEither<WorkerError, WorkerR
         query: params.query,
         cacheKey: databaseUrl,
         pgParsed: params.pgParsed,
+        overrides: params.connection.overrides,
+        fieldTransform: params.connection.fieldTransform,
       });
     }),
     TE.chainW(TE.fromEither)

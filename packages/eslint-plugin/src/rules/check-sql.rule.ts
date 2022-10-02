@@ -1,5 +1,5 @@
 import { GenerateResult } from "@ts-safeql/generate";
-import { PostgresError } from "@ts-safeql/shared";
+import { objectKeysNonEmpty, PostgresError, defaultTypeMapping } from "@ts-safeql/shared";
 import { ESLintUtils, ParserServices, TSESLint, TSESTree } from "@typescript-eslint/utils";
 import pgParser from "libpg-query";
 import { createSyncFn } from "synckit";
@@ -9,6 +9,7 @@ import z from "zod";
 import zodToJsonSchema from "zod-to-json-schema";
 import { ESTreeUtils } from "../utils";
 import { E, flow, J, pipe } from "../utils/fp-ts";
+import { memoize } from "../utils/memoize";
 import { locateNearestPackageJsonDir } from "../utils/node.utils";
 import { mapTemplateLiteralToQueryText } from "../utils/ts-pg.utils";
 import { tsTypeToText } from "../utils/ts.utils";
@@ -43,17 +44,36 @@ const baseSchema = z.object({
    *
    * For example:
    *  - `"${type}[]"` will transform the type to an array
-   *  - `["Nullable", "Maybe"]` will replace `Nullable` with `Maybe` in the type
-   *  - `["${type}[]", ["Nullable", "Maybe"]]` will do both
+   *  - `["colname", "x_colname"]` will replace `colname` with `x_colname` in the type.
+   *  - `["${type}[]", ["colname", x_colname"]]` will do both
    */
   transform: z
     .union([z.string(), z.array(z.union([z.string(), z.tuple([z.string(), z.string()])]))])
     .optional(),
 
   /**
+   * Transform the (column) field key. Can be one of the following:
+   * - `"snake"` - `userId` → `user_id`
+   * - `"camel"` - `user_id` → `userId`
+   * - `"pascal"` - `user_id` → `UserId`
+   * - `"screaming snake"` - `user_id` → `USER_ID`
+   */
+  fieldTransform: z.enum(["snake", "pascal", "camel", "screaming snake"]).optional(),
+
+  /**
    * Whether or not keep the connection alive. Change it only if you know what you're doing.
    */
   keepAlive: z.boolean().optional(),
+
+  /**
+   * Override defaults
+   */
+  overrides: z
+    .object({
+      types: z.record(z.enum(objectKeysNonEmpty(defaultTypeMapping)), z.string()),
+    })
+    .partial()
+    .optional(),
 });
 
 const identifyByNameAndOperators = z.object({
@@ -429,8 +449,15 @@ export default createRule({
   },
   defaultOptions: [],
   create(context) {
-    const projectDir = locateNearestPackageJsonDir(context.getFilename());
-    const config = getConfigFromFileWithContext({ context, projectDir });
+    const projectDir = memoize({
+      key: context.getFilename(),
+      value: () => locateNearestPackageJsonDir(context.getFilename()),
+    });
+
+    const config = memoize({
+      key: JSON.stringify({ key: "config", options: context.options, projectDir }),
+      value: () => getConfigFromFileWithContext({ context, projectDir }),
+    });
 
     return {
       TaggedTemplateExpression(tag) {

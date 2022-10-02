@@ -26,7 +26,7 @@ function transformType(typeString: string, typeReplacer: TypeTransformer[number]
  * @param transform could be either:
  *  - a string that has ${type} in it,
  *  - an array of tuples that behave as [valueToBeReplaced, typeToReplaceWith]
- *  - an array that has a mix of the above (such as ["${type}[]", ["Nullable", "Maybe"]])
+ *  - an array that has a mix of the above (such as ["${type}[]", ["colname", "x_colname"]])
  */
 export function withTransformType(result: GenerateResult, transform?: TypeTransformer) {
   if (transform === undefined || result.result === null) {
