@@ -1,6 +1,6 @@
 {
   "name": "@ts-safeql/test-utils",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "main": "lib/index.js",
   "types": "src/index.ts",
   "license": "MIT",
@@ -25,9 +25,9 @@
     "typescript": "^4.8.2"
   },
   "dependencies": {
-    "@ts-safeql/shared": "workspace:0.0.4",
+    "@ts-safeql/shared": "workspace:0.0.5",
     "nanoid": "^4.0.0",
     "pg-connection-string": "^2.5.0",
-    "postgres": "github:porsager/postgres"
+    "postgres": "^3.3.0"
   }
 }

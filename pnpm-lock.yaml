@@ -22,14 +22,14 @@ importers:
       '@typescript-eslint/eslint-plugin': ^5.36.2
       '@typescript-eslint/parser': ^5.36.2
       eslint: ^8.23.0
-      postgres: github:porsager/postgres
+      postgres: ^3.3.0
       tsx: ^3.9.0
       typescript: ^4.8.2
     dependencies:
       '@ts-safeql-demos/shared': link:../shared
       '@ts-safeql/eslint-plugin': link:../../packages/eslint-plugin
       '@types/node': 18.7.16
-      postgres: github.com/porsager/postgres/9a61b9fcec2f4d21d1c6c4e14c73d88010a28406
+      postgres: 3.3.0
     devDependencies:
       '@typescript-eslint/eslint-plugin': 5.36.2_iurrlxgqcgk5svigzxakafpeuu
       '@typescript-eslint/parser': 5.36.2_yqf6kl63nyoq5megxukfnom5rm
@@ -44,12 +44,12 @@ importers:
       '@typescript-eslint/eslint-plugin': ^5.36.2
       '@typescript-eslint/parser': ^5.36.2
       eslint: ^8.23.0
-      postgres: github:porsager/postgres
+      postgres: ^3.3.0
       typescript: ^4.8.2
     dependencies:
       '@ts-safeql-demos/shared': link:../shared
       '@ts-safeql/eslint-plugin': link:../../packages/eslint-plugin
-      postgres: github.com/porsager/postgres/9a61b9fcec2f4d21d1c6c4e14c73d88010a28406
+      postgres: 3.3.0
     devDependencies:
       '@typescript-eslint/eslint-plugin': 5.36.2_iurrlxgqcgk5svigzxakafpeuu
       '@typescript-eslint/parser': 5.36.2_yqf6kl63nyoq5megxukfnom5rm
@@ -64,14 +64,35 @@ importers:
       '@typescript-eslint/eslint-plugin': ^5.36.2
       '@typescript-eslint/parser': ^5.36.2
       eslint: ^8.23.0
-      postgres: github:porsager/postgres
+      postgres: ^3.3.0
       tsx: ^3.9.0
       typescript: ^4.8.2
     dependencies:
       '@ts-safeql-demos/shared': link:../shared
       '@ts-safeql/eslint-plugin': link:../../packages/eslint-plugin
       '@types/node': 18.7.16
-      postgres: github.com/porsager/postgres/9a61b9fcec2f4d21d1c6c4e14c73d88010a28406
+      postgres: 3.3.0
+    devDependencies:
+      '@typescript-eslint/eslint-plugin': 5.36.2_iurrlxgqcgk5svigzxakafpeuu
+      '@typescript-eslint/parser': 5.36.2_yqf6kl63nyoq5megxukfnom5rm
+      eslint: 8.23.0
+      tsx: 3.9.0
+      typescript: 4.8.2
+
+  demos/big-project:
+    specifiers:
+      '@ts-safeql/eslint-plugin': workspace:*
+      '@types/node': ^18.7.16
+      '@typescript-eslint/eslint-plugin': ^5.36.2
+      '@typescript-eslint/parser': ^5.36.2
+      eslint: ^8.23.0
+      postgres: ^3.3.0
+      tsx: ^3.9.0
+      typescript: ^4.8.2
+    dependencies:
+      '@ts-safeql/eslint-plugin': link:../../packages/eslint-plugin
+      '@types/node': 18.7.16
+      postgres: 3.3.0
     devDependencies:
       '@typescript-eslint/eslint-plugin': 5.36.2_iurrlxgqcgk5svigzxakafpeuu
       '@typescript-eslint/parser': 5.36.2_yqf6kl63nyoq5megxukfnom5rm
@@ -86,13 +107,13 @@ importers:
       '@typescript-eslint/eslint-plugin': ^5.36.2
       '@typescript-eslint/parser': ^5.36.2
       eslint: ^8.23.0
-      postgres: github:porsager/postgres
+      postgres: ^3.3.0
       tsx: ^3.9.0
       typescript: ^4.8.2
     dependencies:
       '@ts-safeql/eslint-plugin': link:../../packages/eslint-plugin
       '@types/node': 18.7.16
-      postgres: github.com/porsager/postgres/9a61b9fcec2f4d21d1c6c4e14c73d88010a28406
+      postgres: 3.3.0
     devDependencies:
       '@typescript-eslint/eslint-plugin': 5.36.2_iurrlxgqcgk5svigzxakafpeuu
       '@typescript-eslint/parser': 5.36.2_yqf6kl63nyoq5megxukfnom5rm
@@ -107,12 +128,12 @@ importers:
       '@typescript-eslint/eslint-plugin': ^5.36.2
       '@typescript-eslint/parser': ^5.36.2
       eslint: ^8.23.0
-      postgres: github:porsager/postgres
+      postgres: ^3.3.0
       typescript: ^4.8.2
     dependencies:
       '@ts-safeql-demos/shared': link:../shared
       '@ts-safeql/eslint-plugin': link:../../packages/eslint-plugin
-      postgres: github.com/porsager/postgres/9a61b9fcec2f4d21d1c6c4e14c73d88010a28406
+      postgres: 3.3.0
     devDependencies:
       '@typescript-eslint/eslint-plugin': 5.36.2_iurrlxgqcgk5svigzxakafpeuu
       '@typescript-eslint/parser': 5.36.2_yqf6kl63nyoq5megxukfnom5rm
@@ -127,14 +148,14 @@ importers:
       '@typescript-eslint/eslint-plugin': ^5.36.2
       '@typescript-eslint/parser': ^5.36.2
       eslint: ^8.23.0
-      postgres: github:porsager/postgres
+      postgres: ^3.3.0
       tsx: ^3.9.0
       typescript: ^4.8.2
     dependencies:
       '@ts-safeql-demos/shared': link:../shared
       '@ts-safeql/eslint-plugin': link:../../packages/eslint-plugin
       '@types/node': 18.7.16
-      postgres: github.com/porsager/postgres/9a61b9fcec2f4d21d1c6c4e14c73d88010a28406
+      postgres: 3.3.0
     devDependencies:
       '@typescript-eslint/eslint-plugin': 5.36.2_iurrlxgqcgk5svigzxakafpeuu
       '@typescript-eslint/parser': 5.36.2_yqf6kl63nyoq5megxukfnom5rm
@@ -172,11 +193,11 @@ importers:
   demos/shared:
     specifiers:
       '@types/node': ^18.7.16
-      postgres: github:porsager/postgres
+      postgres: ^3.3.0
       typescript: ^4.8.2
     dependencies:
       '@types/node': 18.7.16
-      postgres: github.com/porsager/postgres/9a61b9fcec2f4d21d1c6c4e14c73d88010a28406
+      postgres: 3.3.0
     devDependencies:
       typescript: 4.8.2
 
@@ -193,9 +214,9 @@ importers:
   packages/eslint-plugin:
     specifiers:
       '@esbuild-kit/cjs-loader': 2.3.3
-      '@ts-safeql/generate': workspace:0.0.4
-      '@ts-safeql/shared': workspace:0.0.4
-      '@ts-safeql/test-utils': workspace:0.0.4
+      '@ts-safeql/generate': workspace:0.0.6
+      '@ts-safeql/shared': workspace:0.0.5
+      '@ts-safeql/test-utils': workspace:0.0.5
       '@types/mocha': 9.1.1
       '@typescript-eslint/eslint-plugin': ^5.36.2
       '@typescript-eslint/parser': ^5.36.2
@@ -207,7 +228,7 @@ importers:
       libpg-query: ^13.2.5
       mocha: ^10.0.0
       pg-connection-string: 2.5.0
-      postgres: github:porsager/postgres
+      postgres: ^3.3.0
       recast: ^0.21.2
       source-map-support: ^0.5.21
       synckit: ^0.8.4
@@ -221,9 +242,10 @@ importers:
       '@ts-safeql/shared': link:../shared
       '@ts-safeql/test-utils': link:../test-utils
       '@typescript-eslint/utils': 5.36.2_yqf6kl63nyoq5megxukfnom5rm
+      esbuild: 0.15.7
       fp-ts: 2.12.3
       pg-connection-string: 2.5.0
-      postgres: github.com/porsager/postgres/9a61b9fcec2f4d21d1c6c4e14c73d88010a28406
+      postgres: 3.3.0
       recast: 0.21.2
       source-map-support: 0.5.21
       synckit: 0.8.4
@@ -235,7 +257,6 @@ importers:
       '@types/mocha': 9.1.1
       '@typescript-eslint/eslint-plugin': 5.36.2_iurrlxgqcgk5svigzxakafpeuu
       '@typescript-eslint/parser': 5.36.2_yqf6kl63nyoq5megxukfnom5rm
-      esbuild: 0.15.7
       esbuild-register: 3.3.3_esbuild@0.15.7
       eslint: 8.23.0
       libpg-query: 13.2.5
@@ -246,8 +267,8 @@ importers:
   packages/generate:
     specifiers:
       '@esbuild-kit/cjs-loader': ^2.3.3
-      '@ts-safeql/shared': workspace:0.0.4
-      '@ts-safeql/test-utils': workspace:0.0.4
+      '@ts-safeql/shared': workspace:0.0.5
+      '@ts-safeql/test-utils': workspace:0.0.5
       '@types/mocha': ^9.1.1
       '@types/node': ^18.7.16
       '@typescript-eslint/eslint-plugin': ^5.36.2
@@ -257,7 +278,7 @@ importers:
       libpg-query: ^13.2.5
       mocha: ^10.0.0
       pg-connection-string: ^2.5.0
-      postgres: github:porsager/postgres
+      postgres: ^3.3.0
       source-map-support: ^0.5.21
       tsx: ^3.9.0
       typescript: ^4.8.2
@@ -266,7 +287,7 @@ importers:
       '@ts-safeql/test-utils': link:../test-utils
       fp-ts: 2.12.3
       pg-connection-string: 2.5.0
-      postgres: github.com/porsager/postgres/9a61b9fcec2f4d21d1c6c4e14c73d88010a28406
+      postgres: 3.3.0
       source-map-support: 0.5.21
     devDependencies:
       '@esbuild-kit/cjs-loader': 2.3.3
@@ -290,10 +311,10 @@ importers:
       '@typescript-eslint/utils': ^5.36.2
       eslint: ^8.23.0
       mocha: ^10.0.0
-      postgres: github:porsager/postgres
+      postgres: ^3.3.0
       typescript: ^4.8.2
     dependencies:
-      postgres: github.com/porsager/postgres/9a61b9fcec2f4d21d1c6c4e14c73d88010a28406
+      postgres: 3.3.0
     devDependencies:
       '@esbuild-kit/cjs-loader': 2.3.3
       '@types/mocha': 9.1.1
@@ -327,7 +348,7 @@ importers:
 
   packages/test-utils:
     specifiers:
-      '@ts-safeql/shared': workspace:0.0.4
+      '@ts-safeql/shared': workspace:0.0.5
       '@types/node': ^18.7.16
       '@typescript-eslint/eslint-plugin': ^5.36.2
       '@typescript-eslint/parser': ^5.36.2
@@ -335,13 +356,13 @@ importers:
       eslint: ^8.23.0
       nanoid: ^4.0.0
       pg-connection-string: ^2.5.0
-      postgres: github:porsager/postgres
+      postgres: ^3.3.0
       typescript: ^4.8.2
     dependencies:
       '@ts-safeql/shared': link:../shared
       nanoid: 4.0.0
       pg-connection-string: 2.5.0
-      postgres: github.com/porsager/postgres/9a61b9fcec2f4d21d1c6c4e14c73d88010a28406
+      postgres: 3.3.0
     devDependencies:
       '@types/node': 18.7.16
       '@typescript-eslint/eslint-plugin': 5.36.2_iurrlxgqcgk5svigzxakafpeuu
@@ -761,7 +782,6 @@ packages:
     cpu: [loong64]
     os: [linux]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@eslint/eslintrc/1.3.1:
@@ -1803,7 +1823,6 @@ packages:
     cpu: [x64]
     os: [android]
     requiresBuild: true
-    dev: true
     optional: true
 
   /esbuild-android-arm64/0.15.7:
@@ -1812,7 +1831,6 @@ packages:
     cpu: [arm64]
     os: [android]
     requiresBuild: true
-    dev: true
     optional: true
 
   /esbuild-darwin-64/0.15.7:
@@ -1821,7 +1839,6 @@ packages:
     cpu: [x64]
     os: [darwin]
     requiresBuild: true
-    dev: true
     optional: true
 
   /esbuild-darwin-arm64/0.15.7:
@@ -1830,7 +1847,6 @@ packages:
     cpu: [arm64]
     os: [darwin]
     requiresBuild: true
-    dev: true
     optional: true
 
   /esbuild-freebsd-64/0.15.7:
@@ -1839,7 +1855,6 @@ packages:
     cpu: [x64]
     os: [freebsd]
     requiresBuild: true
-    dev: true
     optional: true
 
   /esbuild-freebsd-arm64/0.15.7:
@@ -1848,7 +1863,6 @@ packages:
     cpu: [arm64]
     os: [freebsd]
     requiresBuild: true
-    dev: true
     optional: true
 
   /esbuild-linux-32/0.15.7:
@@ -1857,7 +1871,6 @@ packages:
     cpu: [ia32]
     os: [linux]
     requiresBuild: true
-    dev: true
     optional: true
 
   /esbuild-linux-64/0.15.7:
@@ -1866,7 +1879,6 @@ packages:
     cpu: [x64]
     os: [linux]
     requiresBuild: true
-    dev: true
     optional: true
 
   /esbuild-linux-arm/0.15.7:
@@ -1875,7 +1887,6 @@ packages:
     cpu: [arm]
     os: [linux]
     requiresBuild: true
-    dev: true
     optional: true
 
   /esbuild-linux-arm64/0.15.7:
@@ -1884,7 +1895,6 @@ packages:
     cpu: [arm64]
     os: [linux]
     requiresBuild: true
-    dev: true
     optional: true
 
   /esbuild-linux-mips64le/0.15.7:
@@ -1893,7 +1903,6 @@ packages:
     cpu: [mips64el]
     os: [linux]
     requiresBuild: true
-    dev: true
     optional: true
 
   /esbuild-linux-ppc64le/0.15.7:
@@ -1902,7 +1911,6 @@ packages:
     cpu: [ppc64]
     os: [linux]
     requiresBuild: true
-    dev: true
     optional: true
 
   /esbuild-linux-riscv64/0.15.7:
@@ -1911,7 +1919,6 @@ packages:
     cpu: [riscv64]
     os: [linux]
     requiresBuild: true
-    dev: true
     optional: true
 
   /esbuild-linux-s390x/0.15.7:
@@ -1920,7 +1927,6 @@ packages:
     cpu: [s390x]
     os: [linux]
     requiresBuild: true
-    dev: true
     optional: true
 
   /esbuild-netbsd-64/0.15.7:
@@ -1929,7 +1935,6 @@ packages:
     cpu: [x64]
     os: [netbsd]
     requiresBuild: true
-    dev: true
     optional: true
 
   /esbuild-openbsd-64/0.15.7:
@@ -1938,7 +1943,6 @@ packages:
     cpu: [x64]
     os: [openbsd]
     requiresBuild: true
-    dev: true
     optional: true
 
   /esbuild-register/3.3.3_esbuild@0.15.7:
@@ -1955,7 +1959,6 @@ packages:
     cpu: [x64]
     os: [sunos]
     requiresBuild: true
-    dev: true
     optional: true
 
   /esbuild-windows-32/0.15.7:
@@ -1964,7 +1967,6 @@ packages:
     cpu: [ia32]
     os: [win32]
     requiresBuild: true
-    dev: true
     optional: true
 
   /esbuild-windows-64/0.15.7:
@@ -1973,7 +1975,6 @@ packages:
     cpu: [x64]
     os: [win32]
     requiresBuild: true
-    dev: true
     optional: true
 
   /esbuild-windows-arm64/0.15.7:
@@ -1982,7 +1983,6 @@ packages:
     cpu: [arm64]
     os: [win32]
     requiresBuild: true
-    dev: true
     optional: true
 
   /esbuild/0.15.7:
@@ -2012,7 +2012,6 @@ packages:
       esbuild-windows-32: 0.15.7
       esbuild-windows-64: 0.15.7
       esbuild-windows-arm64: 0.15.7
-    dev: true
 
   /escalade/3.1.1:
     resolution: {integrity: sha512-k0er2gUkLf8O0zKJiAhmkTnJlTvINGv7ygDNPbeIsX/TJjGJZHuh9B2UxbsaEkmlEo9MfhrSzmhIlhRlI2GXnw==}
@@ -3332,6 +3331,10 @@ packages:
       source-map-js: 1.0.2
     dev: true
 
+  /postgres/3.3.0:
+    resolution: {integrity: sha512-6bZk3JK1iUP+bEqWzKJh7z3zw1bWHPolzzwj1zu0KBnh2WWsrr48ic8Cy064TU/08poxC0gaZgwcoxr0WDCiCw==}
+    dev: false
+
   /preact/10.10.6:
     resolution: {integrity: sha512-w0mCL5vICUAZrh1DuHEdOWBjxdO62lvcO++jbzr8UhhYcTbFkpegLH9XX+7MadjTl/y0feoqwQ/zAnzkc/EGog==}
     dev: true
@@ -4386,12 +4389,4 @@ packages:
 
   /zod/3.19.0:
     resolution: {integrity: sha512-Yw0qvUsCNGBe5YacikdMt5gVYeUuaEFVDIHKMfElrGSaBhwR3CQK6vOzgfAJOjTdGIhEeoaj8GtT+NDZrepZbw==}
-    dev: false
-
-  github.com/porsager/postgres/9a61b9fcec2f4d21d1c6c4e14c73d88010a28406:
-    resolution: {tarball: https://codeload.github.com/porsager/postgres/tar.gz/9a61b9fcec2f4d21d1c6c4e14c73d88010a28406}
-    name: postgres
-    version: 3.2.4
-    prepare: true
-    requiresBuild: true
     dev: false

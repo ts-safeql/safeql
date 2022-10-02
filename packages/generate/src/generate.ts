@@ -166,7 +166,7 @@ function mapColumnAnalysisResultsToTypeLiteral(params: {
 }
 
 function buildInterfacePropertyValue(params: { key: string; value: string; isNullable: boolean }) {
-  return `${params.key}: ${params.isNullable ? `Nullable<${params.value}>` : params.value}`;
+  return `${params.key}: ${params.isNullable ? `${params.value} | null` : params.value}`;
 }
 
 function mapColumnAnalysisResultToPropertySignature(params: {
@@ -178,7 +178,7 @@ function mapColumnAnalysisResultToPropertySignature(params: {
 }) {
   if ("introspected" in params.col) {
     const tsType = params.typesMap[params.col.introspected.colType];
-    const value = params.col.introspected.colNotNull ? tsType : `Nullable<${tsType}>`;
+    const value = params.col.introspected.colNotNull ? tsType : `${tsType} | null`;
     const isFromLeftJoin = params.leftTables.includes(params.col.introspected.tableOid);
     const key = params.col.described.name ?? params.col.introspected.colName;
 
@@ -223,7 +223,7 @@ function getTsTypeFromPgType(params: {
   const { isArray, pgType } = parsePgType(params.pgTypeName);
   const tsType = params.typesMap[pgType] ?? "any";
 
-  return isArray ? `Array<${tsType}>` : tsType;
+  return isArray ? `${tsType}[]` : tsType;
 }
 
 function isPgTypeArray(pgType: ColType | `_${ColType}`): pgType is `_${ColType}` {

@@ -1,5 +1,11 @@
 # @ts-safeql/shared
 
+## 0.0.5
+
+### Patch Changes
+
+- 7bf6f6a: update packages postgres dependency to 3.3.0
+
 ## 0.0.4
 
 ### Patch Changes

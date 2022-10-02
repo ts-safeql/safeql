@@ -6,6 +6,10 @@
 
 [![npm version](https://badge.fury.io/js/@ts-safeql%2Feslint-plugin.svg)](https://www.npmjs.com/package/@ts-safeql/eslint-plugin)
 
+
+https://user-images.githubusercontent.com/10504365/192807716-6a4fcbc1-9dc8-4d3b-a63b-2c95c0061689.mp4
+
+
 ## Install
 
 I would first recommend follow the instructions in the [documentation](https://www.safeql.dev/guide/getting-started.html).

@@ -80,7 +80,7 @@ The database URL that the plugin will use to infer the types of the queries, and
 
 ### `connections.migrationsDir`
 
-The path to the directory where the [database migrations](https://www.prisma.io/dataguide/types/relational/what-are-database-migrations) are located. For example:
+The path to the directory where your [database migrations](https://www.prisma.io/dataguide/types/relational/what-are-database-migrations) are located (only `.sql` migration files supported currently). For example:
 
 ```json
 {
@@ -226,8 +226,8 @@ to be an array of objects, you can use the following:
 ::: tip EXAMPLES
 
 - `"${type}[]"` will transform the type to an array of the type.
-- `["Nullable", "Maybe"]` will replace `Nullable` with `Maybe` in the type.
-- `["${type}[]", ["Nullable", "Maybe"]]` will do both
+- `["colname", "x_colname"]` will replace `colname` with `x_colname` in the type.
+- `["${type}[]", ["colname", x_colname"]]` will do both
 
 :::
 

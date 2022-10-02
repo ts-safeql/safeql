@@ -1,8 +1,6 @@
 import { Prisma, PrismaClient, PrismaPromise } from "@prisma/client";
 import { assert, IsExact } from "conditional-type-checks";
 
-type Nullable<T> = T | null;
-
 function _test() {
   const prisma = new PrismaClient();
 
@@ -16,7 +14,7 @@ function _test() {
 
   () => {
     const raw = prisma.$queryRaw<
-      { id: number; createdAt: Date; email: string; name: Nullable<string> }[]
+      { id: number; createdAt: Date; email: string; name: string | null }[]
     >(Prisma.sql`SELECT * FROM "User"`);
     const orm = prisma.user.findMany();
 

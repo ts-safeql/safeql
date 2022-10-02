@@ -1,5 +1,32 @@
 # @ts-safeql/eslint-plugin
 
+## 0.0.15
+
+### Patch Changes
+
+- fbdfb61: Change autofix fromNullable generic (e.g. `Nullable<string>`) to type union format (e.g. string | null)
+- 7bf6f6a: update packages postgres dependency to 3.3.0
+- Updated dependencies [fbdfb61]
+- Updated dependencies [7bf6f6a]
+  - @ts-safeql/generate@0.0.6
+  - @ts-safeql/shared@0.0.5
+  - @ts-safeql/test-utils@0.0.5
+
+## 0.0.14
+
+### Patch Changes
+
+- 1467215: when returning an array column, return an array type instead of identifer (e.g instead of `Array<type>` return `type[]`).
+- Updated dependencies [1467215]
+  - @ts-safeql/generate@0.0.5
+
+## 0.0.13
+
+### Patch Changes
+
+- a49dbbf: fixed a bug that caused the plugin to crash when esbuild was not installed
+- e374733: improve lint speed by up to 33%
+
 ## 0.0.12
 
 ### Patch Changes
