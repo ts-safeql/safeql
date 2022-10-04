@@ -1,5 +1,11 @@
 # @ts-safeql/docs
 
+## 1.1.2
+
+### Patch Changes
+
+- b2af01a: (breaking change) `transform`: renamed `${type}` to `{type}`
+
 ## 1.1.1
 
 ### Patch Changes
