@@ -36,13 +36,10 @@ jobs:
           node-version: 18.x
           cache: "pnpm"
       - run: pnpm install
-      - run: pnpm run setup
+      - run: pnpm run setup build lint test
         env:
           PGUSER: postgres
           PGPASSWORD: postgres
           PGHOST: localhost
           PGDATABASE: postgres
-      - run: pnpm build
-      - run: pnpm lint
-      - run: pnpm test
       - run: pnpm run prettier
