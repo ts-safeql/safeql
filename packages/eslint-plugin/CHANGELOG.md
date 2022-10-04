@@ -152,7 +152,7 @@
   {
     "databaseUrl": "postgres://postgres:postgres@localhost:5432/safeql_postgresjs_demo",
     "tagName": "sql",
-    "transform": "${type}[]"
+    "transform": "{type}[]"
   }
   ```
 
@@ -180,13 +180,13 @@
     "connections": [
       {
         // ...
-        "transform": "${type}[]"
+        "transform": "{type}[]"
       }
     ]
   }
   ```
 
-  `${type}` will be replaced by the original type that was generated. In this case, we are transforming it into an array:
+  `{type}` will be replaced by the original type that was generated. In this case, we are transforming it into an array:
 
   ```ts
   // before transformation
@@ -201,8 +201,8 @@
 
   For example:
 
-  - `"transform": "${type}[]"` (add `[]` to the end)
-  - `"transform": ["${type}[]"]` (identical to the previous one)
+  - `"transform": "{type}[]"` (add `[]` to the end)
+  - `"transform": ["{type}[]"]` (identical to the previous one)
   - `"transform": [["Nullable", "Maybe"]]` (replaces `Nullable` with `Maybe`)
 
 ## 0.0.3

@@ -218,16 +218,16 @@ to be an array of objects, you can use the following:
 {
   "connections": {
     // ...
-    "transform": "${type}[]"
+    "transform": "{type}[]"
   }
 }
 ```
 
 ::: tip EXAMPLES
 
-- `"${type}[]"` will transform the type to an array of the type.
+- `"{type}[]"` will transform the type to an array of the type.
 - `["colname", "x_colname"]` will replace `colname` with `x_colname` in the type.
-- `["${type}[]", ["colname", x_colname"]]` will do both
+- `["{type}[]", ["colname", x_colname"]]` will do both
 
 :::
 

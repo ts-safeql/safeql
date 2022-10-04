@@ -43,7 +43,7 @@ Second, add the following rule to your ESLint config:
             // An array of operators that wraps the raw query:
             "operators": ["$queryRaw"],
             // Transform the query result to array
-            "transform": "${type}[]"
+            "transform": "{type}[]"
           }
         ]
       }
