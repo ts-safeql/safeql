@@ -1,5 +1,11 @@
 # @ts-safeql/eslint-plugin
 
+## 0.0.16
+
+### Patch Changes
+
+- b2af01a: (breaking change) `transform`: renamed `${type}` to `{type}`
+
 ## 0.0.15
 
 ### Patch Changes
