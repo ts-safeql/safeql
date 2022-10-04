@@ -14,7 +14,7 @@
             "databaseName": "safeql_shadow_prisma",
             "name": "prisma",
             "operators": ["$executeRaw", "$queryRaw"],
-            "transform": "${type}[]"
+            "transform": "{type}[]"
           }
         ]
       }

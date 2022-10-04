@@ -16,7 +16,7 @@ function isReplacerFromTo(replacer: TypeTransformer[number]): replacer is TypeRe
 function transformType(typeString: string, typeReplacer: TypeTransformer[number]): string {
   return isReplacerFromTo(typeReplacer)
     ? typeString.replace(new RegExp(typeReplacer[0], "g"), typeReplacer[1])
-    : typeReplacer.replace("${type}", typeString);
+    : typeReplacer.replace("{type}", typeString);
 }
 
 /**
@@ -24,9 +24,9 @@ function transformType(typeString: string, typeReplacer: TypeTransformer[number]
  * transformed type.
  *
  * @param transform could be either:
- *  - a string that has ${type} in it,
+ *  - a string that has {type} in it,
  *  - an array of tuples that behave as [valueToBeReplaced, typeToReplaceWith]
- *  - an array that has a mix of the above (such as ["${type}[]", ["colname", "x_colname"]])
+ *  - an array that has a mix of the above (such as ["{type}[]", ["colname", "x_colname"]])
  */
 export function withTransformType(result: GenerateResult, transform?: TypeTransformer) {
   if (transform === undefined || result.result === null) {

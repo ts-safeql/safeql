@@ -340,15 +340,15 @@ RuleTester.describe("check-sql", () => {
   ruleTester.run("base with transform", rules["check-sql"], {
     valid: [
       {
-        name: "transform as ${type}[]",
+        name: "transform as {type}[]",
         filename,
-        options: withConnection(connections.base, { transform: "${type}[]" }),
+        options: withConnection(connections.base, { transform: "{type}[]" }),
         code: "const result = conn.query<{ id: number; }[]>(sql`select id from caregiver`);",
       },
       {
-        name: "transform as ['${type}[]']",
+        name: "transform as ['{type}[]']",
         filename,
-        options: withConnection(connections.base, { transform: ["${type}[]"] }),
+        options: withConnection(connections.base, { transform: ["{type}[]"] }),
         code: "const result = conn.query<{ id: number; }[]>(sql`select id from caregiver`);",
       },
       {
@@ -360,10 +360,10 @@ RuleTester.describe("check-sql", () => {
         code: "const result = conn.query<{ x_middle_name: string | null; }>(sql`select middle_name from caregiver`);",
       },
       {
-        name: "transform as ['${type}[]', ['middle_name', 'x_middle_name']]",
+        name: "transform as ['{type}[]', ['middle_name', 'x_middle_name']]",
         filename,
         options: withConnection(connections.base, {
-          transform: ["${type}[]", ["middle_name", "x_middle_name"]],
+          transform: ["{type}[]", ["middle_name", "x_middle_name"]],
         }),
         code: "const result = conn.query<{ x_middle_name: string | null; }[]>(sql`select middle_name from caregiver`);",
       },
@@ -382,7 +382,7 @@ RuleTester.describe("check-sql", () => {
       {
         name: "tagName and transform as sql (Postgres.js)",
         filename,
-        options: withConnection(connections.withTagName, { transform: "${type}[]" }),
+        options: withConnection(connections.withTagName, { transform: "{type}[]" }),
         code: "sql<{ id: number }[]>`select id from caregiver`",
       },
       {
