@@ -43,9 +43,9 @@ const baseSchema = z.object({
    * Transform the end result of the type.
    *
    * For example:
-   *  - `"${type}[]"` will transform the type to an array
+   *  - `"{type}[]"` will transform the type to an array
    *  - `["colname", "x_colname"]` will replace `colname` with `x_colname` in the type.
-   *  - `["${type}[]", ["colname", x_colname"]]` will do both
+   *  - `["{type}[]", ["colname", x_colname"]]` will do both
    */
   transform: z
     .union([z.string(), z.array(z.union([z.string(), z.tuple([z.string(), z.string()])]))])

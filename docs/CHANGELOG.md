@@ -24,7 +24,7 @@
   {
     "databaseUrl": "postgres://postgres:postgres@localhost:5432/safeql_postgresjs_demo",
     "tagName": "sql",
-    "transform": "${type}[]"
+    "transform": "{type}[]"
   }
   ```
 
