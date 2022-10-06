@@ -189,3 +189,15 @@ export function getDatabaseName(params: {
 
   return `safeql_${projectUnderscoreName}_${hash}`;
 }
+
+export function shouldLintFile(params: RuleContext) {
+  const fileName = params.getFilename();
+
+  for (const extension of ["ts", "tsx", "mts", "mtsx"]) {
+    if (fileName.endsWith(`.${extension}`)) {
+      return true;
+    }
+  }
+
+  return false;
+}
