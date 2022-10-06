@@ -126,7 +126,7 @@ export function reportMissingTypeAnnotations(params: {
   context: RuleContext;
   tag: TSESTree.TaggedTemplateExpression;
   baseNode: TSESTree.BaseNode;
-  result: GenerateResult;
+  result: GenerateResult & { result: string };
 }) {
   const { context, tag, baseNode, result } = params;
 
@@ -149,14 +149,15 @@ export function reportIncorrectTypeAnnotations(params: {
   actual: string | null;
 }) {
   const { context, result, typeParameter } = params;
+  const newValue = result.result === null ? "" : `<${result.result}>`;
 
   return context.report({
     node: typeParameter.params[0],
     messageId: "incorrectTypeAnnotations",
-    fix: (fixer) => fixer.replaceText(typeParameter, `<${result.result}>`),
+    fix: (fixer) => fixer.replaceText(typeParameter, newValue),
     data: {
       expected: params.expected,
-      actual: params.actual,
+      actual: params.actual ?? "No type annotation",
     },
   });
 }
