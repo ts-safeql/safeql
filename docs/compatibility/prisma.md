@@ -36,8 +36,6 @@ Second, add the following rule to your ESLint config:
           {
             // The migrations path:
             "migrationsDir": "./prisma/migrations",
-            // A shadow database name (see explanation in Configuration):
-            "databaseName": "my_db_shadow",
             // The name of the variable that holds the connection:
             "name": "prisma",
             // An array of operators that wraps the raw query:

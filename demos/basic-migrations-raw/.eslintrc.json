@@ -11,7 +11,6 @@
         "connections": [
           {
             "migrationsDir": "migrations",
-            "databaseName": "safeql_shadow_basic_migrations_raw",
             "name": "client",
             "operators": ["query", "queryOne", "queryOneOrNone"]
           }

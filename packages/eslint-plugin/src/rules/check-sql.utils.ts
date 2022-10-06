@@ -1,6 +1,7 @@
 import { GenerateResult } from "@ts-safeql/generate";
 import { DuplicateColumnsError, InvalidQueryError, PostgresError } from "@ts-safeql/shared";
 import { TSESTree } from "@typescript-eslint/utils";
+import crypto from "crypto";
 import { ESTreeUtils } from "../utils";
 import { RuleContext } from "./check-sql.rule";
 import { WorkerError } from "./check-sql.worker";
@@ -169,4 +170,22 @@ export function reportInvalidTypeAnnotations(params: {
     node: typeParameter.params[0],
     messageId: "invalidTypeAnnotations",
   });
+}
+
+export function getDatabaseName(params: {
+  databaseName: string | undefined;
+  migrationsDir: string;
+  projectDir: string;
+}) {
+  const { databaseName, projectDir, migrationsDir } = params;
+
+  if (databaseName !== undefined) {
+    return databaseName;
+  }
+
+  const projectDirName = projectDir.split("/").pop() ?? "";
+  const projectUnderscoreName = projectDirName.replace(/[^A-z0-9]/g, "_").toLowerCase();
+  const hash = crypto.createHash("sha1").update(migrationsDir).digest("hex").substring(0, 8);
+
+  return `safeql_${projectUnderscoreName}_${hash}`;
 }
