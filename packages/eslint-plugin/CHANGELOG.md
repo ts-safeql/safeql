@@ -1,5 +1,12 @@
 # @ts-safeql/eslint-plugin
 
+## 0.0.17
+
+### Patch Changes
+
+- 1d0f717: `databaseName` is now optional (when using migrations config). It will fallback to a default value `safeql_{project_name}_{migrations_dir_hash}` ([read more here](https://safeql.dev/api/index.html#connections-databasename-optional))
+- 19cbe8d: lint only TypeScript files (ends with `.ts`, `.tsx`, `.mts`, `.mtsx`)
+
 ## 0.0.16
 
 ### Patch Changes

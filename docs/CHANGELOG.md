@@ -1,5 +1,11 @@
 # @ts-safeql/docs
 
+## 1.1.3
+
+### Patch Changes
+
+- 1d0f717: `databaseName` is now optional (when using migrations config). It will fallback to a default value `safeql_{project_name}_{migrations_dir_hash}` ([read more here](https://safeql.dev/api/index.html#connections-databasename-optional))
+
 ## 1.1.2
 
 ### Patch Changes
