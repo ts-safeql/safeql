@@ -207,7 +207,6 @@ RuleTester.describe("check-sql", () => {
             }
         `,
       },
-
       {
         name: "select statement with interface",
         filename,
@@ -219,6 +218,26 @@ RuleTester.describe("check-sql", () => {
                     select name from agency
                 \`);
             }
+        `,
+      },
+      {
+        filename,
+        options: withConnection(connections.base),
+        name: "empty select statement should not have type annotation",
+        code: `conn.query(sql\`select\`);`,
+      },
+      {
+        filename,
+        options: withConnection(connections.base),
+        name: "insert statement without returning should not have type annotation",
+        code: `conn.query(sql\`insert into agency (name) values ('test')\`);`,
+      },
+      {
+        filename,
+        options: withConnection(connections.base),
+        name: "insert statement with returning should have type annotation",
+        code: `conn.query<{ id: number }>(
+          sql\`insert into agency (name) values ('test') returning id\`);
         `,
       },
     ],
@@ -331,6 +350,26 @@ RuleTester.describe("check-sql", () => {
             column: 43,
             endLine: 4,
             endColumn: 49,
+          },
+        ],
+      },
+      {
+        filename,
+        options: withConnection(connections.base),
+        name: "select statement that should not have a type annotation",
+        code: `conn.query<{}>(sql\`select\`);`,
+        output: `conn.query(sql\`select\`);`,
+        errors: [
+          {
+            messageId: "incorrectTypeAnnotations",
+            data: {
+              expected: "{  }",
+              actual: "No type annotation",
+            },
+            line: 1,
+            column: 12,
+            endLine: 1,
+            endColumn: 14,
           },
         ],
       },
