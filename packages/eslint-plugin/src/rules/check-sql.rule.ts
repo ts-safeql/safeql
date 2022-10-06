@@ -22,6 +22,7 @@ import {
   reportInvalidTypeAnnotations,
   reportMissingTypeAnnotations,
   reportPostgresError,
+  shouldLintFile,
   withTransformType,
 } from "./check-sql.utils";
 import { WorkerError, WorkerParams, WorkerResult } from "./check-sql.worker";
@@ -119,7 +120,7 @@ const connectByMigrationSchema = z.object({
   /**
    * The name of the shadow database that will be created from the migration files.
    */
-  databaseName: z.string(),
+  databaseName: z.string().optional(),
 });
 
 const connectByDatabaseUrl = z.object({
@@ -295,11 +296,19 @@ function reportCheck(params: {
         const resultWithTransformed = withTransformType(result, connection.transform);
 
         if (isMissingTypeAnnotations) {
+          if (resultWithTransformed.result === null) {
+            return;
+          }
+
           return reportMissingTypeAnnotations({
             tag: tag,
             context: context,
             baseNode: baseNode,
-            result: resultWithTransformed,
+            result: {
+              query: resultWithTransformed.query,
+              result: resultWithTransformed.result,
+              stmt: resultWithTransformed.stmt,
+            },
           });
         }
 
@@ -449,6 +458,10 @@ export default createRule({
   },
   defaultOptions: [],
   create(context) {
+    if (!shouldLintFile(context)) {
+      return {};
+    }
+
     const projectDir = memoize({
       key: context.getFilename(),
       value: () => locateNearestPackageJsonDir(context.getFilename()),

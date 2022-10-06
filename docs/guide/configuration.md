@@ -122,8 +122,6 @@ Check out [@ts-safeql-demos/basic-migrations-raw](https://github.com/ts-safeql/s
           {
             // The migrations path:
             "migrationsDir": "./migrations",
-            // A shadow database name (see explanation below):
-            "databaseName": "my_db_shadow",
             // The name of the variable that holds the connection:
             "name": "myDb",
             // An array of operators that wraps the raw query:
@@ -179,13 +177,11 @@ Check out [@ts-safeql-demos/multi-connections](https://github.com/ts-safeql/safe
         "connections": [
           {
             "migrationsDir": "./db1/migrations",
-            "databaseName": "db1_shadow",
             "name": "db1",
             "operators": ["rawQuery"]
           },
           {
             "migrationsDir": "./db2/migrations",
-            "databaseName": "db2_shadow",
             "name": "db2",
             "operators": ["rawQuery"]
           }
@@ -218,13 +214,11 @@ Check out [@ts-safeql-demos/multi-connections](https://github.com/ts-safeql/safe
           },
           {
             "migrationsDir": "./packages/a/migrations",
-            "databaseName": "db1_shadow",
             "name": "db1",
             "operators": ["rawQuery"]
           },
           {
             "migrationsDir": "./packages/b/migrations",
-            "databaseName": "db2_shadow",
             "name": "db2",
             "operators": ["rawQuery"]
           }
