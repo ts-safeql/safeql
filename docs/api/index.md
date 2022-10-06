@@ -7,6 +7,8 @@ layout: doc
 All of the options that are mentioned below should be configured in your `eslintrc` config file
 under the rule `"@ts-safeql/check-sql"`. Be sure to read the [Configuration](/guide/configuration.md) guide first.
 
+[[toc]]
+
 ## `useConfigFile`
 
 If set to `true`, SafeQL will look for a `safeql.config.ts` file in the root of your project.
@@ -74,7 +76,7 @@ The database URL that the plugin will use to infer the types of the queries, and
 
 ::: info
 
-- this option **cannot** be used with [`migrationsDir`](#connections-migrationsdir), [`connectionUrl`](#connections-connectionurl), and [`databaseName`](#connections-databasename)
+- this option **cannot** be used with [`migrationsDir`](#connections-migrationsdir), [`connectionUrl`](#connections-connectionurl-optional), and [`databaseName`](#connections-databasename-optional)
 
 :::
 
@@ -93,8 +95,8 @@ The path to the directory where your [database migrations](https://www.prisma.io
 
 ::: info
 
-- this option **can** be used with [`databaseName`](#connections-databasename).
-- this option **can** be used with [`connectionUrl`](#connections-connectionurl).
+- this option **can** be used with [`databaseName`](#connections-databasename-optional).
+- this option **can** be used with [`connectionUrl`](#connections-connectionurl-optional).
 - this option **cannot** be used with [`databaseUrl`](#connections-databaseurl).
 
 :::
@@ -123,7 +125,7 @@ and dropped automatically by SafeQL.
 ::: info
 
 - this option **must** be used with [`migrationsDir`](#connections-migrationsdir).
-- this option **can** be used with [`databaseName`](#connections-databasename).
+- this option **can** be used with [`databaseName`](#connections-databasename-optional).
 - this option **cannot** be used with [`databaseUrl`](#connections-databaseurl).
 
 :::
@@ -132,7 +134,7 @@ and dropped automatically by SafeQL.
 
 The name of the shadow database that will be created and dropped automatically by SafeQL.
 If no value is provided, the default value is `safeql_${underscore_dir_name}_{dir_path_hash}`.
-Read more in [`connectionUrl`](#connections-connectionurl) option. For example:
+Read more in [`connectionUrl`](#connections-connectionurl-optional) option. For example:
 
 ```json
 {
@@ -147,7 +149,7 @@ Read more in [`connectionUrl`](#connections-connectionurl) option. For example:
 ::: info
 
 - this option **must** be used with [`migrationsDir`](#connections-migrationsdir).
-- this option **can** be used with [`connectionUrl`](#connections-connectionurl).
+- this option **can** be used with [`connectionUrl`](#connections-connectionurl-optional).
 - this option **cannot** be used with [`databaseUrl`](#connections-databaseurl).
 
 :::
