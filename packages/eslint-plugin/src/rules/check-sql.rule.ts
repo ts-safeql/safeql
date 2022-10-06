@@ -22,6 +22,7 @@ import {
   reportInvalidTypeAnnotations,
   reportMissingTypeAnnotations,
   reportPostgresError,
+  shouldLintFile,
   withTransformType,
 } from "./check-sql.utils";
 import { WorkerError, WorkerParams, WorkerResult } from "./check-sql.worker";
@@ -449,6 +450,10 @@ export default createRule({
   },
   defaultOptions: [],
   create(context) {
+    if (!shouldLintFile(context)) {
+      return {};
+    }
+
     const projectDir = memoize({
       key: context.getFilename(),
       value: () => locateNearestPackageJsonDir(context.getFilename()),
