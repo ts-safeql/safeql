@@ -85,8 +85,7 @@ The path to the directory where your [database migrations](https://www.prisma.io
 ```json
 {
   "connections": {
-    "migrationsDir": "prisma/migrations",
-    "databaseName": "..."
+    "migrationsDir": "prisma/migrations"
     // ...
   }
 }
@@ -94,20 +93,22 @@ The path to the directory where your [database migrations](https://www.prisma.io
 
 ::: info
 
-- this option **must** be used with [`databaseName`](#connections-databasename).
+- this option **can** be used with [`databaseName`](#connections-databasename).
 - this option **can** be used with [`connectionUrl`](#connections-connectionurl).
 - this option **cannot** be used with [`databaseUrl`](#connections-databaseurl).
 
 :::
 
-### `connections.connectionUrl`
+### `connections.connectionUrl` (Optional)
 
-When using [migrations](#connections-migrationsdir), we don't have a database URL. In order to
-connect to Postgres, we need to connect to an existing database. The default value is:
+If no value is provided, it will fallback to:
 
 ```
 postgres://postgres:postgres@localhost:5432/postgres
 ```
+
+When using [migrations](#connections-migrationsdir), we don't have a database URL. In order to
+connect to Postgres, we need to connect to an existing database. The default value is:
 
 A connection URL is required to create a shadow database (and drop it after) to query the database
 metadata so it can infer the types of the queries, and report any errors.
@@ -121,14 +122,17 @@ and dropped automatically by SafeQL.
 
 ::: info
 
-- this option **must** be used with [`migrationsDir`](#connections-migrationsdir), and [`databaseName`](#connections-databasename).
+- this option **must** be used with [`migrationsDir`](#connections-migrationsdir).
+- this option **can** be used with [`databaseName`](#connections-databasename).
 - this option **cannot** be used with [`databaseUrl`](#connections-databaseurl).
 
 :::
 
-### `connections.databaseName`
+### `connections.databaseName` (Optional)
 
-The name of the shadow database that will be created and dropped automatically by SafeQL. Read more in [`connectionUrl`](#connections-connectionurl) option. For example:
+The name of the shadow database that will be created and dropped automatically by SafeQL.
+If no value is provided, the default value is `safeql_${underscore_dir_name}_{dir_path_hash}`.
+Read more in [`connectionUrl`](#connections-connectionurl) option. For example:
 
 ```json
 {
@@ -209,7 +213,7 @@ conn.$executeRaw(...); // will be fixed to conn.$executeRaw<{ ... }>(...);
 
 :::
 
-### `connections.transform`
+### `connections.transform` (Optional)
 
 Transform the end result of the query. For example, if you want to transform the result of the query
 to be an array of objects, you can use the following:
@@ -231,7 +235,7 @@ to be an array of objects, you can use the following:
 
 :::
 
-### `connections.fieldTransform`
+### `connections.fieldTransform` (Optional)
 
 Transform the (column) field key. Can be one of the following:
 
@@ -240,12 +244,12 @@ Transform the (column) field key. Can be one of the following:
 - `"pascal"` - `user_id` → `UserId`
 - `"screaming snake"` - `user_id` → `USER_ID`
 
-### `connections.keepAlive`
+### `connections.keepAlive` (Optional)
 
 True by default. If set to false, the connection will be closed after the query is executed. This
 is not recommended, and should only be used if you're sure that the connection should be closed.
 
-### `connections.overrides.types`
+### `connections.overrides.types` (Optional)
 
 Override the default type mapping. For example, if you want to use [`LocalDate`](https://js-joda.github.io/js-joda/manual/LocalDate.html) instead of `Date`:
 

@@ -119,7 +119,7 @@ const connectByMigrationSchema = z.object({
   /**
    * The name of the shadow database that will be created from the migration files.
    */
-  databaseName: z.string(),
+  databaseName: z.string().optional(),
 });
 
 const connectByDatabaseUrl = z.object({

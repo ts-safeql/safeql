@@ -15,6 +15,7 @@ import { match } from "ts-pattern";
 import { E, J, O, pipe, TE } from "../utils/fp-ts";
 import { initDatabase, mapConnectionOptionsToString, parseConnection } from "../utils/pg.utils";
 import { RuleOptionConnection } from "./check-sql.rule";
+import { getDatabaseName } from "./check-sql.utils";
 
 type SQL = Sql<Record<string, unknown>>;
 
@@ -34,7 +35,7 @@ runAsWorker(async (params: WorkerParams) => {
   )();
 
   if (params.connection.keepAlive === false) {
-    closeConnection(params.connection);
+    closeConnection({ connection: params.connection, projectDir: params.projectDir });
   }
 
   return J.stringify(result);
@@ -49,7 +50,7 @@ export type WorkerError =
 export type WorkerResult = GenerateResult;
 
 function workerHandler(params: WorkerParams): TE.TaskEither<WorkerError, WorkerResult> {
-  const strategy = mapRuleOptionsToStartegy(params.connection);
+  const strategy = mapRuleOptionsToStartegy(params);
 
   const connnectionPayload = match(strategy)
     .with({ type: "databaseUrl" }, ({ databaseUrl }) =>
@@ -181,7 +182,12 @@ type Strategy =
       databaseName: string;
     };
 
-function mapRuleOptionsToStartegy(connection: RuleOptionConnection): Strategy {
+function mapRuleOptionsToStartegy(params: {
+  connection: RuleOptionConnection;
+  projectDir: string;
+}): Strategy {
+  const { connection, projectDir } = params;
+
   if ("databaseUrl" in connection) {
     return { type: "databaseUrl", ...connection };
   }
@@ -189,14 +195,24 @@ function mapRuleOptionsToStartegy(connection: RuleOptionConnection): Strategy {
   if ("migrationsDir" in connection) {
     const DEFAULT_CONNECTION_URL = "postgres://postgres:postgres@localhost:5432/postgres";
 
-    return { type: "migrations", connectionUrl: DEFAULT_CONNECTION_URL, ...connection };
+    return {
+      type: "migrations",
+      connectionUrl: DEFAULT_CONNECTION_URL,
+      databaseName: getDatabaseName({
+        databaseName: connection.databaseName,
+        migrationsDir: connection.migrationsDir,
+        projectDir: projectDir,
+      }),
+      ...connection,
+    };
   }
 
   return match(connection).exhaustive();
 }
 
-function closeConnection(connection: RuleOptionConnection) {
-  const strategy = mapRuleOptionsToStartegy(connection);
+function closeConnection(params: { connection: RuleOptionConnection; projectDir: string }) {
+  const { connection, projectDir } = params;
+  const strategy = mapRuleOptionsToStartegy({ connection, projectDir });
 
   match(strategy)
     .with({ type: "databaseUrl" }, ({ databaseUrl }) => {
