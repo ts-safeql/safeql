@@ -296,11 +296,19 @@ function reportCheck(params: {
         const resultWithTransformed = withTransformType(result, connection.transform);
 
         if (isMissingTypeAnnotations) {
+          if (resultWithTransformed.result === null) {
+            return;
+          }
+
           return reportMissingTypeAnnotations({
             tag: tag,
             context: context,
             baseNode: baseNode,
-            result: resultWithTransformed,
+            result: {
+              query: resultWithTransformed.query,
+              result: resultWithTransformed.result,
+              stmt: resultWithTransformed.stmt,
+            },
           });
         }
 
