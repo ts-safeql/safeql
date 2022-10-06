@@ -52,7 +52,10 @@ export default defineConfig({
               { text: "transform", link: "/api/index.md#connections-transform-optional" },
               { text: "fieldTransform", link: "/api/index.md#connections-fieldtransform-optional" },
               { text: "keepAlive", link: "/api/index.md#connections-keepalive-optional" },
-              { text: "overrides.types", link: "/api/index.md#connections-overrides-types-optional" },
+              {
+                text: "overrides.types",
+                link: "/api/index.md#connections-overrides-types-optional",
+              },
             ],
           },
         ],
