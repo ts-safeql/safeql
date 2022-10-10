@@ -1,5 +1,11 @@
 # @ts-safeql/eslint-plugin
 
+## 0.0.18
+
+### Patch Changes
+
+- cdeb711: query that returns nothing shouldn't have a type annotation (previously fixed to `<null>`).
+
 ## 0.0.17
 
 ### Patch Changes
