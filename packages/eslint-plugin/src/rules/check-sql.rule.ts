@@ -102,7 +102,7 @@ const identifyByTagName = z.object({
   tagName: z.string(),
 });
 
-const connectByMigrationSchema = z.object({
+export const connectByMigrationSchema = z.object({
   /**
    * The path where the migration files are located.
    */
@@ -121,6 +121,11 @@ const connectByMigrationSchema = z.object({
    * The name of the shadow database that will be created from the migration files.
    */
   databaseName: z.string().optional(),
+
+  /**
+   * Whether or not should refresh the shadow database when the migration files change.
+   */
+  watchMode: z.boolean().default(true).optional(),
 });
 
 const connectByDatabaseUrl = z.object({

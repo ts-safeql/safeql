@@ -106,8 +106,8 @@ function execToTaskEither<L extends Error>(
   return taskEither.tryCatch(
     () =>
       new Promise<void>((resolve, reject) => {
-        exec.stderr.on("data", (x) => reject(x.toString()));
-        exec.on("exit", (code) => (code === 0 ? resolve() : reject(code)));
+        exec.stderr.on("data", (x) => reject(new Error(x)));
+        exec.on("exit", (code) => (code === 0 ? resolve() : reject(new Error(code + ""))));
       }),
     mapLeft
   );

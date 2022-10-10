@@ -6,7 +6,7 @@ import { flow, identity, pipe } from "fp-ts/lib/function";
 import { parseQuery } from "libpg-query";
 import { before, test } from "mocha";
 import { Sql } from "postgres";
-import { generate, getMetadataFromCacheOrFetch } from "./generate";
+import { createGenerator } from "./generate";
 
 type SQL = Sql<Record<string, unknown>>;
 
@@ -33,18 +33,20 @@ function runMigrations(sql: SQL) {
 
 let sql!: SQL;
 let dropFn!: () => Promise<number>;
+let generate!: ReturnType<typeof createGenerator>["generate"];
 
 before(async () => {
   const testDatabase = await setupTestDatabase({
     databaseName: generateTestDatabaseName(),
     postgresUrl: "postgres://postgres:postgres@localhost:5432/postgres",
   });
+  const generator = createGenerator();
 
   dropFn = testDatabase.drop;
   sql = testDatabase.sql;
+  generate = generator.generate;
 
   await runMigrations(sql);
-  await getMetadataFromCacheOrFetch(sql, "test");
 });
 
 after(async () => {
@@ -80,6 +82,13 @@ const testQuery = async (params: { query: string; expected?: unknown; expectedEr
     )
   )();
 };
+
+test("(init generate cache)", async () => {
+  await testQuery({
+    query: `SELECT 1 as x`,
+    expected: `{ x: number }`,
+  });
+});
 
 test("select columns", async () => {
   await testQuery({

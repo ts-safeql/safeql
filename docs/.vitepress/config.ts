@@ -44,6 +44,7 @@ export default defineConfig({
             items: [
               { text: "databaseUrl", link: "/api/index.md#connections-databaseurl" },
               { text: "migrationsDir", link: "/api/index.md#connections-migrationsdir" },
+              { text: "watchMode", link: "/api/index.md#connections-watchmode-optional" },
               { text: "connectionUrl", link: "/api/index.md#connections-connectionurl-optional" },
               { text: "databaseName", link: "/api/index.md#connections-databasename-optional" },
               { text: "tagName", link: "/api/index.md#connections-tagname" },
