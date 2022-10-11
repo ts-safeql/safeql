@@ -9,7 +9,6 @@ import {
   toCase,
 } from "@ts-safeql/shared";
 import { either } from "fp-ts";
-import { Either } from "fp-ts/lib/Either";
 import postgres, { PostgresError as OriginalPostgresError } from "postgres";
 import "source-map-support/register";
 import { ColType } from "./utils/colTypes";
@@ -57,7 +56,7 @@ export function createGenerator() {
 async function generate(
   params: GenerateParams,
   cacheMap: CacheMap
-): Promise<Either<GenerateError, GenerateResult>> {
+): Promise<either.Either<GenerateError, GenerateResult>> {
   const { sql, query, cacheMetadata = true } = params;
 
   const { pgCols, pgColsByTableOidCache, pgTypes } = cacheMetadata

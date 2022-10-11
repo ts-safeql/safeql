@@ -1,8 +1,7 @@
 import { DatabaseInitializationError } from "@ts-safeql/shared";
 import { spawn, ChildProcessWithoutNullStreams } from "child_process";
-import { taskEither } from "fp-ts";
-import { pipe } from "fp-ts/lib/function";
 import { parse } from "pg-connection-string";
+import { pipe, TE } from "./fp-ts";
 
 export interface ConnectionOptions {
   host: string;
@@ -50,10 +49,10 @@ export function parseConnection(databaseUrl: string): ConnectionOptions {
 
 export function initDatabase(connection: ConnectionOptions) {
   return pipe(
-    taskEither.Do,
-    taskEither.chain(() => dropDatabase(connection)),
-    taskEither.altW(() => taskEither.right(undefined)),
-    taskEither.chain(() => createDatabase(connection))
+    TE.Do,
+    TE.chain(() => dropDatabase(connection)),
+    TE.altW(() => TE.right(undefined)),
+    TE.chain(() => createDatabase(connection))
   );
 }
 
@@ -103,7 +102,7 @@ function execToTaskEither<L extends Error>(
   exec: ChildProcessWithoutNullStreams,
   mapLeft: (error: unknown) => L
 ) {
-  return taskEither.tryCatch(
+  return TE.tryCatch(
     () =>
       new Promise<void>((resolve, reject) => {
         exec.stderr.on("data", (x) => reject(new Error(x)));

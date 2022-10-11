@@ -1,7 +1,7 @@
 import { InternalError } from "@ts-safeql/shared";
 import assert from "assert";
 import { taskEither } from "fp-ts";
-import { flow, identity, pipe } from "fp-ts/lib/function";
+import { flow, identity, pipe } from "fp-ts/function";
 import parser from "libpg-query";
 import { test } from "mocha";
 import { getLeftJoinTablesFromParsed } from "./getLeftJoinTables";

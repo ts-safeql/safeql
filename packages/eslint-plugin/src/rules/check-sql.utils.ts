@@ -4,18 +4,17 @@ import {
   InvalidMigrationError,
   InvalidMigrationsPathError,
   InvalidQueryError,
-  PostgresError,
+  PostgresError
 } from "@ts-safeql/shared";
 import { TSESTree } from "@typescript-eslint/utils";
 import crypto from "crypto";
-import { pipe } from "fp-ts/lib/function";
 import fs from "fs";
 import path from "path";
 import { Sql } from "postgres";
 import { match } from "ts-pattern";
 import { z } from "zod";
 import { ESTreeUtils } from "../utils";
-import { E, TE } from "../utils/fp-ts";
+import { E, pipe, TE } from "../utils/fp-ts";
 import { mapConnectionOptionsToString, parseConnection } from "../utils/pg.utils";
 import { connectByMigrationSchema, RuleContext, RuleOptionConnection } from "./check-sql.rule";
 import { WorkerError } from "./check-sql.worker";
