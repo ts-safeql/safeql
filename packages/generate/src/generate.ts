@@ -10,7 +10,6 @@ import {
 } from "@ts-safeql/shared";
 import { either } from "fp-ts";
 import postgres, { PostgresError as OriginalPostgresError } from "postgres";
-import "source-map-support/register";
 import { ColType } from "./utils/colTypes";
 import { getLeftJoinTablesFromParsed } from "./utils/getLeftJoinTables";
 

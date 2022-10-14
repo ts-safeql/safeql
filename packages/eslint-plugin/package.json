@@ -40,7 +40,6 @@
     "pg-connection-string": "2.5.0",
     "postgres": "^3.3.0",
     "recast": "^0.21.2",
-    "source-map-support": "^0.5.21",
     "synckit": "^0.8.4",
     "ts-pattern": "^4.0.5",
     "zod": "^3.19.0",

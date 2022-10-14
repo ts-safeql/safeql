@@ -4,7 +4,7 @@ import {
   InvalidMigrationError,
   InvalidMigrationsPathError,
   InvalidQueryError,
-  PostgresError
+  PostgresError,
 } from "@ts-safeql/shared";
 import { TSESTree } from "@typescript-eslint/utils";
 import crypto from "crypto";

@@ -231,7 +231,6 @@ importers:
       pg-connection-string: 2.5.0
       postgres: ^3.3.0
       recast: ^0.21.2
-      source-map-support: ^0.5.21
       synckit: ^0.8.4
       ts-pattern: ^4.0.5
       tsx: 3.9.0
@@ -249,7 +248,6 @@ importers:
       pg-connection-string: 2.5.0
       postgres: 3.3.0
       recast: 0.21.2
-      source-map-support: 0.5.21
       synckit: 0.8.4
       ts-pattern: 4.0.5
       zod: 3.19.0
@@ -281,7 +279,6 @@ importers:
       mocha: ^10.0.0
       pg-connection-string: ^2.5.0
       postgres: ^3.3.0
-      source-map-support: ^0.5.21
       tsx: ^3.9.0
       typescript: ^4.8.2
     dependencies:
@@ -290,7 +287,6 @@ importers:
       fp-ts: 2.12.3
       pg-connection-string: 2.5.0
       postgres: 3.3.0
-      source-map-support: 0.5.21
     devDependencies:
       '@esbuild-kit/cjs-loader': 2.3.3
       '@types/mocha': 9.1.1
@@ -1430,6 +1426,7 @@ packages:
 
   /buffer-from/1.1.2:
     resolution: {integrity: sha512-E+XQCRwSbaaiChtv6k6Dwgc+bx+Bs6vuKJHHl5kox/BaKbhiXzqQOwK4cO22yElGp2OCmjwVhT3HmxgyPGnJfQ==}
+    dev: true
 
   /cacache/15.3.0:
     resolution: {integrity: sha512-VVdYzXEn+cnbXpFgWs5hTT7OScegHVmLhJIR8Ufqk3iFD6A6j5iSX1KuBTfNEv4tdJWE2PzA6IVFtcLC7fN9wQ==}
@@ -3665,6 +3662,7 @@ packages:
     dependencies:
       buffer-from: 1.1.2
       source-map: 0.6.1
+    dev: true
 
   /source-map/0.6.1:
     resolution: {integrity: sha512-UjgapumWlbMhkBgzT7Ykc5YXUT46F0iKu8SGXq0bcwP5dz/h0Plj6enJqjz1Zbq2l5WaqYnrVbwWOWMyF3F47g==}
