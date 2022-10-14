@@ -125,7 +125,7 @@ export const connectByMigrationSchema = z.object({
   /**
    * Whether or not should refresh the shadow database when the migration files change.
    */
-  watchMode: z.boolean().default(true).optional(),
+  watchMode: z.boolean().optional(),
 });
 
 const connectByDatabaseUrl = z.object({
