@@ -73,7 +73,7 @@ const query = prisma.$queryRaw(
 
 // After: ✅
 const query = prisma.$queryRaw<{ id: number; }[]>(
-  Prisma.sql`SELECT idd FROM users`
+  Prisma.sql`SELECT id FROM users`
 )
 ```
 
