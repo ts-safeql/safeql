@@ -34,18 +34,15 @@ function runMigrations(sql: SQL) {
 
 let sql!: SQL;
 let dropFn!: () => Promise<number>;
-let generate!: ReturnType<typeof createGenerator>["generate"];
 
 before(async () => {
   const testDatabase = await setupTestDatabase({
     databaseName: generateTestDatabaseName(),
     postgresUrl: "postgres://postgres:postgres@localhost:5432/postgres",
   });
-  const generator = createGenerator();
 
   dropFn = testDatabase.drop;
   sql = testDatabase.sql;
-  generate = generator.generate;
 
   await runMigrations(sql);
 });
@@ -55,21 +52,20 @@ after(async () => {
   await dropFn();
 });
 
-const generateTE = (params: GenerateParams) =>
-  pipe(TE.tryCatch(() => generate(params), InternalError.to));
-
-const generateTE2 = flow(generate, (x) => TE.tryCatch(() => x, InternalError.to));
+const { generate } = createGenerator();
+const generateTE = flow(generate, TE.tryCatchK(identity, InternalError.to));
 const parseQueryTE = flow(parseQuery, TE.tryCatchK(identity, InternalError.to));
 
 const testQuery = async (params: { query: string; expected?: unknown; expectedError?: string }) => {
   const { query } = params;
+
   const cacheKey = "test";
 
   return pipe(
     TE.Do,
     TE.bind("pgParsed", () => parseQueryTE(params.query)),
     TE.bind("result", ({ pgParsed }) =>
-      generateTE2({ sql, pgParsed, query, cacheKey, fieldTransform: undefined })
+      generateTE({ sql, pgParsed, query, cacheKey, fieldTransform: undefined })
     ),
     TE.chainW(({ result }) => TE.fromEither(result)),
     TE.match(
