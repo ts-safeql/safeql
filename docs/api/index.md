@@ -96,7 +96,34 @@ The path to the directory where your [database migrations](https://www.prisma.io
 ::: info
 
 - this option **can** be used with [`databaseName`](#connections-databasename-optional).
+- this option **can** be used with [`watchMode`](#connections-watchmode-optional).
 - this option **can** be used with [`connectionUrl`](#connections-connectionurl-optional).
+- this option **cannot** be used with [`databaseUrl`](#connections-databaseurl).
+
+:::
+
+### `connections.watchMode` (Optional)
+
+Whether or not to recreate the shadow database when a migration file is changed. This option is only
+relevant when [`migrationsDir`](#connections-migrationsdir) is used.
+
+If no value is provided, then it will default to `true`.
+
+```json
+{
+  "connections": {
+    "migrationsDir": "...",
+    "watchMode": true
+    // ...
+  }
+}
+```
+
+::: info
+
+- this option **must** be used with [`migrationsDir`](#connections-migrationsdir).
+- this option **can** be used with [`connectionUrl`](#connections-connectionurl-optional).
+- this option **can** be used with [`databaseName`](#connections-databasename-optional).
 - this option **cannot** be used with [`databaseUrl`](#connections-databaseurl).
 
 :::
@@ -125,6 +152,7 @@ and dropped automatically by SafeQL.
 ::: info
 
 - this option **must** be used with [`migrationsDir`](#connections-migrationsdir).
+- this option **can** be used with [`watchMode`](#connections-watchmode-optional).
 - this option **can** be used with [`databaseName`](#connections-databasename-optional).
 - this option **cannot** be used with [`databaseUrl`](#connections-databaseurl).
 
@@ -149,6 +177,7 @@ Read more in [`connectionUrl`](#connections-connectionurl-optional) option. For 
 ::: info
 
 - this option **must** be used with [`migrationsDir`](#connections-migrationsdir).
+- this option **can** be used with [`watchMode`](#connections-watchmode-optional).
 - this option **can** be used with [`connectionUrl`](#connections-connectionurl-optional).
 - this option **cannot** be used with [`databaseUrl`](#connections-databaseurl).
 

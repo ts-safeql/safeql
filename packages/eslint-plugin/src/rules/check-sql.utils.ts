@@ -1,14 +1,29 @@
 import { GenerateResult } from "@ts-safeql/generate";
-import { DuplicateColumnsError, InvalidQueryError, PostgresError } from "@ts-safeql/shared";
+import {
+  DuplicateColumnsError,
+  InvalidMigrationError,
+  InvalidMigrationsPathError,
+  InvalidQueryError,
+  PostgresError,
+} from "@ts-safeql/shared";
 import { TSESTree } from "@typescript-eslint/utils";
 import crypto from "crypto";
+import fs from "fs";
+import path from "path";
+import { Sql } from "postgres";
+import { match } from "ts-pattern";
+import { z } from "zod";
 import { ESTreeUtils } from "../utils";
-import { RuleContext } from "./check-sql.rule";
+import { E, pipe, TE } from "../utils/fp-ts";
+import { mapConnectionOptionsToString, parseConnection } from "../utils/pg.utils";
+import { connectByMigrationSchema, RuleContext, RuleOptionConnection } from "./check-sql.rule";
 import { WorkerError } from "./check-sql.worker";
 
 type TypeReplacerString = string;
 type TypeReplacerFromTo = [string, string];
 type TypeTransformer = TypeReplacerString | (TypeReplacerString | TypeReplacerFromTo)[];
+
+export const DEFAULT_CONNECTION_URL = "postgres://postgres:postgres@localhost:5432/postgres";
 
 function isReplacerFromTo(replacer: TypeTransformer[number]): replacer is TypeReplacerFromTo {
   return Array.isArray(replacer) && replacer.length === 2;
@@ -201,4 +216,127 @@ export function shouldLintFile(params: RuleContext) {
   }
 
   return false;
+}
+
+function isMigrationConnection(
+  connection: RuleOptionConnection
+): connection is RuleOptionConnection & z.infer<typeof connectByMigrationSchema> {
+  return "migrationsDir" in connection;
+}
+
+export function isWatchMigrationsDirEnabled(
+  connection: RuleOptionConnection
+): connection is RuleOptionConnection &
+  z.infer<typeof connectByMigrationSchema> & { watchMode: true } {
+  return isMigrationConnection(connection) && (connection.watchMode ?? true) === true;
+}
+
+export function getMigrationDatabaseMetadata(params: {
+  connectionUrl: string;
+  databaseName: string;
+}) {
+  const connectionOptions = {
+    ...parseConnection(params.connectionUrl),
+    database: params.databaseName,
+  };
+  const databaseUrl = mapConnectionOptionsToString(connectionOptions);
+
+  return { databaseUrl, connectionOptions };
+}
+
+type ConnectionStrategy =
+  | {
+      type: "databaseUrl";
+      databaseUrl: string;
+    }
+  | {
+      type: "migrations";
+      migrationsDir: string;
+      connectionUrl: string;
+      databaseName: string;
+      watchMode: boolean;
+    };
+
+export function getConnectionStartegyByRuleOptionConnection(params: {
+  connection: RuleOptionConnection;
+  projectDir: string;
+}): ConnectionStrategy {
+  const { connection, projectDir } = params;
+
+  if ("databaseUrl" in connection) {
+    return { type: "databaseUrl", ...connection };
+  }
+
+  if ("migrationsDir" in connection) {
+    return {
+      type: "migrations",
+      connectionUrl: DEFAULT_CONNECTION_URL,
+      databaseName: getDatabaseName({
+        databaseName: connection.databaseName,
+        migrationsDir: connection.migrationsDir,
+        projectDir: projectDir,
+      }),
+      watchMode: isWatchMigrationsDirEnabled(connection),
+      ...connection,
+    };
+  }
+
+  return match(connection).exhaustive();
+}
+
+export interface ConnectionPayload {
+  sql: Sql;
+  databaseUrl: string;
+  isFirst: boolean;
+}
+
+export function runMigrations(params: { migrationsPath: string; sql: Sql }) {
+  const runSingleMigrationFileWithSql = (filePath: string) => {
+    return runSingleMigrationFile(params.sql, filePath);
+  };
+
+  return pipe(
+    TE.Do,
+    TE.chain(() => getMigrationFiles(params.migrationsPath)),
+    TE.chainW((files) => TE.sequenceSeqArray(files.map(runSingleMigrationFileWithSql)))
+  );
+}
+
+function findDeepSqlFiles(migrationsPath: string) {
+  const sqlFilePaths: string[] = [];
+
+  function findDeepSqlFilesRecursively(dir: string) {
+    const files = fs.readdirSync(dir);
+
+    files.forEach((file) => {
+      const filePath = path.join(dir, file);
+      const isDirectory = fs.statSync(filePath).isDirectory();
+
+      if (isDirectory) {
+        findDeepSqlFilesRecursively(filePath);
+      } else if (filePath.endsWith(".sql")) {
+        sqlFilePaths.push(filePath);
+      }
+    });
+  }
+
+  findDeepSqlFilesRecursively(migrationsPath);
+
+  return sqlFilePaths;
+}
+
+function getMigrationFiles(migrationsPath: string) {
+  return pipe(
+    E.tryCatch(() => findDeepSqlFiles(migrationsPath), E.toError),
+    TE.fromEither,
+    TE.mapLeft(InvalidMigrationsPathError.fromErrorC(migrationsPath))
+  );
+}
+
+function runSingleMigrationFile(sql: Sql, filePath: string) {
+  return pipe(
+    TE.tryCatch(() => fs.promises.readFile(filePath).then((x) => x.toString()), E.toError),
+    TE.chain((content) => TE.tryCatch(() => sql.unsafe(content), E.toError)),
+    TE.mapLeft(InvalidMigrationError.fromErrorC(filePath))
+  );
 }

@@ -7,4 +7,8 @@ export function check(client: Db) {
   client.queryOne<{ id: number; post_id: number | null; body: string | null }>(sql`
     SELECT * FROM comments
   `);
+
+  client.queryOne<{ id: number; post_id: number | null; body: string | null }>(sql`
+    SELECT * FROM comments
+  `);
 }

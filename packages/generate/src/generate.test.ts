@@ -1,12 +1,13 @@
 import { InternalError } from "@ts-safeql/shared";
 import { generateTestDatabaseName, setupTestDatabase } from "@ts-safeql/test-utils";
 import assert from "assert";
-import { option, taskEither } from "fp-ts";
-import { flow, identity, pipe } from "fp-ts/lib/function";
+import * as TE from "fp-ts/TaskEither";
+import * as O from "fp-ts/Option";
+import { flow, identity, pipe } from "fp-ts/function";
 import { parseQuery } from "libpg-query";
 import { before, test } from "mocha";
 import { Sql } from "postgres";
-import { generate, getMetadataFromCacheOrFetch } from "./generate";
+import { createGenerator, GenerateParams } from "./generate";
 
 type SQL = Sql<Record<string, unknown>>;
 
@@ -44,7 +45,6 @@ before(async () => {
   sql = testDatabase.sql;
 
   await runMigrations(sql);
-  await getMetadataFromCacheOrFetch(sql, "test");
 });
 
 after(async () => {
@@ -52,26 +52,28 @@ after(async () => {
   await dropFn();
 });
 
-const generateTE = flow(generate, taskEither.tryCatchK(identity, InternalError.to));
-const parseQueryTE = flow(parseQuery, taskEither.tryCatchK(identity, InternalError.to));
+const { generate } = createGenerator();
+const generateTE = flow(generate, TE.tryCatchK(identity, InternalError.to));
+const parseQueryTE = flow(parseQuery, TE.tryCatchK(identity, InternalError.to));
 
 const testQuery = async (params: { query: string; expected?: unknown; expectedError?: string }) => {
   const { query } = params;
+
   const cacheKey = "test";
 
   return pipe(
-    taskEither.Do,
-    taskEither.bind("pgParsed", () => parseQueryTE(params.query)),
-    taskEither.bind("result", ({ pgParsed }) =>
+    TE.Do,
+    TE.bind("pgParsed", () => parseQueryTE(params.query)),
+    TE.bind("result", ({ pgParsed }) =>
       generateTE({ sql, pgParsed, query, cacheKey, fieldTransform: undefined })
     ),
-    taskEither.chainW(({ result }) => taskEither.fromEither(result)),
-    taskEither.match(
+    TE.chainW(({ result }) => TE.fromEither(result)),
+    TE.match(
       (error) =>
         pipe(
           params.expectedError,
-          option.fromNullable,
-          option.fold(
+          O.fromNullable,
+          O.fold(
             () => assert.fail(error.message),
             (expectedError) => assert.strictEqual(error.message, expectedError)
           )
@@ -80,6 +82,13 @@ const testQuery = async (params: { query: string; expected?: unknown; expectedEr
     )
   )();
 };
+
+test("(init generate cache)", async () => {
+  await testQuery({
+    query: `SELECT 1 as x`,
+    expected: `{ x: number; }`,
+  });
+});
 
 test("select columns", async () => {
   await testQuery({

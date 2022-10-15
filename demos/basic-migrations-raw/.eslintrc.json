@@ -8,13 +8,11 @@
     "@ts-safeql/check-sql": [
       "error",
       {
-        "connections": [
-          {
-            "migrationsDir": "migrations",
-            "name": "client",
-            "operators": ["query", "queryOne", "queryOneOrNone"]
-          }
-        ]
+        "connections": {
+          "migrationsDir": "migrations",
+          "name": "client",
+          "operators": ["query", "queryOne", "queryOneOrNone"]
+        }
       }
     ]
   }

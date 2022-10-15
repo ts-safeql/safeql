@@ -72,3 +72,20 @@ export function objectKeysNonEmpty<T extends object>(obj: T): [keyof T, ...(keyo
 export function assertNever(caseType: never): never {
   throw new Error(`assertNever: ${caseType}`);
 }
+
+export async function getOrSetFromMap<T>(params: {
+  map: Map<string, T>;
+  key: string;
+  value: () => T | Promise<T>;
+}) {
+  const { map, key, value } = params;
+
+  if (map.has(key)) {
+    return map.get(key)!;
+  }
+
+  const val = await value();
+  map.set(key, val);
+
+  return val;
+}

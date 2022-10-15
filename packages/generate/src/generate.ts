@@ -1,6 +1,7 @@
 import {
   defaultTypeMapping,
   DuplicateColumnsError,
+  getOrSetFromMap,
   groupBy,
   IdentiferCase,
   ParsedQuery,
@@ -8,22 +9,9 @@ import {
   toCase,
 } from "@ts-safeql/shared";
 import { either } from "fp-ts";
-import { Either } from "fp-ts/lib/Either";
 import postgres, { PostgresError as OriginalPostgresError } from "postgres";
-import "source-map-support/register";
 import { ColType } from "./utils/colTypes";
 import { getLeftJoinTablesFromParsed } from "./utils/getLeftJoinTables";
-
-type CacheKey = string;
-
-const $cacheMap: Map<
-  CacheKey,
-  {
-    pgTypes: postgres.RowList<PgTypeRow[]>;
-    pgCols: PgColRow[];
-    pgColsByTableOidCache: Map<number, PgColRow[]>;
-  }
-> = new Map();
 
 type JSToPostgresTypeMap = Record<string, unknown>;
 type Sql = postgres.Sql<JSToPostgresTypeMap>;
@@ -31,47 +19,51 @@ type Sql = postgres.Sql<JSToPostgresTypeMap>;
 export type GenerateResult = { result: string | null; stmt: postgres.Statement; query: string };
 export type GenerateError = DuplicateColumnsError | PostgresError;
 
-async function getDatabaseMetadata(sql: Sql) {
-  const pgTypes = await getPgTypes(sql);
-  const pgCols = await getPgCols(sql);
-  const pgColsByTableOidCache = groupBy(pgCols, "tableOid");
-
-  return { pgTypes, pgCols, pgColsByTableOidCache };
-}
-
-export async function getMetadataFromCacheOrFetch(sql: Sql, cacheKey: CacheKey) {
-  const cache = $cacheMap.get(cacheKey);
-
-  if (cache !== undefined) {
-    return cache;
-  }
-
-  const cacheValue = await getDatabaseMetadata(sql);
-
-  $cacheMap.set(cacheKey, cacheValue);
-
-  return cacheValue;
-}
+type CacheKey = string;
 
 export interface GenerateParams {
   sql: Sql;
   query: string;
   pgParsed: ParsedQuery.Root;
   cacheMetadata?: boolean;
-  cacheKey: string;
+  cacheKey: CacheKey;
   fieldTransform: IdentiferCase | undefined;
   overrides?: Partial<{
     types: Record<string, string>;
   }>;
 }
 
-export async function generate(
-  params: GenerateParams
-): Promise<Either<GenerateError, GenerateResult>> {
+type CacheMap = Map<
+  CacheKey,
+  {
+    pgTypes: postgres.RowList<PgTypeRow[]>;
+    pgCols: PgColRow[];
+    pgColsByTableOidCache: Map<number, PgColRow[]>;
+  }
+>;
+
+export function createGenerator() {
+  const cacheMap: CacheMap = new Map();
+
+  return {
+    generate: (params: GenerateParams) => generate(params, cacheMap),
+    dropCacheKey: (cacheKey: CacheKey) => cacheMap.delete(cacheKey),
+    clearCache: () => cacheMap.clear(),
+  };
+}
+
+async function generate(
+  params: GenerateParams,
+  cacheMap: CacheMap
+): Promise<either.Either<GenerateError, GenerateResult>> {
   const { sql, query, cacheMetadata = true } = params;
 
   const { pgCols, pgColsByTableOidCache, pgTypes } = cacheMetadata
-    ? await getMetadataFromCacheOrFetch(sql, params.cacheKey)
+    ? await getOrSetFromMap({
+        map: cacheMap,
+        key: params.cacheKey,
+        value: () => getDatabaseMetadata(sql),
+      })
     : await getDatabaseMetadata(sql);
 
   try {
@@ -137,6 +129,14 @@ export async function generate(
 
     throw e;
   }
+}
+
+async function getDatabaseMetadata(sql: Sql) {
+  const pgTypes = await getPgTypes(sql);
+  const pgCols = await getPgCols(sql);
+  const pgColsByTableOidCache = groupBy(pgCols, "tableOid");
+
+  return { pgTypes, pgCols, pgColsByTableOidCache };
 }
 
 type ColumnAnalysisResult =

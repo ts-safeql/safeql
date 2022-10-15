@@ -1,5 +1,9 @@
-import { generate } from "@ts-safeql/generate";
-import { GenerateError, GenerateParams, GenerateResult } from "@ts-safeql/generate/src/generate";
+import {
+  createGenerator,
+  GenerateError,
+  GenerateParams,
+  GenerateResult,
+} from "@ts-safeql/generate";
 import {
   DatabaseInitializationError,
   InternalError,
@@ -7,19 +11,21 @@ import {
   InvalidMigrationsPathError,
   ParsedQuery,
 } from "@ts-safeql/shared";
-import fs from "fs";
 import path from "path";
-import postgres, { Sql } from "postgres";
 import { runAsWorker } from "synckit";
 import { match } from "ts-pattern";
-import { E, J, O, pipe, TE } from "../utils/fp-ts";
-import { initDatabase, mapConnectionOptionsToString, parseConnection } from "../utils/pg.utils";
+import { createConnectionManager } from "../utils/connection-manager";
+import { J, pipe, TE } from "../utils/fp-ts";
+import { initDatabase } from "../utils/pg.utils";
+import { createWatchManager } from "../utils/watch-manager";
 import { RuleOptionConnection } from "./check-sql.rule";
-import { getDatabaseName } from "./check-sql.utils";
-
-type SQL = Sql<Record<string, unknown>>;
-
-const connections: Map<string, SQL> = new Map();
+import {
+  ConnectionPayload,
+  getMigrationDatabaseMetadata,
+  isWatchMigrationsDirEnabled,
+  getConnectionStartegyByRuleOptionConnection,
+  runMigrations,
+} from "./check-sql.utils";
 
 export interface WorkerParams {
   connection: RuleOptionConnection;
@@ -28,14 +34,27 @@ export interface WorkerParams {
   pgParsed: ParsedQuery.Root;
 }
 
+const generator = createGenerator();
+const connections = createConnectionManager();
+const watchers = createWatchManager();
+
 runAsWorker(async (params: WorkerParams) => {
+  if (isWatchMigrationsDirEnabled(params.connection)) {
+    watchers.watchMigrationsDir({
+      connection: params.connection,
+      projectDir: params.projectDir,
+      dropCacheKeyFn: generator.dropCacheKey,
+      closeConnectionFn: connections.close,
+    });
+  }
+
   const result = await pipe(
     TE.Do,
     TE.chain(() => workerHandler(params))
   )();
 
   if (params.connection.keepAlive === false) {
-    closeConnection({ connection: params.connection, projectDir: params.projectDir });
+    connections.close({ connection: params.connection, projectDir: params.projectDir });
   }
 
   return J.stringify(result);
@@ -50,16 +69,18 @@ export type WorkerError =
 export type WorkerResult = GenerateResult;
 
 function workerHandler(params: WorkerParams): TE.TaskEither<WorkerError, WorkerResult> {
-  const strategy = mapRuleOptionsToStartegy(params);
+  const strategy = getConnectionStartegyByRuleOptionConnection(params);
 
   const connnectionPayload = match(strategy)
     .with({ type: "databaseUrl" }, ({ databaseUrl }) =>
-      TE.right(getOrCreateConnection(databaseUrl))
+      TE.right(connections.getOrCreate(databaseUrl))
     )
     .with({ type: "migrations" }, ({ migrationsDir, databaseName, connectionUrl }) => {
-      const connectionOptions = { ...parseConnection(connectionUrl), database: databaseName };
-      const databaseUrl = mapConnectionOptionsToString(connectionOptions);
-      const { sql, isFirst } = getOrCreateConnection(databaseUrl);
+      const { connectionOptions, databaseUrl } = getMigrationDatabaseMetadata({
+        connectionUrl,
+        databaseName,
+      });
+      const { sql, isFirst } = connections.getOrCreate(databaseUrl);
       const connectionPayload: ConnectionPayload = { sql, isFirst, databaseUrl };
 
       if (isFirst) {
@@ -78,9 +99,7 @@ function workerHandler(params: WorkerParams): TE.TaskEither<WorkerError, WorkerR
     .exhaustive();
 
   const generateTask = (params: GenerateParams) => {
-    return TE.tryCatch(() => {
-      return generate(params);
-    }, InternalError.to);
+    return TE.tryCatch(() => generator.generate(params), InternalError.to);
   };
 
   return pipe(
@@ -97,139 +116,4 @@ function workerHandler(params: WorkerParams): TE.TaskEither<WorkerError, WorkerR
     }),
     TE.chainW(TE.fromEither)
   );
-}
-
-interface ConnectionPayload {
-  sql: SQL;
-  databaseUrl: string;
-  isFirst: boolean;
-}
-
-function getOrCreateConnection(databaseUrl: string): ConnectionPayload {
-  return pipe(
-    O.fromNullable(connections.get(databaseUrl)),
-    O.foldW(
-      () => {
-        const sql = postgres(databaseUrl);
-        connections.set(databaseUrl, sql);
-        return { sql: sql, databaseUrl, isFirst: true };
-      },
-      (sql) => ({ sql, databaseUrl, isFirst: false })
-    )
-  );
-}
-
-function runMigrations(params: { migrationsPath: string; sql: SQL }) {
-  const runSingleMigrationFileWithSql = (filePath: string) => {
-    return runSingleMigrationFile(params.sql, filePath);
-  };
-
-  return pipe(
-    TE.Do,
-    TE.chain(() => getMigrationFiles(params.migrationsPath)),
-    TE.chainW((files) => TE.sequenceSeqArray(files.map(runSingleMigrationFileWithSql)))
-  );
-}
-
-function findDeepSqlFiles(migrationsPath: string) {
-  const sqlFilePaths: string[] = [];
-
-  function findDeepSqlFilesRecursively(dir: string) {
-    const files = fs.readdirSync(dir);
-
-    files.forEach((file) => {
-      const filePath = path.join(dir, file);
-      const isDirectory = fs.statSync(filePath).isDirectory();
-
-      if (isDirectory) {
-        findDeepSqlFilesRecursively(filePath);
-      } else if (filePath.endsWith(".sql")) {
-        sqlFilePaths.push(filePath);
-      }
-    });
-  }
-
-  findDeepSqlFilesRecursively(migrationsPath);
-
-  return sqlFilePaths;
-}
-
-function getMigrationFiles(migrationsPath: string) {
-  return pipe(
-    E.tryCatch(() => findDeepSqlFiles(migrationsPath), E.toError),
-    TE.fromEither,
-    TE.mapLeft(InvalidMigrationsPathError.fromErrorC(migrationsPath))
-  );
-}
-
-function runSingleMigrationFile(sql: SQL, filePath: string) {
-  return pipe(
-    TE.tryCatch(() => fs.promises.readFile(filePath).then((x) => x.toString()), E.toError),
-    TE.chain((content) => TE.tryCatch(() => sql.unsafe(content), E.toError)),
-    TE.mapLeft(InvalidMigrationError.fromErrorC(filePath))
-  );
-}
-
-type Strategy =
-  | {
-      type: "databaseUrl";
-      databaseUrl: string;
-    }
-  | {
-      type: "migrations";
-      migrationsDir: string;
-      connectionUrl: string;
-      databaseName: string;
-    };
-
-function mapRuleOptionsToStartegy(params: {
-  connection: RuleOptionConnection;
-  projectDir: string;
-}): Strategy {
-  const { connection, projectDir } = params;
-
-  if ("databaseUrl" in connection) {
-    return { type: "databaseUrl", ...connection };
-  }
-
-  if ("migrationsDir" in connection) {
-    const DEFAULT_CONNECTION_URL = "postgres://postgres:postgres@localhost:5432/postgres";
-
-    return {
-      type: "migrations",
-      connectionUrl: DEFAULT_CONNECTION_URL,
-      databaseName: getDatabaseName({
-        databaseName: connection.databaseName,
-        migrationsDir: connection.migrationsDir,
-        projectDir: projectDir,
-      }),
-      ...connection,
-    };
-  }
-
-  return match(connection).exhaustive();
-}
-
-function closeConnection(params: { connection: RuleOptionConnection; projectDir: string }) {
-  const { connection, projectDir } = params;
-  const strategy = mapRuleOptionsToStartegy({ connection, projectDir });
-
-  match(strategy)
-    .with({ type: "databaseUrl" }, ({ databaseUrl }) => {
-      const sql = connections.get(databaseUrl);
-      if (sql) {
-        sql.end();
-        connections.delete(databaseUrl);
-      }
-    })
-    .with({ type: "migrations" }, ({ connectionUrl, databaseName }) => {
-      const connectionOptions = { ...parseConnection(connectionUrl), database: databaseName };
-      const databaseUrl = mapConnectionOptionsToString(connectionOptions);
-      const sql = connections.get(databaseUrl);
-      if (sql) {
-        sql.end();
-        connections.delete(databaseUrl);
-      }
-    })
-    .exhaustive();
 }

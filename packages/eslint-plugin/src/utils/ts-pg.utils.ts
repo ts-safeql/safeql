@@ -1,9 +1,8 @@
 import { InvalidQueryError } from "@ts-safeql/shared";
-import { ParserServices, TSESTree } from "@typescript-eslint/utils";
-import { either } from "fp-ts";
-import { pipe } from "fp-ts/lib/function";
-import ts, { TypeChecker } from "typescript";
 import { TSESTreeToTSNode } from "@typescript-eslint/typescript-estree";
+import { ParserServices, TSESTree } from "@typescript-eslint/utils";
+import ts, { TypeChecker } from "typescript";
+import { E, pipe } from "./fp-ts";
 
 export function mapTemplateLiteralToQueryText(
   quasi: TSESTree.TemplateLiteral,
@@ -27,8 +26,8 @@ export function mapTemplateLiteralToQueryText(
       mapTsTypeStringToPgType
     );
 
-    if (either.isLeft(pgType)) {
-      return either.left(InvalidQueryError.of(pgType.left, expression));
+    if (E.isLeft(pgType)) {
+      return E.left(InvalidQueryError.of(pgType.left, expression));
     }
 
     const pgTypeValue = pgType.right;
@@ -36,7 +35,7 @@ export function mapTemplateLiteralToQueryText(
     $queryText += `$${++$idx}::${pgTypeValue}`;
   }
 
-  return either.right($queryText);
+  return E.right($queryText);
 }
 
 function mapExpressionToTsTypeString(params: {
@@ -94,26 +93,26 @@ function mapTsTypeStringToPgType(params: {
     const whenFalseType = tsFlagToPgTypeMap[whenFalse.flags];
 
     if (whenTrueType === undefined || whenFalseType === undefined) {
-      return either.left(
+      return E.left(
         `Unsupported conditional expression flags (true = ${whenTrue.flags}, false = ${whenFalse.flags})`
       );
     }
 
     if (whenTrueType !== whenFalseType) {
-      return either.left(
+      return E.left(
         `Conditional expression must have the same type (true = ${whenTrueType}, false = ${whenFalseType})`
       );
     }
 
-    return either.right(whenTrueType);
+    return E.right(whenTrueType);
   }
 
   if (params.node.kind in tsKindToPgTypeMap) {
-    return either.right(tsKindToPgTypeMap[params.node.kind]);
+    return E.right(tsKindToPgTypeMap[params.node.kind]);
   }
 
   if (params.type.flags in tsFlagToPgTypeMap) {
-    return either.right(tsFlagToPgTypeMap[params.type.flags]);
+    return E.right(tsFlagToPgTypeMap[params.type.flags]);
   }
 
   const typeStr = params.checker.typeToString(params.type);
@@ -123,9 +122,9 @@ function mapTsTypeStringToPgType(params: {
 
   if (isSignularTypeSupported) {
     return isArray
-      ? either.right(`${tsTypeToPgTypeMap[singularType]}[]`)
-      : either.right(tsTypeToPgTypeMap[singularType]);
+      ? E.right(`${tsTypeToPgTypeMap[singularType]}[]`)
+      : E.right(tsTypeToPgTypeMap[singularType]);
   }
 
-  return either.left(`the type "${typeStr}" is not supported`);
+  return E.left(`the type "${typeStr}" is not supported`);
 }

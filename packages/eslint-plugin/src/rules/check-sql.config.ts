@@ -5,7 +5,10 @@ import z from "zod";
 import { E, pipe } from "../utils/fp-ts";
 import { Config, Options, RuleContext, UserConfigFile } from "./check-sql.rule";
 
-export function getConfigFromFileWithContext(params: { context: RuleContext; projectDir: string }) {
+export function getConfigFromFileWithContext(params: {
+  context: RuleContext;
+  projectDir: string;
+}): Config {
   if (!isConfigFileRuleOptions(params.context.options[0])) {
     return params.context.options[0];
   }
