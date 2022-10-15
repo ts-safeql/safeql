@@ -1,5 +1,14 @@
 # @ts-safeql/generate
 
+## 0.0.7
+
+### Patch Changes
+
+- a6b0301: expose `createGenerator` which creates a `generate` function with a cache inside (rather than global)
+- Updated dependencies [a6b0301]
+  - @ts-safeql/shared@0.0.6
+  - @ts-safeql/test-utils@0.0.6
+
 ## 0.0.6
 
 ### Patch Changes

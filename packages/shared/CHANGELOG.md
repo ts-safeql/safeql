@@ -1,5 +1,11 @@
 # @ts-safeql/shared
 
+## 0.0.6
+
+### Patch Changes
+
+- a6b0301: add getOrSetFromMap
+
 ## 0.0.5
 
 ### Patch Changes
