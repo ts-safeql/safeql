@@ -1,5 +1,16 @@
 # @ts-safeql/eslint-plugin
 
+## 0.0.19
+
+### Patch Changes
+
+- a6b0301: Allow to watch for migrations dir for cache invalidation (can be turned off with `connection.watchMode: false`)
+- Updated dependencies [a6b0301]
+- Updated dependencies [a6b0301]
+  - @ts-safeql/generate@0.0.7
+  - @ts-safeql/shared@0.0.6
+  - @ts-safeql/test-utils@0.0.6
+
 ## 0.0.18
 
 ### Patch Changes
