@@ -5,4 +5,4 @@
 
 fix a bug where columns were non-nullable while they should've been due to right/full join expressions
 
-https://user-images.githubusercontent.com/10504365/196817384-f1d7d221-9085-48ca-b26b-d2b4f523597c.mp4
+![column nullability by joins](https://user-images.githubusercontent.com/10504365/196818229-c6b43fa3-8a48-4891-800b-0151c35077d8.gif)
