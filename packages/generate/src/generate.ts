@@ -63,7 +63,7 @@ async function generate(
 ): Promise<either.Either<GenerateError, GenerateResult>> {
   const { sql, query, cacheMetadata = true } = params;
 
-  const { pgCols, pgColsByTableOidCache, pgTypes } = cacheMetadata
+  const { pgColsByTableOidCache, pgTypes } = cacheMetadata
     ? await getOrSetFromMap({
         map: cacheMap,
         key: params.cacheKey,

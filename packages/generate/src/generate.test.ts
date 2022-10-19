@@ -7,7 +7,7 @@ import { flow, identity, pipe } from "fp-ts/function";
 import { parseQuery } from "libpg-query";
 import { before, test } from "mocha";
 import { Sql } from "postgres";
-import { createGenerator, GenerateParams } from "./generate";
+import { createGenerator } from "./generate";
 
 type SQL = Sql<Record<string, unknown>>;
 
