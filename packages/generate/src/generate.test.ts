@@ -136,6 +136,32 @@ test("select with left join should return all cols from left join as nullable", 
   });
 });
 
+test("select with right join should return all cols from the other table as nullable", async () => {
+  await testQuery({
+    query: `
+        SELECT
+            caregiver.id as caregiver_id,
+            caregiver_agency.id as assoc_id
+        FROM caregiver
+            RIGHT JOIN caregiver_agency ON caregiver.id = caregiver_agency.caregiver_id
+    `,
+    expected: `{ caregiver_id: number | null; assoc_id: number; }`,
+  });
+});
+
+test("select with full join should return all cols as nullable", async () => {
+  await testQuery({
+    query: `
+        SELECT
+            caregiver.id as caregiver_id,
+            caregiver_agency.id as assoc_id
+        FROM caregiver
+            FULL JOIN caregiver_agency ON caregiver.id = caregiver_agency.caregiver_id
+    `,
+    expected: `{ caregiver_id: number | null; assoc_id: number | null; }`,
+  });
+});
+
 test("select with duplicate columns should throw duplicate columns error", async () => {
   await testQuery({
     query: `

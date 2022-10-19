@@ -1,4 +1,5 @@
 import {
+  assertNever,
   defaultTypeMapping,
   DuplicateColumnsError,
   getOrSetFromMap,
@@ -11,7 +12,11 @@ import {
 import { either } from "fp-ts";
 import postgres, { PostgresError as OriginalPostgresError } from "postgres";
 import { ColType } from "./utils/colTypes";
-import { getLeftJoinTablesFromParsed } from "./utils/getLeftJoinTables";
+import {
+  FlattenedRelationWithJoins,
+  flattenRelationsWithJoinsMap,
+  getRelationsWithJoins,
+} from "./utils/get-relations-with-joins";
 
 type JSToPostgresTypeMap = Record<string, unknown>;
 type Sql = postgres.Sql<JSToPostgresTypeMap>;
@@ -91,9 +96,7 @@ async function generate(
       );
     }
 
-    const leftTables = getLeftJoinTablesFromParsed(params.pgParsed).map(
-      (tableName) => pgCols.find((col) => col.tableName === tableName)!.tableOid
-    );
+    const relationsWithJoins = flattenRelationsWithJoinsMap(getRelationsWithJoins(params.pgParsed));
 
     const columns = result.columns.map((col): ColumnAnalysisResult => {
       const introspected = pgColsByTableOidCache
@@ -108,7 +111,7 @@ async function generate(
       result: mapColumnAnalysisResultsToTypeLiteral({
         columns,
         pgTypes,
-        leftTables,
+        relationsWithJoins,
         typesMap,
         fieldTransform: params.fieldTransform,
       }),
@@ -146,7 +149,7 @@ type ColumnAnalysisResult =
 function mapColumnAnalysisResultsToTypeLiteral(params: {
   columns: ColumnAnalysisResult[];
   pgTypes: PgTypeRow[];
-  leftTables: number[];
+  relationsWithJoins: FlattenedRelationWithJoins[];
   typesMap: Record<string, string>;
   fieldTransform: IdentiferCase | undefined;
 }) {
@@ -154,7 +157,7 @@ function mapColumnAnalysisResultsToTypeLiteral(params: {
     const propertySignature = mapColumnAnalysisResultToPropertySignature({
       col,
       pgTypes: params.pgTypes,
-      leftTables: params.leftTables,
+      relationsWithJoins: params.relationsWithJoins,
       typesMap: params.typesMap,
       fieldTransform: params.fieldTransform,
     });
@@ -169,23 +172,69 @@ function buildInterfacePropertyValue(params: { key: string; value: string; isNul
   return `${params.key}: ${params.isNullable ? `${params.value} | null` : params.value}`;
 }
 
+function isNullableDueToRelation(params: {
+  col: PgColRow;
+  relationsWithJoins: FlattenedRelationWithJoins[];
+}) {
+  const { col, relationsWithJoins } = params;
+
+  const findByJoin = relationsWithJoins.find((x) => x.joinRelName === col.tableName);
+
+  if (findByJoin !== undefined) {
+    switch (findByJoin.joinType) {
+      case "JOIN_FULL":
+      case "JOIN_LEFT":
+        return true;
+      case "JOIN_ANTI":
+      case "JOIN_INNER":
+      case "JOIN_RIGHT":
+      case "JOIN_SEMI":
+        return false;
+      default:
+        assertNever(findByJoin.joinType);
+    }
+  }
+
+  const findByRel = relationsWithJoins.filter((x) => x.relName === col.tableName);
+
+  for (const rel of findByRel) {
+    switch (rel.joinType) {
+      case "JOIN_RIGHT":
+      case "JOIN_FULL":
+        return true;
+      case "JOIN_LEFT":
+      case "JOIN_ANTI":
+      case "JOIN_INNER":
+      case "JOIN_SEMI":
+        continue;
+      default:
+        assertNever(rel.joinType);
+    }
+  }
+
+  return false;
+}
+
 function mapColumnAnalysisResultToPropertySignature(params: {
   col: ColumnAnalysisResult;
   pgTypes: PgTypeRow[];
-  leftTables: number[];
+  relationsWithJoins: FlattenedRelationWithJoins[];
   typesMap: Record<string, string>;
   fieldTransform: IdentiferCase | undefined;
 }) {
   if ("introspected" in params.col) {
     const tsType = params.typesMap[params.col.introspected.colType];
     const value = params.col.introspected.colNotNull ? tsType : `${tsType} | null`;
-    const isFromLeftJoin = params.leftTables.includes(params.col.introspected.tableOid);
     const key = params.col.described.name ?? params.col.introspected.colName;
+    const isNullable = isNullableDueToRelation({
+      col: params.col.introspected,
+      relationsWithJoins: params.relationsWithJoins,
+    });
 
     return buildInterfacePropertyValue({
       key: toCase(key, params.fieldTransform),
       value: value,
-      isNullable: isFromLeftJoin,
+      isNullable: isNullable,
     });
   }
 
