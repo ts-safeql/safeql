@@ -240,6 +240,59 @@ RuleTester.describe("check-sql", () => {
           sql\`insert into agency (name) values ('test') returning id\`);
         `,
       },
+      {
+        filename,
+        options: withConnection(connections.base),
+        name: "type annotation with a valid type reference",
+        code: `
+          type Agency = { id: number; name: string };
+          conn.query<Agency>(sql\`select id, name from agency\`);
+        `,
+      },
+      {
+        filename,
+        options: withConnection(connections.base),
+        name: "type annotation with a valid type reference (interface)",
+        code: `
+          interface Agency { id: number; name: string }
+          conn.query<Agency>(sql\`select id, name from agency\`);
+        `,
+      },
+      {
+        filename,
+        options: withConnection(connections.base),
+        name: "type annotation with a valid intersection",
+        code: `
+          conn.query<{ id: number; } & { name: string; }>(sql\`select id, name from agency\`);
+        `,
+      },
+      {
+        filename,
+        options: withConnection(connections.base),
+        name: "type annotation with Pick",
+        code: `
+          interface Agency { id: number; name: string }
+          conn.query<Pick<Agency, "id" | "name">>(sql\`select id, name from agency\`);
+        `,
+      },
+      {
+        filename,
+        options: withConnection(connections.base),
+        name: "type annotation with Pick & intersection",
+        code: `
+          interface Agency { id: number; name: string }
+          conn.query<Pick<Agency, "id"> & { name: string; }>(sql\`select id, name from agency\`);
+        `,
+      },
+      {
+        filename,
+        options: withConnection(connections.base),
+        name: "type annotation with Pick overriden by intersection",
+        code: `
+          interface Agency { id: number; name: string | null }
+          conn.query<Agency & { name: string; }>(sql\`select id, name from agency\`);
+        `,
+      },
     ],
     invalid: [
       {
@@ -363,7 +416,7 @@ RuleTester.describe("check-sql", () => {
           {
             messageId: "incorrectTypeAnnotations",
             data: {
-              expected: "{  }",
+              expected: "{ }",
               actual: "No type annotation",
             },
             line: 1,
