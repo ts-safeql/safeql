@@ -426,10 +426,14 @@ function getTypeAnnotationState(params: {
 
   return pipe(
     E.Do,
-    E.chain(() => E.of(toInlineLiteralTypeString({
-      properties: new Map(typeProperties),
-      isArray: typeNode.type === TSESTree.AST_NODE_TYPES.TSArrayType
-    }))),
+    E.chain(() =>
+      E.of(
+        toInlineLiteralTypeString({
+          properties: new Map(typeProperties),
+          isArray: typeNode.type === TSESTree.AST_NODE_TYPES.TSArrayType,
+        })
+      )
+    ),
     E.foldW(
       (e) => e,
       (v) => getTypesEquality(v, result)
