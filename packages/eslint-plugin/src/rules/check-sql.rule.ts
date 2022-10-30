@@ -1,5 +1,5 @@
 import { GenerateResult } from "@ts-safeql/generate";
-import { objectKeysNonEmpty, PostgresError, defaultTypeMapping } from "@ts-safeql/shared";
+import { defaultTypeMapping, objectKeysNonEmpty, PostgresError } from "@ts-safeql/shared";
 import { ESLintUtils, ParserServices, TSESLint, TSESTree } from "@typescript-eslint/utils";
 import pgParser from "libpg-query";
 import { createSyncFn } from "synckit";
@@ -9,10 +9,10 @@ import z from "zod";
 import zodToJsonSchema from "zod-to-json-schema";
 import { ESTreeUtils } from "../utils";
 import { E, flow, J, pipe } from "../utils/fp-ts";
+import { getTypeProperties, toInlineLiteralTypeString } from "../utils/get-type-properties";
 import { memoize } from "../utils/memoize";
 import { locateNearestPackageJsonDir } from "../utils/node.utils";
 import { mapTemplateLiteralToQueryText } from "../utils/ts-pg.utils";
-import { tsTypeToText } from "../utils/ts.utils";
 import { getConfigFromFileWithContext } from "./check-sql.config";
 import {
   reportBaseError,
@@ -417,13 +417,24 @@ function getTypeAnnotationState(params: {
   }
 
   const typeNode = typeParameter.params[0];
-  const current = tsTypeToText({ checker, parser, typeNode });
 
-  if (current === "UNKNOWN") {
-    return "UNKNOWN" as const;
-  }
+  const typeProperties = getTypeProperties({
+    checker,
+    parser,
+    typeNode,
+  });
 
-  return getTypesEquality(current, result);
+  return pipe(
+    E.Do,
+    E.chain(() => E.of(toInlineLiteralTypeString({
+      properties: new Map(typeProperties),
+      isArray: typeNode.type === TSESTree.AST_NODE_TYPES.TSArrayType
+    }))),
+    E.foldW(
+      (e) => e,
+      (v) => getTypesEquality(v, result)
+    )
+  );
 }
 
 // TODO this should be improved.
