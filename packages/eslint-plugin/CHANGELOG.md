@@ -1,5 +1,11 @@
 # @ts-safeql/eslint-plugin
 
+## 0.0.21
+
+### Patch Changes
+
+- 3517c62: improved the type comparison between actual and expected query results (e.g., `Pick<Entity, "id"> = { id: number }`)
+
 ## 0.0.20
 
 ### Patch Changes
