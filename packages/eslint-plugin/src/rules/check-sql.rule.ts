@@ -324,7 +324,7 @@ function reportCheck(params: {
           parser: parser,
         });
 
-        if (typeAnnotationState === "INVALID" || typeAnnotationState === "UNKNOWN") {
+        if (typeAnnotationState === "INVALID") {
           return reportInvalidTypeAnnotations({
             context: context,
             typeParameter: typeParameter,
