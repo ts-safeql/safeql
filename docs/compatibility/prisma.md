@@ -68,7 +68,7 @@ const query = prisma.$queryRaw(
 // After bug fix:
 const query = prisma.$queryRaw(
               ~~~~~~~~~~~~~~~~ Error: Query is missing type annotation
-  Prisma.sql`SELECT idd FROM users`
+  Prisma.sql`SELECT id FROM users`
 )
 
 // After: ✅
