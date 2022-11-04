@@ -74,7 +74,7 @@ const query = sequelize.query("SELECT id FROM users");
               ~~~~~~~~~~~~~~~ Error: Query is missing type annotation
 
 // After: ✅
-const query = sequelize.query(sql`SELECT idd FROM users`);
+const query = sequelize.query(sql`SELECT id FROM users`);
 ```
 
 </div>
