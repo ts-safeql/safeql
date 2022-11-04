@@ -74,7 +74,7 @@ const query = client.query("SELECT id FROM users");
               ~~~~~~~~~~~~ Error: Query is missing type annotation
 
 // After: ✅
-const query = client.query(sql`SELECT idd FROM users`);
+const query = client.query(sql`SELECT id FROM users`);
 ```
 
 </div>
