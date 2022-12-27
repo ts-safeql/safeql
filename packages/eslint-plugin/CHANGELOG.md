@@ -1,5 +1,13 @@
 # @ts-safeql/eslint-plugin
 
+## 0.0.22
+
+### Patch Changes
+
+- ea64b55: fixed an issue when introspecting a nullable column that was evaluated as "any" caused a mismatch
+- Updated dependencies [ea64b55]
+  - @ts-safeql/generate@0.0.9
+
 ## 0.0.21
 
 ### Patch Changes
