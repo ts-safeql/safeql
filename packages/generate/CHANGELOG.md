@@ -1,5 +1,11 @@
 # @ts-safeql/generate
 
+## 0.0.9
+
+### Patch Changes
+
+- ea64b55: fixed an issue when introspecting a nullable column that was evaluated as "any" caused a mismatch
+
 ## 0.0.8
 
 ### Patch Changes
