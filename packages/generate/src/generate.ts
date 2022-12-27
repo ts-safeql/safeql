@@ -169,7 +169,9 @@ function mapColumnAnalysisResultsToTypeLiteral(params: {
 }
 
 function buildInterfacePropertyValue(params: { key: string; value: string; isNullable: boolean }) {
-  return `${params.key}: ${params.isNullable ? `${params.value} | null` : params.value}`;
+  const isNullable = params.isNullable && ["any", "null"].includes(params.value) === false;
+
+  return `${params.key}: ${isNullable ? `${params.value} | null` : params.value}`;
 }
 
 function isNullableDueToRelation(params: {
@@ -223,10 +225,9 @@ function mapColumnAnalysisResultToPropertySignature(params: {
   fieldTransform: IdentiferCase | undefined;
 }) {
   if ("introspected" in params.col) {
-    const tsType = params.typesMap[params.col.introspected.colType];
-    const value = params.col.introspected.colNotNull ? tsType : `${tsType} | null`;
+    const value = params.typesMap[params.col.introspected.colType];
     const key = params.col.described.name ?? params.col.introspected.colName;
-    const isNullable = isNullableDueToRelation({
+    const isNullable = !params.col.introspected.colNotNull || isNullableDueToRelation({
       col: params.col.introspected,
       relationsWithJoins: params.relationsWithJoins,
     });

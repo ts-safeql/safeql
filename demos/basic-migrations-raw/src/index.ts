@@ -4,11 +4,13 @@ import postgres from "postgres";
 export function check(client: Db) {
   const sql = postgres();
 
-  client.queryOne<{ id: number; post_id: number | null; body: string | null }>(sql`
-    SELECT * FROM comments
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  client.queryOne<{ id: number; post_id: number | null; metadata: any; body: string | null }>(sql`
+  SELECT * FROM comments
   `);
-
-  client.queryOne<{ id: number; post_id: number | null; body: string | null }>(sql`
+  
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  client.queryOne<{ id: number; post_id: number | null; metadata: any; body: string | null }>(sql`
     SELECT * FROM comments
   `);
 }
