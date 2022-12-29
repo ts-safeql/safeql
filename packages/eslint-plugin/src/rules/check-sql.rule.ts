@@ -474,7 +474,7 @@ export default createRule({
     },
     messages: messages,
     type: "problem",
-    schema: zodToJsonSchema(RuleOptions, { target: "jsonSchema7" }) as object,
+    schema: zodToJsonSchema(RuleOptions, { target: "openApi3" }) as object,
   },
   defaultOptions: [],
   create(context) {
