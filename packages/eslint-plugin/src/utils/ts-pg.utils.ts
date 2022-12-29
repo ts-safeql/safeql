@@ -2,12 +2,14 @@ import { InvalidQueryError } from "@ts-safeql/shared";
 import { TSESTreeToTSNode } from "@typescript-eslint/typescript-estree";
 import { ParserServices, TSESTree } from "@typescript-eslint/utils";
 import ts, { TypeChecker } from "typescript";
+import { RuleOptionConnection } from "../rules/check-sql.rule";
 import { E, pipe } from "./fp-ts";
 
 export function mapTemplateLiteralToQueryText(
   quasi: TSESTree.TemplateLiteral,
   parser: ParserServices,
-  checker: ts.TypeChecker
+  checker: ts.TypeChecker,
+  options: RuleOptionConnection
 ) {
   let $idx = 0;
   let $queryText = "";
@@ -21,9 +23,8 @@ export function mapTemplateLiteralToQueryText(
 
     const expression = quasi.expressions[$idx];
 
-    const pgType = pipe(
-      mapExpressionToTsTypeString({ expression, parser, checker }),
-      mapTsTypeStringToPgType
+    const pgType = pipe(mapExpressionToTsTypeString({ expression, parser, checker }), (params) =>
+      mapTsTypeStringToPgType({ ...params, checker, options })
     );
 
     if (E.isLeft(pgType)) {
@@ -48,7 +49,6 @@ function mapExpressionToTsTypeString(params: {
   return {
     node: tsNode,
     type: tsType,
-    checker: params.checker,
   };
 }
 
@@ -69,6 +69,17 @@ const tsKindToPgTypeMap: Record<number, string> = {
   [ts.SyntaxKind.BigIntLiteral]: "bigint",
 };
 
+const tsFlagToTsTypeStringMap: Record<number, string> = {
+  [ts.TypeFlags.String]: "string",
+  [ts.TypeFlags.Number]: "number",
+  [ts.TypeFlags.Boolean]: "boolean",
+  [ts.TypeFlags.BigInt]: "bigint",
+  [ts.TypeFlags.NumberLiteral]: "number",
+  [ts.TypeFlags.StringLiteral]: "string",
+  [ts.TypeFlags.BooleanLiteral]: "boolean",
+  [ts.TypeFlags.BigIntLiteral]: "bigint",
+};
+
 const tsFlagToPgTypeMap: Record<number, string> = {
   [ts.TypeFlags.String]: "text",
   [ts.TypeFlags.Number]: "int",
@@ -84,6 +95,7 @@ function mapTsTypeStringToPgType(params: {
   checker: TypeChecker;
   node: TSESTreeToTSNode<TSESTree.Expression>;
   type: ts.Type;
+  options: RuleOptionConnection;
 }) {
   if (params.node.kind === ts.SyntaxKind.ConditionalExpression) {
     const whenTrue = params.checker.getTypeAtLocation(params.node.whenTrue);
@@ -107,6 +119,22 @@ function mapTsTypeStringToPgType(params: {
     return E.right(whenTrueType);
   }
 
+  if (params.node.kind === ts.SyntaxKind.Identifier) {
+    const symbol = params.checker.getSymbolAtLocation(params.node);
+    const type = params.checker.getTypeOfSymbolAtLocation(symbol!, params.node);
+
+    if (isTsUnionType(type)) {
+      const isUnionOfTheSameType = type.types.every((t) => t.flags === type.types[0].flags);
+      const pgType = tsFlagToPgTypeMap[type.types[0].flags];
+
+      if (!isUnionOfTheSameType || pgType === undefined) {
+        return E.left(createMixedTypesInUnionErrorMessage(type.types.map((t) => t.flags)));
+      }
+
+      return E.right(pgType);
+    }
+  }
+
   if (params.node.kind in tsKindToPgTypeMap) {
     return E.right(tsKindToPgTypeMap[params.node.kind]);
   }
@@ -126,5 +154,27 @@ function mapTsTypeStringToPgType(params: {
       : E.right(tsTypeToPgTypeMap[singularType]);
   }
 
+  if (params.options.overrides?.types !== undefined) {
+    const override = Object.entries(params.options.overrides.types)
+      .map(([key, value]) => ({ pgType: key, tsType: value }))
+      .find((entry) => entry.tsType === singularType);
+
+    if (override !== undefined) {
+      return isArray ? E.right(`${override.pgType}[]`) : E.right(override.pgType);
+    }
+  }
+
   return E.left(`the type "${typeStr}" is not supported`);
+}
+
+function isTsUnionType(type: ts.Type): type is ts.UnionType {
+  return type.flags === ts.TypeFlags.Union;
+}
+
+function createMixedTypesInUnionErrorMessage(flags: ts.TypeFlags[]) {
+  const flagsAsText = flags
+    .map((flag) => tsFlagToTsTypeStringMap[flag] ?? `unknown (${flag})`)
+    .join(", ");
+
+  return `Union types must be of the same type (found ${flagsAsText})`;
 }

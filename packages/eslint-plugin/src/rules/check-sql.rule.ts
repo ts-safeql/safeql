@@ -267,7 +267,7 @@ function reportCheck(params: {
     E.bind("parser", () => E.of(ESLintUtils.getParserServices(context))),
     E.bind("checker", ({ parser }) => E.of(parser.program.getTypeChecker())),
     E.bind("query", ({ parser, checker }) =>
-      mapTemplateLiteralToQueryText(tag.quasi, parser, checker)
+      mapTemplateLiteralToQueryText(tag.quasi, parser, checker, params.connection)
     ),
     E.bindW("pgParsed", ({ query }) => pgParseQueryE(query)),
     E.bindW("result", ({ query, pgParsed }) =>
