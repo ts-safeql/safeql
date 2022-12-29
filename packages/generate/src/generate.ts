@@ -227,10 +227,12 @@ function mapColumnAnalysisResultToPropertySignature(params: {
   if ("introspected" in params.col) {
     const value = params.typesMap[params.col.introspected.colType];
     const key = params.col.described.name ?? params.col.introspected.colName;
-    const isNullable = !params.col.introspected.colNotNull || isNullableDueToRelation({
-      col: params.col.introspected,
-      relationsWithJoins: params.relationsWithJoins,
-    });
+    const isNullable =
+      !params.col.introspected.colNotNull ||
+      isNullableDueToRelation({
+        col: params.col.introspected,
+        relationsWithJoins: params.relationsWithJoins,
+      });
 
     return buildInterfacePropertyValue({
       key: toCase(key, params.fieldTransform),

@@ -457,9 +457,9 @@ RuleTester.describe("check-sql", () => {
             messageId: "invalidQuery",
             data: {
               error: "Union types must be of the same type (found string, number)",
-            }
-          }
-        ]
+            },
+          },
+        ],
       },
     ],
   });
@@ -588,9 +588,7 @@ RuleTester.describe("check-sql", () => {
           const date = new Date();
           sql<{ id: number }>\`select id from table_with_date_col WHERE date_col = \${date}\`
         `,
-        errors: [
-          { messageId: "invalidQuery", line: 3, column: 85, endLine: 3, endColumn: 89 },
-        ]
+        errors: [{ messageId: "invalidQuery", line: 3, column: 85, endLine: 3, endColumn: 89 }],
       },
     ],
   });
