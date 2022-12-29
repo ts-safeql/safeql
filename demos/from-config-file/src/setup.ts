@@ -21,7 +21,8 @@ async function main() {
   await sql.unsafe(`
     CREATE TABLE person (
         id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-        name VARCHAR(255) NOT NULL
+        name VARCHAR(255) NOT NULL,
+        birth_date DATE NOT NULL
     );
 
     CREATE TABLE starship (

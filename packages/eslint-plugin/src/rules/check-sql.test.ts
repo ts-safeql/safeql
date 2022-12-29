@@ -36,6 +36,11 @@ const runMigrations1 = <TTypes extends Record<string, unknown>>(sql: Sql<TTypes>
         caregiver_id INT NOT NULL REFERENCES caregiver(id),
         agency_id INT NOT NULL REFERENCES agency(id)
     );
+
+    CREATE TABLE table_with_date_col (
+        id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+        date_col DATE NOT NULL
+    );
 `);
 
 RuleTester.describe = describe;
@@ -293,6 +298,17 @@ RuleTester.describe("check-sql", () => {
           conn.query<Agency & { name: string; }>(sql\`select id, name from agency\`);
         `,
       },
+      {
+        filename,
+        options: withConnection(connections.base),
+        name: "union string literal from function arg",
+        code: `
+          type UnionStringLiteral = "a" | "b";
+          function run(union: UnionStringLiteral) {
+            conn.query<{ name: string }>(sql\`select name from agency WHERE name = \${union}\`);
+          }
+        `,
+      },
     ],
     invalid: [
       {
@@ -426,6 +442,25 @@ RuleTester.describe("check-sql", () => {
           },
         ],
       },
+      {
+        filename,
+        options: withConnection(connections.base),
+        name: "mixed union literals from function arg",
+        code: `
+          type UnionStringLiteral = "a" | 1;
+          function run(union: UnionStringLiteral) {
+            conn.query<{ name: string }>(sql\`select name from agency WHERE name = \${union}\`);
+          }
+        `,
+        errors: [
+          {
+            messageId: "invalidQuery",
+            data: {
+              error: "Union types must be of the same type (found string, number)",
+            }
+          }
+        ]
+      },
     ],
   });
 
@@ -518,6 +553,17 @@ RuleTester.describe("check-sql", () => {
         }),
         code: "sql<{ id: Integer }>`select id from caregiver`",
       },
+      {
+        name: 'with { date: "Date" }',
+        filename,
+        options: withConnection(connections.withTagName, {
+          overrides: { types: { date: "Date" } },
+        }),
+        code: `
+          const date = new Date();
+          sql<{ id: number }>\`select id from table_with_date_col WHERE date_col = \${date}\`
+        `,
+      },
     ],
     invalid: [
       {
@@ -531,6 +577,20 @@ RuleTester.describe("check-sql", () => {
         errors: [
           { messageId: "incorrectTypeAnnotations", line: 1, column: 5, endLine: 1, endColumn: 19 },
         ],
+      },
+      {
+        name: 'comparing a col with `Date` without { date: "Date" }',
+        filename,
+        options: withConnection(connections.withTagName, {
+          overrides: {},
+        }),
+        code: `
+          const date = new Date();
+          sql<{ id: number }>\`select id from table_with_date_col WHERE date_col = \${date}\`
+        `,
+        errors: [
+          { messageId: "invalidQuery", line: 3, column: 85, endLine: 3, endColumn: 89 },
+        ]
       },
     ],
   });
