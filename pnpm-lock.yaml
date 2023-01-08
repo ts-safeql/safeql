@@ -16,8 +16,8 @@ importers:
 
   demos/basic:
     specifiers:
-      '@ts-safeql-demos/shared': workspace:0.0.0
-      '@ts-safeql/eslint-plugin': workspace:0.0.23
+      '@ts-safeql-demos/shared': workspace:*
+      '@ts-safeql/eslint-plugin': workspace:*
       '@types/node': ^18.11.18
       '@typescript-eslint/eslint-plugin': ^5.47.1
       '@typescript-eslint/parser': ^5.47.1
@@ -39,8 +39,8 @@ importers:
 
   demos/basic-migrations-raw:
     specifiers:
-      '@ts-safeql-demos/shared': workspace:0.0.0
-      '@ts-safeql/eslint-plugin': workspace:0.0.23
+      '@ts-safeql-demos/shared': workspace:*
+      '@ts-safeql/eslint-plugin': workspace:*
       '@typescript-eslint/eslint-plugin': ^5.47.1
       '@typescript-eslint/parser': ^5.47.1
       eslint: ^8.30.0
@@ -58,8 +58,8 @@ importers:
 
   demos/basic-transform-type:
     specifiers:
-      '@ts-safeql-demos/shared': workspace:0.0.0
-      '@ts-safeql/eslint-plugin': workspace:0.0.23
+      '@ts-safeql-demos/shared': workspace:*
+      '@ts-safeql/eslint-plugin': workspace:*
       '@types/node': ^18.11.18
       '@typescript-eslint/eslint-plugin': ^5.47.1
       '@typescript-eslint/parser': ^5.47.1
@@ -81,7 +81,7 @@ importers:
 
   demos/big-project:
     specifiers:
-      '@ts-safeql/eslint-plugin': workspace:0.0.23
+      '@ts-safeql/eslint-plugin': workspace:*
       '@types/node': ^18.11.18
       '@typescript-eslint/eslint-plugin': ^5.47.1
       '@typescript-eslint/parser': ^5.47.1
@@ -102,7 +102,7 @@ importers:
 
   demos/from-config-file:
     specifiers:
-      '@ts-safeql/eslint-plugin': workspace:0.0.23
+      '@ts-safeql/eslint-plugin': workspace:*
       '@types/node': ^18.11.18
       '@typescript-eslint/eslint-plugin': ^5.47.1
       '@typescript-eslint/parser': ^5.47.1
@@ -123,8 +123,8 @@ importers:
 
   demos/multi-connections:
     specifiers:
-      '@ts-safeql-demos/shared': workspace:0.0.0
-      '@ts-safeql/eslint-plugin': workspace:0.0.23
+      '@ts-safeql-demos/shared': workspace:*
+      '@ts-safeql/eslint-plugin': workspace:*
       '@typescript-eslint/eslint-plugin': ^5.47.1
       '@typescript-eslint/parser': ^5.47.1
       eslint: ^8.30.0
@@ -142,8 +142,8 @@ importers:
 
   demos/postgresjs-demo:
     specifiers:
-      '@ts-safeql-demos/shared': workspace:0.0.0
-      '@ts-safeql/eslint-plugin': workspace:0.0.23
+      '@ts-safeql-demos/shared': workspace:*
+      '@ts-safeql/eslint-plugin': workspace:*
       '@types/node': ^18.11.18
       '@typescript-eslint/eslint-plugin': ^5.47.1
       '@typescript-eslint/parser': ^5.47.1
@@ -166,7 +166,7 @@ importers:
   demos/prisma:
     specifiers:
       '@prisma/client': 4.2.0
-      '@ts-safeql/eslint-plugin': workspace:0.0.23
+      '@ts-safeql/eslint-plugin': workspace:*
       '@types/node': ^18.11.18
       '@typescript-eslint/eslint-plugin': ^5.47.1
       '@typescript-eslint/parser': ^5.47.1
