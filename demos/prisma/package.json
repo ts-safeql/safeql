@@ -11,7 +11,7 @@
     "clean": "rm -rf lib"
   },
   "devDependencies": {
-    "@ts-safeql/eslint-plugin": "workspace:0.0.23",
+    "@ts-safeql/eslint-plugin": "workspace:*",
     "@types/node": "^18.11.18",
     "@typescript-eslint/eslint-plugin": "^5.47.1",
     "@typescript-eslint/parser": "^5.47.1",
