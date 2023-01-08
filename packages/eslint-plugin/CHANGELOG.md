@@ -1,5 +1,11 @@
 # @ts-safeql/eslint-plugin
 
+## 0.0.24
+
+### Patch Changes
+
+- a16d812: update libpg-query peer dependency from (^13.2.5) to (>=13.2.5)
+
 ## 0.0.23
 
 ### Patch Changes
