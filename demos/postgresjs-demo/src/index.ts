@@ -1,10 +1,16 @@
 import postgres from "postgres";
 
-export async function check(id: number) {
-  const sql = postgres();
+const sql = postgres();
 
-  sql<{ id: number }[]>`SELECT id FROM person`;
+const bt = 5;
 
-  type Person = { id: number };
-  sql<Person[]>`SELECT id FROM person WHERE id = ${id}`;
-}
+export const personColsFrag = sql`
+    id, name
+`;
+
+const q = sql<{ id: number; name: string; }[]>`
+    SELECT ${personColsFrag}
+    FROM
+      starship
+    GROUP BY ${personColsFrag}
+  `;

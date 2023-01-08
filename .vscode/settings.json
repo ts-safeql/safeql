@@ -1,5 +1,8 @@
 {
   "editor.tabSize": 2,
   "prettier.printWidth": 100,
-  "typescript.tsdk": "node_modules/typescript/lib"
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": true
+  }
 }

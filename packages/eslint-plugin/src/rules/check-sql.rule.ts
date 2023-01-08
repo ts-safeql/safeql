@@ -12,7 +12,7 @@ import { E, flow, J, pipe } from "../utils/fp-ts";
 import { getTypeProperties, toInlineLiteralTypeString } from "../utils/get-type-properties";
 import { memoize } from "../utils/memoize";
 import { locateNearestPackageJsonDir } from "../utils/node.utils";
-import { mapTemplateLiteralToQueryText } from "../utils/ts-pg.utils";
+import { isSqlFragmentByTemplateExpression, mapTemplateLiteralToQueryText } from "../utils/ts-pg.utils";
 import { getConfigFromFileWithContext } from "./check-sql.config";
 import {
   reportBaseError,
@@ -261,6 +261,10 @@ function reportCheck(params: {
   baseNode: TSESTree.BaseNode;
 }) {
   const { context, tag, connection, projectDir, typeParameter, baseNode } = params;
+
+  if (isSqlFragmentByTemplateExpression(tag)) {
+    return;
+  }
 
   return pipe(
     E.Do,
