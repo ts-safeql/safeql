@@ -4,7 +4,9 @@ layout: home
 hero:
   name: SafeQL
   text: Write SQL Queries With Confidence
-  tagline: SafeQL is an ESLint plugin for writing SQL queries in a type-safe way.
+  tagline: |
+    An ESLint plugin for writing SQL queries
+    in a type-safe way.
   image:
     src: /ts-pg-logo.svg
     alt: ts-safeql
