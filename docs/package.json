@@ -10,7 +10,7 @@
   "license": "MIT",
   "devDependencies": {
     "@algolia/client-search": "4.14.2",
-    "vitepress": "1.0.0-alpha.13",
+    "vitepress": "1.0.0-alpha.49",
     "vue": "3.2.39"
   }
 }
