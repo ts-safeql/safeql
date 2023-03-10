@@ -1,5 +1,6 @@
 import path from "path";
 import { TSESTree } from "@typescript-eslint/types";
+import { PostgresError as OriginalPostgresError } from "postgres";
 
 export class DatabaseInitializationError extends Error {
   _tag = "DatabaseInitializationError" as const;
@@ -177,6 +178,24 @@ export class PostgresError extends Error {
 
   static of(params: { queryText: string; message: string; line: string; position: string }) {
     return new PostgresError(params);
+  }
+
+  static to(query: string, error: unknown) {
+    if (error instanceof OriginalPostgresError) {
+      return PostgresError.of({
+        queryText: query,
+        message: error.message,
+        line: error.line,
+        position: error.position,
+      });
+    }
+
+    return PostgresError.of({
+      queryText: query,
+      message: `${error}`,
+      line: "1",
+      position: "1",
+    });
   }
 
   toJSON() {

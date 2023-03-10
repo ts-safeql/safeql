@@ -25,4 +25,14 @@ export function check(client: Db, idsFromParameter: ID[]) {
   client.query<{ id: number }>(sql`
     SELECT id FROM starship WHERE id = ${x ?? 10}
   `);
+
+  type AgencyIdNameType = { id: number; name: string };
+  client.query<AgencyIdNameType>(sql`SELECT id, name FROM person`);
+
+  interface AgencyIdNameInterface {
+    id: number;
+    name: string;
+  }
+  client.query<AgencyIdNameInterface>(sql`SELECT id, name FROM person`);
+  client.query<{ id: number; name: string }>(sql`SELECT id, name FROM person`);
 }

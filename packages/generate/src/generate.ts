@@ -1,21 +1,22 @@
-import { DuplicateColumnsError, groupBy, PostgresError } from "@ts-safeql/shared";
+import {
+  assertNever,
+  defaultTypeMapping,
+  DuplicateColumnsError,
+  getOrSetFromMap,
+  groupBy,
+  IdentiferCase,
+  ParsedQuery,
+  PostgresError,
+  toCase,
+} from "@ts-safeql/shared";
 import { either } from "fp-ts";
-import { Either } from "fp-ts/lib/Either";
 import postgres, { PostgresError as OriginalPostgresError } from "postgres";
-import "source-map-support/register";
-import { ColType, defaultTypeMapping } from "./utils/colTypes";
-import { getLeftJoinTablesFromParsed } from "./utils/getLeftJoinTables";
-
-type CacheKey = string;
-
-const $cacheMap: Map<
-  CacheKey,
-  {
-    pgTypes: postgres.RowList<PgTypeRow[]>;
-    pgCols: PgColRow[];
-    pgColsByTableOidCache: Map<number, PgColRow[]>;
-  }
-> = new Map();
+import { ColType } from "./utils/colTypes";
+import {
+  FlattenedRelationWithJoins,
+  flattenRelationsWithJoinsMap,
+  getRelationsWithJoins,
+} from "./utils/get-relations-with-joins";
 
 type JSToPostgresTypeMap = Record<string, unknown>;
 type Sql = postgres.Sql<JSToPostgresTypeMap>;
@@ -23,43 +24,51 @@ type Sql = postgres.Sql<JSToPostgresTypeMap>;
 export type GenerateResult = { result: string | null; stmt: postgres.Statement; query: string };
 export type GenerateError = DuplicateColumnsError | PostgresError;
 
-async function getDatabaseMetadata(sql: Sql) {
-  const pgTypes = await getPgTypes(sql);
-  const pgCols = await getPgCols(sql);
-  const pgColsByTableOidCache = groupBy(pgCols, "tableOid");
-
-  return { pgTypes, pgCols, pgColsByTableOidCache };
-}
-
-export async function getMetadataFromCacheOrFetch(sql: Sql, cacheKey: CacheKey) {
-  const cache = $cacheMap.get(cacheKey);
-
-  if (cache !== undefined) {
-    return cache;
-  }
-
-  const cacheValue = await getDatabaseMetadata(sql);
-
-  $cacheMap.set(cacheKey, cacheValue);
-
-  return cacheValue;
-}
+type CacheKey = string;
 
 export interface GenerateParams {
   sql: Sql;
   query: string;
-  pgParsed: unknown;
+  pgParsed: ParsedQuery.Root;
   cacheMetadata?: boolean;
-  cacheKey: string;
+  cacheKey: CacheKey;
+  fieldTransform: IdentiferCase | undefined;
+  overrides?: Partial<{
+    types: Record<string, string>;
+  }>;
 }
 
-export async function generate(
-  params: GenerateParams
-): Promise<Either<GenerateError, GenerateResult>> {
+type CacheMap = Map<
+  CacheKey,
+  {
+    pgTypes: postgres.RowList<PgTypeRow[]>;
+    pgCols: PgColRow[];
+    pgColsByTableOidCache: Map<number, PgColRow[]>;
+  }
+>;
+
+export function createGenerator() {
+  const cacheMap: CacheMap = new Map();
+
+  return {
+    generate: (params: GenerateParams) => generate(params, cacheMap),
+    dropCacheKey: (cacheKey: CacheKey) => cacheMap.delete(cacheKey),
+    clearCache: () => cacheMap.clear(),
+  };
+}
+
+async function generate(
+  params: GenerateParams,
+  cacheMap: CacheMap
+): Promise<either.Either<GenerateError, GenerateResult>> {
   const { sql, query, cacheMetadata = true } = params;
 
-  const { pgCols, pgColsByTableOidCache, pgTypes } = cacheMetadata
-    ? await getMetadataFromCacheOrFetch(sql, params.cacheKey)
+  const { pgColsByTableOidCache, pgTypes } = cacheMetadata
+    ? await getOrSetFromMap({
+        map: cacheMap,
+        key: params.cacheKey,
+        value: () => getDatabaseMetadata(sql),
+      })
     : await getDatabaseMetadata(sql);
 
   try {
@@ -68,10 +77,6 @@ export async function generate(
     if (result.columns === undefined || result.columns === null || result.columns.length === 0) {
       return either.right({ result: null, stmt: result, query: query });
     }
-
-    const leftTables = getLeftJoinTablesFromParsed(params.pgParsed).map(
-      (tableName) => pgCols.find((col) => col.tableName === tableName)!.tableOid
-    );
 
     const duplicateCols = result.columns.filter((col, index) =>
       result.columns.find((c, i) => c.name === col.name && i != index)
@@ -91,6 +96,8 @@ export async function generate(
       );
     }
 
+    const relationsWithJoins = flattenRelationsWithJoinsMap(getRelationsWithJoins(params.pgParsed));
+
     const columns = result.columns.map((col): ColumnAnalysisResult => {
       const introspected = pgColsByTableOidCache
         .get(col.table)
@@ -98,8 +105,16 @@ export async function generate(
       return introspected === undefined ? { described: col } : { described: col, introspected };
     });
 
+    const typesMap = { ...defaultTypeMapping, ...params.overrides?.types };
+
     return either.right({
-      result: mapColumnAnalysisResultsToTypeLiteral({ columns, pgTypes, leftTables }),
+      result: mapColumnAnalysisResultsToTypeLiteral({
+        columns,
+        pgTypes,
+        relationsWithJoins,
+        typesMap,
+        fieldTransform: params.fieldTransform,
+      }),
       stmt: result,
       query: query,
     });
@@ -119,6 +134,14 @@ export async function generate(
   }
 }
 
+async function getDatabaseMetadata(sql: Sql) {
+  const pgTypes = await getPgTypes(sql);
+  const pgCols = await getPgCols(sql);
+  const pgColsByTableOidCache = groupBy(pgCols, "tableOid");
+
+  return { pgTypes, pgCols, pgColsByTableOidCache };
+}
+
 type ColumnAnalysisResult =
   | { described: postgres.Column<string> }
   | { described: postgres.Column<string>; introspected: PgColRow };
@@ -126,13 +149,17 @@ type ColumnAnalysisResult =
 function mapColumnAnalysisResultsToTypeLiteral(params: {
   columns: ColumnAnalysisResult[];
   pgTypes: PgTypeRow[];
-  leftTables: number[];
+  relationsWithJoins: FlattenedRelationWithJoins[];
+  typesMap: Record<string, string>;
+  fieldTransform: IdentiferCase | undefined;
 }) {
   const properties = params.columns.map((col) => {
     const propertySignature = mapColumnAnalysisResultToPropertySignature({
       col,
       pgTypes: params.pgTypes,
-      leftTables: params.leftTables,
+      relationsWithJoins: params.relationsWithJoins,
+      typesMap: params.typesMap,
+      fieldTransform: params.fieldTransform,
     });
 
     return `${propertySignature};`;
@@ -142,35 +169,126 @@ function mapColumnAnalysisResultsToTypeLiteral(params: {
 }
 
 function buildInterfacePropertyValue(params: { key: string; value: string; isNullable: boolean }) {
-  return `${params.key}: ${params.isNullable ? `Nullable<${params.value}>` : params.value}`;
+  const isNullable = params.isNullable && ["any", "null"].includes(params.value) === false;
+
+  return `${params.key}: ${isNullable ? `${params.value} | null` : params.value}`;
+}
+
+function isNullableDueToRelation(params: {
+  col: PgColRow;
+  relationsWithJoins: FlattenedRelationWithJoins[];
+}) {
+  const { col, relationsWithJoins } = params;
+
+  const findByJoin = relationsWithJoins.find((x) => x.joinRelName === col.tableName);
+
+  if (findByJoin !== undefined) {
+    switch (findByJoin.joinType) {
+      case "JOIN_FULL":
+      case "JOIN_LEFT":
+        return true;
+      case "JOIN_ANTI":
+      case "JOIN_INNER":
+      case "JOIN_RIGHT":
+      case "JOIN_SEMI":
+        return false;
+      default:
+        assertNever(findByJoin.joinType);
+    }
+  }
+
+  const findByRel = relationsWithJoins.filter((x) => x.relName === col.tableName);
+
+  for (const rel of findByRel) {
+    switch (rel.joinType) {
+      case "JOIN_RIGHT":
+      case "JOIN_FULL":
+        return true;
+      case "JOIN_LEFT":
+      case "JOIN_ANTI":
+      case "JOIN_INNER":
+      case "JOIN_SEMI":
+        continue;
+      default:
+        assertNever(rel.joinType);
+    }
+  }
+
+  return false;
 }
 
 function mapColumnAnalysisResultToPropertySignature(params: {
   col: ColumnAnalysisResult;
   pgTypes: PgTypeRow[];
-  leftTables: number[];
+  relationsWithJoins: FlattenedRelationWithJoins[];
+  typesMap: Record<string, string>;
+  fieldTransform: IdentiferCase | undefined;
 }) {
   if ("introspected" in params.col) {
-    const tsType = defaultTypeMapping[params.col.introspected.colType];
-    const value = params.col.introspected.colNotNull ? tsType : `Nullable<${tsType}>`;
-    const isFromLeftJoin = params.leftTables.includes(params.col.introspected.tableOid);
+    const value = params.typesMap[params.col.introspected.colType];
+    const key = params.col.described.name ?? params.col.introspected.colName;
+    const isNullable =
+      !params.col.introspected.colNotNull ||
+      isNullableDueToRelation({
+        col: params.col.introspected,
+        relationsWithJoins: params.relationsWithJoins,
+      });
 
     return buildInterfacePropertyValue({
-      key: params.col.described.name ?? params.col.introspected.colName,
+      key: toCase(key, params.fieldTransform),
       value: value,
-      isNullable: isFromLeftJoin,
+      isNullable: isNullable,
     });
   }
 
-  const typename = params.pgTypes.find((type) => type.oid === params.col.described.type);
-  const tsType =
-    typename !== undefined ? defaultTypeMapping[typename.name] ?? "unknown" : "unknown";
+  const nonTableColumnType = getTsTypeFromPgTypeOid({
+    pgTypeOid: params.col.described.type,
+    pgTypes: params.pgTypes,
+    typesMap: params.typesMap,
+  });
 
   return buildInterfacePropertyValue({
-    key: params.col.described.name,
-    value: `Unknown<${tsType}>`,
+    key: toCase(params.col.described.name, params.fieldTransform),
+    value: nonTableColumnType,
     isNullable: false,
   });
+}
+
+function getTsTypeFromPgTypeOid(params: {
+  pgTypes: PgTypeRow[];
+  pgTypeOid: number;
+  typesMap: Record<string, string>;
+}) {
+  const pgType = params.pgTypes.find((type) => type.oid === params.pgTypeOid);
+
+  if (pgType === undefined) {
+    return "unknown";
+  }
+
+  return getTsTypeFromPgType({ pgTypeName: pgType.name, typesMap: params.typesMap });
+}
+
+function getTsTypeFromPgType(params: {
+  pgTypeName: ColType | `_${ColType}`;
+  typesMap: Record<string, string>;
+}) {
+  const { isArray, pgType } = parsePgType(params.pgTypeName);
+  const tsType = params.typesMap[pgType] ?? "any";
+
+  return isArray ? `${tsType}[]` : tsType;
+}
+
+function isPgTypeArray(pgType: ColType | `_${ColType}`): pgType is `_${ColType}` {
+  return pgType.startsWith("_");
+}
+
+function parsePgType(pgType: ColType | `_${ColType}`) {
+  const isArray = isPgTypeArray(pgType);
+
+  return {
+    isArray: isArray,
+    pgType: isArray ? (pgType.slice(1) as ColType) : pgType,
+  };
 }
 
 interface PgTypeRow {

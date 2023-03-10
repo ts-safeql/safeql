@@ -1,23 +1,28 @@
 import { GenerateResult } from "@ts-safeql/generate";
-import { InternalError } from "@ts-safeql/shared";
-import { ESLintUtils, TSESLint, TSESTree } from "@typescript-eslint/utils";
+import { defaultTypeMapping, objectKeysNonEmpty, PostgresError } from "@ts-safeql/shared";
+import { ESLintUtils, ParserServices, TSESLint, TSESTree } from "@typescript-eslint/utils";
 import pgParser from "libpg-query";
-import * as recast from "recast";
 import { createSyncFn } from "synckit";
 import { match } from "ts-pattern";
+import ts from "typescript";
 import z from "zod";
 import zodToJsonSchema from "zod-to-json-schema";
 import { ESTreeUtils } from "../utils";
-import { E, flow, identity, J, pipe } from "../utils/fp-ts";
+import { E, flow, J, pipe } from "../utils/fp-ts";
+import { getTypeProperties, toInlineLiteralTypeString } from "../utils/get-type-properties";
+import { memoize } from "../utils/memoize";
 import { locateNearestPackageJsonDir } from "../utils/node.utils";
 import { mapTemplateLiteralToQueryText } from "../utils/ts-pg.utils";
+import { getConfigFromFileWithContext } from "./check-sql.config";
 import {
   reportBaseError,
   reportDuplicateColumns,
   reportIncorrectTypeAnnotations,
   reportInvalidQueryError,
+  reportInvalidTypeAnnotations,
   reportMissingTypeAnnotations,
   reportPostgresError,
+  shouldLintFile,
   withTransformType,
 } from "./check-sql.utils";
 import { WorkerError, WorkerParams, WorkerResult } from "./check-sql.worker";
@@ -26,53 +31,132 @@ const messages = {
   typeInferenceFailed: "Type inference failed {{error}}",
   error: "{{error}}",
   invalidQuery: "Invalid Query: {{error}}",
-  missingTypeAnnotations: "Query is missing type annotation",
-  incorrectTypeAnnotations: "Query has incorrect type annotation",
+  missingTypeAnnotations: "Query is missing type annotation\n\tFix with: {{fix}}",
+  incorrectTypeAnnotations:
+    "Query has incorrect type annotation.\n\tExpected: {{expected}}`\n\tActual: {{actual}}",
+  invalidTypeAnnotations:
+    "Query has invalid type annotation (SafeQL does not support it. If you think it should, please open an issue)",
 };
+export type RuleMessage = keyof typeof messages;
 
 const baseSchema = z.object({
+  /**
+   * Transform the end result of the type.
+   *
+   * For example:
+   *  - `"{type}[]"` will transform the type to an array
+   *  - `["colname", "x_colname"]` will replace `colname` with `x_colname` in the type.
+   *  - `["{type}[]", ["colname", x_colname"]]` will do both
+   */
   transform: z
     .union([z.string(), z.array(z.union([z.string(), z.tuple([z.string(), z.string()])]))])
     .optional(),
+
+  /**
+   * Transform the (column) field key. Can be one of the following:
+   * - `"snake"` - `userId` → `user_id`
+   * - `"camel"` - `user_id` → `userId`
+   * - `"pascal"` - `user_id` → `UserId`
+   * - `"screaming snake"` - `user_id` → `USER_ID`
+   */
+  fieldTransform: z.enum(["snake", "pascal", "camel", "screaming snake"]).optional(),
+
+  /**
+   * Whether or not keep the connection alive. Change it only if you know what you're doing.
+   */
   keepAlive: z.boolean().optional(),
+
+  /**
+   * Override defaults
+   */
+  overrides: z
+    .object({
+      types: z.record(z.enum(objectKeysNonEmpty(defaultTypeMapping)), z.string()),
+    })
+    .partial()
+    .optional(),
 });
 
 const identifyByNameAndOperators = z.object({
+  /**
+   * The name of the variable the holds the connection.
+   *
+   * For example "conn" for `conn.query(...)`
+   */
   name: z.string(),
+
+  /**
+   * An array of operator names that executes raw queries inside the variable that holds the connection.
+   *
+   * For example ["$queryRaw", "$executeRaw"] for `Prisma.$queryRaw(...)` and `Prisma.$executeRaw(...)`
+   */
   operators: z.array(z.string()),
 });
 
 const identifyByTagName = z.object({
+  /**
+   * The name of the tag that executes raw queries.
+   *
+   * For example "sql" for ```` sql`SELECT * FROM users`  ````
+   */
   tagName: z.string(),
 });
 
-const connectByMigrationSchema = z.object({
+export const connectByMigrationSchema = z.object({
+  /**
+   * The path where the migration files are located.
+   */
   migrationsDir: z.string(),
+
+  /**
+   * THIS IS NOT THE PRODUCTION DATABASE.
+   *
+   * A connection url to the database.
+   * This is required since in order to run the migrations, a connection to postgres is required.
+   * Will be used only to create and drop the shadow database (see `databaseName`).
+   */
   connectionUrl: z.string().optional(),
-  databaseName: z.string(),
+
+  /**
+   * The name of the shadow database that will be created from the migration files.
+   */
+  databaseName: z.string().optional(),
+
+  /**
+   * Whether or not should refresh the shadow database when the migration files change.
+   */
+  watchMode: z.boolean().optional(),
 });
 
 const connectByDatabaseUrl = z.object({
+  /**
+   * The connection url to the database
+   */
   databaseUrl: z.string(),
-  keepAlive: z.boolean().optional(),
 });
 
-const schema = baseSchema.extend({
-  connections: z.array(
-    z.union([
-      baseSchema.merge(connectByMigrationSchema.merge(identifyByNameAndOperators)),
-      baseSchema.merge(connectByMigrationSchema.merge(identifyByTagName)),
-      baseSchema.merge(connectByDatabaseUrl.merge(identifyByNameAndOperators)),
-      baseSchema.merge(connectByDatabaseUrl.merge(identifyByTagName)),
-    ])
-  ),
+const RuleOptionConnection = z.union([
+  baseSchema.merge(connectByMigrationSchema.merge(identifyByNameAndOperators)),
+  baseSchema.merge(connectByMigrationSchema.merge(identifyByTagName)),
+  baseSchema.merge(connectByDatabaseUrl.merge(identifyByNameAndOperators)),
+  baseSchema.merge(connectByDatabaseUrl.merge(identifyByTagName)),
+]);
+export type RuleOptionConnection = z.infer<typeof RuleOptionConnection>;
+
+export const Config = z.object({
+  connections: z.union([z.array(RuleOptionConnection), RuleOptionConnection]),
 });
+export type Config = z.infer<typeof Config>;
 
-const ruleOptionsSchema = z.array(schema).min(1).max(1);
+export const UserConfigFile = z.object({ useConfigFile: z.boolean() });
+export type UserConfigFile = z.infer<typeof UserConfigFile>;
 
-export type RuleMessage = keyof typeof messages;
-export type RuleOptions = z.infer<typeof ruleOptionsSchema>;
-export type RuleOptionConnection = RuleOptions[0]["connections"][number];
+export const Options = z.union([Config, UserConfigFile]);
+export type Options = z.infer<typeof Options>;
+
+export const RuleOptions = z.array(Options).min(1).max(1);
+export type RuleOptions = z.infer<typeof RuleOptions>;
+
 export type RuleContext = Readonly<TSESLint.RuleContext<RuleMessage, RuleOptions>>;
 
 const workerPath = require.resolve("./check-sql.worker");
@@ -87,10 +171,15 @@ const generateSync = createSyncFn<(params: WorkerParams) => Promise<E.Either<unk
 
 function check(params: {
   context: RuleContext;
+  config: Config;
   tag: TSESTree.TaggedTemplateExpression;
   projectDir: string;
 }) {
-  for (const connection of params.context.options[0].connections) {
+  const connections = Array.isArray(params.config.connections)
+    ? params.config.connections
+    : [params.config.connections];
+
+  for (const connection of connections) {
     checkConnection({ ...params, connection });
   }
 }
@@ -147,7 +236,14 @@ function checkConnection(params: {
     .exhaustive();
 }
 
-const pgParseQueryE = flow(pgParser.parseQuerySync, E.tryCatchK(identity, InternalError.to));
+const pgParseQueryE = (query: string) => {
+  return pipe(
+    E.tryCatch(
+      () => pgParser.parseQuerySync(query),
+      (error) => PostgresError.to(query, error)
+    )
+  );
+};
 
 const generateSyncE = flow(
   generateSync,
@@ -161,20 +257,22 @@ function reportCheck(params: {
   tag: TSESTree.TaggedTemplateExpression;
   connection: RuleOptionConnection;
   projectDir: string;
-  typeParameters: TSESTree.TSTypeParameterInstantiation | undefined;
+  typeParameter: TSESTree.TSTypeParameterInstantiation | undefined;
   baseNode: TSESTree.BaseNode;
 }) {
-  const { context, tag, connection, projectDir, typeParameters, baseNode } = params;
+  const { context, tag, connection, projectDir, typeParameter, baseNode } = params;
 
   return pipe(
     E.Do,
     E.bind("parser", () => E.of(ESLintUtils.getParserServices(context))),
     E.bind("checker", ({ parser }) => E.of(parser.program.getTypeChecker())),
     E.bind("query", ({ parser, checker }) =>
-      mapTemplateLiteralToQueryText(tag.quasi, parser, checker)
+      mapTemplateLiteralToQueryText(tag.quasi, parser, checker, params.connection)
     ),
     E.bindW("pgParsed", ({ query }) => pgParseQueryE(query)),
-    E.chainW(({ query, pgParsed }) => generateSyncE({ query, pgParsed, connection, projectDir })),
+    E.bindW("result", ({ query, pgParsed }) =>
+      generateSyncE({ query, pgParsed, connection, projectDir })
+    ),
     E.fold(
       (error) => {
         return match(error)
@@ -198,24 +296,48 @@ function reportCheck(params: {
           )
           .exhaustive();
       },
-      (result) => {
-        const isMissingTypeAnnotations = typeParameters === undefined;
+      ({ result, checker, parser }) => {
+        const isMissingTypeAnnotations = typeParameter === undefined;
         const resultWithTransformed = withTransformType(result, connection.transform);
 
         if (isMissingTypeAnnotations) {
+          if (resultWithTransformed.result === null) {
+            return;
+          }
+
           return reportMissingTypeAnnotations({
             tag: tag,
             context: context,
             baseNode: baseNode,
-            result: resultWithTransformed,
+            result: {
+              query: resultWithTransformed.query,
+              result: resultWithTransformed.result,
+              stmt: resultWithTransformed.stmt,
+            },
           });
         }
 
-        if (isIncorrectTypeAnnotations(resultWithTransformed, typeParameters)) {
+        const typeAnnotationState = getTypeAnnotationState({
+          result: resultWithTransformed,
+          typeParameter: typeParameter,
+          checker: checker,
+          parser: parser,
+        });
+
+        if (typeAnnotationState === "INVALID") {
+          return reportInvalidTypeAnnotations({
+            context: context,
+            typeParameter: typeParameter,
+          });
+        }
+
+        if (!typeAnnotationState.isEqual) {
           return reportIncorrectTypeAnnotations({
             context,
             result: resultWithTransformed,
-            typeParameters: typeParameters,
+            typeParameter: typeParameter,
+            expected: typeAnnotationState.current,
+            actual: typeAnnotationState.generated,
           });
         }
       }
@@ -244,7 +366,7 @@ function checkConnectionByTagExpression(params: {
       connection,
       projectDir,
       baseNode: tag.tag,
-      typeParameters: tag.typeParameters,
+      typeParameter: tag.typeParameters,
     });
   }
 }
@@ -272,29 +394,67 @@ function checkConnectionByCallExpression(params: {
       connection,
       projectDir,
       baseNode: tag.parent.callee,
-      typeParameters: tag.parent.typeParameters,
+      typeParameter: tag.parent.typeParameters,
     });
   }
 }
 
-function isIncorrectTypeAnnotations(
-  { result }: GenerateResult,
-  sqlOperatorType: TSESTree.TSTypeParameterInstantiation
-) {
-  const currentType = recast.print(sqlOperatorType).code;
+function getTypeAnnotationState(params: {
+  result: GenerateResult;
+  typeParameter: TSESTree.TSTypeParameterInstantiation;
+  parser: ParserServices;
+  checker: ts.TypeChecker;
+}) {
+  const {
+    result: { result },
+    typeParameter,
+    parser,
+    checker,
+  } = params;
 
-  return !areTypesEqual(currentType, result);
+  if (typeParameter.params.length !== 1) {
+    return "INVALID" as const;
+  }
+
+  const typeNode = typeParameter.params[0];
+
+  const typeProperties = getTypeProperties({
+    checker,
+    parser,
+    typeNode,
+  });
+
+  return pipe(
+    E.Do,
+    E.chain(() =>
+      E.of(
+        toInlineLiteralTypeString({
+          properties: new Map(typeProperties),
+          isArray: typeNode.type === TSESTree.AST_NODE_TYPES.TSArrayType,
+        })
+      )
+    ),
+    E.foldW(
+      (e) => e,
+      (v) => getTypesEquality(v, result)
+    )
+  );
 }
 
 // TODO this should be improved.
-function areTypesEqual(current: string, generated: string | null) {
-  if (generated === null) {
-    return false;
+function getTypesEquality(current: string | null, generated: string | null) {
+  if (current === null && generated === null) {
+    return { isEqual: true, current, generated };
+  }
+
+  if (current === null || generated === null) {
+    return { isEqual: false, current, generated };
   }
 
   const omitRegex = /[\n ;]/g;
+  const isEqual = current.replace(omitRegex, "") === generated.replace(omitRegex, "");
 
-  return current.replace(omitRegex, "") === `<${generated}>`.replace(omitRegex, "");
+  return { isEqual, current, generated };
 }
 
 const createRule = ESLintUtils.RuleCreator(() => `https://github.com/ts-safeql/safeql`)<
@@ -314,15 +474,27 @@ export default createRule({
     },
     messages: messages,
     type: "problem",
-    schema: zodToJsonSchema(ruleOptionsSchema, { target: "openApi3" }),
+    schema: zodToJsonSchema(RuleOptions, { target: "openApi3" }) as object,
   },
   defaultOptions: [],
   create(context) {
-    const projectDir = locateNearestPackageJsonDir(context.getFilename());
+    if (!shouldLintFile(context)) {
+      return {};
+    }
+
+    const projectDir = memoize({
+      key: context.getFilename(),
+      value: () => locateNearestPackageJsonDir(context.getFilename()),
+    });
+
+    const config = memoize({
+      key: JSON.stringify({ key: "config", options: context.options, projectDir }),
+      value: () => getConfigFromFileWithContext({ context, projectDir }),
+    });
 
     return {
-      TaggedTemplateExpression(expr) {
-        check({ context, tag: expr, projectDir });
+      TaggedTemplateExpression(tag) {
+        check({ context, tag, config, projectDir });
       },
     };
   },

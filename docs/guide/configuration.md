@@ -6,17 +6,22 @@ layout: doc
 
 ## Prerequisites
 
-Make sure you've added `@ts-safeql/eslint-plugin` to your ESLint plugins:
+Make sure you've added `@ts-safeql/eslint-plugin` to your ESLint plugins and set [`parserOptions.project`](https://typescript-eslint.io/docs/linting/typed-linting).
 
-```json{2}
+```json{3,5}
 // .eslintrc.json
 {
   "plugins": [..., "@ts-safeql/eslint-plugin"],
+  "parserOptions": {
+    "project": "./tsconfig.json"
+  }
   ...
 }
 ```
 
-## 1. A basic example of a single database
+## Example 1: Single database connected to your app
+
+Connect using the same database and credentials your app uses
 
 ::: tip DEMO
 Check out [@ts-safeql-demos/basic](https://github.com/ts-safeql/safeql/tree/main/demos/basic) for a working example.
@@ -53,7 +58,52 @@ And now you'll be able to write queries like this:
 const query = myDb.rawQuery(sql`SELECT * FROM users`);
 ```
 
-## 2. A basic example of migrations folder
+## Example 2: Multiple databases connected to your apps
+
+Connect using multiple databases and credentials used by multiple apps
+
+::: tip DEMO
+Check out [@ts-safeql-demos/multi-connections](https://github.com/ts-safeql/safeql/tree/main/demos/multi-connections) for a working example.
+:::
+
+```json
+// .eslintrc.json
+{
+  // ...
+  "rules": {
+    // ...
+    "@ts-safeql/check-sql": [
+      "error",
+      {
+        "connections": [
+          {
+            // The URL of the database:
+            "databaseUrl": "postgres://postgres:postgres@localhost:5432/my_database_1",
+            // The name of the variable that holds the connection:
+            "name": "myDb1",
+            // An array of operators that wraps the raw query:
+            "operators": ["rawQuery"]
+          },
+          {
+            // The URL of the database:
+            "databaseUrl": "postgres://postgres:postgres@localhost:5432/my_database_2",
+            // The name of the variable that holds the connection:
+            "name": "myDb2",
+            // An array of operators that wraps the raw query:
+            "operators": ["query"]
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+## Example 3: Migrations
+
+If your project contains `.sql` migration files, configuring [`connections.migrationsDir` option](/api/index.html#connections-migrationsdir) instead of `databaseUrl` will automatically synchronize the changes in your migrations to a separate "shadow database", which will also be used to retrieve type information related to your queries.
+
+This is beneficial in cases where it is impossible or inconvenient to manually keep your database in sync with your migrations.
 
 ::: tip DEMO
 Check out [@ts-safeql-demos/basic-migrations-raw](https://github.com/ts-safeql/safeql/tree/main/demos/basic-migrations-raw) for a working example.
@@ -72,12 +122,12 @@ Check out [@ts-safeql-demos/basic-migrations-raw](https://github.com/ts-safeql/s
           {
             // The migrations path:
             "migrationsDir": "./migrations",
-            // A shadow database name (see explanation below):
-            "databaseName": "my_db_shadow",
             // The name of the variable that holds the connection:
             "name": "myDb",
             // An array of operators that wraps the raw query:
-            "operators": ["rawQuery"]
+            "operators": ["rawQuery"],
+            // To connect using alternate superuser credentials, see below
+            // "connectionUrl": "postgres://pguser:password@localhost:5432/postgres"
           }
         ]
       }
@@ -88,10 +138,28 @@ Check out [@ts-safeql-demos/basic-migrations-raw](https://github.com/ts-safeql/s
 
 ::: info Why do we need a shadow database?
 The shadow database is used to run the migrations on it, and then compare the raw queries against it.
-The shadow database is dropped and recreated every time ESLint initializes the query (When VSCode boots up, or when you run ESLint from the terminal).
+The shadow database is dropped and recreated every time ESLint initializes the query (When VS Code boots up, or when you run ESLint from the terminal).
 :::
 
-## 2. An advanced example of multiple databases with a different connection url
+### What is `connectionUrl` and should I configure it?
+
+::: info TL;DR
+If you're using migrations and your PostgreSQL superuser credentials are different
+than the default below, you will need to configure `connectionUrl`.
+```
+postgres://postgres:postgres@localhost:5432/postgres
+```
+:::
+
+The `connectionUrl` **IS NOT** the database and credentials your app uses - it is instead the
+default database and superuser credentials which are used to create the shadow database.
+
+If you don't want to provide superuser credentials, you can also provide a role which has the
+permissions to run `createdb` and `dropdb`.
+
+By default, the `connectionUrl` is set `postgres://postgres:postgres@localhost:5432/postgres`, but if you're using a different credentials, you'll need to change it to your needs.
+
+## Example 4: Multiple migration configurations
 
 ::: tip DEMO
 Check out [@ts-safeql-demos/multi-connections](https://github.com/ts-safeql/safeql/tree/main/demos/multi-connections) for a working example.
@@ -108,19 +176,14 @@ Check out [@ts-safeql-demos/multi-connections](https://github.com/ts-safeql/safe
       {
         "connections": [
           {
-            "migrationsDir": "./migrations_db1",
-            "databaseName": "db1_shadow",
+            "migrationsDir": "./db1/migrations",
             "name": "db1",
-            "operators": ["rawQuery"],
-            // Read more about this below
-            "connectionUrl": "postgres://pguser:password@localhost:5432/postgres"
+            "operators": ["rawQuery"]
           },
           {
-            "migrationsDir": "./migrations_db2",
-            "databaseName": "db2_shadow",
+            "migrationsDir": "./db2/migrations",
             "name": "db2",
-            "operators": ["rawQuery"],
-            "connectionUrl": "postgres://pguser:password@localhost:5432/postgres"
+            "operators": ["rawQuery"]
           }
         ]
       }
@@ -129,19 +192,39 @@ Check out [@ts-safeql-demos/multi-connections](https://github.com/ts-safeql/safe
 }
 ```
 
-### What is "connectionUrl" and should I supply it?
+## Example 5: Mixing `databaseUrl` and `migrationsDir` configurations
 
-::: info TL;DR
-If your'e using migrations and your postgres database URL is different than
+```json
+// .eslintrc.json
+{
+  // ...
+  "rules": {
+    // ...
+    "@ts-safeql/check-sql": [
+      "error",
+      {
+        "connections": [
+          {
+            // The URL of the database:
+            "databaseUrl": "postgres://postgres:postgres@localhost:5432/my_database",
+            // The name of the variable that holds the connection:
+            "name": "myDb",
+            // An array of operators that wraps the raw query:
+            "operators": ["rawQuery"]
+          },
+          {
+            "migrationsDir": "./packages/a/migrations",
+            "name": "db1",
+            "operators": ["rawQuery"]
+          },
+          {
+            "migrationsDir": "./packages/b/migrations",
+            "name": "db2",
+            "operators": ["rawQuery"]
+          }
+        ]
+      }
+    ]
+  }
+}
 ```
-postgres://postgres:postgres@localhost:5432/postgres
-```
-Then you have to supply an appropriate `connectionUrl`.
-:::
-
-
-The `connectionUrl` **IS NOT** the database URL we want to connect to. It's a URL to a database that
-exists on the server. The reason for that, is because we can't connect to postgres without specifying a database.
-So we need to specify a database that exists on the server, and once we're connected, we can create a shadow database.
-
-By default, the `connectionUrl` is set `postgres://postgres:postgres@localhost:5432/postgres`, but if you're using a different credentials, you'll need to change it to your needs.

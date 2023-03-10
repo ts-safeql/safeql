@@ -1,9 +1,10 @@
 import postgres from "postgres";
 
-export async function check() {
+export async function check(id: number) {
   const sql = postgres();
 
-  const q1 = await sql<{ id: number }[]>`
-    SELECT id FROM person
-  `;
+  sql<{ id: number }[]>`SELECT id FROM person`;
+
+  type Person = { id: number };
+  sql<Person[]>`SELECT id FROM person WHERE id = ${id}`;
 }

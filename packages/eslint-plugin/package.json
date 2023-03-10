@@ -1,6 +1,6 @@
 {
   "name": "@ts-safeql/eslint-plugin",
-  "version": "0.0.5",
+  "version": "0.0.24",
   "main": "lib/index.js",
   "license": "MIT",
   "repository": "https://github.com/ts-safeql/safeql/tree/master/packages/eslint-plugin",
@@ -20,32 +20,32 @@
   "devDependencies": {
     "@esbuild-kit/cjs-loader": "2.3.3",
     "@types/mocha": "9.1.1",
-    "@typescript-eslint/eslint-plugin": "^5.36.2",
-    "@typescript-eslint/parser": "^5.36.2",
-    "esbuild": "0.15.7",
-    "esbuild-register": "^3.3.3",
-    "eslint": "^8.23.0",
-    "libpg-query": "^13.2.5",
-    "mocha": "^10.0.0",
+    "@typescript-eslint/eslint-plugin": "^5.47.1",
+    "@typescript-eslint/parser": "^5.47.1",
+    "esbuild-register": "^3.4.2",
+    "eslint": "^8.30.0",
+    "libpg-query": "^13.3.1",
+    "mocha": "^10.2.0",
     "tsx": "3.9.0",
-    "typescript": "^4.8.2"
+    "typescript": "^4.9.4"
   },
   "dependencies": {
-    "@ts-safeql/generate": "workspace:0.0.1",
-    "@ts-safeql/shared": "workspace:0.0.1",
-    "@ts-safeql/test-utils": "workspace:0.0.1",
-    "@typescript-eslint/utils": "^5.36.2",
-    "fp-ts": "^2.12.3",
+    "@ts-safeql/generate": "workspace:0.0.9",
+    "@ts-safeql/shared": "workspace:0.0.6",
+    "@ts-safeql/test-utils": "workspace:0.0.6",
+    "@typescript-eslint/utils": "^5.47.1",
+    "chokidar": "^3.5.3",
+    "esbuild": "0.15.7",
+    "fp-ts": "^2.13.1",
     "pg-connection-string": "2.5.0",
-    "postgres": "github:porsager/postgres",
-    "recast": "^0.21.2",
-    "source-map-support": "^0.5.21",
+    "postgres": "^3.3.2",
+    "recast": "^0.21.5",
     "synckit": "^0.8.4",
-    "ts-pattern": "^4.0.5",
-    "zod": "^3.19.0",
-    "zod-to-json-schema": "^3.17.1"
+    "ts-pattern": "^4.0.6",
+    "zod": "^3.20.2",
+    "zod-to-json-schema": "^3.20.1"
   },
   "peerDependencies": {
-    "libpg-query": "^13.2.5"
+    "libpg-query": ">=13.2.5"
   }
 }

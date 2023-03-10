@@ -1,12 +1,13 @@
 import { InternalError } from "@ts-safeql/shared";
 import { generateTestDatabaseName, setupTestDatabase } from "@ts-safeql/test-utils";
 import assert from "assert";
-import { option, taskEither } from "fp-ts";
-import { flow, identity, pipe } from "fp-ts/lib/function";
+import * as TE from "fp-ts/TaskEither";
+import * as O from "fp-ts/Option";
+import { flow, identity, pipe } from "fp-ts/function";
 import { parseQuery } from "libpg-query";
 import { before, test } from "mocha";
 import { Sql } from "postgres";
-import { generate, getMetadataFromCacheOrFetch } from "./generate";
+import { createGenerator } from "./generate";
 
 type SQL = Sql<Record<string, unknown>>;
 
@@ -44,7 +45,6 @@ before(async () => {
   sql = testDatabase.sql;
 
   await runMigrations(sql);
-  await getMetadataFromCacheOrFetch(sql, "test");
 });
 
 after(async () => {
@@ -52,24 +52,28 @@ after(async () => {
   await dropFn();
 });
 
-const generateTE = flow(generate, taskEither.tryCatchK(identity, InternalError.to));
-const parseQueryTE = flow(parseQuery, taskEither.tryCatchK(identity, InternalError.to));
+const { generate } = createGenerator();
+const generateTE = flow(generate, TE.tryCatchK(identity, InternalError.to));
+const parseQueryTE = flow(parseQuery, TE.tryCatchK(identity, InternalError.to));
 
 const testQuery = async (params: { query: string; expected?: unknown; expectedError?: string }) => {
   const { query } = params;
+
   const cacheKey = "test";
 
   return pipe(
-    taskEither.Do,
-    taskEither.bind("pgParsed", () => parseQueryTE(params.query)),
-    taskEither.bind("result", ({ pgParsed }) => generateTE({ sql, pgParsed, query, cacheKey })),
-    taskEither.chainW(({ result }) => taskEither.fromEither(result)),
-    taskEither.match(
+    TE.Do,
+    TE.bind("pgParsed", () => parseQueryTE(params.query)),
+    TE.bind("result", ({ pgParsed }) =>
+      generateTE({ sql, pgParsed, query, cacheKey, fieldTransform: undefined })
+    ),
+    TE.chainW(({ result }) => TE.fromEither(result)),
+    TE.match(
       (error) =>
         pipe(
           params.expectedError,
-          option.fromNullable,
-          option.fold(
+          O.fromNullable,
+          O.fold(
             () => assert.fail(error.message),
             (expectedError) => assert.strictEqual(error.message, expectedError)
           )
@@ -78,6 +82,13 @@ const testQuery = async (params: { query: string; expected?: unknown; expectedEr
     )
   )();
 };
+
+test("(init generate cache)", async () => {
+  await testQuery({
+    query: `SELECT 1 as x`,
+    expected: `{ x: number; }`,
+  });
+});
 
 test("select columns", async () => {
   await testQuery({
@@ -96,7 +107,7 @@ test("select column as camelCase", async () => {
 test("select non-table column", async () =>
   await testQuery({
     query: `SELECT 1 as count`,
-    expected: `{ count: Unknown<number>; }`,
+    expected: `{ count: number; }`,
   }));
 
 test("select with an inner join", async () => {
@@ -121,7 +132,33 @@ test("select with left join should return all cols from left join as nullable", 
         FROM caregiver
             LEFT JOIN caregiver_agency ON caregiver.id = caregiver_agency.caregiver_id
     `,
-    expected: `{ caregiver_id: number; assoc_id: Nullable<number>; }`,
+    expected: `{ caregiver_id: number; assoc_id: number | null; }`,
+  });
+});
+
+test("select with right join should return all cols from the other table as nullable", async () => {
+  await testQuery({
+    query: `
+        SELECT
+            caregiver.id as caregiver_id,
+            caregiver_agency.id as assoc_id
+        FROM caregiver
+            RIGHT JOIN caregiver_agency ON caregiver.id = caregiver_agency.caregiver_id
+    `,
+    expected: `{ caregiver_id: number | null; assoc_id: number; }`,
+  });
+});
+
+test("select with full join should return all cols as nullable", async () => {
+  await testQuery({
+    query: `
+        SELECT
+            caregiver.id as caregiver_id,
+            caregiver_agency.id as assoc_id
+        FROM caregiver
+            FULL JOIN caregiver_agency ON caregiver.id = caregiver_agency.caregiver_id
+    `,
+    expected: `{ caregiver_id: number | null; assoc_id: number | null; }`,
   });
 });
 
