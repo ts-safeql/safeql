@@ -451,7 +451,7 @@ function getTypesEquality(current: string | null, generated: string | null) {
     return { isEqual: false, current, generated };
   }
 
-  const omitRegex = /[\n ;]/g;
+  const omitRegex = /[\n ;'"]/g;
   const isEqual = current.replace(omitRegex, "") === generated.replace(omitRegex, "");
 
   return { isEqual, current, generated };

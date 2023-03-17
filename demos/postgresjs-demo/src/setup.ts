@@ -19,9 +19,12 @@ async function main() {
   // 4. Create tables
   console.log("Creating tables...");
   await sql.unsafe(`
+    CREATE TYPE mood AS ENUM ('sad', 'ok', 'happy');  
+
     CREATE TABLE person (
         id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-        name VARCHAR(255) NOT NULL
+        name VARCHAR(255) NOT NULL,
+        mood mood NOT NULL
     );
 
     CREATE TABLE starship (
