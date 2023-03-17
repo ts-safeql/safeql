@@ -1,5 +1,26 @@
 # @ts-safeql/generate
 
+## 0.0.10
+
+### Patch Changes
+
+- 5cf757a: add support for enums. for example, given the following schema:
+
+  ```sql
+  CREATE TYPE mood AS ENUM ('sad', 'ok', 'happy');
+
+  CREATE TABLE person (
+      ...,
+      mood mood NOT NULL
+  );
+  ```
+
+  we get the exact enum type:
+
+  ```ts
+  sql<{ mood: "sad" | "ok" | "happy" }[]>`SELECT mood FROM person`;
+  ```
+
 ## 0.0.9
 
 ### Patch Changes

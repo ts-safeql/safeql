@@ -214,7 +214,7 @@ importers:
   packages/eslint-plugin:
     specifiers:
       '@esbuild-kit/cjs-loader': 2.3.3
-      '@ts-safeql/generate': workspace:0.0.9
+      '@ts-safeql/generate': workspace:0.0.10
       '@ts-safeql/shared': workspace:0.0.6
       '@ts-safeql/test-utils': workspace:0.0.6
       '@types/mocha': 9.1.1
