@@ -41,8 +41,9 @@ export interface GenerateParams {
 type CacheMap = Map<
   CacheKey,
   {
-    pgTypes: postgres.RowList<PgTypeRow[]>;
+    pgTypes: PgTypesMap;
     pgCols: PgColRow[];
+    pgEnums: PgEnumsMaps;
     pgColsByTableOidCache: Map<number, PgColRow[]>;
   }
 >;
@@ -63,7 +64,7 @@ async function generate(
 ): Promise<either.Either<GenerateError, GenerateResult>> {
   const { sql, query, cacheMetadata = true } = params;
 
-  const { pgColsByTableOidCache, pgTypes } = cacheMetadata
+  const { pgColsByTableOidCache, pgTypes, pgEnums } = cacheMetadata
     ? await getOrSetFromMap({
         map: cacheMap,
         key: params.cacheKey,
@@ -111,6 +112,7 @@ async function generate(
       result: mapColumnAnalysisResultsToTypeLiteral({
         columns,
         pgTypes,
+        pgEnums,
         relationsWithJoins,
         typesMap,
         fieldTransform: params.fieldTransform,
@@ -137,9 +139,10 @@ async function generate(
 async function getDatabaseMetadata(sql: Sql) {
   const pgTypes = await getPgTypes(sql);
   const pgCols = await getPgCols(sql);
+  const pgEnums = await getPgEnums(sql);
   const pgColsByTableOidCache = groupBy(pgCols, "tableOid");
 
-  return { pgTypes, pgCols, pgColsByTableOidCache };
+  return { pgTypes, pgCols, pgEnums, pgColsByTableOidCache };
 }
 
 type ColumnAnalysisResult =
@@ -148,7 +151,8 @@ type ColumnAnalysisResult =
 
 function mapColumnAnalysisResultsToTypeLiteral(params: {
   columns: ColumnAnalysisResult[];
-  pgTypes: PgTypeRow[];
+  pgTypes: PgTypesMap;
+  pgEnums: PgEnumsMaps;
   relationsWithJoins: FlattenedRelationWithJoins[];
   typesMap: Record<string, string>;
   fieldTransform: IdentiferCase | undefined;
@@ -157,6 +161,7 @@ function mapColumnAnalysisResultsToTypeLiteral(params: {
     const propertySignature = mapColumnAnalysisResultToPropertySignature({
       col,
       pgTypes: params.pgTypes,
+      pgEnums: params.pgEnums,
       relationsWithJoins: params.relationsWithJoins,
       typesMap: params.typesMap,
       fieldTransform: params.fieldTransform,
@@ -219,14 +224,21 @@ function isNullableDueToRelation(params: {
 
 function mapColumnAnalysisResultToPropertySignature(params: {
   col: ColumnAnalysisResult;
-  pgTypes: PgTypeRow[];
+  pgTypes: PgTypesMap;
+  pgEnums: PgEnumsMaps;
   relationsWithJoins: FlattenedRelationWithJoins[];
   typesMap: Record<string, string>;
   fieldTransform: IdentiferCase | undefined;
 }) {
   if ("introspected" in params.col) {
-    const value = params.typesMap[params.col.introspected.colType];
+    const value =
+      params.pgEnums
+        .get(params.col.described.type)
+        ?.values.map((x) => `'${x}'`)
+        .join(" | ") ?? params.typesMap[params.col.introspected.colType];
+
     const key = params.col.described.name ?? params.col.introspected.colName;
+
     const isNullable =
       !params.col.introspected.colNotNull ||
       isNullableDueToRelation({
@@ -255,11 +267,11 @@ function mapColumnAnalysisResultToPropertySignature(params: {
 }
 
 function getTsTypeFromPgTypeOid(params: {
-  pgTypes: PgTypeRow[];
+  pgTypes: PgTypesMap;
   pgTypeOid: number;
   typesMap: Record<string, string>;
 }) {
-  const pgType = params.pgTypes.find((type) => type.oid === params.pgTypeOid);
+  const pgType = params.pgTypes.get(params.pgTypeOid);
 
   if (pgType === undefined) {
     return "unknown";
@@ -291,17 +303,62 @@ function parsePgType(pgType: ColType | `_${ColType}`) {
   };
 }
 
+interface PgEnumRow {
+  oid: number;
+  typname: string;
+  enumlabel: string;
+}
+
+type PgEnumsMaps = Map<number, { name: string; values: string[] }>;
+
+async function getPgEnums(sql: Sql): Promise<PgEnumsMaps> {
+  const rows = await sql<PgEnumRow[]>`
+    SELECT pg_type.oid, pg_type.typname, pg_enum.enumlabel
+    FROM pg_type
+    JOIN pg_enum ON pg_enum.enumtypid = pg_type.oid
+    WHERE pg_type.typtype = 'e'
+    ORDER BY pg_type.typname, pg_enum.enumsortorder
+  `;
+
+  const map = new Map<number, { name: string; values: string[] }>();
+
+  for (const row of rows) {
+    const existing = map.get(row.oid);
+
+    if (existing === undefined) {
+      map.set(row.oid, {
+        name: row.typname,
+        values: [row.enumlabel],
+      });
+
+      continue;
+    }
+
+    existing.values.push(row.enumlabel);
+  }
+
+  return map;
+}
+
 interface PgTypeRow {
   oid: number;
   name: ColType;
 }
 
-async function getPgTypes(sql: Sql) {
+type PgTypesMap = Map<number, PgTypeRow>;
+
+async function getPgTypes(sql: Sql): Promise<PgTypesMap> {
   const rows = await sql<PgTypeRow[]>`
         SELECT oid, typname as name FROM pg_type
     `;
 
-  return rows;
+  const map = new Map<number, PgTypeRow>();
+
+  for (const row of rows) {
+    map.set(row.oid, row);
+  }
+
+  return map;
 }
 
 interface PgColRow {

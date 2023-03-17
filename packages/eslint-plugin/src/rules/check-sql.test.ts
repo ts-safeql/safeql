@@ -19,11 +19,14 @@ const ruleTester = new ESLintUtils.RuleTester({
 
 const runMigrations1 = <TTypes extends Record<string, unknown>>(sql: Sql<TTypes>) =>
   sql.unsafe(`
+    CREATE TYPE certification AS ENUM ('HHA', 'RN', 'LPN', 'CNA', 'PCA', 'OTHER');
+
     CREATE TABLE caregiver (
         id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
         first_name TEXT NOT NULL,
         middle_name TEXT,
-        last_name TEXT NOT NULL
+        last_name TEXT NOT NULL,
+        certification certification NOT NULL
     );
 
     CREATE TABLE agency (
@@ -128,10 +131,20 @@ RuleTester.describe("check-sql", () => {
         filename,
         options: withConnection(connections.base),
         code: `
-              const result = conn.query<{ id: number; first_name: string; middle_name: string | null; last_name: string; }>(sql\`
-                  select * from caregiver
-              \`);
+          const result = conn.query<{ id: number; first_name: string; middle_name: string | null; last_name: string; certification: 'HHA' | 'RN' | 'LPN' | 'CNA' | 'PCA' | 'OTHER'; }>(sql\`
+              select * from caregiver
+          \`);
           `,
+      },
+      {
+        name: "select enum from table",
+        filename,
+        options: withConnection(connections.base),
+        code: `
+          const result = conn.query<{ certification: 'HHA' | 'RN' | 'LPN' | 'CNA' | 'PCA' | 'OTHER'; }>(sql\`
+              select certification from caregiver
+          \`);
+        `,
       },
       {
         name: "select from table with inner joins",
