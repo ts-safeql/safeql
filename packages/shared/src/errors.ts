@@ -154,6 +154,7 @@ export class DuplicateColumnsError extends Error {
   toJSON() {
     return {
       _tag: this._tag,
+      message: this.message,
       columns: this.columns,
       queryText: this.queryText,
     };
