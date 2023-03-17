@@ -367,6 +367,24 @@ RuleTester.describe("check-sql", () => {
       {
         filename,
         options: withConnection(connections.base),
+        name: "select duplicate columns",
+        code: "const result = conn.query(sql`select * from caregiver, agency`);",
+        errors: [
+          {
+            messageId: "invalidQuery",
+            data: {
+              error: "Duplicate columns: caregiver.id, agency.id",
+            },
+            line: 1,
+            column: 30,
+            endLine: 1,
+            endColumn: 36,
+          },
+        ],
+      },
+      {
+        filename,
+        options: withConnection(connections.base),
         name: "select from table where int column equals to ts string arg",
         code: `
             function run(names: string[]) {
