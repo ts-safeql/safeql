@@ -270,6 +270,15 @@ RuleTester.describe("check-sql", () => {
       {
         filename,
         options: withConnection(connections.base),
+        name: "type annotation with a valid type reference (diffrent property order)",
+        code: `
+          type Agency = { name: string; id: number; };
+          conn.query<Agency>(sql\`select id, name from agency\`);
+        `,
+      },
+      {
+        filename,
+        options: withConnection(connections.base),
         name: "type annotation with a valid type reference (interface)",
         code: `
           interface Agency { id: number; name: string }

@@ -5,32 +5,41 @@ export function getTypeProperties(params: {
   typeNode: TSESTree.TypeNode;
   parser: ParserServices;
   checker: ts.TypeChecker;
-}): [string, string][] {
+}): { properties: [string, string][]; isArray: boolean } {
   const { typeNode, checker, parser } = params;
 
   if (typeNode.type === TSESTree.AST_NODE_TYPES.TSArrayType) {
-    return getTypeProperties({
+    const { properties } = getTypeProperties({
       typeNode: typeNode.elementType,
       parser,
       checker,
     });
+
+    return { properties, isArray: true };
   }
 
   if (typeNode.type === TSESTree.AST_NODE_TYPES.TSIntersectionType) {
-    return typeNode.types.flatMap((type) => getTypeProperties({ typeNode: type, parser, checker }));
+    const properties = typeNode.types.flatMap(
+      (type) => getTypeProperties({ typeNode: type, parser, checker }).properties
+    );
+
+    return { properties, isArray: false };
   }
 
   if (typeNode.type === TSESTree.AST_NODE_TYPES.TSTypeLiteral) {
-    return getTypePropertiesFromTypeLiteral({ typeNode, parser, checker });
+    const properties = getTypePropertiesFromTypeLiteral({ typeNode, parser, checker });
+
+    return { properties, isArray: false };
   }
 
   if (typeNode.type === TSESTree.AST_NODE_TYPES.TSTypeReference) {
     const type = checker.getTypeFromTypeNode(parser.esTreeNodeToTSNodeMap.get(typeNode));
+    const properties = getTypePropertiesFromTypeReference({ type, typeNode, parser, checker });
 
-    return getTypePropertiesFromTypeReference({ type, typeNode, parser, checker });
+    return { properties, isArray: false };
   }
 
-  return [];
+  return { properties: [], isArray: false };
 }
 
 function getTypePropertiesFromTypeLiteral(params: {

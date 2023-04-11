@@ -9,12 +9,13 @@ import z from "zod";
 import zodToJsonSchema from "zod-to-json-schema";
 import { ESTreeUtils } from "../utils";
 import { E, flow, J, pipe } from "../utils/fp-ts";
-import { getTypeProperties, toInlineLiteralTypeString } from "../utils/get-type-properties";
+import { getTypeProperties } from "../utils/get-type-properties";
 import { memoize } from "../utils/memoize";
 import { locateNearestPackageJsonDir } from "../utils/node.utils";
 import { mapTemplateLiteralToQueryText } from "../utils/ts-pg.utils";
 import { getConfigFromFileWithContext } from "./check-sql.config";
 import {
+  arrayEntriesToTsTypeString,
   reportBaseError,
   reportDuplicateColumns,
   reportIncorrectTypeAnnotations,
@@ -23,6 +24,8 @@ import {
   reportMissingTypeAnnotations,
   reportPostgresError,
   shouldLintFile,
+  transformTypes,
+  TypeTransformer,
   withTransformType,
 } from "./check-sql.utils";
 import { WorkerError, WorkerParams, WorkerResult } from "./check-sql.worker";
@@ -301,7 +304,7 @@ function reportCheck(params: {
         const resultWithTransformed = withTransformType(result, connection.transform);
 
         if (isMissingTypeAnnotations) {
-          if (resultWithTransformed.result === null) {
+          if (resultWithTransformed.resultAsString === null) {
             return;
           }
 
@@ -309,17 +312,14 @@ function reportCheck(params: {
             tag: tag,
             context: context,
             baseNode: baseNode,
-            result: {
-              query: resultWithTransformed.query,
-              result: resultWithTransformed.result,
-              stmt: resultWithTransformed.stmt,
-            },
+            actual: resultWithTransformed.resultAsString,
           });
         }
 
         const typeAnnotationState = getTypeAnnotationState({
           result: resultWithTransformed,
           typeParameter: typeParameter,
+          transform: connection.transform,
           checker: checker,
           parser: parser,
         });
@@ -334,10 +334,9 @@ function reportCheck(params: {
         if (!typeAnnotationState.isEqual) {
           return reportIncorrectTypeAnnotations({
             context,
-            result: resultWithTransformed,
             typeParameter: typeParameter,
-            expected: typeAnnotationState.current,
-            actual: typeAnnotationState.generated,
+            expected: arrayEntriesToTsTypeString(typeAnnotationState.expected),
+            actual: resultWithTransformed.resultAsString,
           });
         }
       }
@@ -402,12 +401,14 @@ function checkConnectionByCallExpression(params: {
 function getTypeAnnotationState(params: {
   result: GenerateResult;
   typeParameter: TSESTree.TSTypeParameterInstantiation;
+  transform?: TypeTransformer;
   parser: ParserServices;
   checker: ts.TypeChecker;
 }) {
   const {
-    result: { result },
+    result: { result: generated },
     typeParameter,
+    transform,
     parser,
     checker,
   } = params;
@@ -418,43 +419,50 @@ function getTypeAnnotationState(params: {
 
   const typeNode = typeParameter.params[0];
 
-  const typeProperties = getTypeProperties({
+  const { properties, isArray } = getTypeProperties({
     checker,
     parser,
     typeNode,
   });
 
-  return pipe(
-    E.Do,
-    E.chain(() =>
-      E.of(
-        toInlineLiteralTypeString({
-          properties: new Map(typeProperties),
-          isArray: typeNode.type === TSESTree.AST_NODE_TYPES.TSArrayType,
-        })
-      )
-    ),
-    E.foldW(
-      (e) => e,
-      (v) => getTypesEquality(v, result)
-    )
-  );
+  const expected = [...new Map(properties).entries()];
+
+  return getTypesEquality({ expected, generated, transform, isArray });
 }
 
-// TODO this should be improved.
-function getTypesEquality(current: string | null, generated: string | null) {
-  if (current === null && generated === null) {
-    return { isEqual: true, current, generated };
+function getTypesEquality(params: {
+  expected: [string, string][] | null;
+  generated: [string, string][] | null;
+  isArray: boolean;
+  transform?: TypeTransformer;
+}) {
+  const { expected, generated, isArray, transform } = params;
+
+  if (expected === null && generated === null) {
+    return { isEqual: true, expected, generated };
   }
 
-  if (current === null || generated === null) {
-    return { isEqual: false, current, generated };
+  if (expected === null || generated === null) {
+    return { isEqual: false, expected, generated };
   }
 
   const omitRegex = /[\n ;'"]/g;
-  const isEqual = current.replace(omitRegex, "") === generated.replace(omitRegex, "");
+  const expectedSorted = [...expected].sort(([a], [b]) => a.localeCompare(b));
+  const generatedSorted = [...generated].sort(([a], [b]) => a.localeCompare(b));
+  const $toString = (x: [string, string][]): string => {
+    return x.map(([key, value]) => [key, value.replace(omitRegex, "")]).join("");
+  };
 
-  return { isEqual, current, generated };
+  const expectedString = $toString(expectedSorted) + (isArray ? "[]" : "");
+  const generatedString = transform
+    ? transformTypes($toString(generatedSorted), transform)
+    : $toString(generatedSorted);
+
+  return {
+    isEqual: expectedString === generatedString,
+    expected,
+    generated,
+  };
 }
 
 const createRule = ESLintUtils.RuleCreator(() => `https://github.com/ts-safeql/safeql`)<

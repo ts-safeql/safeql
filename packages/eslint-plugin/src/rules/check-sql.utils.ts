@@ -21,7 +21,7 @@ import { WorkerError } from "./check-sql.worker";
 
 type TypeReplacerString = string;
 type TypeReplacerFromTo = [string, string];
-type TypeTransformer = TypeReplacerString | (TypeReplacerString | TypeReplacerFromTo)[];
+export type TypeTransformer = TypeReplacerString | (TypeReplacerString | TypeReplacerFromTo)[];
 
 export const DEFAULT_CONNECTION_URL = "postgres://postgres:postgres@localhost:5432/postgres";
 
@@ -35,6 +35,27 @@ function transformType(typeString: string, typeReplacer: TypeTransformer[number]
     : typeReplacer.replace("{type}", typeString);
 }
 
+export function transformTypes(
+  typeString: string | null,
+  transform: TypeTransformer
+): string | null {
+  if (transform === undefined || typeString === null) {
+    return typeString;
+  }
+
+  if (typeof transform === "string") {
+    return transformType(typeString, transform);
+  }
+
+  let transformed = typeString;
+
+  for (const replacer of transform) {
+    transformed = transformType(transformed, replacer);
+  }
+
+  return transformed;
+}
+
 /**
  * Takes a generated result and a transform type and returns a result with the
  * transformed type.
@@ -45,25 +66,15 @@ function transformType(typeString: string, typeReplacer: TypeTransformer[number]
  *  - an array that has a mix of the above (such as ["{type}[]", ["colname", "x_colname"]])
  */
 export function withTransformType(result: GenerateResult, transform?: TypeTransformer) {
+  const resultAsString = arrayEntriesToTsTypeString(result.result);
+
   if (transform === undefined || result.result === null) {
-    return result;
+    return { ...result, resultAsString };
   }
 
-  if (typeof transform === "string") {
-    return { ...result, result: transformType(result.result, transform) };
-  }
+  const transformed = transformTypes(resultAsString, transform);
 
-  const replacer = (() => {
-    let transformed = result.result;
-
-    for (const replacer of transform) {
-      transformed = transformType(transformed, replacer);
-    }
-
-    return transformed;
-  })();
-
-  return { ...result, result: replacer };
+  return { ...result, resultAsString: transformed };
 }
 
 export function reportInvalidQueryError(params: {
@@ -141,30 +152,29 @@ export function reportMissingTypeAnnotations(params: {
   context: RuleContext;
   tag: TSESTree.TaggedTemplateExpression;
   baseNode: TSESTree.BaseNode;
-  result: GenerateResult & { result: string };
+  actual: string;
 }) {
-  const { context, tag, baseNode, result } = params;
+  const { context, tag, baseNode, actual } = params;
 
   return context.report({
     node: tag,
     messageId: "missingTypeAnnotations",
     loc: baseNode.loc,
-    fix: (fixer) => fixer.insertTextAfterRange(baseNode.range, `<${result.result}>`),
+    fix: (fixer) => fixer.insertTextAfterRange(baseNode.range, `<${actual}>`),
     data: {
-      fix: result.result,
+      fix: actual,
     },
   });
 }
 
 export function reportIncorrectTypeAnnotations(params: {
   context: RuleContext;
-  result: GenerateResult;
   typeParameter: TSESTree.TSTypeParameterInstantiation;
   expected: string | null;
   actual: string | null;
 }) {
-  const { context, result, typeParameter } = params;
-  const newValue = result.result === null ? "" : `<${result.result}>`;
+  const { context, typeParameter } = params;
+  const newValue = params.actual === null ? "" : `<${params.actual}>`;
 
   return context.report({
     node: typeParameter.params[0],
@@ -339,4 +349,18 @@ function runSingleMigrationFile(sql: Sql, filePath: string) {
     TE.chain((content) => TE.tryCatch(() => sql.unsafe(content), E.toError)),
     TE.mapLeft(InvalidMigrationError.fromErrorC(filePath))
   );
+}
+
+export function arrayEntriesToTsTypeString(entries: [string, string][] | null) {
+  if (entries === null) {
+    return null;
+  }
+
+  const properties = entries.map(([key, value]) => `${key}: ${value};`);
+
+  if (properties.length === 0) {
+    return "{ }";
+  }
+
+  return `{ ${properties.join(" ")} }`;
 }
