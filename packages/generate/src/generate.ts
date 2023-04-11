@@ -21,7 +21,11 @@ import {
 type JSToPostgresTypeMap = Record<string, unknown>;
 type Sql = postgres.Sql<JSToPostgresTypeMap>;
 
-export type GenerateResult = { result: string | null; stmt: postgres.Statement; query: string };
+export type GenerateResult = {
+  result: [string, string][] | null;
+  stmt: postgres.Statement;
+  query: string;
+};
 export type GenerateError = DuplicateColumnsError | PostgresError;
 
 type CacheKey = string;
@@ -156,7 +160,7 @@ function mapColumnAnalysisResultsToTypeLiteral(params: {
   relationsWithJoins: FlattenedRelationWithJoins[];
   typesMap: Record<string, string>;
   fieldTransform: IdentiferCase | undefined;
-}) {
+}): [string, string][] {
   const properties = params.columns.map((col) => {
     const propertySignature = mapColumnAnalysisResultToPropertySignature({
       col,
@@ -167,16 +171,20 @@ function mapColumnAnalysisResultsToTypeLiteral(params: {
       fieldTransform: params.fieldTransform,
     });
 
-    return `${propertySignature};`;
+    return propertySignature;
   });
 
-  return `{ ${properties.join(" ")} }`;
+  return properties;
 }
 
-function buildInterfacePropertyValue(params: { key: string; value: string; isNullable: boolean }) {
+function buildInterfacePropertyValue(params: {
+  key: string;
+  value: string;
+  isNullable: boolean;
+}): [string, string] {
   const isNullable = params.isNullable && ["any", "null"].includes(params.value) === false;
 
-  return `${params.key}: ${isNullable ? `${params.value} | null` : params.value}`;
+  return [params.key, isNullable ? `${params.value} | null` : params.value];
 }
 
 function isNullableDueToRelation(params: {
