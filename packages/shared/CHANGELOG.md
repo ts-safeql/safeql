@@ -5,8 +5,8 @@
 ### Patch Changes
 
 - ac05926: return the actual error message with the duplicate columns on error
-- 92505a1: 1. add default type mapping when comparing TS types to PostgreSQL types.
-  1. make "unsupported type" error more informative.
+- 92505a1: add default type mapping when comparing TS types to PostgreSQL types.
+- 92505a1: make "unsupported type" error more informative.
 
 ## 0.0.6
 
