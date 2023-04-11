@@ -1,4 +1,4 @@
-import { InvalidQueryError } from "@ts-safeql/shared";
+import { defaultTypeMapping, InvalidQueryError, normalizeIndent } from "@ts-safeql/shared";
 import { TSESTreeToTSNode } from "@typescript-eslint/typescript-estree";
 import { ParserServices, TSESTree } from "@typescript-eslint/utils";
 import ts, { TypeChecker } from "typescript";
@@ -154,17 +154,39 @@ function mapTsTypeStringToPgType(params: {
       : E.right(tsTypeToPgTypeMap[singularType]);
   }
 
-  if (params.options.overrides?.types !== undefined) {
-    const override = Object.entries(params.options.overrides.types)
-      .map(([key, value]) => ({ pgType: key, tsType: value }))
-      .find((entry) => entry.tsType === singularType);
+  const typesWithOverrides = {
+    ...defaultTypeMapping,
+    ...params.options.overrides?.types,
+  };
 
-    if (override !== undefined) {
-      return isArray ? E.right(`${override.pgType}[]`) : E.right(override.pgType);
-    }
+  const override = Object.entries(typesWithOverrides)
+    .map(([key, value]) => ({ pgType: key, tsType: value }))
+    .find((entry) => entry.tsType === singularType);
+
+  if (override !== undefined) {
+    return isArray ? E.right(`${override.pgType}[]`) : E.right(override.pgType);
   }
 
-  return E.left(`the type "${typeStr}" is not supported`);
+  return E.left(normalizeIndent`
+    the type "${typeStr}" has no corresponding PostgreSQL type. Please add it manually using the "overrides.types" option.
+
+    For example:
+    \`\`\`ts
+    {
+      "connections": {
+        ...,
+        "overrides": {
+          "types": {
+            "date": "Date"
+          }
+        }
+      }
+    }
+    \`\`\`
+
+
+    See https://safeql.dev/api/#connections-overrides-types-optional
+  `);
 }
 
 function isTsUnionType(type: ts.Type): type is ts.UnionType {

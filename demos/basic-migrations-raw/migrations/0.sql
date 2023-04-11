@@ -10,3 +10,10 @@ CREATE TABLE posts (
   body text,
   published_at timestamp
 );
+
+CREATE TABLE test_date_columns (
+  id integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+  date_local timestamp,
+  date_utc timestamptz,
+  just_date date
+);

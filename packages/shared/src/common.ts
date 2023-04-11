@@ -89,3 +89,17 @@ export async function getOrSetFromMap<T>(params: {
 
   return val;
 }
+
+export function normalizeIndent<T extends string>(template: TemplateStringsArray, ...args: T[]): T {
+  const fullString = template.reduce((accumulator, str, i) => {
+    return accumulator + str + (args[i] || "");
+  }, "");
+  const lines = fullString.split("\n");
+  const nonEmptyLines = lines.filter((line) => line.trim() !== "");
+  if (nonEmptyLines.length === 0) {
+    return "" as T;
+  }
+  const indent = nonEmptyLines[0].match(/^\s*/)?.[0];
+  const normalized = nonEmptyLines.map((line) => line.replace(indent!, "")).join("\n");
+  return normalized as T;
+}
