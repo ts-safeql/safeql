@@ -78,7 +78,7 @@ const testQuery = async (params: { query: string; expected?: unknown; expectedEr
             (expectedError) => assert.strictEqual(error.message, expectedError)
           )
         ),
-      ({ result }) => assert.equal(result, params.expected)
+      ({ result }) => assert.deepEqual(result, params.expected)
     )
   )();
 };
@@ -86,28 +86,32 @@ const testQuery = async (params: { query: string; expected?: unknown; expectedEr
 test("(init generate cache)", async () => {
   await testQuery({
     query: `SELECT 1 as x`,
-    expected: `{ x: number; }`,
+    expected: [["x", "number"]],
   });
 });
 
 test("select columns", async () => {
   await testQuery({
     query: `SELECT id, first_name, last_name from caregiver LIMIT 1`,
-    expected: `{ id: number; first_name: string; last_name: string; }`,
+    expected: [
+      ["id", "number"],
+      ["first_name", "string"],
+      ["last_name", "string"],
+    ],
   });
 });
 
 test("select column as camelCase", async () => {
   await testQuery({
     query: `SELECT first_name as "firstName" from caregiver LIMIT 1`,
-    expected: `{ firstName: string; }`,
+    expected: [["firstName", "string"]],
   });
 });
 
 test("select non-table column", async () =>
   await testQuery({
     query: `SELECT 1 as count`,
-    expected: `{ count: number; }`,
+    expected: [["count", "number"]],
   }));
 
 test("select with an inner join", async () => {
@@ -119,7 +123,10 @@ test("select with an inner join", async () => {
         FROM caregiver
             JOIN caregiver_agency ON caregiver.id = caregiver_agency.caregiver_id
     `,
-    expected: `{ caregiver_id: number; assoc_id: number; }`,
+    expected: [
+      ["caregiver_id", "number"],
+      ["assoc_id", "number"],
+    ],
   });
 });
 
@@ -132,7 +139,10 @@ test("select with left join should return all cols from left join as nullable", 
         FROM caregiver
             LEFT JOIN caregiver_agency ON caregiver.id = caregiver_agency.caregiver_id
     `,
-    expected: `{ caregiver_id: number; assoc_id: number | null; }`,
+    expected: [
+      ["caregiver_id", "number"],
+      ["assoc_id", "number | null"],
+    ],
   });
 });
 
@@ -145,7 +155,10 @@ test("select with right join should return all cols from the other table as null
         FROM caregiver
             RIGHT JOIN caregiver_agency ON caregiver.id = caregiver_agency.caregiver_id
     `,
-    expected: `{ caregiver_id: number | null; assoc_id: number; }`,
+    expected: [
+      ["caregiver_id", "number | null"],
+      ["assoc_id", "number"],
+    ],
   });
 });
 
@@ -158,7 +171,10 @@ test("select with full join should return all cols as nullable", async () => {
         FROM caregiver
             FULL JOIN caregiver_agency ON caregiver.id = caregiver_agency.caregiver_id
     `,
-    expected: `{ caregiver_id: number | null; assoc_id: number | null; }`,
+    expected: [
+      ["caregiver_id", "number | null"],
+      ["assoc_id", "number | null"],
+    ],
   });
 });
 
@@ -178,7 +194,7 @@ test("select with duplicate columns should throw duplicate columns error", async
 test("insert into table with returning", async () => {
   await testQuery({
     query: `INSERT INTO caregiver (first_name, last_name) VALUES (null, null) RETURNING id`,
-    expected: `{ id: number; }`,
+    expected: [["id", "number"]],
   });
 });
 
@@ -199,7 +215,7 @@ test("select with incorrect operation", async () => {
 test("select where int column = any(array)", async () => {
   await testQuery({
     query: `SELECT id FROM caregiver WHERE id = ANY($1::int[])`,
-    expected: "{ id: number; }",
+    expected: [["id", "number"]],
   });
 });
 
