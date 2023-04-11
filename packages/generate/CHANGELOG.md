@@ -1,5 +1,11 @@
 # @ts-safeql/generate
 
+## 0.0.12
+
+### Patch Changes
+
+- 9ac7829: **breaking** Return array tuple rather than a stringified type (e.g `"{ property: string }"` -> `[["property", "string"]]`)
+
 ## 0.0.11
 
 ### Patch Changes

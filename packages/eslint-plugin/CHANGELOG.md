@@ -1,5 +1,13 @@
 # @ts-safeql/eslint-plugin
 
+## 0.0.27
+
+### Patch Changes
+
+- 9ac7829: Properties ordering should not be taken into account when SafeQL compares between the expected and actual type annotations.
+- Updated dependencies [9ac7829]
+  - @ts-safeql/generate@0.0.12
+
 ## 0.0.26
 
 ### Patch Changes
