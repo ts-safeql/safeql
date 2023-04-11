@@ -1,5 +1,18 @@
 # @ts-safeql/eslint-plugin
 
+## 0.0.26
+
+### Patch Changes
+
+- ac05926: return the actual error message with the duplicate columns on error
+- 92505a1: add default type mapping when comparing TS types to PostgreSQL types.
+- 92505a1: make "unsupported type" error more informative.
+- Updated dependencies [ac05926]
+- Updated dependencies [92505a1]
+  - @ts-safeql/shared@0.0.7
+  - @ts-safeql/generate@0.0.11
+  - @ts-safeql/test-utils@0.0.7
+
 ## 0.0.25
 
 ### Patch Changes
