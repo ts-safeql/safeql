@@ -28,9 +28,7 @@ export default defineConfig({
       },
       {
         text: "Advanced",
-        items: [
-          { text: "Incremental adoption", link: "/advanced/incremental-adoption" },
-        ],
+        items: [{ text: "Incremental adoption", link: "/advanced/incremental-adoption" }],
       },
       {
         text: "@ts-safeql/sql-tag",

@@ -585,13 +585,23 @@ RuleTester.describe("check-sql", () => {
         code: "sql<{ id: Integer }>`select id from caregiver`",
       },
       {
-        name: 'with { date: "Date" }',
+        name: 'with default mapping for "date"',
         filename,
-        options: withConnection(connections.withTagName, {
-          overrides: { types: { date: "Date" } },
-        }),
+        options: withConnection(connections.withTagName),
         code: `
           const date = new Date();
+          sql<{ id: number }>\`select id from table_with_date_col WHERE date_col = \${date}\`
+        `,
+      },
+      {
+        name: 'with { date: "LocalDate" }',
+        filename,
+        options: withConnection(connections.withTagName, {
+          overrides: { types: { date: "LocalDate" } },
+        }),
+        code: `
+          class LocalDate {}
+          const date = new LocalDate();
           sql<{ id: number }>\`select id from table_with_date_col WHERE date_col = \${date}\`
         `,
       },
@@ -610,16 +620,17 @@ RuleTester.describe("check-sql", () => {
         ],
       },
       {
-        name: 'comparing a col with `Date` without { date: "Date" }',
+        name: 'comparing a col with `CustomDate` without { date: "CustomDate" }',
         filename,
         options: withConnection(connections.withTagName, {
           overrides: {},
         }),
         code: `
-          const date = new Date();
+          class CustomDate {}
+          const date = new CustomDate();
           sql<{ id: number }>\`select id from table_with_date_col WHERE date_col = \${date}\`
         `,
-        errors: [{ messageId: "invalidQuery", line: 3, column: 85, endLine: 3, endColumn: 89 }],
+        errors: [{ messageId: "invalidQuery", line: 4, column: 85, endLine: 4, endColumn: 89 }],
       },
     ],
   });
