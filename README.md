@@ -15,10 +15,17 @@ https://user-images.githubusercontent.com/10504365/192807716-6a4fcbc1-9dc8-4d3b-
 
 ## Features
 
-- **⚡️ Automatic Type Inference & Validation** - SafeQL automatically infers the type of the query result based on the query itself.
-- **🖖 Compatible With Popular SQL Libraries** - SafeQL works with any PostgreSQL client, including Prisma, Sequelize, pg, Postgres.js, and more.
-- **🛠️ Easy To Use** - SafeQL was built in mind to be easy to use and integrate with your existing codebase.
-- **📦 Built with Monorepos & Microservices in mind** - SafeQL was built with monorepos and microservices in mind, and it's easy to use with multiple databases.
+- #### ⚡️ Automatic Type Inference & Validation:
+  SafeQL automatically infers the type of the query result based on the query itself.
+
+- #### 🖖 Compatible With Popular SQL Libraries:
+  SafeQL works with any PostgreSQL client, including Prisma, Sequelize, pg, Postgres.js, and more.
+
+- #### 🛠️ Easy To Use
+  SafeQL was built in mind to be easy to use and integrate with your existing codebase.
+
+- #### 📦 Built with Monorepos & Microservices in mind:
+  SafeQL was built with monorepos and microservices in mind, and it's easy to use with multiple databases.
 
 ## Install
 
