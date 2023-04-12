@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="/docs/public/safeql-og.jpg" width="700px">
+  <img src="/docs/public/safeql-og.jpg">
 </p>
 <p align="center">
   SafeQL - Automatic Type Inference & Validation for PostgreSQL Queries • <a href="https://safeql.dev" height="50px">Get started</a>
