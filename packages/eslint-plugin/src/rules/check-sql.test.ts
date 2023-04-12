@@ -20,6 +20,7 @@ const ruleTester = new ESLintUtils.RuleTester({
 const runMigrations1 = <TTypes extends Record<string, unknown>>(sql: Sql<TTypes>) =>
   sql.unsafe(`
     CREATE TYPE certification AS ENUM ('HHA', 'RN', 'LPN', 'CNA', 'PCA', 'OTHER');
+    CREATE DOMAIN phone_number AS TEXT CHECK (VALUE ~ '^[0-9]{3}-[0-9]{3}-[0-9]{4}$');
 
     CREATE TABLE caregiver (
         id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
@@ -27,6 +28,12 @@ const runMigrations1 = <TTypes extends Record<string, unknown>>(sql: Sql<TTypes>
         middle_name TEXT,
         last_name TEXT NOT NULL,
         certification certification NOT NULL
+    );
+
+    CREATE TABLE caregiver_phone (
+        id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+        caregiver_id INT NOT NULL REFERENCES caregiver(id),
+        phone_number phone_number NOT NULL
     );
 
     CREATE TABLE agency (
@@ -329,6 +336,14 @@ RuleTester.describe("check-sql", () => {
           function run(union: UnionStringLiteral) {
             conn.query<{ name: string }>(sql\`select name from agency WHERE name = \${union}\`);
           }
+        `,
+      },
+      {
+        filename,
+        options: withConnection(connections.base),
+        name: "select domain type should return its base type",
+        code: `
+        conn.query<{ phone_number: string }>(sql\`select phone_number from caregiver_phone WHERE id = 1\`);
         `,
       },
     ],

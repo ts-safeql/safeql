@@ -2,6 +2,7 @@ import {
   assertNever,
   defaultTypeMapping,
   DuplicateColumnsError,
+  fmap,
   getOrSetFromMap,
   groupBy,
   IdentiferCase,
@@ -239,12 +240,13 @@ function mapColumnAnalysisResultToPropertySignature(params: {
   fieldTransform: IdentiferCase | undefined;
 }) {
   if ("introspected" in params.col) {
-    const value =
-      params.pgEnums
-        .get(params.col.described.type)
-        ?.values.map((x) => `'${x}'`)
-        .join(" | ") ?? params.typesMap[params.col.introspected.colType];
-
+    const valueAsEnum = params.pgEnums
+      .get(params.col.described.type)
+      ?.values.map((x) => `'${x}'`)
+      .join(" | ");
+    const valueAsBase = fmap(params.col.introspected.colBaseType, (x) => params.typesMap[x]);
+    const valueAsType = params.typesMap[params.col.introspected.colType];
+    const value = valueAsEnum ?? valueAsType ?? valueAsBase;
     const key = params.col.described.name ?? params.col.introspected.colName;
 
     const isNullable =
@@ -374,6 +376,7 @@ interface PgColRow {
   tableName: string;
   colName: string;
   colType: ColType;
+  colBaseType: ColType | null;
   colNum: number;
   colHasDef: boolean;
   colNotNull: boolean;
@@ -386,6 +389,12 @@ async function getPgCols(sql: Sql) {
             pg_class.relname as "tableName",
             pg_attribute.attname as "colName",
             pg_type.typname as "colType",
+            CASE
+                WHEN pg_type.typtype = 'd' THEN
+                    (SELECT typname FROM pg_type pt WHERE pt.oid = pg_type.typbasetype)
+                ELSE
+                    NULL
+            END as "colBaseType",
             pg_attribute.attnum as "colNum",
             pg_attribute.atthasdef "colHasDef",
             pg_attribute.attnotnull "colNotNull"
