@@ -1,6 +1,6 @@
 {
   "name": "@ts-safeql/eslint-plugin",
-  "version": "0.0.27",
+  "version": "0.0.28",
   "main": "lib/index.js",
   "license": "MIT",
   "repository": "https://github.com/ts-safeql/safeql/tree/master/packages/eslint-plugin",
@@ -30,7 +30,7 @@
     "typescript": "^4.9.4"
   },
   "dependencies": {
-    "@ts-safeql/generate": "workspace:0.0.12",
+    "@ts-safeql/generate": "workspace:0.0.13",
     "@ts-safeql/shared": "workspace:0.0.7",
     "@ts-safeql/test-utils": "workspace:0.0.7",
     "@typescript-eslint/utils": "^5.47.1",

@@ -1,5 +1,11 @@
 # @ts-safeql/generate
 
+## 0.0.13
+
+### Patch Changes
+
+- 071ef8d: fixed an issue where domain types could potentially crash the plugin
+
 ## 0.0.12
 
 ### Patch Changes
