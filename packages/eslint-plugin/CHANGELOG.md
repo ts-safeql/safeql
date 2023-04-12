@@ -1,5 +1,13 @@
 # @ts-safeql/eslint-plugin
 
+## 0.0.28
+
+### Patch Changes
+
+- 071ef8d: fixed an issue where domain types could potentially crash the plugin
+- Updated dependencies [071ef8d]
+  - @ts-safeql/generate@0.0.13
+
 ## 0.0.27
 
 ### Patch Changes
