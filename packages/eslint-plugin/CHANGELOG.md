@@ -1,5 +1,11 @@
 # @ts-safeql/eslint-plugin
 
+## 0.0.29
+
+### Patch Changes
+
+- 647b69c: fixed an issue where expressions with `this` were ignored.
+
 ## 0.0.28
 
 ### Patch Changes
