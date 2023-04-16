@@ -516,6 +516,22 @@ RuleTester.describe("check-sql", () => {
           },
         ],
       },
+      {
+        filename,
+        options: withConnection(connections.base),
+        name: "this.[name].[operator](...) should be checked as well",
+        code: `
+          class X {
+            run() { const result = this.conn.query(sql\`select 1 as num\`); }
+          }
+        `,
+        output: `
+          class X {
+            run() { const result = this.conn.query<{ num: number; }>(sql\`select 1 as num\`); }
+          }
+        `,
+        errors: [{ messageId: "missingTypeAnnotations" }],
+      },
     ],
   });
 
@@ -655,6 +671,22 @@ RuleTester.describe("check-sql", () => {
           sql<{ id: number }>\`select id from table_with_date_col WHERE date_col = \${date}\`
         `,
         errors: [{ messageId: "invalidQuery", line: 4, column: 85, endLine: 4, endColumn: 89 }],
+      },
+      {
+        filename,
+        options: withConnection(connections.withTagName),
+        name: "this.[identifier] should be checked as well",
+        code: `
+          class X {
+            run() { const result = this.sql\`select 1 as num\` }
+          }
+        `,
+        output: `
+          class X {
+            run() { const result = this.sql<{ num: number; }>\`select 1 as num\` }
+          }
+        `,
+        errors: [{ messageId: "missingTypeAnnotations" }],
       },
     ],
   });
