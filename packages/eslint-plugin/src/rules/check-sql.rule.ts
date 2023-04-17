@@ -352,8 +352,13 @@ function checkConnectionByTagExpression(params: {
 }) {
   const { context, tag, projectDir, connection } = params;
 
-  const run = () =>
-    reportCheck({
+  const tagAsText = context
+    .getSourceCode()
+    .getText(tag.tag)
+    .replace(/^this\./, "");
+
+  if (tagAsText === connection.tagName) {
+    return reportCheck({
       context,
       tag,
       connection,
@@ -361,27 +366,6 @@ function checkConnectionByTagExpression(params: {
       baseNode: tag.tag,
       typeParameter: tag.typeParameters,
     });
-
-  if (ESTreeUtils.isIdentifier(tag.tag) && tag.tag.name === connection.tagName) {
-    return run();
-  }
-
-  if (
-    ESTreeUtils.isMemberExpression(tag.tag) &&
-    ESTreeUtils.isIdentifier(tag.tag.object) &&
-    ESTreeUtils.isIdentifier(tag.tag.property) &&
-    ESTreeUtils.isEqual(connection.tagName, `${tag.tag.object.name}.${tag.tag.property.name}`)
-  ) {
-    return run();
-  }
-
-  if (
-    ESTreeUtils.isMemberExpression(tag.tag) &&
-    ESTreeUtils.isIdentifier(tag.tag.property) &&
-    tag.tag.object.type === TSESTree.AST_NODE_TYPES.ThisExpression &&
-    tag.tag.property.name === connection.tagName
-  ) {
-    return run();
   }
 }
 
@@ -393,20 +377,6 @@ function checkConnectionByCallExpression(params: {
 }) {
   const { context, tag, projectDir, connection } = params;
 
-  const run = (params: {
-    callee: TSESTree.MemberExpression | TSESTree.Identifier;
-    typeParameters?: TSESTree.TSTypeParameterInstantiation | undefined;
-  }) => {
-    return reportCheck({
-      context,
-      tag,
-      connection,
-      projectDir,
-      baseNode: params.callee,
-      typeParameter: params.typeParameters,
-    });
-  };
-
   if (
     !isTagMemberValid(tag) ||
     !ESTreeUtils.isCallExpression(tag.parent) ||
@@ -415,23 +385,19 @@ function checkConnectionByCallExpression(params: {
     return;
   }
 
-  if (
-    ESTreeUtils.isIdentifier(tag.parent.callee.object) &&
-    ESTreeUtils.isEqual(tag.parent.callee.object.name, connection.name) &&
-    ESTreeUtils.isIdentifier(tag.parent.callee.property) &&
-    ESTreeUtils.isOneOf(tag.parent.callee.property.name, connection.operators)
-  ) {
-    return run({ callee: tag.parent.callee, typeParameters: tag.parent.typeParameters });
-  }
+  const calleeChunks = context.getSourceCode().getText(tag.parent.callee).split(".");
+  const operator = calleeChunks.pop();
+  const name = calleeChunks.filter((x) => x !== "this").join(".");
 
-  if (
-    ESTreeUtils.isMemberExpression(tag.parent.callee.object) &&
-    ESTreeUtils.isIdentifier(tag.parent.callee.object.property) &&
-    ESTreeUtils.isEqual(tag.parent.callee.object.property.name, connection.name) &&
-    ESTreeUtils.isIdentifier(tag.parent.callee.property) &&
-    ESTreeUtils.isOneOf(tag.parent.callee.property.name, connection.operators)
-  ) {
-    return run({ callee: tag.parent.callee, typeParameters: tag.parent.typeParameters });
+  if (connection.name === name && connection.operators.includes(operator ?? "")) {
+    return reportCheck({
+      context,
+      tag,
+      connection,
+      projectDir,
+      baseNode: tag.parent.callee,
+      typeParameter: tag.parent.typeParameters,
+    });
   }
 }
 

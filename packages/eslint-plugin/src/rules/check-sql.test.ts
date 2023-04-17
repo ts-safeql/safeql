@@ -92,6 +92,11 @@ RuleTester.describe("check-sql", () => {
       tagName: "sql",
       keepAlive: false,
     },
+    withObjectPropertyTagName: {
+      databaseUrl: `postgres://postgres:postgres@localhost:5432/${databaseName}`,
+      tagName: "Db.sql",
+      keepAlive: false,
+    },
   };
 
   function withConnection(
@@ -671,6 +676,22 @@ RuleTester.describe("check-sql", () => {
           sql<{ id: number }>\`select id from table_with_date_col WHERE date_col = \${date}\`
         `,
         errors: [{ messageId: "invalidQuery", line: 4, column: 85, endLine: 4, endColumn: 89 }],
+      },
+      {
+        filename,
+        options: withConnection(connections.withObjectPropertyTagName),
+        name: "[x].sql should be checked as well",
+        code: `
+          class X {
+            run() { const result = Db.sql\`select 1 as num\` }
+          }
+        `,
+        output: `
+          class X {
+            run() { const result = Db.sql<{ num: number; }>\`select 1 as num\` }
+          }
+        `,
+        errors: [{ messageId: "missingTypeAnnotations" }],
       },
       {
         filename,
