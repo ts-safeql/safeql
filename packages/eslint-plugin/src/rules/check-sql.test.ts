@@ -83,21 +83,30 @@ RuleTester.describe("check-sql", () => {
   const connections = {
     base: {
       databaseUrl: `postgres://postgres:postgres@localhost:5432/${databaseName}`,
-      name: "conn",
-      operators: ["query"],
+      targets: [{ wrapper: "conn.query" }],
       keepAlive: false,
     },
-    withTagName: {
+    withGlobWrapper: {
       databaseUrl: `postgres://postgres:postgres@localhost:5432/${databaseName}`,
-      tagName: "sql",
+      targets: [{ wrapper: "conn.+(query|queryOne|queryOneOrNone)" }],
       keepAlive: false,
     },
-    withObjectPropertyTagName: {
+    withTag: {
       databaseUrl: `postgres://postgres:postgres@localhost:5432/${databaseName}`,
-      tagName: "Db.sql",
+      targets: [{ tag: "sql" }],
       keepAlive: false,
     },
-  };
+    withMemberTag: {
+      databaseUrl: `postgres://postgres:postgres@localhost:5432/${databaseName}`,
+      targets: [{ tag: "Db.sql" }],
+      keepAlive: false,
+    },
+    withGlobTag: {
+      databaseUrl: `postgres://postgres:postgres@localhost:5432/${databaseName}`,
+      targets: [{ tag: "+(conn1|conn2).sql" }],
+      keepAlive: false,
+    },
+  } satisfies Record<string, RuleOptionConnection>;
 
   function withConnection(
     connection: RuleOptionConnection,
@@ -351,6 +360,21 @@ RuleTester.describe("check-sql", () => {
         conn.query<{ phone_number: string }>(sql\`select phone_number from caregiver_phone WHERE id = 1\`);
         `,
       },
+      {
+        filename,
+        name: "don't report on incorrect target",
+        options: withConnection(connections.base),
+        code: `
+          xconn.query(sql\`SELECT 1\`);
+          conn.queryNone(sql\`SELECT 1\`);
+        `,
+      },
+      {
+        filename,
+        name: "don't report on incorrect target",
+        options: withConnection(connections.base),
+        code: "xconn.query(sql`SELECT 1 as x`);",
+      },
     ],
     invalid: [
       {
@@ -545,20 +569,24 @@ RuleTester.describe("check-sql", () => {
       {
         name: "transform as {type}[]",
         filename,
-        options: withConnection(connections.base, { transform: "{type}[]" }),
+        options: withConnection(connections.base, {
+          targets: [{ wrapper: "conn.query", transform: "{type}[]" }],
+        }),
         code: "const result = conn.query<{ id: number; }[]>(sql`select id from caregiver`);",
       },
       {
         name: "transform as ['{type}[]']",
         filename,
-        options: withConnection(connections.base, { transform: ["{type}[]"] }),
+        options: withConnection(connections.base, {
+          targets: [{ wrapper: "conn.query", transform: "{type}[]" }],
+        }),
         code: "const result = conn.query<{ id: number; }[]>(sql`select id from caregiver`);",
       },
       {
         name: "transform as [['middle_name', 'x_middle_name']]",
         filename,
         options: withConnection(connections.base, {
-          transform: [["middle_name", "x_middle_name"]],
+          targets: [{ wrapper: "conn.query", transform: [["middle_name", "x_middle_name"]] }],
         }),
         code: "const result = conn.query<{ x_middle_name: string | null; }>(sql`select middle_name from caregiver`);",
       },
@@ -566,7 +594,9 @@ RuleTester.describe("check-sql", () => {
         name: "transform as ['{type}[]', ['middle_name', 'x_middle_name']]",
         filename,
         options: withConnection(connections.base, {
-          transform: ["{type}[]", ["middle_name", "x_middle_name"]],
+          targets: [
+            { wrapper: "conn.query", transform: ["{type}[]", ["middle_name", "x_middle_name"]] },
+          ],
         }),
         code: "const result = conn.query<{ x_middle_name: string | null; }[]>(sql`select middle_name from caregiver`);",
       },
@@ -574,32 +604,34 @@ RuleTester.describe("check-sql", () => {
     invalid: [],
   });
 
-  ruleTester.run("connection with tagName", rules["check-sql"], {
+  ruleTester.run("connection with tag target", rules["check-sql"], {
     valid: [
       {
-        name: "tagName as sql",
+        name: "tag as sql",
         filename,
-        options: withConnection(connections.withTagName),
+        options: withConnection(connections.withTag),
         code: "sql<{ id: number }>`select id from caregiver`",
       },
       {
-        name: "tagName and transform as sql (Postgres.js)",
+        name: "tag and transform as sql (Postgres.js)",
         filename,
-        options: withConnection(connections.withTagName, { transform: "{type}[]" }),
+        options: withConnection(connections.withTag, {
+          targets: [{ tag: "sql", transform: "{type}[]" }],
+        }),
         code: "sql<{ id: number }[]>`select id from caregiver`",
       },
       {
-        name: "sql tagName inside a function",
+        name: "sql tag inside a function",
         filename,
-        options: withConnection(connections.withTagName),
+        options: withConnection(connections.withTag),
         code: "const result = conn.query(sql<{ id: number }>`select id from caregiver`);",
       },
     ],
     invalid: [
       {
-        name: "tagName without type annotations",
+        name: "tag without type annotations",
         filename,
-        options: withConnection(connections.withTagName),
+        options: withConnection(connections.withTag),
         code: "sql`select id from caregiver`",
         output: "sql<{ id: number; }>`select id from caregiver`",
         errors: [
@@ -607,9 +639,9 @@ RuleTester.describe("check-sql", () => {
         ],
       },
       {
-        name: "tagName without type annotations inside a function",
+        name: "tag without type annotations inside a function",
         filename,
-        options: withConnection(connections.withTagName),
+        options: withConnection(connections.withTag),
         code: "const result = conn.query(sql`select id from caregiver`)",
         output: "const result = conn.query(sql<{ id: number; }>`select id from caregiver`)",
         errors: [
@@ -624,7 +656,7 @@ RuleTester.describe("check-sql", () => {
       {
         name: 'with { int4: "Integer" }',
         filename,
-        options: withConnection(connections.withTagName, {
+        options: withConnection(connections.withTag, {
           overrides: { types: { int4: "Integer" } },
         }),
         code: "sql<{ id: Integer }>`select id from caregiver`",
@@ -632,7 +664,7 @@ RuleTester.describe("check-sql", () => {
       {
         name: 'with default mapping for "date"',
         filename,
-        options: withConnection(connections.withTagName),
+        options: withConnection(connections.withTag),
         code: `
           const date = new Date();
           sql<{ id: number }>\`select id from table_with_date_col WHERE date_col = \${date}\`
@@ -641,7 +673,7 @@ RuleTester.describe("check-sql", () => {
       {
         name: 'with { date: "LocalDate" }',
         filename,
-        options: withConnection(connections.withTagName, {
+        options: withConnection(connections.withTag, {
           overrides: { types: { date: "LocalDate" } },
         }),
         code: `
@@ -655,7 +687,7 @@ RuleTester.describe("check-sql", () => {
       {
         name: 'with { int4: "Integer" } while { id: number }',
         filename,
-        options: withConnection(connections.withTagName, {
+        options: withConnection(connections.withTag, {
           overrides: { types: { int4: "Integer" } },
         }),
         code: "sql<{ id: number }>`select id from caregiver`",
@@ -667,7 +699,7 @@ RuleTester.describe("check-sql", () => {
       {
         name: 'comparing a col with `CustomDate` without { date: "CustomDate" }',
         filename,
-        options: withConnection(connections.withTagName, {
+        options: withConnection(connections.withTag, {
           overrides: {},
         }),
         code: `
@@ -679,8 +711,56 @@ RuleTester.describe("check-sql", () => {
       },
       {
         filename,
-        options: withConnection(connections.withObjectPropertyTagName),
-        name: "[x].sql should be checked as well",
+        options: withConnection(connections.withGlobWrapper),
+        name: "glob pattern should be checked as well (wrapper glob)",
+        code: `
+          class X {
+            run() {
+              conn.query(sql\`select 1 as num\`);
+              conn.queryOne(sql\`select 1 as num\`);
+              diff.query(sql\`select 1 as num\`);
+            }
+          }
+        `,
+        output: `
+          class X {
+            run() {
+              conn.query<{ num: number; }>(sql\`select 1 as num\`);
+              conn.queryOne<{ num: number; }>(sql\`select 1 as num\`);
+              diff.query(sql\`select 1 as num\`);
+            }
+          }
+        `,
+        errors: [{ messageId: "missingTypeAnnotations" }, { messageId: "missingTypeAnnotations" }],
+      },
+      {
+        filename,
+        options: withConnection(connections.withGlobTag),
+        name: "glob pattern should be checked as well (tag glob)",
+        code: `
+          class X {
+            run() {
+              conn1.sql\`select 1 as num\`;
+              conn2.sql\`select 1 as num\`;
+              conn3.sql\`select 1 as num\`;
+            }
+          }
+        `,
+        output: `
+          class X {
+            run() {
+              conn1.sql<{ num: number; }>\`select 1 as num\`;
+              conn2.sql<{ num: number; }>\`select 1 as num\`;
+              conn3.sql\`select 1 as num\`;
+            }
+          }
+        `,
+        errors: [{ messageId: "missingTypeAnnotations" }, { messageId: "missingTypeAnnotations" }],
+      },
+      {
+        filename,
+        options: withConnection(connections.withMemberTag),
+        name: "[x].sql should be checked as well (as member expression)",
         code: `
           class X {
             run() { const result = Db.sql\`select 1 as num\` }
@@ -695,8 +775,8 @@ RuleTester.describe("check-sql", () => {
       },
       {
         filename,
-        options: withConnection(connections.withTagName),
-        name: "this.[identifier] should be checked as well",
+        options: withConnection(connections.withTag),
+        name: "this.[identifier] should be checked as well (as this expression)",
         code: `
           class X {
             run() { const result = this.sql\`select 1 as num\` }
@@ -717,43 +797,57 @@ RuleTester.describe("check-sql", () => {
       {
         name: "transform to snake case",
         filename,
-        options: withConnection(connections.withTagName, { fieldTransform: "snake" }),
+        options: withConnection(connections.withTag, {
+          targets: [{ tag: "sql", fieldTransform: "snake" }],
+        }),
         code: 'sql<{ my_number: number }>`select 1 as "MyNumber"`',
       },
       {
         name: "transform non-table column to camel case",
         filename,
-        options: withConnection(connections.withTagName, { fieldTransform: "camel" }),
+        options: withConnection(connections.withTag, {
+          targets: [{ tag: "sql", fieldTransform: "camel" }],
+        }),
         code: 'sql<{ myNumber: number }>`select 1 as "my_number"`',
       },
       {
         name: "transform table column to camel case",
         filename,
-        options: withConnection(connections.withTagName, { fieldTransform: "camel" }),
+        options: withConnection(connections.withTag, {
+          targets: [{ tag: "sql", fieldTransform: "camel" }],
+        }),
         code: "sql<{ firstName: string }>`select first_name from caregiver`",
       },
       {
         name: "transform non-table column to pascal case",
         filename,
-        options: withConnection(connections.withTagName, { fieldTransform: "pascal" }),
+        options: withConnection(connections.withTag, {
+          targets: [{ tag: "sql", fieldTransform: "pascal" }],
+        }),
         code: 'sql<{ MyNumber: number }>`select 1 as "my_number"`',
       },
       {
         name: "transform table column to pascal case",
         filename,
-        options: withConnection(connections.withTagName, { fieldTransform: "pascal" }),
+        options: withConnection(connections.withTag, {
+          targets: [{ tag: "sql", fieldTransform: "pascal" }],
+        }),
         code: "sql<{ FirstName: string }>`select first_name from caregiver`",
       },
       {
         name: "transform non-table column to screaming snake case",
         filename,
-        options: withConnection(connections.withTagName, { fieldTransform: "screaming snake" }),
+        options: withConnection(connections.withTag, {
+          targets: [{ tag: "sql", fieldTransform: "screaming snake" }],
+        }),
         code: 'sql<{ MY_NUMBER: number }>`select 1 as "my_number"`',
       },
       {
         name: "transform table column to screaming snake case",
         filename,
-        options: withConnection(connections.withTagName, { fieldTransform: "screaming snake" }),
+        options: withConnection(connections.withTag, {
+          targets: [{ tag: "sql", fieldTransform: "screaming snake" }],
+        }),
         code: "sql<{ FIRST_NAME: string }>`select first_name from caregiver`",
       },
     ],
@@ -761,7 +855,9 @@ RuleTester.describe("check-sql", () => {
       {
         name: "with camelCase while result is snake_case",
         filename,
-        options: withConnection(connections.withTagName, { fieldTransform: "camel" }),
+        options: withConnection(connections.withTag, {
+          targets: [{ tag: "sql", fieldTransform: "camel" }],
+        }),
         code: "sql<{ first_name: string }>`select first_name from caregiver`",
         output: "sql<{ firstName: string; }>`select first_name from caregiver`",
         errors: [

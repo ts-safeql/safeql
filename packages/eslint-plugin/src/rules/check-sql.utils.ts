@@ -16,7 +16,7 @@ import { z } from "zod";
 import { ESTreeUtils } from "../utils";
 import { E, pipe, TE } from "../utils/fp-ts";
 import { mapConnectionOptionsToString, parseConnection } from "../utils/pg.utils";
-import { connectByMigrationSchema, RuleContext, RuleOptionConnection } from "./check-sql.rule";
+import { RuleContext, RuleOptionConnection, zConnectionMigration } from "./check-sql.rule";
 import { WorkerError } from "./check-sql.worker";
 
 type TypeReplacerString = string;
@@ -230,14 +230,13 @@ export function shouldLintFile(params: RuleContext) {
 
 function isMigrationConnection(
   connection: RuleOptionConnection
-): connection is RuleOptionConnection & z.infer<typeof connectByMigrationSchema> {
+): connection is RuleOptionConnection & z.infer<typeof zConnectionMigration> {
   return "migrationsDir" in connection;
 }
 
 export function isWatchMigrationsDirEnabled(
   connection: RuleOptionConnection
-): connection is RuleOptionConnection &
-  z.infer<typeof connectByMigrationSchema> & { watchMode: true } {
+): connection is RuleOptionConnection & z.infer<typeof zConnectionMigration> & { watchMode: true } {
   return isMigrationConnection(connection) && (connection.watchMode ?? true) === true;
 }
 

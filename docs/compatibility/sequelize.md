@@ -44,10 +44,11 @@ Second, add the following rule to your ESLint config:
           {
             // ...
 
-            // The name of the variable that holds the connection:
-            "name": "sequelize",
-            // An array of operators that wraps the raw query:
-            "operators": ["query"]
+            "targets": {
+                // The name of the wrapper that should be checked:
+                "wrapper": "sequelize.query",
+              }
+            }
           }
         ]
       }

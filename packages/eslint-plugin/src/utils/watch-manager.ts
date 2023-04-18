@@ -1,7 +1,7 @@
 import chokidar from "chokidar";
 import path from "path";
 import { z } from "zod";
-import { connectByMigrationSchema, RuleOptionConnection } from "../rules/check-sql.rule";
+import { RuleOptionConnection, zConnectionMigration } from "../rules/check-sql.rule";
 import {
   DEFAULT_CONNECTION_URL,
   getDatabaseName,
@@ -19,7 +19,7 @@ export function createWatchManager() {
 
 interface WatchMigrationsDirParams {
   projectDir: string;
-  connection: RuleOptionConnection & z.infer<typeof connectByMigrationSchema> & { watchMode: true };
+  connection: RuleOptionConnection & z.infer<typeof zConnectionMigration> & { watchMode: true };
   dropCacheKeyFn: (cacheKey: string) => void;
   closeConnectionFn: (params: CloseConnectionParams) => void;
 }

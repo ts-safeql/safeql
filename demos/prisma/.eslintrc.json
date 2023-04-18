@@ -11,9 +11,9 @@
         "connections": [
           {
             "migrationsDir": "./prisma/migrations",
-            "name": "prisma",
-            "operators": ["$executeRaw", "$queryRaw"],
-            "transform": "{type}[]"
+            "targets": [
+              { "tag": "prisma.+($queryRaw|$executeRaw)", "transform": "{type}[]" }
+            ]
           }
         ]
       }

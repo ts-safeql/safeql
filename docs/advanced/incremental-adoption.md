@@ -29,8 +29,7 @@ export const $typedQueryRaw = prisma.$queryRaw; // [!code ++]
       {
         "connections": {
           "migrationsDir": "./prisma/migrations",
-          "tagName": "$typedQueryRaw",
-          "transform": "{type}[]"
+          "targets": [{ "tag": "$typedQueryRaw", "transform": "{type}[]" }]
         }
       }
     ]

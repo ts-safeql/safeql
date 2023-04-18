@@ -51,11 +51,17 @@ export default defineConfig({
               { text: "watchMode", link: "/api/index.md#connections-watchmode-optional" },
               { text: "connectionUrl", link: "/api/index.md#connections-connectionurl-optional" },
               { text: "databaseName", link: "/api/index.md#connections-databasename-optional" },
-              { text: "tagName", link: "/api/index.md#connections-tagname" },
-              { text: "name", link: "/api/index.md#connections-name" },
-              { text: "operators", link: "/api/index.md#connections-operators" },
-              { text: "transform", link: "/api/index.md#connections-transform-optional" },
-              { text: "fieldTransform", link: "/api/index.md#connections-fieldtransform-optional" },
+              { text: "targets", link: "/api/index.md#connections-targets" },
+              { text: "targets.tag", link: "/api/index.md#connections-targets-tag" },
+              { text: "targets.wrapper", link: "/api/index.md#connections-targets-wrapper" },
+              {
+                text: "targets.transform",
+                link: "/api/index.md#connections-targets-transform-optional",
+              },
+              {
+                text: "targets.fieldTransform",
+                link: "/api/index.md#connections-targets-fieldtransform-optional",
+              },
               { text: "keepAlive", link: "/api/index.md#connections-keepalive-optional" },
               {
                 text: "overrides.types",

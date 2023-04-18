@@ -7,9 +7,17 @@
 }
 
 .error {
-    --vp-code-line-highlight-color: var(--vp-c-red-dimm-2);
+  --vp-code-line-highlight-color: var(--vp-c-red-dimm-2);
 }
 
 .error code span.highlighted span {
     color: var(--vp-c-red-light) !important;
+}
+
+.success {
+  --vp-code-line-highlight-color: var(--vp-c-green-dimm-2);
+}
+
+.success code span.highlighted span {
+    color: var(--vp-c-green-light) !important;
 }

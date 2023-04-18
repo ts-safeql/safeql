@@ -10,7 +10,6 @@ SafeQL is compatible with [Prisma](https://www.prisma.io/) which [supports raw q
 Check out [@ts-safeql-demos/prisma](https://github.com/ts-safeql/safeql/tree/main/demos/prisma) for a working example.
 :::
 
-
 First, Make sure you've added `@ts-safeql/eslint-plugin` to your ESLint plugins:
 
 ```json{3}
@@ -36,12 +35,13 @@ Second, add the following rule to your ESLint config:
           {
             // The migrations path:
             "migrationsDir": "./prisma/migrations",
-            // The name of the variable that holds the connection:
-            "name": "prisma",
-            // An array of operators that wraps the raw query:
-            "operators": ["$queryRaw"],
-            // Transform the query result to array
-            "transform": "{type}[]"
+            "targets": {
+              // The sql tags that should be checked.
+              // either `db.$queryRaw` or `db.$executeRaw`:
+              "tag": "prisma.+($queryRaw|$executeRaw)",
+              // Transform the query result to array
+              "transform": "{type}[]"
+            }
           }
         ]
       }
@@ -54,27 +54,21 @@ Lastly, SafeQL will be able to lint your queries like so:
 
 <div class="error">
 
-```typescript{8,13}
+```typescript{7,11}
 import { Prisma, PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
 // Before:
-const query = prisma.$queryRaw(
-  Prisma.sql`SELECT idd FROM users`
+const query = prisma.$queryRaw`SELECT idd FROM users`;
                     ~~~ Error: column "idd" does not exist
-)
 
 // After bug fix:
-const query = prisma.$queryRaw(
+const query = prisma.$queryRaw`SELECT id FROM users`;
               ~~~~~~~~~~~~~~~~ Error: Query is missing type annotation
-  Prisma.sql`SELECT id FROM users`
-)
 
 // After: ✅
-const query = prisma.$queryRaw<{ id: number; }[]>(
-  Prisma.sql`SELECT id FROM users`
-)
+const query = prisma.$queryRaw<{ id: number; }[]>`SELECT id FROM users`;
 ```
 
 </div>

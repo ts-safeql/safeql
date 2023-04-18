@@ -3,7 +3,7 @@ import fs from "fs";
 import path from "path";
 import z from "zod";
 import { E, pipe } from "../utils/fp-ts";
-import { Config, Options, RuleContext, UserConfigFile } from "./check-sql.rule";
+import { Config, Options, RuleContext, UserConfigFile, zConfig } from "./check-sql.rule";
 
 export function getConfigFromFileWithContext(params: {
   context: RuleContext;
@@ -52,7 +52,7 @@ function getConfigFromFile(projectDir: string): E.Either<string, Config> {
       throw new Error(`safeql.config.ts must export a default value`);
     }
 
-    const config = Config.safeParse(rawConfig);
+    const config = zConfig.safeParse(rawConfig);
 
     if (!config.success) {
       throw new Error(`safeql.config.ts is invalid: ${config.error.message}`);
@@ -70,6 +70,6 @@ function isConfigFileRuleOptions(options: Options): options is UserConfigFile {
   return "useConfigFile" in options;
 }
 
-export function defineConfig(config: z.infer<typeof Config>) {
+export function defineConfig(config: z.infer<typeof zConfig>) {
   return config;
 }
