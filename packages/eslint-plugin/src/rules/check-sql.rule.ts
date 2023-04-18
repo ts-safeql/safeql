@@ -4,7 +4,7 @@ import { ESLintUtils, ParserServices, TSESLint, TSESTree } from "@typescript-esl
 import { minimatch } from "minimatch";
 import pgParser from "libpg-query";
 import { createSyncFn } from "synckit";
-import { match, P } from "ts-pattern";
+import { match } from "ts-pattern";
 import ts from "typescript";
 import z from "zod";
 import zodToJsonSchema from "zod-to-json-schema";
