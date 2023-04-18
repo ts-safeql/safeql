@@ -15,7 +15,6 @@
           },
           {
             "migrationsDir": "migrations_client2",
-            "name": "client2",
             "targets": [{ "wrapper": "client2.+(query|queryOne|queryOneOrNone)" }]
           }
         ]
