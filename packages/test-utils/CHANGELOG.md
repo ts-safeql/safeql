@@ -1,5 +1,13 @@
 # @ts-safeql/test-utils
 
+## 0.0.8
+
+### Patch Changes
+
+- 55c010d: update dependencies
+- Updated dependencies [55c010d]
+  - @ts-safeql/shared@0.0.8
+
 ## 0.0.7
 
 ### Patch Changes

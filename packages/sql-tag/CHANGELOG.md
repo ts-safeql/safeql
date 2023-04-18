@@ -1,5 +1,11 @@
 # @ts-safeql/safeql
 
+## 0.1.1
+
+### Patch Changes
+
+- 55c010d: update dependencies
+
 ## 0.1.0
 
 ### Minor Changes
