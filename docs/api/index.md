@@ -47,7 +47,7 @@ represents the type of the connection. For example:
 {
   "connections": {
     "databaseUrl": "postgres://user:pass@localhost:5432/dbname",
-    "tagName": "sql"
+    "targets": [{ "tag": "sql" }]
   }
 }
 ```
@@ -59,12 +59,11 @@ When working with multiple connections, you can pass an array of connections:
   "connections": [
     {
       "databaseUrl": "postgres://user:pass@localhost:5432/dbname",
-      "tagName": "sql"
+      "targets": [{ "tag": "sql" }]
     },
     {
       "databaseUrl": "postgres://user:pass@localhost:5432/dbname2",
-      "name": "Prisma",
-      "operators": ["$queryRaw", "$executeRaw"]
+      "targets": [{ "tag": "prisma.+($queryRaw|$executeRaw)" }]
     }
   ]
 }
@@ -183,9 +182,40 @@ Read more in [`connectionUrl`](#connections-connectionurl-optional) option. For 
 
 :::
 
-### `connections.tagName`
+### `connections.targets.tag`
 
-The name of the tag that SafeQL will use to analyze the queries. For example, `"tagName": "sql"` for:
+The `targets` tell SafeQL where to look for the queries. It's an array of `tag` and `wrapper` targets.
+
+```json
+{
+  "connections": {
+    // ...
+    "targets": [
+      { "tag": "sql1" } // [!code focus]
+      { "tag": "sql2" } // [!code focus]
+      { "wrapper": "conn.query" } // [!code focus]
+      { "wrapper": "conn.+(query|execute)" } // [!code focus]
+      ]
+  }
+}
+```
+
+### `connections.targets.tag`
+
+The name of the tag (or a glob pattern using [minimatch](https://github.com/isaacs/minimatch)) that SafeQL will use to analyze the queries. For example:
+
+```json
+{
+  "connections": {
+    // ...
+    "targets": [{ "tag": "sql" }] // [!code focus]
+    // or use a glob pattern: // [!code focus]
+    // "targets": [{ "tag": "prisma.+($queryRaw|$executeRaw)" }] // [!code focus]
+  }
+}
+```
+
+for:
 
 ```ts
 const sql = postgres();
@@ -205,13 +235,22 @@ guide on [how to use SafeQL with Postgres.js](/compatibility/postgres.js).
 
 ::: info
 
-- this option **cannot** be used with [`name`](#connections-name) and [`operators`](#connections-operators).
+- this option **cannot** be used with [`wrapper`](#connections-targets-wrapper) as a sibling property.
 
 :::
 
-### `connections.name`
+### `connections.targets.wrapper`
 
-The name of the variable the holds the connection. For example, `"name": "conn"` for:
+The wrapper function that receives the sql tag as an argument:
+
+```json
+{
+  "connections": {
+    // ...
+    "targets": [{ "wrapper": "conn.query" }] // [!code focus]
+  }
+}
+```
 
 ```ts
 const conn = new Client();
@@ -221,39 +260,25 @@ conn.query(...);
 
 ::: info
 
-- this option **cannot** be used with [`tagName`](#connections-tagname).
-- this option **must** be used with [`operators`](#connections-operators).
+- this option **cannot** be used with [`tag`](#connections-tagname) as a sibling property.
 
 :::
 
-### `connections.operators`
-
-The names of the operators that SafeQL will use to analyze the queries. For example, `"operators": ["$queryRaw", "$executeRaw"]` for:
-
-```ts
-const conn = new Client();
-
-conn.$queryRaw(...); // will be fixed to conn.$queryRaw<{ ... }>(...);
-conn.$executeRaw(...); // will be fixed to conn.$executeRaw<{ ... }>(...);
-```
-
-::: info
-
-- this option **cannot** be used with [`tagName`](#connections-tagname).
-- this option **must** be used with [`name`](#connections-name).
-
-:::
-
-### `connections.transform` (Optional)
+### `connections.targets.transform` (Optional)
 
 Transform the end result of the query. For example, if you want to transform the result of the query
 to be an array of objects, you can use the following:
 
-```json
+```json{7}
 {
   "connections": {
     // ...
-    "transform": "{type}[]"
+    "targets": [
+      {
+        // ...
+        "transform": "{type}[]"
+      }
+    ]
   }
 }
 ```
@@ -266,7 +291,7 @@ to be an array of objects, you can use the following:
 
 :::
 
-### `connections.fieldTransform` (Optional)
+### `connections.targets.fieldTransform` (Optional)
 
 Transform the (column) field key. Can be one of the following:
 
@@ -274,6 +299,20 @@ Transform the (column) field key. Can be one of the following:
 - `"camel"` - `user_id` → `userId`
 - `"pascal"` - `user_id` → `UserId`
 - `"screaming snake"` - `user_id` → `USER_ID`
+
+```json{7}
+{
+  "connections": {
+    // ...
+    "targets": [
+      {
+        // ...
+        "fieldTransform": "camel" // [!code focus]
+      }
+    ]
+  }
+}
+```
 
 ### `connections.keepAlive` (Optional)
 

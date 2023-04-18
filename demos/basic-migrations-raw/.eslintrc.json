@@ -10,8 +10,7 @@
       {
         "connections": {
           "migrationsDir": "migrations",
-          "name": "client",
-          "operators": ["query", "queryOne", "queryOneOrNone"]
+          "targets": [{ "wrapper": "client.+(query|queryOne|queryOneOrNone)" }]
         }
       }
     ]

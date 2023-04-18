@@ -11,13 +11,11 @@
         "connections": [
           {
             "migrationsDir": "migrations_client1",
-            "name": "client1",
-            "operators": ["query", "queryOne", "queryOneOrNone"]
+            "targets": [{ "wrapper": "client1.+(query|queryOne|queryOneOrNone)" }]
           },
           {
             "migrationsDir": "migrations_client2",
-            "name": "client2",
-            "operators": ["query", "queryOne", "queryOneOrNone"]
+            "targets": [{ "wrapper": "client2.+(query|queryOne|queryOneOrNone)" }]
           }
         ]
       }

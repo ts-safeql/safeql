@@ -43,11 +43,10 @@ Second, add the following rule to your ESLint config:
         "connections": [
           {
             // ...
-
-            // The name of the variable that holds the connection:
-            "name": "client",
-            // An array of operators that wraps the raw query:
-            "operators": ["query"]
+            "targets": {
+              // The name of the wrapper that should be checked:
+              "wrapper": "client.query",
+            }
           }
         ]
       }

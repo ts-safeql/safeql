@@ -1,4 +1,4 @@
-import { Prisma, PrismaClient } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 import assert from "assert";
 
 import { config } from "dotenv";
@@ -11,16 +11,16 @@ async function run() {
 
   test(`SELECT id FROM "User" LIMIT 1`, async () => {
     return assert.deepEqual(
-      await prisma.$queryRaw<{ id: number }[]>(Prisma.sql`SELECT id FROM "User" LIMIT 1`),
+      await prisma.$queryRaw<{ id: number }[]>`SELECT id FROM "User" LIMIT 1`,
       await prisma.user.findMany({ select: { id: true }, take: 1 })
     );
   });
 
   test(`SELECT * FROM "User"`, async () => {
     return assert.deepEqual(
-      await prisma.$queryRaw<{ id: number; createdAt: Date; email: string; name: string | null }[]>(
-        Prisma.sql`SELECT * FROM "User"`
-      ),
+      await prisma.$queryRaw<
+        { id: number; createdAt: Date; email: string; name: string | null }[]
+      >`SELECT * FROM "User"`,
       await prisma.user.findMany()
     );
   });

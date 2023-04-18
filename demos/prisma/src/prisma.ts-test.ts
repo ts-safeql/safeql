@@ -1,11 +1,11 @@
-import { Prisma, PrismaClient, PrismaPromise } from "@prisma/client";
+import { PrismaClient, PrismaPromise } from "@prisma/client";
 import { assert, IsExact } from "conditional-type-checks";
 
 function _test() {
   const prisma = new PrismaClient();
 
   () => {
-    const raw = prisma.$queryRaw<{ id: number }[]>(Prisma.sql`SELECT id FROM "User" LIMIT 1`);
+    const raw = prisma.$queryRaw<{ id: number }[]>`SELECT id FROM "User" LIMIT 1`;
     const orm = prisma.user.findMany({ select: { id: true }, take: 1 });
 
     assert<IsExact<typeof raw, PrismaPromise<{ id: number }[]>>>(true);
@@ -15,7 +15,7 @@ function _test() {
   () => {
     const raw = prisma.$queryRaw<
       { id: number; createdAt: Date; email: string; name: string | null }[]
-    >(Prisma.sql`SELECT * FROM "User"`);
+    >`SELECT * FROM "User"`;
     const orm = prisma.user.findMany();
 
     assert<IsExact<typeof raw, typeof orm>>(true);
@@ -24,9 +24,9 @@ function _test() {
   () => {
     const email = "alice@safeql.dev";
 
-    const raw = prisma.$queryRaw<{ id: number }[]>(
-      Prisma.sql`SELECT id FROM "User" WHERE email = ${email} LIMIT 1`
-    );
+    const raw = prisma.$queryRaw<
+      { id: number }[]
+    >`SELECT id FROM "User" WHERE email = ${email} LIMIT 1`;
     const orm = prisma.user.findMany({ where: { email }, select: { id: true }, take: 1 });
 
     assert<IsExact<typeof raw, typeof orm>>(true);

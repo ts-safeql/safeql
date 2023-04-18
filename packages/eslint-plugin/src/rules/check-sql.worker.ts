@@ -18,7 +18,7 @@ import { createConnectionManager } from "../utils/connection-manager";
 import { J, pipe, TE } from "../utils/fp-ts";
 import { initDatabase } from "../utils/pg.utils";
 import { createWatchManager } from "../utils/watch-manager";
-import { RuleOptionConnection } from "./check-sql.rule";
+import { ConnectionTarget, RuleOptionConnection } from "./check-sql.rule";
 import {
   ConnectionPayload,
   getMigrationDatabaseMetadata,
@@ -29,6 +29,7 @@ import {
 
 export interface WorkerParams {
   connection: RuleOptionConnection;
+  target: ConnectionTarget;
   query: string;
   projectDir: string;
   pgParsed: ParsedQuery.Root;
@@ -111,7 +112,7 @@ function workerHandler(params: WorkerParams): TE.TaskEither<WorkerError, WorkerR
         cacheKey: databaseUrl,
         pgParsed: params.pgParsed,
         overrides: params.connection.overrides,
-        fieldTransform: params.connection.fieldTransform,
+        fieldTransform: params.target.fieldTransform,
       });
     }),
     TE.chainW(TE.fromEither)

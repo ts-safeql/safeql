@@ -40,4 +40,4 @@ export const colTypes = [
   "bytea",
 ] as const;
 
-export type ColType = typeof colTypes[number];
+export type ColType = (typeof colTypes)[number];

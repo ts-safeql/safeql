@@ -1,6 +1,7 @@
 import { GenerateResult } from "@ts-safeql/generate";
 import { defaultTypeMapping, objectKeysNonEmpty, PostgresError } from "@ts-safeql/shared";
 import { ESLintUtils, ParserServices, TSESLint, TSESTree } from "@typescript-eslint/utils";
+import { minimatch } from "minimatch";
 import pgParser from "libpg-query";
 import { createSyncFn } from "synckit";
 import { match } from "ts-pattern";
@@ -35,14 +36,12 @@ const messages = {
   error: "{{error}}",
   invalidQuery: "Invalid Query: {{error}}",
   missingTypeAnnotations: "Query is missing type annotation\n\tFix with: {{fix}}",
-  incorrectTypeAnnotations:
-    "Query has incorrect type annotation.\n\tExpected: {{expected}}`\n\tActual: {{actual}}",
-  invalidTypeAnnotations:
-    "Query has invalid type annotation (SafeQL does not support it. If you think it should, please open an issue)",
+  incorrectTypeAnnotations: `Query has incorrect type annotation.\n\tExpected: {{expected}}\n\tActual: {{actual}}`,
+  invalidTypeAnnotations: `Query has invalid type annotation (SafeQL does not support it. If you think it should, please open an issue)`,
 };
 export type RuleMessage = keyof typeof messages;
 
-const baseSchema = z.object({
+const zBaseTarget = z.object({
   /**
    * Transform the end result of the type.
    *
@@ -63,6 +62,34 @@ const baseSchema = z.object({
    * - `"screaming snake"` - `user_id` → `USER_ID`
    */
   fieldTransform: z.enum(["snake", "pascal", "camel", "screaming snake"]).optional(),
+});
+
+/**
+ * A target that acts as a wrapper for the query. For example:
+ *
+ * ```ts
+ * const query = conn.query(sql`SELECT * FROM users`);
+ *               ^^^^^^^^^^ wrapper
+ * ```
+ */
+const zWrapperTarget = z.object({ wrapper: z.string() }).merge(zBaseTarget);
+type WrapperTarget = z.infer<typeof zWrapperTarget>;
+
+/**
+ * A target that is a tag expression. For example:
+ *
+ * ```ts
+ * const query = sql`SELECT * FROM users`;
+ *               ^^^ tag
+ * ```
+ */
+const zTagTarget = z.object({ tag: z.string() }).merge(zBaseTarget);
+type TagTarget = z.infer<typeof zTagTarget>;
+
+export type ConnectionTarget = WrapperTarget | TagTarget;
+
+const zBaseSchema = z.object({
+  targets: z.union([zWrapperTarget, zTagTarget]).array(),
 
   /**
    * Whether or not keep the connection alive. Change it only if you know what you're doing.
@@ -80,32 +107,7 @@ const baseSchema = z.object({
     .optional(),
 });
 
-const identifyByNameAndOperators = z.object({
-  /**
-   * The name of the variable the holds the connection.
-   *
-   * For example "conn" for `conn.query(...)`
-   */
-  name: z.string(),
-
-  /**
-   * An array of operator names that executes raw queries inside the variable that holds the connection.
-   *
-   * For example ["$queryRaw", "$executeRaw"] for `Prisma.$queryRaw(...)` and `Prisma.$executeRaw(...)`
-   */
-  operators: z.array(z.string()),
-});
-
-const identifyByTagName = z.object({
-  /**
-   * The name of the tag that executes raw queries.
-   *
-   * For example "sql" for ```` sql`SELECT * FROM users`  ````
-   */
-  tagName: z.string(),
-});
-
-export const connectByMigrationSchema = z.object({
+export const zConnectionMigration = z.object({
   /**
    * The path where the migration files are located.
    */
@@ -131,30 +133,28 @@ export const connectByMigrationSchema = z.object({
   watchMode: z.boolean().optional(),
 });
 
-const connectByDatabaseUrl = z.object({
+const zConnectionUrl = z.object({
   /**
    * The connection url to the database
    */
   databaseUrl: z.string(),
 });
 
-const RuleOptionConnection = z.union([
-  baseSchema.merge(connectByMigrationSchema.merge(identifyByNameAndOperators)),
-  baseSchema.merge(connectByMigrationSchema.merge(identifyByTagName)),
-  baseSchema.merge(connectByDatabaseUrl.merge(identifyByNameAndOperators)),
-  baseSchema.merge(connectByDatabaseUrl.merge(identifyByTagName)),
+const zRuleOptionConnection = z.union([
+  zBaseSchema.merge(zConnectionMigration),
+  zBaseSchema.merge(zConnectionUrl),
 ]);
-export type RuleOptionConnection = z.infer<typeof RuleOptionConnection>;
+export type RuleOptionConnection = z.infer<typeof zRuleOptionConnection>;
 
-export const Config = z.object({
-  connections: z.union([z.array(RuleOptionConnection), RuleOptionConnection]),
+export const zConfig = z.object({
+  connections: z.union([z.array(zRuleOptionConnection), zRuleOptionConnection]),
 });
-export type Config = z.infer<typeof Config>;
+export type Config = z.infer<typeof zConfig>;
 
 export const UserConfigFile = z.object({ useConfigFile: z.boolean() });
 export type UserConfigFile = z.infer<typeof UserConfigFile>;
 
-export const Options = z.union([Config, UserConfigFile]);
+export const Options = z.union([zConfig, UserConfigFile]);
 export type Options = z.infer<typeof Options>;
 
 export const RuleOptions = z.array(Options).min(1).max(1);
@@ -183,7 +183,9 @@ function check(params: {
     : [params.config.connections];
 
   for (const connection of connections) {
-    checkConnection({ ...params, connection });
+    for (const target of connection.targets) {
+      checkConnection({ ...params, connection, target });
+    }
   }
 }
 
@@ -213,30 +215,22 @@ function isTagMemberValid(
   return false;
 }
 
-function getASTStartegyByConnection(connection: RuleOptionConnection) {
-  if ("tagName" in connection) {
-    return { strategy: "tag" as const, ...connection };
-  }
-
-  return { strategy: "call" as const, ...connection };
-}
-
 function checkConnection(params: {
   context: RuleContext;
   connection: RuleOptionConnection;
+  target: ConnectionTarget;
   tag: TSESTree.TaggedTemplateExpression;
   projectDir: string;
 }) {
-  const strategy = getASTStartegyByConnection(params.connection);
+  if ("tag" in params.target) {
+    return checkConnectionByTagExpression({ ...params, target: params.target });
+  }
 
-  return match(strategy)
-    .with({ strategy: "tag" }, (connection) => {
-      return checkConnectionByTagExpression({ ...params, connection });
-    })
-    .with({ strategy: "call" }, (connection) => {
-      return checkConnectionByCallExpression({ ...params, connection });
-    })
-    .exhaustive();
+  if ("wrapper" in params.target) {
+    return checkConnectionByWrapperExpression({ ...params, target: params.target });
+  }
+
+  return match(params.target).exhaustive();
 }
 
 const pgParseQueryE = (query: string) => {
@@ -259,11 +253,12 @@ function reportCheck(params: {
   context: RuleContext;
   tag: TSESTree.TaggedTemplateExpression;
   connection: RuleOptionConnection;
+  target: ConnectionTarget;
   projectDir: string;
   typeParameter: TSESTree.TSTypeParameterInstantiation | undefined;
   baseNode: TSESTree.BaseNode;
 }) {
-  const { context, tag, connection, projectDir, typeParameter, baseNode } = params;
+  const { context, tag, connection, target, projectDir, typeParameter, baseNode } = params;
 
   return pipe(
     E.Do,
@@ -274,7 +269,7 @@ function reportCheck(params: {
     ),
     E.bindW("pgParsed", ({ query }) => pgParseQueryE(query)),
     E.bindW("result", ({ query, pgParsed }) =>
-      generateSyncE({ query, pgParsed, connection, projectDir })
+      generateSyncE({ query, pgParsed, connection, target, projectDir })
     ),
     E.fold(
       (error) => {
@@ -301,7 +296,7 @@ function reportCheck(params: {
       },
       ({ result, checker, parser }) => {
         const isMissingTypeAnnotations = typeParameter === undefined;
-        const resultWithTransformed = withTransformType(result, connection.transform);
+        const resultWithTransformed = withTransformType(result, target.transform);
 
         if (isMissingTypeAnnotations) {
           if (resultWithTransformed.resultAsString === null) {
@@ -319,7 +314,7 @@ function reportCheck(params: {
         const typeAnnotationState = getTypeAnnotationState({
           result: resultWithTransformed,
           typeParameter: typeParameter,
-          transform: connection.transform,
+          transform: target.transform,
           checker: checker,
           parser: parser,
         });
@@ -346,22 +341,24 @@ function reportCheck(params: {
 
 function checkConnectionByTagExpression(params: {
   context: RuleContext;
-  connection: RuleOptionConnection & z.infer<typeof identifyByTagName>;
+  connection: RuleOptionConnection;
+  target: TagTarget;
   tag: TSESTree.TaggedTemplateExpression;
   projectDir: string;
 }) {
-  const { context, tag, projectDir, connection } = params;
+  const { context, tag, projectDir, connection, target } = params;
 
   const tagAsText = context
     .getSourceCode()
     .getText(tag.tag)
     .replace(/^this\./, "");
 
-  if (tagAsText === connection.tagName) {
+  if (minimatch(tagAsText, target.tag)) {
     return reportCheck({
       context,
       tag,
       connection,
+      target,
       projectDir,
       baseNode: tag.tag,
       typeParameter: tag.typeParameters,
@@ -369,13 +366,14 @@ function checkConnectionByTagExpression(params: {
   }
 }
 
-function checkConnectionByCallExpression(params: {
+function checkConnectionByWrapperExpression(params: {
   context: RuleContext;
-  connection: RuleOptionConnection & z.infer<typeof identifyByNameAndOperators>;
+  connection: RuleOptionConnection;
+  target: WrapperTarget;
   tag: TSESTree.TaggedTemplateExpression;
   projectDir: string;
 }) {
-  const { context, tag, projectDir, connection } = params;
+  const { context, tag, projectDir, connection, target } = params;
 
   if (
     !isTagMemberValid(tag) ||
@@ -385,15 +383,17 @@ function checkConnectionByCallExpression(params: {
     return;
   }
 
-  const calleeChunks = context.getSourceCode().getText(tag.parent.callee).split(".");
-  const operator = calleeChunks.pop();
-  const name = calleeChunks.filter((x) => x !== "this").join(".");
+  const calleeAsText = context
+    .getSourceCode()
+    .getText(tag.parent.callee)
+    .replace(/^this\./, "");
 
-  if (connection.name === name && connection.operators.includes(operator ?? "")) {
+  if (minimatch(calleeAsText, target.wrapper)) {
     return reportCheck({
       context,
       tag,
       connection,
+      target,
       projectDir,
       baseNode: tag.parent.callee,
       typeParameter: tag.parent.typeParameters,

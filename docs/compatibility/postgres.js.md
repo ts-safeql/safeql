@@ -31,10 +31,14 @@ Second, add the following rule to your ESLint config:
           {
             // ...
 
-            // The name of the variable that holds the connection:
-            "tagName": "sql",
-            // Postgres.js type should be an array, so we add an extra "[]" after the generated type:
-            "transform": "{type}[]"
+            "targets": [
+              {
+                // The name of the sql tag that should be checked:
+                "tag": "sql",
+                // Postgres.js type should be an array, so we add an extra "[]" after the generated type:
+                "transform": "{type}[]"
+              }
+            ]
           }
         ]
       }

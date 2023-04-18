@@ -11,9 +11,7 @@
         "connections": [
           {
             "databaseUrl": "postgres://postgres:postgres@localhost:5432/safeql_basic_transform_type",
-            "name": "client",
-            "operators": ["query"],
-            "transform": "{type}[]"
+            "targets": [{ "wrapper": "client.query", "transform": "{type}[]" }]
           }
         ]
       }

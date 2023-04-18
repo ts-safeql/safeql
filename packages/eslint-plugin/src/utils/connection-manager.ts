@@ -5,8 +5,8 @@ import {
   ConnectionPayload,
   getConnectionStartegyByRuleOptionConnection,
 } from "../rules/check-sql.utils";
-import { pipe, O } from "./fp-ts";
-import { parseConnection, mapConnectionOptionsToString } from "./pg.utils";
+import { O, pipe } from "./fp-ts";
+import { mapConnectionOptionsToString, parseConnection } from "./pg.utils";
 
 export function createConnectionManager() {
   const connectionMap: Map<string, Sql> = new Map();

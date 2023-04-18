@@ -36,27 +36,41 @@ Check out [@ts-safeql-demos/basic](https://github.com/ts-safeql/safeql/tree/main
     "@ts-safeql/check-sql": [
       "error",
       {
-        "connections": [
-          {
-            // The URL of the database:
-            "databaseUrl": "postgres://postgres:postgres@localhost:5432/my_database",
-            // The name of the variable that holds the connection:
-            "name": "myDb",
-            // An array of operators that wraps the raw query:
-            "operators": ["rawQuery"]
-          }
-        ]
+        "connections": {
+          // The URL of the database:
+          "databaseUrl": "postgres://postgres:postgres@localhost:5432/my_database",
+          "targets": [
+            // Check all of the queries that are used with the `sql` tag:
+            { "tag": "sql" }
+          ]
+        }
       }
     ]
   }
 }
 ```
 
-And now you'll be able to write queries like this:
+And now SafeQl will be able to lint your queries like so:
 
-```typescript
-const query = myDb.rawQuery(sql`SELECT * FROM users`);
+<div class="error">
+
+```typescript{2}
+const query = sql`SELECT * FROM users`
+              ~~~ Error: Query is missing type annotation (auto-fix)
 ```
+
+</div>
+
+After auto-fix
+
+<div class="success">
+
+```typescript{2}
+const query = sql<{ id: number; name: string; }>`SELECT * FROM users`
+              ^^^ ✅ Query is valid and type-safe!
+```
+
+</div>
 
 ## Example 2: Multiple databases connected to your apps
 
@@ -79,18 +93,18 @@ Check out [@ts-safeql-demos/multi-connections](https://github.com/ts-safeql/safe
           {
             // The URL of the database:
             "databaseUrl": "postgres://postgres:postgres@localhost:5432/my_database_1",
-            // The name of the variable that holds the connection:
-            "name": "myDb1",
-            // An array of operators that wraps the raw query:
-            "operators": ["rawQuery"]
+            "targets": [
+              // Check all of the queries that matches db1.sql`...`
+              { "tag": "db1.sql" }
+            ]
           },
           {
             // The URL of the database:
             "databaseUrl": "postgres://postgres:postgres@localhost:5432/my_database_2",
-            // The name of the variable that holds the connection:
-            "name": "myDb2",
-            // An array of operators that wraps the raw query:
-            "operators": ["query"]
+            "targets": [
+              // Check all of the queries that matches db1.sql`...`
+              { "tag": "db2.sql" }
+            ]
           }
         ]
       }
@@ -122,10 +136,10 @@ Check out [@ts-safeql-demos/basic-migrations-raw](https://github.com/ts-safeql/s
           {
             // The migrations path:
             "migrationsDir": "./migrations",
-            // The name of the variable that holds the connection:
-            "name": "myDb",
-            // An array of operators that wraps the raw query:
-            "operators": ["rawQuery"],
+            "targets": [
+              // Check all of the queries that matches db.sql`...`
+              { "tag": "db.sql" }
+            ]
             // To connect using alternate superuser credentials, see below
             // "connectionUrl": "postgres://pguser:password@localhost:5432/postgres"
           }
@@ -146,9 +160,11 @@ The shadow database is dropped and recreated every time ESLint initializes the q
 ::: info TL;DR
 If you're using migrations and your PostgreSQL superuser credentials are different
 than the default below, you will need to configure `connectionUrl`.
+
 ```
 postgres://postgres:postgres@localhost:5432/postgres
 ```
+
 :::
 
 The `connectionUrl` **IS NOT** the database and credentials your app uses - it is instead the
@@ -177,13 +193,17 @@ Check out [@ts-safeql-demos/multi-connections](https://github.com/ts-safeql/safe
         "connections": [
           {
             "migrationsDir": "./db1/migrations",
-            "name": "db1",
-            "operators": ["rawQuery"]
+            "targets": [
+              // Check all of the queries that matches db1.sql`...`
+              { "tag": "db1.sql" }
+            ]
           },
           {
             "migrationsDir": "./db2/migrations",
-            "name": "db2",
-            "operators": ["rawQuery"]
+            "targets": [
+              // Check all of the queries that matches db2.sql`...`
+              { "tag": "db2.sql" }
+            ]
           }
         ]
       }
@@ -207,24 +227,92 @@ Check out [@ts-safeql-demos/multi-connections](https://github.com/ts-safeql/safe
           {
             // The URL of the database:
             "databaseUrl": "postgres://postgres:postgres@localhost:5432/my_database",
-            // The name of the variable that holds the connection:
-            "name": "myDb",
-            // An array of operators that wraps the raw query:
-            "operators": ["rawQuery"]
+            "targets": [
+              // Check all of the queries that matches db1.sql`...`
+              { "tag": "db1.sql" }
+            ]
           },
           {
             "migrationsDir": "./packages/a/migrations",
-            "name": "db1",
-            "operators": ["rawQuery"]
+            "targets": [
+              // Check all of the queries that matches db2.sql`...`
+              { "tag": "db2.sql" }
+            ]
           },
           {
             "migrationsDir": "./packages/b/migrations",
-            "name": "db2",
-            "operators": ["rawQuery"]
+            "targets": [
+              // Check all of the queries that matches db3.sql`...`
+              { "tag": "db3.sql" }
+            ]
           }
         ]
       }
     ]
   }
+}
+```
+
+## Example 6: Using glob pattern
+
+SafeQL uses [minimatch](https://github.com/isaacs/minimatch) to match the glob pattern.
+
+```json
+
+```json{16}
+// .eslintrc.json
+{
+  // ...
+  "rules": {
+    // ...
+    "@ts-safeql/check-sql": [
+      "error",
+      {
+        "connections": [
+          {
+            // The URL of the database:
+            "databaseUrl": "postgres://postgres:postgres@localhost:5432/my_database",
+            "targets": [
+              // The sql tags that should be checked. // [!code focus]
+              // either `db.$queryRaw` or `db.$executeRaw` // [!code focus]
+              { "tag": "db.+($queryRaw|$executeRaw)" } // [!code focus]
+            ]
+          },
+        ]
+      }
+    ]
+  }
+}
+```
+
+## Example 6: Using a wrapper function
+
+Sometimes we want to wrap our queries with a function and set the type annotations in the wrapper instead. for example:
+
+```typescript{4:5-5}
+import { db, sql } from "./db";
+
+function getName() {
+  return db.queryOne<{name: string }>(
+    sql`SELECT name FROM users WHERE id = ${1}`
+  );
+}
+```
+
+> Note that the Typescript type is on the function (wrapper) rather than on the tag.
+
+```json{16}
+// .eslintrc.json
+{
+  // ...
+  "connections": [
+    {
+      // ...
+      "targets": [
+        // Check all of the queries that matches db.queryOne(*`...`) // [!code focus]
+        { "wrapper": "db.queryOne" } // [!code focus]
+      ]
+    },
+  ]
 }
 ```
