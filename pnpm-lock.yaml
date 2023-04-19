@@ -204,8 +204,11 @@ importers:
   docs:
     specifiers:
       '@algolia/client-search': 4.17.0
+      '@vercel/analytics': ^1.0.0
       vitepress: 1.0.0-alpha.72
       vue: 3.2.47
+    dependencies:
+      '@vercel/analytics': 1.0.0
     devDependencies:
       '@algolia/client-search': 4.17.0
       vitepress: 1.0.0-alpha.72_rurrd674gzxmsn4o6mrapg6sje
@@ -1282,6 +1285,12 @@ packages:
     dependencies:
       '@typescript-eslint/types': 5.59.0
       eslint-visitor-keys: 3.4.0
+
+  /@vercel/analytics/1.0.0:
+    resolution: {integrity: sha512-RQmj7pv82JwGDHrnKeRc6TtSw2U7rWNubc2IH0ernTzWTj02yr9zvIYiYJeztsBzrJtWv7m8Nz6vxxb+cdEtJw==}
+    peerDependencies:
+      react: ^16.8||^17||^18
+    dev: false
 
   /@vitejs/plugin-vue/4.1.0_vite@4.2.2+vue@3.2.47:
     resolution: {integrity: sha512-++9JOAFdcXI3lyer9UKUV4rfoQ3T1RN8yDqoCLar86s0xQct5yblxAE+yWgRnU5/0FOlVCpTZpYSBV/bGWrSrQ==}

@@ -5,4 +5,9 @@ import "./custom.css";
 export default {
   ...DefaultTheme,
   Layout: Layout,
+  async enhanceApp() {
+    import("@vercel/analytics").then(({ default: analytics }) => {
+      analytics.inject();
+    });
+  },
 };
