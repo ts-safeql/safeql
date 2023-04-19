@@ -50,7 +50,7 @@ Check out [@ts-safeql-demos/basic](https://github.com/ts-safeql/safeql/tree/main
 }
 ```
 
-And now SafeQl will be able to lint your queries like so:
+And now SafeQL will be able to lint your queries like so:
 
 <div class="error">
 
