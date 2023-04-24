@@ -47,10 +47,15 @@ const runMigrations1 = <TTypes extends Record<string, unknown>>(sql: Sql<TTypes>
         agency_id INT NOT NULL REFERENCES agency(id)
     );
 
-    CREATE TABLE table_with_date_col (
-        id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-        date_col DATE NOT NULL
-    );
+    CREATE TABLE test_date_column (
+      id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+      date_col DATE NOT NULL,
+      date_array date[] NOT NULL,
+      instant_arr timestamptz[] NOT NULL,
+      time_arr time[] NOT NULL,
+      local_date_time_arr timestamp[] NOT NULL,
+      nullable_date_arr date[] NULL
+  );
 `);
 
 RuleTester.describe = describe;
@@ -375,6 +380,22 @@ RuleTester.describe("check-sql", () => {
         options: withConnection(connections.base),
         code: "xconn.query(sql`SELECT 1 as x`);",
       },
+      {
+        filename,
+        name: "proper date columns introspection",
+        options: withConnection(connections.base),
+        code: `
+          const dates = conn.query<{
+            id: number;
+            date_col: Date;
+            date_array: Date[];
+            instant_arr: Date[];
+            time_arr: string[];
+            local_date_time_arr: Date[];
+            nullable_date_arr: Date[] | null;
+          }>(sql\`SELECT * FROM test_date_column\`)
+        `,
+      },
     ],
     invalid: [
       {
@@ -667,7 +688,7 @@ RuleTester.describe("check-sql", () => {
         options: withConnection(connections.withTag),
         code: `
           const date = new Date();
-          sql<{ id: number }>\`select id from table_with_date_col WHERE date_col = \${date}\`
+          sql<{ id: number }>\`select id from test_date_column WHERE date_col = \${date}\`
         `,
       },
       {
@@ -679,7 +700,7 @@ RuleTester.describe("check-sql", () => {
         code: `
           class LocalDate {}
           const date = new LocalDate();
-          sql<{ id: number }>\`select id from table_with_date_col WHERE date_col = \${date}\`
+          sql<{ id: number }>\`select id from test_date_column WHERE date_col = \${date}\`
         `,
       },
     ],
@@ -705,9 +726,9 @@ RuleTester.describe("check-sql", () => {
         code: `
           class CustomDate {}
           const date = new CustomDate();
-          sql<{ id: number }>\`select id from table_with_date_col WHERE date_col = \${date}\`
+          sql<{ id: number }>\`select id from test_date_column WHERE date_col = \${date}\`
         `,
-        errors: [{ messageId: "invalidQuery", line: 4, column: 85, endLine: 4, endColumn: 89 }],
+        errors: [{ messageId: "invalidQuery", line: 4, column: 82, endLine: 4, endColumn: 86 }],
       },
       {
         filename,

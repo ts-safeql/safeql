@@ -13,10 +13,23 @@ type SQL = Sql<Record<string, unknown>>;
 
 function runMigrations(sql: SQL) {
   return sql.unsafe(`
+    CREATE TYPE certification AS ENUM ('HHA', 'RN', 'LPN', 'CNA', 'PCA', 'OTHER');
+    CREATE DOMAIN phone_number AS TEXT CHECK (VALUE ~ '^[0-9]{3}-[0-9]{3}-[0-9]{4}$');
+
     CREATE TABLE caregiver (
         id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
         first_name TEXT NOT NULL,
         last_name TEXT NOT NULL
+    );
+
+    CREATE TABLE caregiver_certification (
+      caregiver_id INTEGER NOT NULL REFERENCES caregiver(id),
+      certification certification NOT NULL
+    );
+
+    CREATE TABLE caregiver_phonenumber (
+      caregiver_id INTEGER NOT NULL REFERENCES caregiver(id),
+      phone_number phone_number NOT NULL
     );
 
     CREATE TABLE agency (
@@ -28,6 +41,16 @@ function runMigrations(sql: SQL) {
         id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
         caregiver_id INT NOT NULL REFERENCES caregiver(id),
         agency_id INT NOT NULL REFERENCES agency(id)
+    );
+
+    CREATE TABLE test_date_column (
+        date_col DATE NOT NULL,
+        date_array date[] NOT NULL,
+        instant_arr timestamptz[] NOT NULL,
+        time_arr time[] NOT NULL,
+        timetz_arr timetz[] NOT NULL,
+        local_date_time_arr timestamp[] NOT NULL,
+        nullable_date_arr date[] NULL
     );
   `);
 }
@@ -223,5 +246,34 @@ test("select with syntax error", async () => {
   await testQuery({
     query: `SELECT id FROM caregiver WHERE`,
     expectedError: "Internal error: syntax error at end of input",
+  });
+});
+
+test("select date columns", async () => {
+  await testQuery({
+    query: `SELECT * FROM test_date_column`,
+    expected: [
+      ["date_col", "Date"],
+      ["date_array", "Date[]"],
+      ["instant_arr", "Date[]"],
+      ["time_arr", "string[]"],
+      ["timetz_arr", "string[]"],
+      ["local_date_time_arr", "Date[]"],
+      ["nullable_date_arr", "Date[] | null"],
+    ],
+  });
+});
+
+test.only("select enum", async () => {
+  await testQuery({
+    query: `SELECT certification from caregiver_certification`,
+    expected: [["certification", "'HHA' | 'RN' | 'LPN' | 'CNA' | 'PCA' | 'OTHER'"]],
+  });
+});
+
+test("select domain type", async () => {
+  await testQuery({
+    query: `SELECT phone_number from caregiver_phonenumber`,
+    expected: [["phone_number", "string"]],
   });
 });

@@ -151,7 +151,7 @@ async function getDatabaseMetadata(sql: Sql) {
 }
 
 type ColumnAnalysisResult =
-  | { described: postgres.Column<string> }
+  | { described: postgres.Column<string>; introspected?: undefined }
   | { described: postgres.Column<string>; introspected: PgColRow };
 
 function mapColumnAnalysisResultsToTypeLiteral(params: {
@@ -174,7 +174,6 @@ function mapColumnAnalysisResultsToTypeLiteral(params: {
 
     return propertySignature;
   });
-
   return properties;
 }
 
@@ -188,7 +187,7 @@ function buildInterfacePropertyValue(params: {
   return [params.key, isNullable ? `${params.value} | null` : params.value];
 }
 
-function isNullableDueToRelation(params: {
+function checkIsNullableDueToRelation(params: {
   col: PgColRow;
   relationsWithJoins: FlattenedRelationWithJoins[];
 }) {
@@ -239,40 +238,37 @@ function mapColumnAnalysisResultToPropertySignature(params: {
   typesMap: Record<string, string>;
   fieldTransform: IdentiferCase | undefined;
 }) {
-  if ("introspected" in params.col) {
-    const valueAsEnum = params.pgEnums
-      .get(params.col.described.type)
-      ?.values.map((x) => `'${x}'`)
-      .join(" | ");
-    const valueAsBase = fmap(params.col.introspected.colBaseType, (x) => params.typesMap[x]);
-    const valueAsType = params.typesMap[params.col.introspected.colType];
-    const value = valueAsEnum ?? valueAsType ?? valueAsBase;
-    const key = params.col.described.name ?? params.col.introspected.colName;
+  const pgTypeOid = params.col.introspected?.colBaseTypeOid ?? params.col.described.type;
 
-    const isNullable =
-      !params.col.introspected.colNotNull ||
-      isNullableDueToRelation({
-        col: params.col.introspected,
-        relationsWithJoins: params.relationsWithJoins,
-      });
+  const valueAsEnum = params.pgEnums
+    .get(pgTypeOid)
+    ?.values.map((x) => `'${x}'`)
+    .join(" | ");
 
-    return buildInterfacePropertyValue({
-      key: toCase(key, params.fieldTransform),
-      value: value,
-      isNullable: isNullable,
-    });
-  }
-
-  const nonTableColumnType = getTsTypeFromPgTypeOid({
-    pgTypeOid: params.col.described.type,
+  const valueAsType = getTsTypeFromPgTypeOid({
+    pgTypeOid: pgTypeOid,
     pgTypes: params.pgTypes,
     typesMap: params.typesMap,
   });
 
+  const value = valueAsEnum ?? valueAsType;
+  const key = params.col.described.name ?? params.col.introspected?.colName;
+
+  let isNullable = false;
+
+  if (params.col.introspected !== undefined) {
+    isNullable =
+      !params.col.introspected.colNotNull ||
+      checkIsNullableDueToRelation({
+        col: params.col.introspected,
+        relationsWithJoins: params.relationsWithJoins,
+      });
+  }
+
   return buildInterfacePropertyValue({
-    key: toCase(params.col.described.name, params.fieldTransform),
-    value: nonTableColumnType,
-    isNullable: false,
+    key: toCase(key, params.fieldTransform),
+    value: value,
+    isNullable: isNullable,
   });
 }
 
@@ -375,8 +371,8 @@ interface PgColRow {
   tableOid: number;
   tableName: string;
   colName: string;
-  colType: ColType;
-  colBaseType: ColType | null;
+  colTypeOid: number;
+  colBaseTypeOid: number | null;
   colNum: number;
   colHasDef: boolean;
   colNotNull: boolean;
@@ -384,32 +380,32 @@ interface PgColRow {
 
 async function getPgCols(sql: Sql) {
   const rows = await sql<PgColRow[]>`
-        SELECT
-            pg_class.oid as "tableOid",
-            pg_class.relname as "tableName",
-            pg_attribute.attname as "colName",
-            pg_type.typname as "colType",
-            CASE
-                WHEN pg_type.typtype = 'd' THEN
-                    (SELECT typname FROM pg_type pt WHERE pt.oid = pg_type.typbasetype)
-                ELSE
-                    NULL
-            END as "colBaseType",
-            pg_attribute.attnum as "colNum",
-            pg_attribute.atthasdef "colHasDef",
-            pg_attribute.attnotnull "colNotNull"
-        FROM
-            pg_attribute,
-            pg_class,
-            pg_type
-        WHERE TRUE
-            AND pg_attribute.attrelid = pg_class.oid
-            AND pg_attribute.atttypid = pg_type.oid
-            AND pg_attribute.attnum >= 1
-        ORDER BY
-            pg_class.relname,
-            pg_attribute.attname
-    `;
+      SELECT
+          pg_class.oid AS "tableOid",
+          pg_class.relname AS "tableName",
+          pg_attribute.attname AS "colName",
+          pg_type.oid AS "colTypeOid",
+          CASE
+              WHEN pg_type.typtype = 'd' THEN
+                  (SELECT pt.oid FROM pg_type pt WHERE pt.oid = pg_type.typbasetype)
+              ELSE
+                  NULL
+          END AS "colBaseTypeOid",
+          pg_attribute.attnum AS "colNum",
+          pg_attribute.atthasdef "colHasDef",
+          pg_attribute.attnotnull "colNotNull"
+      FROM
+          pg_attribute,
+          pg_class,
+          pg_type
+      WHERE TRUE
+          AND pg_attribute.attrelid = pg_class.oid
+          AND pg_attribute.atttypid = pg_type.oid
+          AND pg_attribute.attnum >= 1
+      ORDER BY
+          pg_class.relname,
+          pg_attribute.attname
+  `;
 
   return rows;
 }

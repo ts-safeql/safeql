@@ -37,8 +37,8 @@ export const defaultTypeMapping = {
   date: "Date",
   timestamp: "Date",
   timestamptz: "Date",
-  time: "Date",
-  timetz: "Date",
+  time: "string",
+  timetz: "string",
   interval: "string",
 
   // Network address types
