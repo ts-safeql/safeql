@@ -10,7 +10,7 @@
     "test": "turbo run test",
     "lint": "turbo run lint",
     "lint!": "turbo run lint!",
-    "watch": "turbo run watch --parallel",
+    "watch": "pnpm run --parallel --filter './packages/**' watch",
     "prettier": "prettier --check '**/*.ts'",
     "prettier!": "prettier --write '**/*.ts'",
     "clean": "turbo run clean",
