@@ -1,5 +1,12 @@
 # @ts-safeql/shared
 
+## 0.0.9
+
+### Patch Changes
+
+- 77c060d: fix array type inference.
+  change default time(tz) type to string.
+
 ## 0.0.8
 
 ### Patch Changes
