@@ -703,6 +703,25 @@ RuleTester.describe("check-sql", () => {
           sql<{ id: number }>\`select id from test_date_column WHERE date_col = \${date}\`
         `,
       },
+      {
+        name: 'with { date: { parameter: "+(Parameter<LocalDate>|LocalDate)", return: "LocalDate" } }',
+        filename,
+        options: withConnection(connections.withTag, {
+          overrides: {
+            types: {
+              date: { parameter: "+(Parameter<LocalDate>|LocalDate)", return: "LocalDate" },
+            },
+          },
+        }),
+        code: `
+          interface Parameter<T> { value: T; }
+          class LocalDate {}
+          function run(simple: LocalDate, parameterized: Parameter<LocalDate>) {
+            sql<{ date_col: LocalDate }>\`select date_col from test_date_column WHERE date_col = \${simple}\`
+            sql<{ date_col: LocalDate }>\`select date_col from test_date_column WHERE date_col = \${parameterized}\`
+          }
+        `,
+      },
     ],
     invalid: [
       {
