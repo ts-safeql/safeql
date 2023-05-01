@@ -1,6 +1,7 @@
 import { defaultTypeMapping, InvalidQueryError, normalizeIndent } from "@ts-safeql/shared";
 import { TSESTreeToTSNode } from "@typescript-eslint/typescript-estree";
 import { ParserServices, TSESTree } from "@typescript-eslint/utils";
+import { minimatch } from "minimatch";
 import ts, { TypeChecker } from "typescript";
 import { RuleOptionConnection } from "../rules/check-sql.rule";
 import { E, pipe } from "./fp-ts";
@@ -161,31 +162,35 @@ function mapTsTypeStringToPgType(params: {
 
   const override = Object.entries(typesWithOverrides)
     .map(([key, value]) => ({ pgType: key, tsType: value }))
-    .find((entry) => entry.tsType === singularType);
+    .find((entry) =>
+      minimatch(
+        singularType,
+        typeof entry.tsType === "string" ? entry.tsType : entry.tsType.parameter
+      )
+    );
 
   if (override !== undefined) {
     return isArray ? E.right(`${override.pgType}[]`) : E.right(override.pgType);
   }
 
   return E.left(normalizeIndent`
-    the type "${typeStr}" has no corresponding PostgreSQL type. Please add it manually using the "overrides.types" option.
+    The type "${typeStr}" has no corresponding PostgreSQL type.
+    Please add it manually using the "overrides.types" option:
 
-    For example:
     \`\`\`ts
     {
       "connections": {
         ...,
         "overrides": {
           "types": {
-            "date": "Date"
+            "PG TYPE (e.g. 'date')": "${typeStr}"
           }
         }
       }
     }
     \`\`\`
 
-
-    See https://safeql.dev/api/#connections-overrides-types-optional
+    Read docs - https://safeql.dev/api/#connections-overrides-types-optional
   `);
 }
 

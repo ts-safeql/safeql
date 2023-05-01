@@ -101,7 +101,10 @@ const zBaseSchema = z.object({
    */
   overrides: z
     .object({
-      types: z.record(z.enum(objectKeysNonEmpty(defaultTypeMapping)), z.string()),
+      types: z.record(
+        z.enum(objectKeysNonEmpty(defaultTypeMapping)),
+        z.union([z.string(), z.object({ parameter: z.string(), return: z.string() })])
+      ),
     })
     .partial()
     .optional(),

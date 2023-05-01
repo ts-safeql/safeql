@@ -321,22 +321,53 @@ is not recommended, and should only be used if you're sure that the connection s
 
 ### `connections.overrides.types` (Optional)
 
-Override the default type mapping. For example, if you want to use [`LocalDate`](https://js-joda.github.io/js-joda/manual/LocalDate.html) instead of `Date`:
+::: info
+
+Please note that SafeQL won't actually parse the type, since SafeQL runs only in the tooling system (i.e, not in runtime).
+
+:::
+
+Override the default type mapping. For example, if you want to use [`LocalDate`](https://js-joda.github.io/js-joda/manual/LocalDate.html) instead of `Date` for the `date` type, you can use the following:
 
 ```json
 {
   "connections": {
     "overrides": {
       "types": {
-        "date": "LocalDate"
+        "date": "LocalDate",
       }
     }
   }
 }
 ```
 
-::: info
+Sometimes, the TypeScript type of the parameter (sql variable) is not the same as the type of the result. For example:
 
-Please note that SafeQL won't actually parse the type, since SafeQL runs only in the tooling system (i.e, not in runtime).
+```ts
+import postgres from "postgres";
+import { sql } from "./sql";
 
-:::
+function run(value: postgres.Parameter<LocalDate>)  {
+  const result = sql<{ date: LocalDate }>`SELECT ${value}`;
+  // ...
+}
+```
+
+In this case, you can use the following syntax:
+
+```json
+{
+  "connections": {
+    "overrides": {
+      "types": {
+        "date": {
+          // the type of the parameter (can be a glob pattern)
+          "parameter": "Parameter<LocalDate>",
+          // the generated type
+          "return": "LocalDate"
+        }
+      }
+    }
+  }
+}
+```
