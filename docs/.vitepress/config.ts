@@ -24,6 +24,7 @@ export default defineConfig({
           { text: "Sequelize", link: "/compatibility/sequelize" },
           { text: "Postgres.js", link: "/compatibility/postgres.js" },
           { text: "node-postgres (pg)", link: "/compatibility/node-postgres" },
+          { text: "@vercel/postgres", link: "/compatibility/vercel" },
         ],
       },
       {
