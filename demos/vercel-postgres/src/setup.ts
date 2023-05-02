@@ -1,5 +1,6 @@
 import { execSync } from "child_process";
-import postgres from "postgres";
+import dotenv from "dotenv";
+import { Client } from "pg";
 
 const DATABASE_NAME = "safeql_vercel";
 
@@ -14,11 +15,13 @@ async function main() {
 
   // 3. Connect to the database
   console.log("Connecting to database...");
-  const sql = postgres(`postgres://postgres@localhost:5432/${DATABASE_NAME}`);
+  dotenv.config({ path: ".env.development.local" });
+  const client = new Client({ connectionString: process.env.POSTGRES_URL });
+  await client.connect();
 
   // 4. Create tables
   console.log("Creating tables...");
-  await sql.unsafe(`
+  await client.query(`
     CREATE TABLE person (
         id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
         name VARCHAR(255) NOT NULL
@@ -32,7 +35,7 @@ async function main() {
   `);
 
   console.log("✅ Done!");
-  await sql.end();
+  await client.end();
 }
 
 main();

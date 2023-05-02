@@ -36,11 +36,11 @@ This example uses the development `DATABASE_URL` environment variable, but you c
 import { defineConfig } from "@ts-safeql/eslint-plugin";
 import dotenv from "dotenv";
 
-dotenv.config({ path: ".env.development" });
+dotenv.config({ path: ".env.development.local" });
 
 export default defineConfig({
   connections: {
-    databaseUrl: process.env.DATABASE_URL,
+    databaseUrl: process.env.POSTGRES_URL,
     targets: [{ tag: "?(client.)sql" }],
   },
 });
