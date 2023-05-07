@@ -55,7 +55,12 @@ const runMigrations1 = <TTypes extends Record<string, unknown>>(sql: Sql<TTypes>
       time_arr time[] NOT NULL,
       local_date_time_arr timestamp[] NOT NULL,
       nullable_date_arr date[] NULL
-  );
+    );
+    
+    CREATE TABLE test_nullable_column (
+      id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+      nullable_int INTEGER
+    );
 `);
 
 RuleTester.describe = describe;
@@ -417,6 +422,26 @@ RuleTester.describe("check-sql", () => {
         options: withConnection(connections.withSkipTypeAnnotations),
         code: "const result = conn.query(sql`SELECT id FROM agency`);",
       },
+      {
+        filename,
+        name: "insert into nullable column a nullable member expression value",
+        options: withConnection(connections.withTag),
+        code: `
+        function insert(data: number | null) {
+          sql\`INSERT INTO test_nullable_column (nullable_int) VALUES (\${data})\`
+        }
+        `,
+      },
+      {
+        filename,
+        name: "insert into nullable column a nullable value",
+        options: withConnection(connections.withTag),
+        code: `
+        function insert(data: { value: number | null }) {
+          sql\`INSERT INTO test_nullable_column (nullable_int) VALUES (\${data.value})\`
+        }
+        `,
+      },
     ],
     invalid: [
       {
@@ -612,6 +637,42 @@ RuleTester.describe("check-sql", () => {
           {
             messageId: "invalidQuery",
             data: { error: 'column "idd" does not exist' },
+          },
+        ],
+      },
+      {
+        name: "insert into with wrong nullable value",
+        filename,
+        options: withConnection(connections.withTag),
+        code: `
+        function insert(data: { value: string | null }) {
+          sql\`INSERT INTO test_nullable_column (nullable_int) VALUES (\${data.value})\`
+        }
+        `,
+        errors: [
+          {
+            messageId: "invalidQuery",
+            data: {
+              error: 'column "nullable_int" is of type integer but expression is of type text',
+            },
+          },
+        ],
+      },
+      {
+        name: "insert into with wrong nullable member expression value",
+        filename,
+        options: withConnection(connections.withTag),
+        code: `
+        function insert(data: { value: string | null }) {
+          sql\`INSERT INTO test_nullable_column (nullable_int) VALUES (\${data.value})\`
+        }
+        `,
+        errors: [
+          {
+            messageId: "invalidQuery",
+            data: {
+              error: 'column "nullable_int" is of type integer but expression is of type text',
+            },
           },
         ],
       },

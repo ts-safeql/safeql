@@ -129,11 +129,12 @@ function mapTsTypeStringToPgType(params: {
     const type = params.checker.getTypeOfSymbolAtLocation(symbol!, params.node);
 
     if (isTsUnionType(type)) {
-      const isUnionOfTheSameType = type.types.every((t) => t.flags === type.types[0].flags);
-      const pgType = tsFlagToPgTypeMap[type.types[0].flags];
+      const types = type.types.filter((t) => t.flags !== ts.TypeFlags.Null);
+      const isUnionOfTheSameType = types.every((t) => t.flags === types[0].flags);
+      const pgType = tsFlagToPgTypeMap[types[0].flags];
 
       if (!isUnionOfTheSameType || pgType === undefined) {
-        return E.left(createMixedTypesInUnionErrorMessage(type.types.map((t) => t.flags)));
+        return E.left(createMixedTypesInUnionErrorMessage(types.map((t) => t.flags)));
       }
 
       return E.right(pgType);
@@ -146,6 +147,14 @@ function mapTsTypeStringToPgType(params: {
 
   if (params.type.flags in tsFlagToPgTypeMap) {
     return E.right(tsFlagToPgTypeMap[params.type.flags]);
+  }
+
+  if (isTsUnionType(params.type)) {
+    const type = params.type.types.find((t) => t.flags in tsFlagToPgTypeMap);
+
+    if (type !== undefined) {
+      return E.right(tsFlagToPgTypeMap[type.flags]);
+    }
   }
 
   const typeStr = params.checker.typeToString(params.type);
