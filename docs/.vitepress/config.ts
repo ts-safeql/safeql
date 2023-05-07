@@ -63,6 +63,10 @@ export default defineConfig({
                 text: "targets.fieldTransform",
                 link: "/api/index.md#connections-targets-fieldtransform-optional",
               },
+              {
+                text: "targets.skipTypeAnnotations",
+                link: "/api/index.md#connections-targets-skiptypeannotations-optional",
+              },
               { text: "keepAlive", link: "/api/index.md#connections-keepalive-optional" },
               {
                 text: "overrides.types",
