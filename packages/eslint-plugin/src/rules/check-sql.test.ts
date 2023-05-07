@@ -91,6 +91,11 @@ RuleTester.describe("check-sql", () => {
       targets: [{ wrapper: "conn.query" }],
       keepAlive: false,
     },
+    withSkipTypeAnnotations: {
+      databaseUrl: `postgres://postgres:postgres@localhost:5432/${databaseName}`,
+      targets: [{ wrapper: "conn.query", skipTypeAnnotations: true }],
+      keepAlive: false,
+    },
     withGlobWrapper: {
       databaseUrl: `postgres://postgres:postgres@localhost:5432/${databaseName}`,
       targets: [{ wrapper: "conn.+(query|queryOne|queryOneOrNone)" }],
@@ -406,6 +411,12 @@ RuleTester.describe("check-sql", () => {
           }>(sql\`SELECT * FROM test_date_column\`)
         `,
       },
+      {
+        filename,
+        name: "select with skipTypeAnnotations",
+        options: withConnection(connections.withSkipTypeAnnotations),
+        code: "const result = conn.query(sql`SELECT id FROM agency`);",
+      },
     ],
     invalid: [
       {
@@ -591,6 +602,18 @@ RuleTester.describe("check-sql", () => {
           }
         `,
         errors: [{ messageId: "missingTypeAnnotations" }],
+      },
+      {
+        filename,
+        options: withConnection(connections.withSkipTypeAnnotations),
+        name: "invalid select with skipTypeAnnotations",
+        code: "const result = conn.query(sql`SELECT idd FROM agency`);",
+        errors: [
+          {
+            messageId: "invalidQuery",
+            data: { error: 'column "idd" does not exist' },
+          },
+        ],
       },
     ],
   });

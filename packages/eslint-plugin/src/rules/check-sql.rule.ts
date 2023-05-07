@@ -68,6 +68,11 @@ const zBaseTarget = z.object({
    * - `"screaming snake"` - `user_id` → `USER_ID`
    */
   fieldTransform: z.enum(["snake", "pascal", "camel", "screaming snake"]).optional(),
+
+  /**
+   * Whether or not to skip type annotation.
+   */
+  skipTypeAnnotations: z.boolean().optional(),
 });
 
 /**
@@ -304,6 +309,12 @@ function reportCheck(params: {
           .exhaustive();
       },
       ({ result, checker, parser }) => {
+        const shouldSkipTypeAnnotations = target.skipTypeAnnotations === true;
+
+        if (shouldSkipTypeAnnotations) {
+          return;
+        }
+
         const isMissingTypeAnnotations = typeParameter === undefined;
         const resultWithTransformed = withTransformType(result, target.transform);
 

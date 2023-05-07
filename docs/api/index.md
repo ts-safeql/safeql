@@ -317,6 +317,25 @@ Transform the (column) field key. Can be one of the following:
 }
 ```
 
+### `connections.targets.skipTypeAnnotations` (Optional)
+
+Skip adding type annotations to the query. This is useful if you're using a library that doesn't
+support type annotations. Usage:
+
+```json{7}
+{
+  "connections": {
+    // ...
+    "targets": [
+      {
+        // ...
+        "skipTypeAnnotations": true // [!code focus]
+      }
+    ]
+  }
+}
+```
+
 ### `connections.keepAlive` (Optional)
 
 True by default. If set to false, the connection will be closed after the query is executed. This
