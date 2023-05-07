@@ -37,7 +37,6 @@
     "chokidar": "^3.5.3",
     "esbuild": "0.17.17",
     "fp-ts": "^2.13.1",
-    "minimatch": "^9.0.0",
     "pg-connection-string": "2.5.0",
     "postgres": "^3.3.4",
     "recast": "^0.22.0",

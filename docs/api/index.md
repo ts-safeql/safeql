@@ -195,6 +195,7 @@ The `targets` tell SafeQL where to look for the queries. It's an array of `tag` 
       { "tag": "sql2" } // [!code focus]
       { "wrapper": "conn.query" } // [!code focus]
       { "wrapper": "conn.+(query|execute)" } // [!code focus]
+      { "wrapper": { "regex": "conn2.+(query|execute)" } } // [!code focus]
       ]
   }
 }
@@ -202,7 +203,7 @@ The `targets` tell SafeQL where to look for the queries. It's an array of `tag` 
 
 ### `connections.targets.tag`
 
-The name of the tag (or a glob pattern using [minimatch](https://github.com/isaacs/minimatch)) that SafeQL will use to analyze the queries. For example:
+The name of the tag (which could be a string, regex, or a glob pattern using [minimatch](https://github.com/isaacs/minimatch)) that SafeQL will use to analyze the queries. For example:
 
 ```json
 {
@@ -211,6 +212,8 @@ The name of the tag (or a glob pattern using [minimatch](https://github.com/isaa
     "targets": [{ "tag": "sql" }] // [!code focus]
     // or use a glob pattern: // [!code focus]
     // "targets": [{ "tag": "prisma.+($queryRaw|$executeRaw)" }] // [!code focus]
+    // or use regex: // [!code focus]
+    // "targets": [{ "tag": "prisma\.($queryRaw|$executeRaw)" }] // [!code focus]
   }
 }
 ```
@@ -361,7 +364,7 @@ In this case, you can use the following syntax:
     "overrides": {
       "types": {
         "date": {
-          // the type of the parameter (can be a glob pattern)
+          // the type of the parameter (can be a regex or a glob pattern)
           "parameter": "Parameter<LocalDate>",
           // the generated type
           "return": "LocalDate"

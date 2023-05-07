@@ -376,9 +376,6 @@ importers:
       fp-ts:
         specifier: ^2.13.1
         version: 2.14.0
-      minimatch:
-        specifier: ^9.0.0
-        version: 9.0.0
       pg-connection-string:
         specifier: 2.5.0
         version: 2.5.0
@@ -483,6 +480,9 @@ importers:
 
   packages/shared:
     dependencies:
+      minimatch:
+        specifier: ^9.0.0
+        version: 9.0.0
       postgres:
         specifier: ^3.3.4
         version: 3.3.4

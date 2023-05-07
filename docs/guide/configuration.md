@@ -285,7 +285,39 @@ SafeQL uses [minimatch](https://github.com/isaacs/minimatch) to match the glob p
 }
 ```
 
-## Example 6: Using a wrapper function
+## Example 7: Using regex
+
+SafeQL can also use regex to match the sql tags.
+
+```json
+
+```json{16}
+// .eslintrc.json
+{
+  // ...
+  "rules": {
+    // ...
+    "@ts-safeql/check-sql": [
+      "error",
+      {
+        "connections": [
+          {
+            // The URL of the database:
+            "databaseUrl": "postgres://postgres:postgres@localhost:5432/my_database",
+            "targets": [
+              // The sql tags that should be checked. // [!code focus]
+              // either `db.$queryRaw` or `db.$executeRaw` // [!code focus]
+              { "tag": { "regex": "db\\.($queryRaw|$executeRaw)" } } // [!code focus]
+            ]
+          },
+        ]
+      }
+    ]
+  }
+}
+```
+
+## Example 8: Using a wrapper function
 
 Sometimes we want to wrap our queries with a function and set the type annotations in the wrapper instead. for example:
 

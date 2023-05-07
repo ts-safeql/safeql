@@ -1,7 +1,11 @@
-import { defaultTypeMapping, InvalidQueryError, normalizeIndent } from "@ts-safeql/shared";
+import {
+  defaultTypeMapping,
+  doesMatchPattern,
+  InvalidQueryError,
+  normalizeIndent,
+} from "@ts-safeql/shared";
 import { TSESTreeToTSNode } from "@typescript-eslint/typescript-estree";
 import { ParserServices, TSESTree } from "@typescript-eslint/utils";
-import { minimatch } from "minimatch";
 import ts, { TypeChecker } from "typescript";
 import { RuleOptionConnection } from "../rules/check-sql.rule";
 import { E, pipe } from "./fp-ts";
@@ -163,10 +167,10 @@ function mapTsTypeStringToPgType(params: {
   const override = Object.entries(typesWithOverrides)
     .map(([key, value]) => ({ pgType: key, tsType: value }))
     .find((entry) =>
-      minimatch(
-        singularType,
-        typeof entry.tsType === "string" ? entry.tsType : entry.tsType.parameter
-      )
+      doesMatchPattern({
+        pattern: typeof entry.tsType === "string" ? entry.tsType : entry.tsType.parameter,
+        text: singularType,
+      })
     );
 
   if (override !== undefined) {
