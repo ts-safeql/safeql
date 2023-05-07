@@ -1,5 +1,20 @@
 # @ts-safeql/eslint-plugin
 
+## 1.1.0
+
+### Minor Changes
+
+- 30965b2: add support for regex matching
+- dc5ed22: add support for `skipTypeAnnotations`.
+
+### Patch Changes
+
+- 92ca1bd: fixed an issue where SafeQL throwed an error when inserting a nullable value into a nullable column
+- Updated dependencies [30965b2]
+  - @ts-safeql/generate@0.1.0
+  - @ts-safeql/shared@0.1.0
+  - @ts-safeql/test-utils@0.0.10
+
 ## 1.0.2
 
 ### Patch Changes
