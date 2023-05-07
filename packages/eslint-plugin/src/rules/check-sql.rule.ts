@@ -1,7 +1,11 @@
 import { GenerateResult } from "@ts-safeql/generate";
-import { defaultTypeMapping, objectKeysNonEmpty, PostgresError } from "@ts-safeql/shared";
+import {
+  defaultTypeMapping,
+  doesMatchPattern,
+  objectKeysNonEmpty,
+  PostgresError,
+} from "@ts-safeql/shared";
 import { ESLintUtils, ParserServices, TSESLint, TSESTree } from "@typescript-eslint/utils";
-import { minimatch } from "minimatch";
 import pgParser from "libpg-query";
 import { createSyncFn } from "synckit";
 import { match } from "ts-pattern";
@@ -41,6 +45,8 @@ const messages = {
 };
 export type RuleMessage = keyof typeof messages;
 
+const zStringOrRegex = z.union([z.string(), z.object({ regex: z.string() })]);
+
 const zBaseTarget = z.object({
   /**
    * Transform the end result of the type.
@@ -72,7 +78,7 @@ const zBaseTarget = z.object({
  *               ^^^^^^^^^^ wrapper
  * ```
  */
-const zWrapperTarget = z.object({ wrapper: z.string() }).merge(zBaseTarget);
+const zWrapperTarget = z.object({ wrapper: zStringOrRegex }).merge(zBaseTarget);
 type WrapperTarget = z.infer<typeof zWrapperTarget>;
 
 /**
@@ -83,7 +89,7 @@ type WrapperTarget = z.infer<typeof zWrapperTarget>;
  *               ^^^ tag
  * ```
  */
-const zTagTarget = z.object({ tag: z.string() }).merge(zBaseTarget);
+const zTagTarget = z.object({ tag: zStringOrRegex }).merge(zBaseTarget);
 type TagTarget = z.infer<typeof zTagTarget>;
 
 export type ConnectionTarget = WrapperTarget | TagTarget;
@@ -103,7 +109,7 @@ const zBaseSchema = z.object({
     .object({
       types: z.record(
         z.enum(objectKeysNonEmpty(defaultTypeMapping)),
-        z.union([z.string(), z.object({ parameter: z.string(), return: z.string() })])
+        z.union([z.string(), z.object({ parameter: zStringOrRegex, return: z.string() })])
       ),
     })
     .partial()
@@ -356,7 +362,7 @@ function checkConnectionByTagExpression(params: {
     .getText(tag.tag)
     .replace(/^this\./, "");
 
-  if (minimatch(tagAsText, target.tag)) {
+  if (doesMatchPattern({ pattern: target.tag, text: tagAsText })) {
     return reportCheck({
       context,
       tag,
@@ -391,7 +397,7 @@ function checkConnectionByWrapperExpression(params: {
     .getText(tag.parent.callee)
     .replace(/^this\./, "");
 
-  if (minimatch(calleeAsText, target.wrapper)) {
+  if (doesMatchPattern({ pattern: target.wrapper, text: calleeAsText })) {
     return reportCheck({
       context,
       tag,

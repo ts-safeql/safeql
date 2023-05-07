@@ -29,6 +29,7 @@
     "typescript": "^5.0.4"
   },
   "dependencies": {
+    "minimatch": "^9.0.0",
     "postgres": "^3.3.4"
   }
 }

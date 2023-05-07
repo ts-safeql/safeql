@@ -38,7 +38,7 @@ export interface GenerateParams {
   cacheKey: CacheKey;
   fieldTransform: IdentiferCase | undefined;
   overrides?: Partial<{
-    types: Record<string, string | { parameter: string; return: string }>;
+    types: Record<string, string | { parameter: string | { regex: string }; return: string }>;
   }>;
 }
 

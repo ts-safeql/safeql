@@ -264,7 +264,7 @@ test("select date columns", async () => {
   });
 });
 
-test.only("select enum", async () => {
+test("select enum", async () => {
   await testQuery({
     query: `SELECT certification from caregiver_certification`,
     expected: [["certification", "'HHA' | 'RN' | 'LPN' | 'CNA' | 'PCA' | 'OTHER'"]],

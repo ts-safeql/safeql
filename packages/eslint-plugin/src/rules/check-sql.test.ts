@@ -96,6 +96,11 @@ RuleTester.describe("check-sql", () => {
       targets: [{ wrapper: "conn.+(query|queryOne|queryOneOrNone)" }],
       keepAlive: false,
     },
+    withRegexWrapper: {
+      databaseUrl: `postgres://postgres:postgres@localhost:5432/${databaseName}`,
+      targets: [{ wrapper: { regex: "conn.(query|queryOne|queryOneOrNone)" } }],
+      keepAlive: false,
+    },
     withTag: {
       databaseUrl: `postgres://postgres:postgres@localhost:5432/${databaseName}`,
       targets: [{ tag: "sql" }],
@@ -109,6 +114,11 @@ RuleTester.describe("check-sql", () => {
     withGlobTag: {
       databaseUrl: `postgres://postgres:postgres@localhost:5432/${databaseName}`,
       targets: [{ tag: "+(conn1|conn2).sql" }],
+      keepAlive: false,
+    },
+    withRegexTag: {
+      databaseUrl: `postgres://postgres:postgres@localhost:5432/${databaseName}`,
+      targets: [{ tag: { regex: "(conn1|conn2).sql" } }],
       keepAlive: false,
     },
   } satisfies Record<string, RuleOptionConnection>;
@@ -722,6 +732,28 @@ RuleTester.describe("check-sql", () => {
           }
         `,
       },
+      {
+        name: 'with { date: { parameter: { regex: "(LocalDate|Parameter<LocalDate>)" }, return: "LocalDate" } }',
+        filename,
+        options: withConnection(connections.withTag, {
+          overrides: {
+            types: {
+              date: {
+                parameter: { regex: "(LocalDate|Parameter<LocalDate>)" },
+                return: "LocalDate",
+              },
+            },
+          },
+        }),
+        code: `
+          interface Parameter<T> { value: T; }
+          class LocalDate {}
+          function run(simple: LocalDate, parameterized: Parameter<LocalDate>) {
+            sql<{ date_col: LocalDate }>\`select date_col from test_date_column WHERE date_col = \${simple}\`
+            sql<{ date_col: LocalDate }>\`select date_col from test_date_column WHERE date_col = \${parameterized}\`
+          }
+        `,
+      },
     ],
     invalid: [
       {
@@ -775,8 +807,58 @@ RuleTester.describe("check-sql", () => {
       },
       {
         filename,
+        options: withConnection(connections.withRegexWrapper),
+        name: "regex pattern should be checked as well (wrapper regex)",
+        code: `
+          class X {
+            run() {
+              conn.query(sql\`select 1 as num\`);
+              conn.queryOne(sql\`select 1 as num\`);
+              conn.queryOneDiff(sql\`select 1 as num\`);
+              diff.query(sql\`select 1 as num\`);
+            }
+          }
+        `,
+        output: `
+          class X {
+            run() {
+              conn.query<{ num: number; }>(sql\`select 1 as num\`);
+              conn.queryOne<{ num: number; }>(sql\`select 1 as num\`);
+              conn.queryOneDiff(sql\`select 1 as num\`);
+              diff.query(sql\`select 1 as num\`);
+            }
+          }
+        `,
+        errors: [{ messageId: "missingTypeAnnotations" }, { messageId: "missingTypeAnnotations" }],
+      },
+      {
+        filename,
         options: withConnection(connections.withGlobTag),
         name: "glob pattern should be checked as well (tag glob)",
+        code: `
+          class X {
+            run() {
+              conn1.sql\`select 1 as num\`;
+              conn2.sql\`select 1 as num\`;
+              conn3.sql\`select 1 as num\`;
+            }
+          }
+        `,
+        output: `
+          class X {
+            run() {
+              conn1.sql<{ num: number; }>\`select 1 as num\`;
+              conn2.sql<{ num: number; }>\`select 1 as num\`;
+              conn3.sql\`select 1 as num\`;
+            }
+          }
+        `,
+        errors: [{ messageId: "missingTypeAnnotations" }, { messageId: "missingTypeAnnotations" }],
+      },
+      {
+        filename,
+        options: withConnection(connections.withRegexTag),
+        name: "regex pattern should be checked as well (tag regex)",
         code: `
           class X {
             run() {
