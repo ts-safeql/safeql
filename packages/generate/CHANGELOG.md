@@ -1,5 +1,17 @@
 # @ts-safeql/generate
 
+## 0.1.0
+
+### Minor Changes
+
+- 30965b2: add support for regex matching
+
+### Patch Changes
+
+- Updated dependencies [30965b2]
+  - @ts-safeql/shared@0.1.0
+  - @ts-safeql/test-utils@0.0.10
+
 ## 0.0.15
 
 ### Patch Changes

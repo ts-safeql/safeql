@@ -1,5 +1,11 @@
 # @ts-safeql/shared
 
+## 0.1.0
+
+### Minor Changes
+
+- 30965b2: add support for regex matching
+
 ## 0.0.9
 
 ### Patch Changes
