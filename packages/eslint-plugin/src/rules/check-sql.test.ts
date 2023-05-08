@@ -845,6 +845,22 @@ RuleTester.describe("check-sql", () => {
           }
         `,
       },
+      {
+        name: 'with custom type { certification: "Certification" }',
+        filename,
+        options: withConnection(connections.withTag, {
+          overrides: { types: { certification: "Certification" } },
+        }),
+        code: "sql<{ certification: Certification; }>`select certification from caregiver`",
+      },
+      {
+        name: 'with custom domain type { phone_number: "PhoneNumber" }',
+        filename,
+        options: withConnection(connections.withTag, {
+          overrides: { types: { phone_number: "PhoneNumber" } },
+        }),
+        code: "sql<{ phone_number: PhoneNumber; }>`select phone_number from caregiver_phone`",
+      },
     ],
     invalid: [
       {

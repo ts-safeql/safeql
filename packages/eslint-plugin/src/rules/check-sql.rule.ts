@@ -99,6 +99,11 @@ type TagTarget = z.infer<typeof zTagTarget>;
 
 export type ConnectionTarget = WrapperTarget | TagTarget;
 
+const zOverrideTypeResolver = z.union([
+  z.string(),
+  z.object({ parameter: zStringOrRegex, return: z.string() }),
+]);
+
 const zBaseSchema = z.object({
   targets: z.union([zWrapperTarget, zTagTarget]).array(),
 
@@ -112,10 +117,10 @@ const zBaseSchema = z.object({
    */
   overrides: z
     .object({
-      types: z.record(
-        z.enum(objectKeysNonEmpty(defaultTypeMapping)),
-        z.union([z.string(), z.object({ parameter: zStringOrRegex, return: z.string() })])
-      ),
+      types: z.union([
+        z.record(z.enum(objectKeysNonEmpty(defaultTypeMapping)), zOverrideTypeResolver),
+        z.record(z.string(), zOverrideTypeResolver),
+      ]),
     })
     .partial()
     .optional(),

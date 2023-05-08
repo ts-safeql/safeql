@@ -1,8 +1,9 @@
 import {
   assertNever,
-  defaultTypeMapping,
+  defaultTypesMap,
   DuplicateColumnsError,
-  getOrSetFromMap,
+  fmap,
+  getOrSetFromMapWithEnabled,
   groupBy,
   IdentiferCase,
   ParsedQuery,
@@ -29,6 +30,10 @@ export type GenerateResult = {
 export type GenerateError = DuplicateColumnsError | PostgresError;
 
 type CacheKey = string;
+type OverrideValue = string | { parameter: string | { regex: string }; return: string };
+type Overrides = {
+  types: Map<string, OverrideValue>;
+};
 
 export interface GenerateParams {
   sql: Sql;
@@ -38,7 +43,7 @@ export interface GenerateParams {
   cacheKey: CacheKey;
   fieldTransform: IdentiferCase | undefined;
   overrides?: Partial<{
-    types: Record<string, string | { parameter: string | { regex: string }; return: string }>;
+    types: Record<string, OverrideValue>;
   }>;
 }
 
@@ -49,18 +54,17 @@ type CacheMap = Map<
     pgCols: PgColRow[];
     pgEnums: PgEnumsMaps;
     pgColsByTableOidCache: Map<number, PgColRow[]>;
-    typeResolvers: TypeResolversMap;
   }
 >;
 
-type TypeResolversCache = Map<CacheKey, TypeResolversMap>;
-const typeResolversMapCache: TypeResolversCache = new Map();
+type OverrideMap = Map<CacheKey, { types: Map<string, OverrideValue> }>;
 
 export function createGenerator() {
   const cacheMap: CacheMap = new Map();
+  const overrideMap: OverrideMap = new Map();
 
   return {
-    generate: (params: GenerateParams) => generate(params, cacheMap),
+    generate: (params: GenerateParams) => generate(params, cacheMap, overrideMap),
     dropCacheKey: (cacheKey: CacheKey) => cacheMap.delete(cacheKey),
     clearCache: () => cacheMap.clear(),
   };
@@ -68,25 +72,24 @@ export function createGenerator() {
 
 async function generate(
   params: GenerateParams,
-  cacheMap: CacheMap
+  cacheMap: CacheMap,
+  overrideMap: OverrideMap
 ): Promise<either.Either<GenerateError, GenerateResult>> {
-  const { sql, query, overrides, cacheMetadata = true } = params;
+  const { sql, query, cacheKey, cacheMetadata = true } = params;
 
-  const { pgColsByTableOidCache, pgTypes, pgEnums } = cacheMetadata
-    ? await getOrSetFromMap({
-        map: cacheMap,
-        key: params.cacheKey,
-        value: () => getDatabaseMetadata(sql, overrides),
-      })
-    : await getDatabaseMetadata(sql, overrides);
+  const { pgColsByTableOidCache, pgTypes, pgEnums } = await getOrSetFromMapWithEnabled({
+    shouldCache: cacheMetadata,
+    map: cacheMap,
+    key: cacheKey,
+    value: () => getDatabaseMetadata(sql),
+  });
 
-  const typeResolvers = cacheMetadata
-    ? await getOrSetFromMap({
-        map: typeResolversMapCache,
-        key: JSON.stringify(params.overrides),
-        value: () => getTypeResolvers(overrides),
-      })
-    : getTypeResolvers(overrides);
+  const overrides = await getOrSetFromMapWithEnabled({
+    shouldCache: cacheMetadata,
+    map: overrideMap,
+    key: JSON.stringify(params.overrides),
+    value: () => ({ types: new Map(Object.entries(params.overrides?.types ?? {})) }),
+  });
 
   try {
     const result = await sql.unsafe(query, [], { prepare: true }).describe();
@@ -128,7 +131,7 @@ async function generate(
         pgTypes,
         pgEnums,
         relationsWithJoins,
-        typeResolvers,
+        overrides,
         fieldTransform: params.fieldTransform,
       }),
       stmt: result,
@@ -150,26 +153,13 @@ async function generate(
   }
 }
 
-async function getDatabaseMetadata(sql: Sql, overrides: GenerateParams["overrides"]) {
+async function getDatabaseMetadata(sql: Sql) {
   const pgTypes = await getPgTypes(sql);
   const pgCols = await getPgCols(sql);
   const pgEnums = await getPgEnums(sql);
   const pgColsByTableOidCache = groupBy(pgCols, "tableOid");
-  const typeResolvers = getTypeResolvers(overrides);
 
-  return { pgTypes, pgCols, pgEnums, typeResolvers, pgColsByTableOidCache };
-}
-
-type TypeResolversMap = Map<string, string>;
-
-function getTypeResolvers(overrides: GenerateParams["overrides"]): TypeResolversMap {
-  const typesMap: TypeResolversMap = new Map(Object.entries(defaultTypeMapping));
-
-  for (const [k, v] of Object.entries({ ...overrides?.types })) {
-    typesMap.set(k, typeof v === "string" ? v : v.return);
-  }
-
-  return typesMap;
+  return { pgTypes, pgCols, pgEnums, pgColsByTableOidCache };
 }
 
 type ColumnAnalysisResult =
@@ -181,7 +171,7 @@ function mapColumnAnalysisResultsToTypeLiteral(params: {
   pgTypes: PgTypesMap;
   pgEnums: PgEnumsMaps;
   relationsWithJoins: FlattenedRelationWithJoins[];
-  typeResolvers: TypeResolversMap;
+  overrides: Overrides | undefined;
   fieldTransform: IdentiferCase | undefined;
 }): [string, string][] {
   const properties = params.columns.map((col) => {
@@ -190,7 +180,7 @@ function mapColumnAnalysisResultsToTypeLiteral(params: {
       pgTypes: params.pgTypes,
       pgEnums: params.pgEnums,
       relationsWithJoins: params.relationsWithJoins,
-      typeResolvers: params.typeResolvers,
+      overrides: params.overrides,
       fieldTransform: params.fieldTransform,
     });
 
@@ -257,7 +247,7 @@ function mapColumnAnalysisResultToPropertySignature(params: {
   pgTypes: PgTypesMap;
   pgEnums: PgEnumsMaps;
   relationsWithJoins: FlattenedRelationWithJoins[];
-  typeResolvers: TypeResolversMap;
+  overrides: Overrides | undefined;
   fieldTransform: IdentiferCase | undefined;
 }) {
   const pgTypeOid = params.col.introspected?.colBaseTypeOid ?? params.col.described.type;
@@ -270,10 +260,22 @@ function mapColumnAnalysisResultToPropertySignature(params: {
   const valueAsType = getTsTypeFromPgTypeOid({
     pgTypeOid: pgTypeOid,
     pgTypes: params.pgTypes,
-    typeResolvers: params.typeResolvers,
   });
 
-  const value = valueAsEnum ?? valueAsType;
+  const valueAsOverride = (() => {
+    const pgType = params.pgTypes.get(
+      params.col.introspected?.colTypeOid ?? params.col.described.type
+    );
+
+    if (params.overrides?.types === undefined || pgType === undefined) {
+      return undefined;
+    }
+
+    const override = params.overrides.types.get(pgType.name);
+    return fmap(override, (x) => (typeof x === "string" ? x : x.return));
+  })();
+
+  const value = valueAsOverride ?? valueAsEnum ?? valueAsType;
   const key = params.col.described.name ?? params.col.introspected?.colName;
 
   let isNullable = false;
@@ -294,26 +296,19 @@ function mapColumnAnalysisResultToPropertySignature(params: {
   });
 }
 
-function getTsTypeFromPgTypeOid(params: {
-  pgTypes: PgTypesMap;
-  pgTypeOid: number;
-  typeResolvers: TypeResolversMap;
-}) {
+function getTsTypeFromPgTypeOid(params: { pgTypes: PgTypesMap; pgTypeOid: number }) {
   const pgType = params.pgTypes.get(params.pgTypeOid);
 
   if (pgType === undefined) {
     return "unknown";
   }
 
-  return getTsTypeFromPgType({ pgTypeName: pgType.name, typeResolvers: params.typeResolvers });
+  return getTsTypeFromPgType({ pgTypeName: pgType.name });
 }
 
-function getTsTypeFromPgType(params: {
-  pgTypeName: ColType | `_${ColType}`;
-  typeResolvers: TypeResolversMap;
-}) {
+function getTsTypeFromPgType(params: { pgTypeName: ColType | `_${ColType}` }) {
   const { isArray, pgType } = parsePgType(params.pgTypeName);
-  const tsType = params.typeResolvers.get(pgType) ?? "any";
+  const tsType = defaultTypesMap.get(pgType) ?? "any";
 
   return isArray ? `${tsType}[]` : tsType;
 }
