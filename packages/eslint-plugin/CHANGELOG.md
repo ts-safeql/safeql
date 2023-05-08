@@ -1,5 +1,11 @@
 # @ts-safeql/eslint-plugin
 
+## 1.1.1
+
+### Patch Changes
+
+- 6c15534: fixed an issue where INSERT INTO with a null value was invalid
+
 ## 1.1.0
 
 ### Minor Changes
