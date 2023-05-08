@@ -1,5 +1,14 @@
 # @ts-safeql/generate
 
+## 0.1.1
+
+### Patch Changes
+
+- c5b4af1: add support for custom type overrides
+- Updated dependencies [c5b4af1]
+  - @ts-safeql/shared@0.1.1
+  - @ts-safeql/test-utils@0.0.11
+
 ## 0.1.0
 
 ### Minor Changes
