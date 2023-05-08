@@ -442,6 +442,13 @@ RuleTester.describe("check-sql", () => {
         }
         `,
       },
+      {
+        filename,
+        name: "insert into nullable column a null value",
+        options: withConnection(connections.withTag),
+        code: `sql\`INSERT INTO test_nullable_column (nullable_int) VALUES (\${null})\`
+        `,
+      },
     ],
     invalid: [
       {

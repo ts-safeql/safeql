@@ -38,7 +38,7 @@ export function mapTemplateLiteralToQueryText(
 
     const pgTypeValue = pgType.right;
 
-    $queryText += `$${++$idx}::${pgTypeValue}`;
+    $queryText += pgTypeValue === null ? `$${++$idx}` : `$${++$idx}::${pgTypeValue}`;
   }
 
   return E.right($queryText);
@@ -101,7 +101,7 @@ function mapTsTypeStringToPgType(params: {
   node: TSESTreeToTSNode<TSESTree.Expression>;
   type: ts.Type;
   options: RuleOptionConnection;
-}) {
+}): E.Either<string, string | null> {
   if (params.node.kind === ts.SyntaxKind.ConditionalExpression) {
     const whenTrue = params.checker.getTypeAtLocation(params.node.whenTrue);
     const whenTrueType = tsFlagToPgTypeMap[whenTrue.flags];
@@ -147,6 +147,10 @@ function mapTsTypeStringToPgType(params: {
 
   if (params.type.flags in tsFlagToPgTypeMap) {
     return E.right(tsFlagToPgTypeMap[params.type.flags]);
+  }
+
+  if (params.type.flags === ts.TypeFlags.Null) {
+    return E.right(null);
   }
 
   if (isTsUnionType(params.type)) {
