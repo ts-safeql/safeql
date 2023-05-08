@@ -58,3 +58,5 @@ export const defaultTypeMapping = {
   // Bytes
   bytea: "any",
 } as const;
+
+export const defaultTypesMap = new Map<string, string>(Object.entries(defaultTypeMapping));
