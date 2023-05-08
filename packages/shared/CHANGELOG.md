@@ -1,5 +1,11 @@
 # @ts-safeql/shared
 
+## 0.1.1
+
+### Patch Changes
+
+- c5b4af1: add support for custom type overrides
+
 ## 0.1.0
 
 ### Minor Changes
