@@ -336,12 +336,26 @@ function reportCheck(params: {
           });
         }
 
+        const reservedTypes = memoize({
+          key: `reserved-types:${JSON.stringify(connection.overrides?.types)}`,
+          value: () => {
+            const types = new Set<string>();
+
+            for (const value of Object.values(connection.overrides?.types ?? {})) {
+              types.add(typeof value === "string" ? value : value.return);
+            }
+
+            return types;
+          },
+        });
+
         const typeAnnotationState = getTypeAnnotationState({
           result: resultWithTransformed,
           typeParameter: typeParameter,
           transform: target.transform,
           checker: checker,
           parser: parser,
+          reservedTypes: reservedTypes,
         });
 
         if (typeAnnotationState === "INVALID") {
@@ -432,6 +446,7 @@ function getTypeAnnotationState(params: {
   transform?: TypeTransformer;
   parser: ParserServices;
   checker: ts.TypeChecker;
+  reservedTypes: Set<string>;
 }) {
   const {
     result: { result: generated },
@@ -439,6 +454,7 @@ function getTypeAnnotationState(params: {
     transform,
     parser,
     checker,
+    reservedTypes,
   } = params;
 
   if (typeParameter.params.length !== 1) {
@@ -451,6 +467,7 @@ function getTypeAnnotationState(params: {
     checker,
     parser,
     typeNode,
+    reservedTypes,
   });
 
   const expected = [...new Map(properties).entries()];
