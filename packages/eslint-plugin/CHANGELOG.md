@@ -1,5 +1,11 @@
 # @ts-safeql/eslint-plugin
 
+## 1.1.3
+
+### Patch Changes
+
+- 2e681c4: fixed type check when using derived type as override type
+
 ## 1.1.2
 
 ### Patch Changes
