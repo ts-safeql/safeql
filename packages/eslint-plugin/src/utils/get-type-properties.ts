@@ -1,18 +1,21 @@
 import { ParserServices, TSESTree } from "@typescript-eslint/utils";
 import ts from "typescript";
+import { TSUtils } from "./ts.utils";
 
 export function getTypeProperties(params: {
   typeNode: TSESTree.TypeNode;
   parser: ParserServices;
   checker: ts.TypeChecker;
+  reservedTypes: Set<string>;
 }): { properties: [string, string][]; isArray: boolean } {
-  const { typeNode, checker, parser } = params;
+  const { typeNode, checker, parser, reservedTypes } = params;
 
   if (typeNode.type === TSESTree.AST_NODE_TYPES.TSArrayType) {
     const { properties } = getTypeProperties({
       typeNode: typeNode.elementType,
       parser,
       checker,
+      reservedTypes,
     });
 
     return { properties, isArray: true };
@@ -20,14 +23,19 @@ export function getTypeProperties(params: {
 
   if (typeNode.type === TSESTree.AST_NODE_TYPES.TSIntersectionType) {
     const properties = typeNode.types.flatMap(
-      (type) => getTypeProperties({ typeNode: type, parser, checker }).properties
+      (type) => getTypeProperties({ typeNode: type, parser, checker, reservedTypes }).properties
     );
 
     return { properties, isArray: false };
   }
 
   if (typeNode.type === TSESTree.AST_NODE_TYPES.TSTypeLiteral) {
-    const properties = getTypePropertiesFromTypeLiteral({ typeNode, parser, checker });
+    const properties = getTypePropertiesFromTypeLiteral({
+      typeNode,
+      parser,
+      checker,
+      reservedTypes,
+    });
 
     return { properties, isArray: false };
   }
@@ -46,8 +54,9 @@ function getTypePropertiesFromTypeLiteral(params: {
   typeNode: TSESTree.TSTypeLiteral;
   parser: ParserServices;
   checker: ts.TypeChecker;
+  reservedTypes: Set<string>;
 }) {
-  const { typeNode, checker, parser } = params;
+  const { typeNode, checker, parser, reservedTypes } = params;
   const properties: [string, string][] = [];
 
   for (const member of typeNode.members) {
@@ -58,11 +67,25 @@ function getTypePropertiesFromTypeLiteral(params: {
       continue;
     }
 
-    const name = member.key.name;
     const tsNode = parser.esTreeNodeToTSNodeMap.get(member);
-    const type = checker.getTypeAtLocation(tsNode);
-    const typeString = checker.typeToString(type);
-    properties.push([name, typeString]);
+
+    const tsNodeTypes = TSUtils.isTypeUnion(tsNode.type)
+      ? tsNode.type.types
+      : tsNode.type === undefined
+      ? []
+      : [tsNode.type];
+
+    const actualType = tsNodeTypes
+      .map((type) => {
+        const originalTypeString = type.getText();
+
+        return reservedTypes.has(originalTypeString)
+          ? originalTypeString
+          : checker.typeToString(checker.getTypeAtLocation(type));
+      })
+      .join(" | ");
+
+    properties.push([member.key.name, actualType]);
   }
 
   return properties;

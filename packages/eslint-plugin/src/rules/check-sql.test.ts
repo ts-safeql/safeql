@@ -854,6 +854,18 @@ RuleTester.describe("check-sql", () => {
         code: "sql<{ certification: Certification; }>`select certification from caregiver`",
       },
       {
+        name: 'with custom derived type { certification: "Certification" }',
+        filename,
+        options: withConnection(connections.withTag, {
+          overrides: { types: { certification: "Certification" } },
+        }),
+        code: `
+          const certifications = ["HHA", "RN", "LPN", "CNA", "PCA", "OTHER"] as const;
+          type Certification = typeof certifications[number];
+          sql<{ certification: Certification; }>\`select certification from caregiver\`
+        `,
+      },
+      {
         name: 'with custom domain type { phone_number: "PhoneNumber" }',
         filename,
         options: withConnection(connections.withTag, {
