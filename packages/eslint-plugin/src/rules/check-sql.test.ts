@@ -247,6 +247,18 @@ RuleTester.describe("check-sql", () => {
         `,
       },
       {
+        name: "select with expression of (type | null)[]",
+        filename,
+        options: withConnection(connections.base),
+        code: `
+            function run(ids: (number | null)[]) {
+                const result = conn.query<{ name: string }>(sql\`
+                    select name from agency where id = ANY(\${ids})
+                \`);
+            }
+        `,
+      },
+      {
         name: "select statement with conditional expression",
         filename,
         options: withConnection(connections.base),

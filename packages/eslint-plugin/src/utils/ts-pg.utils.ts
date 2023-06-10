@@ -9,6 +9,7 @@ import { ParserServices, TSESTree } from "@typescript-eslint/utils";
 import ts, { TypeChecker } from "typescript";
 import { RuleOptionConnection } from "../rules/check-sql.rule";
 import { E, pipe } from "./fp-ts";
+import { TSUtils } from "./ts.utils";
 
 export function mapTemplateLiteralToQueryText(
   quasi: TSESTree.TemplateLiteral,
@@ -29,7 +30,7 @@ export function mapTemplateLiteralToQueryText(
     const expression = quasi.expressions[$idx];
 
     const pgType = pipe(mapExpressionToTsTypeString({ expression, parser, checker }), (params) =>
-      mapTsTypeStringToPgType({ ...params, checker, options })
+      getPgTypeFromTsType({ ...params, checker, options })
     );
 
     if (E.isLeft(pgType)) {
@@ -96,7 +97,19 @@ const tsFlagToPgTypeMap: Record<number, string> = {
   [ts.TypeFlags.BigIntLiteral]: "bigint",
 };
 
-function mapTsTypeStringToPgType(params: {
+function getPgTypeFromTsTypeUnion(params: { types: ts.Type[] }) {
+  const types = params.types.filter((t) => t.flags !== ts.TypeFlags.Null);
+  const isUnionOfTheSameType = types.every((t) => t.flags === types[0].flags);
+  const pgType = tsFlagToPgTypeMap[types[0].flags];
+
+  if (!isUnionOfTheSameType || pgType === undefined) {
+    return E.left(createMixedTypesInUnionErrorMessage(types.map((t) => t.flags)));
+  }
+
+  return E.right(pgType);
+}
+
+function getPgTypeFromTsType(params: {
   checker: TypeChecker;
   node: TSESTreeToTSNode<TSESTree.Expression>;
   type: ts.Type;
@@ -128,16 +141,16 @@ function mapTsTypeStringToPgType(params: {
     const symbol = params.checker.getSymbolAtLocation(params.node);
     const type = params.checker.getTypeOfSymbolAtLocation(symbol!, params.node);
 
-    if (isTsUnionType(type)) {
-      const types = type.types.filter((t) => t.flags !== ts.TypeFlags.Null);
-      const isUnionOfTheSameType = types.every((t) => t.flags === types[0].flags);
-      const pgType = tsFlagToPgTypeMap[types[0].flags];
+    if (TSUtils.isTsUnionType(type)) {
+      return getPgTypeFromTsTypeUnion({ types: type.types });
+    }
 
-      if (!isUnionOfTheSameType || pgType === undefined) {
-        return E.left(createMixedTypesInUnionErrorMessage(types.map((t) => t.flags)));
-      }
-
-      return E.right(pgType);
+    if (TSUtils.isTsArrayUnionType(params.checker, type)) {
+      return pipe(
+        E.Do,
+        E.chain(() => getPgTypeFromTsTypeUnion({ types: type.resolvedTypeArguments[0].types })),
+        E.map((pgType) => `${pgType}[]`)
+      );
     }
   }
 
@@ -153,7 +166,7 @@ function mapTsTypeStringToPgType(params: {
     return E.right(null);
   }
 
-  if (isTsUnionType(params.type)) {
+  if (TSUtils.isTsUnionType(params.type)) {
     const type = params.type.types.find((t) => t.flags in tsFlagToPgTypeMap);
 
     if (type !== undefined) {
@@ -209,10 +222,6 @@ function mapTsTypeStringToPgType(params: {
 
     Read docs - https://safeql.dev/api/#connections-overrides-types-optional
   `);
-}
-
-function isTsUnionType(type: ts.Type): type is ts.UnionType {
-  return type.flags === ts.TypeFlags.Union;
 }
 
 function createMixedTypesInUnionErrorMessage(flags: ts.TypeFlags[]) {
