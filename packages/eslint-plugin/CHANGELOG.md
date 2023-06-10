@@ -1,5 +1,11 @@
 # @ts-safeql/eslint-plugin
 
+## 1.1.4
+
+### Patch Changes
+
+- ba02059: Add support for select statements with the following expression (type | null)[]
+
 ## 1.1.3
 
 ### Patch Changes
