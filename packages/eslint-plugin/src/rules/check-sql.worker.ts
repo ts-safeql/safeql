@@ -111,6 +111,7 @@ function workerHandler(params: WorkerParams): TE.TaskEither<WorkerError, WorkerR
         query: params.query,
         cacheKey: databaseUrl,
         pgParsed: params.pgParsed,
+        strictNullChecks: params.target.strictNullChecks ?? false,
         overrides: params.connection.overrides,
         fieldTransform: params.target.fieldTransform,
       });

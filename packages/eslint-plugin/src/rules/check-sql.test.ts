@@ -116,6 +116,11 @@ RuleTester.describe("check-sql", () => {
       targets: [{ tag: "sql" }],
       keepAlive: false,
     },
+    withStrictTag: {
+      databaseUrl: `postgres://postgres:postgres@localhost:5432/${databaseName}`,
+      targets: [{ tag: "sql", strictNullChecks: true }],
+      keepAlive: false,
+    },
     withMemberTag: {
       databaseUrl: `postgres://postgres:postgres@localhost:5432/${databaseName}`,
       targets: [{ tag: "Db.sql" }],
@@ -460,6 +465,12 @@ RuleTester.describe("check-sql", () => {
         options: withConnection(connections.withTag),
         code: `sql\`INSERT INTO test_nullable_column (nullable_int) VALUES (\${null})\`
         `,
+      },
+      {
+        filename,
+        name: "select interval",
+        options: withConnection(connections.withTag),
+        code: `sql<{ interval: string; }>\`SELECT INTERVAL '1 day 2 hours 3 minutes 4 seconds'\``,
       },
     ],
     invalid: [
@@ -1116,6 +1127,65 @@ RuleTester.describe("check-sql", () => {
         errors: [
           { messageId: "incorrectTypeAnnotations", line: 1, column: 5, endLine: 1, endColumn: 27 },
         ],
+      },
+    ],
+  });
+
+  ruleTester.run("connection with strictNullChecks", rules["check-sql"], {
+    valid: [
+      {
+        filename,
+        name: "strict: select number will never be null",
+        options: withConnection(connections.withStrictTag),
+        code: "sql<{ x: number }>`select 1 as x`",
+      },
+      {
+        filename,
+        name: "strict: select text will never be null",
+        options: withConnection(connections.withStrictTag),
+        code: "sql<{ x: string }>`select '1' as x`",
+      },
+      {
+        filename,
+        name: "strict: select boolean will never be null",
+        options: withConnection(connections.withStrictTag),
+        code: "sql<{ bool: boolean }>`select true`",
+      },
+      {
+        filename,
+        name: "strict: select count will never be null",
+        options: withConnection(connections.withStrictTag),
+        code: "sql<{ count: string; }>`select count(1)`",
+      },
+      {
+        filename,
+        name: "strict: select interval will never be null",
+        options: withConnection(connections.withStrictTag),
+        code: "sql<{ interval: string; }>`select interval '1 day'`",
+      },
+      {
+        filename,
+        name: "strict: select interval as typecast will never be null",
+        options: withConnection(connections.withStrictTag),
+        code: "sql<{ interval: string; }>`select '1 day'::interval`",
+      },
+    ],
+    invalid: [
+      {
+        name: "strict: select sum can potentially be null",
+        filename,
+        options: withConnection(connections.withStrictTag),
+        code: "sql`SELECT sum(caregiver.id) FROM caregiver`",
+        output: "sql<{ sum: string | null; }>`SELECT sum(caregiver.id) FROM caregiver`",
+        errors: [{ messageId: "missingTypeAnnotations" }],
+      },
+      {
+        name: "strict: select sum with type cast can still return null",
+        filename,
+        options: withConnection(connections.withStrictTag),
+        code: "sql`SELECT sum(1)::int`",
+        output: "sql<{ sum: number | null; }>`SELECT sum(1)::int`",
+        errors: [{ messageId: "missingTypeAnnotations" }],
       },
     ],
   });

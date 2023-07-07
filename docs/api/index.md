@@ -317,6 +317,36 @@ Transform the (column) field key. Can be one of the following:
 }
 ```
 
+Definitely, I can provide a more concise version:
+
+---
+
+### `connections.targets.strictNullChecks` (Optional)
+
+Enabling `strictNullChecks` makes SafeQL treat all database columns as nullable by default unless confirmed as non-nullable.
+
+For instance, if a column is a constant, i.e., `SELECT 1`, it is inferred as non-nullable, as it will always return this constant value. Likewise, columns defined with a NOT NULL constraint in the database schema are also treated as non-nullable.
+
+SQL procedures also follow this rule. For example, the `count` function always returns a non-nullable value, since even the count of an empty set is 0, a non-null integer. Conversely, procedures like `sum` could return a null (e.g., the sum of an empty set), and are therefore treated as nullable.
+
+```json
+{
+  "connections": {
+    // ...
+    "targets": [
+      {
+        // ...
+        "strictNullChecks": true
+      }
+    ]
+  }
+}
+```
+
+This option can enhance type safety in TypeScript environments where strict null checks are enabled. Remember that by default, it's set to false.
+
+---
+
 ### `connections.targets.skipTypeAnnotations` (Optional)
 
 Skip adding type annotations to the query. This is useful if you're using a library that doesn't
@@ -356,7 +386,7 @@ Override the default type mapping. For example, if you want to use [`LocalDate`]
   "connections": {
     "overrides": {
       "types": {
-        "date": "LocalDate",
+        "date": "LocalDate"
       }
     }
   }
@@ -369,7 +399,7 @@ Sometimes, the TypeScript type of the parameter (sql variable) is not the same a
 import postgres from "postgres";
 import { sql } from "./sql";
 
-function run(value: postgres.Parameter<LocalDate>)  {
+function run(value: postgres.Parameter<LocalDate>) {
   const result = sql<{ date: LocalDate }>`SELECT ${value}`;
   // ...
 }

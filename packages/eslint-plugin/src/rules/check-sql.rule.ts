@@ -73,6 +73,11 @@ const zBaseTarget = z.object({
    * Whether or not to skip type annotation.
    */
   skipTypeAnnotations: z.boolean().optional(),
+
+  /**
+   * Strict null checks (always assume a column is nullable until proven otherwise)
+   */
+  strictNullChecks: z.boolean().optional(),
 });
 
 /**

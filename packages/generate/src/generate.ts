@@ -18,6 +18,7 @@ import {
   flattenRelationsWithJoinsMap,
   getRelationsWithJoins,
 } from "./utils/get-relations-with-joins";
+import { getNonNullableColumns } from "./utils/get-nonnullable-columns";
 
 type JSToPostgresTypeMap = Record<string, unknown>;
 type Sql = postgres.Sql<JSToPostgresTypeMap>;
@@ -42,6 +43,7 @@ export interface GenerateParams {
   cacheMetadata?: boolean;
   cacheKey: CacheKey;
   fieldTransform: IdentiferCase | undefined;
+  strictNullChecks: boolean;
   overrides?: Partial<{
     types: Record<string, OverrideValue>;
   }>;
@@ -117,12 +119,18 @@ async function generate(
     }
 
     const relationsWithJoins = flattenRelationsWithJoinsMap(getRelationsWithJoins(params.pgParsed));
+    const nonNullableColumns = getNonNullableColumns(params.pgParsed);
 
-    const columns = result.columns.map((col): ColumnAnalysisResult => {
+    const columns = result.columns.map((col, colIdx): ColumnAnalysisResult => {
       const introspected = pgColsByTableOidCache
         .get(col.table)
         ?.find((x) => x.colNum === col.number);
-      return introspected === undefined ? { described: col } : { described: col, introspected };
+
+      return {
+        described: col,
+        introspected: introspected,
+        isNonNullable: params.strictNullChecks ? nonNullableColumns[colIdx] : true,
+      };
     });
 
     return either.right({
@@ -162,9 +170,11 @@ async function getDatabaseMetadata(sql: Sql) {
   return { pgTypes, pgCols, pgEnums, pgColsByTableOidCache };
 }
 
-type ColumnAnalysisResult =
-  | { described: postgres.Column<string>; introspected?: undefined }
-  | { described: postgres.Column<string>; introspected: PgColRow };
+type ColumnAnalysisResult = {
+  described: postgres.Column<string>;
+  introspected: PgColRow | undefined;
+  isNonNullable: boolean;
+};
 
 function mapColumnAnalysisResultsToTypeLiteral(params: {
   columns: ColumnAnalysisResult[];
@@ -286,7 +296,7 @@ function mapColumnAnalysisResultToPropertySignature(params: {
   const value = valueAsOverride ?? valueAsEnum ?? valueAsType;
   const key = params.col.described.name ?? params.col.introspected?.colName;
 
-  let isNullable = false;
+  let isNullable = !params.col.isNonNullable;
 
   if (params.col.introspected !== undefined) {
     isNullable =
