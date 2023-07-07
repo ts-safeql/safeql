@@ -6,7 +6,7 @@ import {
   getOrSetFromMapWithEnabled,
   groupBy,
   IdentiferCase,
-  ParsedQuery,
+  LibPgQueryAST,
   PostgresError,
   toCase,
 } from "@ts-safeql/shared";
@@ -38,7 +38,7 @@ type Overrides = {
 export interface GenerateParams {
   sql: Sql;
   query: string;
-  pgParsed: ParsedQuery.Root;
+  pgParsed: LibPgQueryAST.ParseResult;
   cacheMetadata?: boolean;
   cacheKey: CacheKey;
   fieldTransform: IdentiferCase | undefined;
@@ -209,13 +209,17 @@ function checkIsNullableDueToRelation(params: {
 
   if (findByJoin !== undefined) {
     switch (findByJoin.joinType) {
-      case "JOIN_FULL":
-      case "JOIN_LEFT":
+      case LibPgQueryAST.JoinType.JOIN_LEFT:
+      case LibPgQueryAST.JoinType.JOIN_FULL:
         return true;
-      case "JOIN_ANTI":
-      case "JOIN_INNER":
-      case "JOIN_RIGHT":
-      case "JOIN_SEMI":
+      case LibPgQueryAST.JoinType.JOIN_TYPE_UNDEFINED:
+      case LibPgQueryAST.JoinType.JOIN_INNER:
+      case LibPgQueryAST.JoinType.JOIN_RIGHT:
+      case LibPgQueryAST.JoinType.JOIN_SEMI:
+      case LibPgQueryAST.JoinType.JOIN_ANTI:
+      case LibPgQueryAST.JoinType.JOIN_UNIQUE_OUTER:
+      case LibPgQueryAST.JoinType.JOIN_UNIQUE_INNER:
+      case LibPgQueryAST.JoinType.UNRECOGNIZED:
         return false;
       default:
         assertNever(findByJoin.joinType);
@@ -226,14 +230,18 @@ function checkIsNullableDueToRelation(params: {
 
   for (const rel of findByRel) {
     switch (rel.joinType) {
-      case "JOIN_RIGHT":
-      case "JOIN_FULL":
+      case LibPgQueryAST.JoinType.JOIN_RIGHT:
+      case LibPgQueryAST.JoinType.JOIN_FULL:
         return true;
-      case "JOIN_LEFT":
-      case "JOIN_ANTI":
-      case "JOIN_INNER":
-      case "JOIN_SEMI":
-        continue;
+      case LibPgQueryAST.JoinType.JOIN_TYPE_UNDEFINED:
+      case LibPgQueryAST.JoinType.JOIN_INNER:
+      case LibPgQueryAST.JoinType.JOIN_LEFT:
+      case LibPgQueryAST.JoinType.JOIN_SEMI:
+      case LibPgQueryAST.JoinType.JOIN_ANTI:
+      case LibPgQueryAST.JoinType.JOIN_UNIQUE_OUTER:
+      case LibPgQueryAST.JoinType.JOIN_UNIQUE_INNER:
+      case LibPgQueryAST.JoinType.UNRECOGNIZED:
+        return false;
       default:
         assertNever(rel.joinType);
     }

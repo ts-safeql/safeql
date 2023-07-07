@@ -1,17 +1,17 @@
-import { ParsedQuery } from "@ts-safeql/shared";
+import { LibPgQueryAST } from "@ts-safeql/shared";
 
 interface Join {
-  type: ParsedQuery.JoinExpr["jointype"];
+  type: LibPgQueryAST.JoinType;
   name: string;
 }
 
 export type RelationsWithJoinsMap = Map<string, Join[]>;
 
-export function getRelationsWithJoins(parsed: ParsedQuery.Root): RelationsWithJoinsMap {
+export function getRelationsWithJoins(parsed: LibPgQueryAST.ParseResult): RelationsWithJoinsMap {
   const results: RelationsWithJoinsMap = new Map();
   const stmt = parsed.stmts[0];
 
-  if (stmt === undefined || stmt.stmt.SelectStmt?.fromClause === undefined) {
+  if (stmt === undefined || stmt?.stmt?.SelectStmt?.fromClause === undefined) {
     return results;
   }
 
@@ -27,7 +27,7 @@ export function getRelationsWithJoins(parsed: ParsedQuery.Root): RelationsWithJo
 
 function recursiveTraverseJoins(
   joins: Join[],
-  joinExpr: ParsedQuery.JoinExpr
+  joinExpr: LibPgQueryAST.JoinExpr
 ): {
   relName: string;
   joins: Join[];
@@ -47,7 +47,7 @@ function recursiveTraverseJoins(
 
 export interface FlattenedRelationWithJoins {
   relName: string;
-  joinType: ParsedQuery.JoinExpr["jointype"];
+  joinType: LibPgQueryAST.JoinType;
   joinRelName: string;
 }
 
@@ -56,7 +56,7 @@ export function flattenRelationsWithJoinsMap(
 ): FlattenedRelationWithJoins[] {
   const result: {
     relName: string;
-    joinType: ParsedQuery.JoinExpr["jointype"];
+    joinType: LibPgQueryAST.JoinType;
     joinRelName: string;
   }[] = [];
 
