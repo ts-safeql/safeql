@@ -1126,7 +1126,7 @@ RuleTester.describe("check-sql", () => {
     ],
   });
 
-  ruleTester.run("connection with strictNullChecks", rules["check-sql"], {
+  ruleTester.run("strict null check", rules["check-sql"], {
     valid: [
       {
         filename,
