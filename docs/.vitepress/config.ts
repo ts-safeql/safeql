@@ -68,10 +68,6 @@ export default defineConfig({
                 text: "targets.skipTypeAnnotations",
                 link: "/api/index.md#connections-targets-skiptypeannotations-optional",
               },
-              {
-                text: "targets.strictNullChecks",
-                link: "/api/index.md#connections-targets-strictnullchecks-optional",
-              },
               { text: "keepAlive", link: "/api/index.md#connections-keepalive-optional" },
               {
                 text: "overrides.types",

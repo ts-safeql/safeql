@@ -186,14 +186,14 @@ export namespace LibPgQueryAST {
     AlterCollationStmt?: AlterCollationStmt | undefined;
     CallStmt?: CallStmt | undefined;
     AlterStatsStmt?: AlterStatsStmt | undefined;
-    AExpr?: AExpr | undefined;
+    A_Expr?: AExpr | undefined;
     ColumnRef?: ColumnRef | undefined;
     ParamRef?: ParamRef | undefined;
     FuncCall?: FuncCall | undefined;
-    AStar?: AStar | undefined;
+    A_Star?: AStar | undefined;
     AIndices?: AIndices | undefined;
     AIndirection?: AIndirection | undefined;
-    AArrayExpr?: AArrayExpr | undefined;
+    A_ArrayExpr?: AArrayExpr | undefined;
     ResTarget?: ResTarget | undefined;
     MultiAssignRef?: MultiAssignRef | undefined;
     TypeCast?: TypeCast | undefined;
@@ -2257,23 +2257,23 @@ export namespace LibPgQueryAST {
     UNRECOGNIZED = -1,
   }
 
-  enum AExprKind {
-    A_EXPR_KIND_UNDEFINED = 0,
-    AEXPR_OP = 1,
-    AEXPR_OP_ANY = 2,
-    AEXPR_OP_ALL = 3,
-    AEXPR_DISTINCT = 4,
-    AEXPR_NOT_DISTINCT = 5,
-    AEXPR_NULLIF = 6,
-    AEXPR_IN = 7,
-    AEXPR_LIKE = 8,
-    AEXPR_ILIKE = 9,
-    AEXPR_SIMILAR = 10,
-    AEXPR_BETWEEN = 11,
-    AEXPR_NOT_BETWEEN = 12,
-    AEXPR_BETWEEN_SYM = 13,
-    AEXPR_NOT_BETWEEN_SYM = 14,
-    UNRECOGNIZED = -1,
+  export enum AExprKind {
+    A_EXPR_KIND_UNDEFINED = "A_EXPR_KIND_UNDEFINED",
+    AEXPR_OP = "AEXPR_OP",
+    AEXPR_OP_ANY = "AEXPR_OP_ANY",
+    AEXPR_OP_ALL = "AEXPR_OP_ALL",
+    AEXPR_DISTINCT = "AEXPR_DISTINCT",
+    AEXPR_NOT_DISTINCT = "AEXPR_NOT_DISTINCT",
+    AEXPR_NULLIF = "AEXPR_NULLIF",
+    AEXPR_IN = "AEXPR_IN",
+    AEXPR_LIKE = "AEXPR_LIKE",
+    AEXPR_ILIKE = "AEXPR_ILIKE",
+    AEXPR_SIMILAR = "AEXPR_SIMILAR",
+    AEXPR_BETWEEN = "AEXPR_BETWEEN",
+    AEXPR_NOT_BETWEEN = "AEXPR_NOT_BETWEEN",
+    AEXPR_BETWEEN_SYM = "AEXPR_BETWEEN_SYM",
+    AEXPR_NOT_BETWEEN_SYM = "AEXPR_NOT_BETWEEN_SYM",
+    UNRECOGNIZED = "UNRECOGNIZED",
   }
 
   enum RoleSpecType {
@@ -2687,25 +2687,25 @@ export namespace LibPgQueryAST {
     UNRECOGNIZED = -1,
   }
 
-  enum BoolExprType {
-    BOOL_EXPR_TYPE_UNDEFINED = 0,
-    AND_EXPR = 1,
-    OR_EXPR = 2,
-    NOT_EXPR = 3,
-    UNRECOGNIZED = -1,
+  export enum BoolExprType {
+    BOOL_EXPR_TYPE_UNDEFINED = "BOOL_EXPR_TYPE_UNDEFINED",
+    AND_EXPR = "AND_EXPR",
+    OR_EXPR = "OR_EXPR",
+    NOT_EXPR = "NOT_EXPR",
+    UNRECOGNIZED = "UNRECOGNIZED",
   }
 
-  enum SubLinkType {
-    SUB_LINK_TYPE_UNDEFINED = 0,
-    EXISTS_SUBLINK = 1,
-    ALL_SUBLINK = 2,
-    ANY_SUBLINK = 3,
-    ROWCOMPARE_SUBLINK = 4,
-    EXPR_SUBLINK = 5,
-    MULTIEXPR_SUBLINK = 6,
-    ARRAY_SUBLINK = 7,
-    CTE_SUBLINK = 8,
-    UNRECOGNIZED = -1,
+  export enum SubLinkType {
+    SUB_LINK_TYPE_UNDEFINED = "SUB_LINK_TYPE_UNDEFINED",
+    EXISTS_SUBLINK = "EXISTS_SUBLINK",
+    ALL_SUBLINK = "ALL_SUBLINK",
+    ANY_SUBLINK = "ANY_SUBLINK",
+    ROWCOMPARE_SUBLINK = "ROWCOMPARE_SUBLINK",
+    EXPR_SUBLINK = "EXPR_SUBLINK",
+    MULTIEXPR_SUBLINK = "MULTIEXPR_SUBLINK",
+    ARRAY_SUBLINK = "ARRAY_SUBLINK",
+    CTE_SUBLINK = "CTE_SUBLINK",
+    UNRECOGNIZED = "UNRECOGNIZED",
   }
 
   enum RowCompareType {
@@ -2766,11 +2766,11 @@ export namespace LibPgQueryAST {
     UNRECOGNIZED = -1,
   }
 
-  enum NullTestType {
-    NULL_TEST_TYPE_UNDEFINED = 0,
-    IS_NULL = 1,
-    IS_NOT_NULL = 2,
-    UNRECOGNIZED = -1,
+  export enum NullTestType {
+    NULL_TEST_TYPE_UNDEFINED = "NULL_TEST_TYPE_UNDEFINED",
+    IS_NULL = "IS_NULL",
+    IS_NOT_NULL = "IS_NOT_NULL",
+    UNRECOGNIZED = "UNRECOGNIZED",
   }
 
   enum BoolTestType {

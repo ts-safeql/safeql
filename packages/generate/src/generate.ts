@@ -43,7 +43,6 @@ export interface GenerateParams {
   cacheMetadata?: boolean;
   cacheKey: CacheKey;
   fieldTransform: IdentiferCase | undefined;
-  strictNullChecks: boolean;
   overrides?: Partial<{
     types: Record<string, OverrideValue>;
   }>;
@@ -121,7 +120,7 @@ async function generate(
     const relationsWithJoins = flattenRelationsWithJoinsMap(getRelationsWithJoins(params.pgParsed));
     const nonNullableColumns = getNonNullableColumns(params.pgParsed);
 
-    const columns = result.columns.map((col, colIdx): ColumnAnalysisResult => {
+    const columns = result.columns.map((col): ColumnAnalysisResult => {
       const introspected = pgColsByTableOidCache
         .get(col.table)
         ?.find((x) => x.colNum === col.number);
@@ -129,7 +128,7 @@ async function generate(
       return {
         described: col,
         introspected: introspected,
-        isNonNullable: params.strictNullChecks ? nonNullableColumns[colIdx] : true,
+        isNonNullableBasedOnAST: nonNullableColumns.has(col.name),
       };
     });
 
@@ -173,7 +172,7 @@ async function getDatabaseMetadata(sql: Sql) {
 type ColumnAnalysisResult = {
   described: postgres.Column<string>;
   introspected: PgColRow | undefined;
-  isNonNullable: boolean;
+  isNonNullableBasedOnAST: boolean;
 };
 
 function mapColumnAnalysisResultsToTypeLiteral(params: {
@@ -296,21 +295,25 @@ function mapColumnAnalysisResultToPropertySignature(params: {
   const value = valueAsOverride ?? valueAsEnum ?? valueAsType;
   const key = params.col.described.name ?? params.col.introspected?.colName;
 
-  let isNullable = !params.col.isNonNullable;
+  let isNonNullable = params.col.isNonNullableBasedOnAST;
 
-  if (params.col.introspected !== undefined) {
-    isNullable =
-      !params.col.introspected.colNotNull ||
+  if (!isNonNullable && params.col.introspected !== undefined) {
+    isNonNullable = params.col.introspected.colNotNull;
+
+    if (
       checkIsNullableDueToRelation({
         col: params.col.introspected,
         relationsWithJoins: params.relationsWithJoins,
-      });
+      })
+    ) {
+      isNonNullable = false;
+    }
   }
 
   return buildInterfacePropertyValue({
     key: toCase(key, params.fieldTransform),
     value: value,
-    isNullable: isNullable,
+    isNullable: !isNonNullable,
   });
 }
 
