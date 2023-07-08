@@ -1,5 +1,4 @@
 import { LibPgQueryAST, assertNever } from "@ts-safeql/shared";
-import { start } from "repl";
 
 // Function names that are always non-nullable.
 const nonNullFunctions: Set<string> = new Set([

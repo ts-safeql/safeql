@@ -116,11 +116,6 @@ RuleTester.describe("check-sql", () => {
       targets: [{ tag: "sql" }],
       keepAlive: false,
     },
-    withStrictTag: {
-      databaseUrl: `postgres://postgres:postgres@localhost:5432/${databaseName}`,
-      targets: [{ tag: "sql" }],
-      keepAlive: false,
-    },
     withMemberTag: {
       databaseUrl: `postgres://postgres:postgres@localhost:5432/${databaseName}`,
       targets: [{ tag: "Db.sql" }],
@@ -1136,43 +1131,43 @@ RuleTester.describe("check-sql", () => {
       {
         filename,
         name: "strict: select * with a const column. const column should be non-nullable",
-        options: withConnection(connections.withStrictTag),
+        options: withConnection(connections.withTag),
         code: "sql<{ id: number; name: string; now: Date; }>`select *, now() from agency`",
       },
       {
         filename,
         name: "strict: select number should be non-nullable",
-        options: withConnection(connections.withStrictTag),
+        options: withConnection(connections.withTag),
         code: "sql<{ x: number }>`select 1 as x`",
       },
       {
         filename,
         name: "strict: select text should be non-nullable",
-        options: withConnection(connections.withStrictTag),
+        options: withConnection(connections.withTag),
         code: "sql<{ x: string }>`select '1' as x`",
       },
       {
         filename,
         name: "strict: select boolean should be non-nullable",
-        options: withConnection(connections.withStrictTag),
+        options: withConnection(connections.withTag),
         code: "sql<{ bool: boolean }>`select true`",
       },
       {
         filename,
         name: "strict: select count should be non-nullable",
-        options: withConnection(connections.withStrictTag),
+        options: withConnection(connections.withTag),
         code: "sql<{ count: string; }>`select count(1)`",
       },
       {
         filename,
         name: "strict: select interval should be non-nullable",
-        options: withConnection(connections.withStrictTag),
+        options: withConnection(connections.withTag),
         code: "sql<{ interval: string; }>`select interval '1 day'`",
       },
       {
         filename,
         name: "strict: select interval as typecast should be non-nullable",
-        options: withConnection(connections.withStrictTag),
+        options: withConnection(connections.withTag),
         code: "sql<{ interval: string; }>`select '1 day'::interval`",
       },
     ],
@@ -1180,7 +1175,7 @@ RuleTester.describe("check-sql", () => {
       {
         name: "strict: select sum can potentially be null",
         filename,
-        options: withConnection(connections.withStrictTag),
+        options: withConnection(connections.withTag),
         code: "sql`SELECT sum(caregiver.id) FROM caregiver`",
         output: "sql<{ sum: string | null; }>`SELECT sum(caregiver.id) FROM caregiver`",
         errors: [{ messageId: "missingTypeAnnotations" }],
@@ -1188,7 +1183,7 @@ RuleTester.describe("check-sql", () => {
       {
         name: "strict: select sum with type cast can still return null",
         filename,
-        options: withConnection(connections.withStrictTag),
+        options: withConnection(connections.withTag),
         code: "sql`SELECT sum(1)::int`",
         output: "sql<{ sum: number | null; }>`SELECT sum(1)::int`",
         errors: [{ messageId: "missingTypeAnnotations" }],
@@ -1196,7 +1191,7 @@ RuleTester.describe("check-sql", () => {
       {
         name: "strict: select nullable column with where clause is not null will never be null",
         filename,
-        options: withConnection(connections.withStrictTag),
+        options: withConnection(connections.withTag),
         code: "sql<{ middle_name: string | null; }>`SELECT middle_name FROM caregiver WHERE middle_name IS NOT NULL`",
         output:
           "sql<{ middle_name: string; }>`SELECT middle_name FROM caregiver WHERE middle_name IS NOT NULL`",
