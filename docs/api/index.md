@@ -317,10 +317,6 @@ Transform the (column) field key. Can be one of the following:
 }
 ```
 
-Definitely, I can provide a more concise version:
-
----
-
 ### `connections.targets.skipTypeAnnotations` (Optional)
 
 Skip adding type annotations to the query. This is useful if you're using a library that doesn't
