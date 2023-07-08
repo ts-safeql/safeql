@@ -118,7 +118,7 @@ async function generate(
     }
 
     const relationsWithJoins = flattenRelationsWithJoinsMap(getRelationsWithJoins(params.pgParsed));
-    const nonNullableColumns = getNonNullableColumns(params.pgParsed);
+    const nonNullableColumnsBasedOnAST = getNonNullableColumns(params.pgParsed);
 
     const columns = result.columns.map((col): ColumnAnalysisResult => {
       const introspected = pgColsByTableOidCache
@@ -128,7 +128,7 @@ async function generate(
       return {
         described: col,
         introspected: introspected,
-        isNonNullableBasedOnAST: nonNullableColumns.has(col.name),
+        isNonNullableBasedOnAST: nonNullableColumnsBasedOnAST.has(col.name),
       };
     });
 

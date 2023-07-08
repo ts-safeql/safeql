@@ -49,6 +49,20 @@ const nonNullFunctions: Set<string> = new Set([
   "random",
   "exists",
   "row_number",
+  "current_schema",
+  "current_schemas",
+  "inet_server_addr",
+  "inet_server_port",
+  "isfinite",
+  "isnan",
+  "pg_backend_pid",
+  "pg_blocking_pids",
+  "pg_cancel_backend",
+  "pg_is_in_recovery",
+  "pg_postmaster_start_time",
+  "pg_relation_size",
+  "pg_total_relation_size",
+  "timeofday",
 ]);
 
 function concatStringNodes(nodes: LibPgQueryAST.Node[] | undefined): string {
