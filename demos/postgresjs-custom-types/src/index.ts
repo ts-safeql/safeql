@@ -19,7 +19,7 @@ const sql = postgres({
 });
 
 async function check() {
-  const value = await sql<{ x: LocalDate | null; }[]>`SELECT ${LocalDate.now()} as x`;
+  const value = await sql<{ x: LocalDate | null }[]>`SELECT ${LocalDate.now()} as x`;
 
   await sql.end();
 
