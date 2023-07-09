@@ -1,5 +1,11 @@
 # @ts-safeql/shared
 
+## 0.2.0
+
+### Minor Changes
+
+- f874247: Replaced the type `ParsedQuery` with `LibPgQueryAST.ParseResult` improving type consistency in the code for parsing SQL queries.
+
 ## 0.1.1
 
 ### Patch Changes
