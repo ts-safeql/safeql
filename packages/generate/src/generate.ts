@@ -6,7 +6,7 @@ import {
   getOrSetFromMapWithEnabled,
   groupBy,
   IdentiferCase,
-  ParsedQuery,
+  LibPgQueryAST,
   PostgresError,
   toCase,
 } from "@ts-safeql/shared";
@@ -18,6 +18,7 @@ import {
   flattenRelationsWithJoinsMap,
   getRelationsWithJoins,
 } from "./utils/get-relations-with-joins";
+import { getNonNullableColumns } from "./utils/get-nonnullable-columns";
 
 type JSToPostgresTypeMap = Record<string, unknown>;
 type Sql = postgres.Sql<JSToPostgresTypeMap>;
@@ -38,7 +39,7 @@ type Overrides = {
 export interface GenerateParams {
   sql: Sql;
   query: string;
-  pgParsed: ParsedQuery.Root;
+  pgParsed: LibPgQueryAST.ParseResult;
   cacheMetadata?: boolean;
   cacheKey: CacheKey;
   fieldTransform: IdentiferCase | undefined;
@@ -117,12 +118,18 @@ async function generate(
     }
 
     const relationsWithJoins = flattenRelationsWithJoinsMap(getRelationsWithJoins(params.pgParsed));
+    const nonNullableColumnsBasedOnAST = getNonNullableColumns(params.pgParsed);
 
     const columns = result.columns.map((col): ColumnAnalysisResult => {
       const introspected = pgColsByTableOidCache
         .get(col.table)
         ?.find((x) => x.colNum === col.number);
-      return introspected === undefined ? { described: col } : { described: col, introspected };
+
+      return {
+        described: col,
+        introspected: introspected,
+        isNonNullableBasedOnAST: nonNullableColumnsBasedOnAST.has(col.name),
+      };
     });
 
     return either.right({
@@ -162,9 +169,11 @@ async function getDatabaseMetadata(sql: Sql) {
   return { pgTypes, pgCols, pgEnums, pgColsByTableOidCache };
 }
 
-type ColumnAnalysisResult =
-  | { described: postgres.Column<string>; introspected?: undefined }
-  | { described: postgres.Column<string>; introspected: PgColRow };
+type ColumnAnalysisResult = {
+  described: postgres.Column<string>;
+  introspected: PgColRow | undefined;
+  isNonNullableBasedOnAST: boolean;
+};
 
 function mapColumnAnalysisResultsToTypeLiteral(params: {
   columns: ColumnAnalysisResult[];
@@ -209,13 +218,17 @@ function checkIsNullableDueToRelation(params: {
 
   if (findByJoin !== undefined) {
     switch (findByJoin.joinType) {
-      case "JOIN_FULL":
-      case "JOIN_LEFT":
+      case LibPgQueryAST.JoinType.JOIN_LEFT:
+      case LibPgQueryAST.JoinType.JOIN_FULL:
         return true;
-      case "JOIN_ANTI":
-      case "JOIN_INNER":
-      case "JOIN_RIGHT":
-      case "JOIN_SEMI":
+      case LibPgQueryAST.JoinType.JOIN_TYPE_UNDEFINED:
+      case LibPgQueryAST.JoinType.JOIN_INNER:
+      case LibPgQueryAST.JoinType.JOIN_RIGHT:
+      case LibPgQueryAST.JoinType.JOIN_SEMI:
+      case LibPgQueryAST.JoinType.JOIN_ANTI:
+      case LibPgQueryAST.JoinType.JOIN_UNIQUE_OUTER:
+      case LibPgQueryAST.JoinType.JOIN_UNIQUE_INNER:
+      case LibPgQueryAST.JoinType.UNRECOGNIZED:
         return false;
       default:
         assertNever(findByJoin.joinType);
@@ -226,14 +239,18 @@ function checkIsNullableDueToRelation(params: {
 
   for (const rel of findByRel) {
     switch (rel.joinType) {
-      case "JOIN_RIGHT":
-      case "JOIN_FULL":
+      case LibPgQueryAST.JoinType.JOIN_RIGHT:
+      case LibPgQueryAST.JoinType.JOIN_FULL:
         return true;
-      case "JOIN_LEFT":
-      case "JOIN_ANTI":
-      case "JOIN_INNER":
-      case "JOIN_SEMI":
-        continue;
+      case LibPgQueryAST.JoinType.JOIN_TYPE_UNDEFINED:
+      case LibPgQueryAST.JoinType.JOIN_INNER:
+      case LibPgQueryAST.JoinType.JOIN_LEFT:
+      case LibPgQueryAST.JoinType.JOIN_SEMI:
+      case LibPgQueryAST.JoinType.JOIN_ANTI:
+      case LibPgQueryAST.JoinType.JOIN_UNIQUE_OUTER:
+      case LibPgQueryAST.JoinType.JOIN_UNIQUE_INNER:
+      case LibPgQueryAST.JoinType.UNRECOGNIZED:
+        return false;
       default:
         assertNever(rel.joinType);
     }
@@ -278,21 +295,25 @@ function mapColumnAnalysisResultToPropertySignature(params: {
   const value = valueAsOverride ?? valueAsEnum ?? valueAsType;
   const key = params.col.described.name ?? params.col.introspected?.colName;
 
-  let isNullable = false;
+  let isNonNullable = params.col.isNonNullableBasedOnAST;
 
-  if (params.col.introspected !== undefined) {
-    isNullable =
-      !params.col.introspected.colNotNull ||
+  if (!isNonNullable && params.col.introspected !== undefined) {
+    isNonNullable = params.col.introspected.colNotNull;
+
+    if (
       checkIsNullableDueToRelation({
         col: params.col.introspected,
         relationsWithJoins: params.relationsWithJoins,
-      });
+      })
+    ) {
+      isNonNullable = false;
+    }
   }
 
   return buildInterfacePropertyValue({
     key: toCase(key, params.fieldTransform),
     value: value,
-    isNullable: isNullable,
+    isNullable: !isNonNullable,
   });
 }
 

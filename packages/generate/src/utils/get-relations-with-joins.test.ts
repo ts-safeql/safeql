@@ -1,4 +1,4 @@
-import { InternalError, ParsedQuery } from "@ts-safeql/shared";
+import { InternalError, LibPgQueryAST } from "@ts-safeql/shared";
 import assert from "assert";
 import { taskEither } from "fp-ts";
 import { flow, identity, pipe } from "fp-ts/function";
@@ -11,7 +11,7 @@ const cases: {
   expected: [
     string,
     {
-      type: ParsedQuery.JoinExpr["jointype"];
+      type: LibPgQueryAST.JoinType;
       name: string;
     }[]
   ][];
@@ -30,7 +30,7 @@ const cases: {
       caregiver
         LEFT JOIN agency ON caregiver.id = agency.id
     `,
-    expected: [["caregiver", [{ name: "agency", type: "JOIN_LEFT" }]]],
+    expected: [["caregiver", [{ name: "agency", type: LibPgQueryAST.JoinType.JOIN_LEFT }]]],
   },
   {
     query: `
@@ -45,8 +45,8 @@ const cases: {
       [
         "caregiver",
         [
-          { name: "caregiver_agency", type: "JOIN_LEFT" },
-          { name: "agency", type: "JOIN_LEFT" },
+          { name: "caregiver_agency", type: LibPgQueryAST.JoinType.JOIN_LEFT },
+          { name: "agency", type: LibPgQueryAST.JoinType.JOIN_LEFT },
         ],
       ],
     ],
@@ -72,19 +72,19 @@ const cases: {
       [
         "a",
         [
-          { name: "w", type: "JOIN_FULL" },
-          { name: "x", type: "JOIN_INNER" },
-          { name: "y", type: "JOIN_LEFT" },
-          { name: "z", type: "JOIN_RIGHT" },
+          { name: "w", type: LibPgQueryAST.JoinType.JOIN_FULL },
+          { name: "x", type: LibPgQueryAST.JoinType.JOIN_INNER },
+          { name: "y", type: LibPgQueryAST.JoinType.JOIN_LEFT },
+          { name: "z", type: LibPgQueryAST.JoinType.JOIN_RIGHT },
         ],
       ],
       [
         "b",
         [
-          { name: "w", type: "JOIN_FULL" },
-          { name: "x", type: "JOIN_INNER" },
-          { name: "y", type: "JOIN_LEFT" },
-          { name: "z", type: "JOIN_RIGHT" },
+          { name: "w", type: LibPgQueryAST.JoinType.JOIN_FULL },
+          { name: "x", type: LibPgQueryAST.JoinType.JOIN_INNER },
+          { name: "y", type: LibPgQueryAST.JoinType.JOIN_LEFT },
+          { name: "z", type: LibPgQueryAST.JoinType.JOIN_RIGHT },
         ],
       ],
     ],

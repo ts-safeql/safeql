@@ -356,7 +356,7 @@ Override the default type mapping. For example, if you want to use [`LocalDate`]
   "connections": {
     "overrides": {
       "types": {
-        "date": "LocalDate",
+        "date": "LocalDate"
       }
     }
   }
@@ -369,7 +369,7 @@ Sometimes, the TypeScript type of the parameter (sql variable) is not the same a
 import postgres from "postgres";
 import { sql } from "./sql";
 
-function run(value: postgres.Parameter<LocalDate>)  {
+function run(value: postgres.Parameter<LocalDate>) {
   const result = sql<{ date: LocalDate }>`SELECT ${value}`;
   // ...
 }

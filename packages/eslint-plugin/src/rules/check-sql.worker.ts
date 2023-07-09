@@ -9,7 +9,7 @@ import {
   InternalError,
   InvalidMigrationError,
   InvalidMigrationsPathError,
-  ParsedQuery,
+  LibPgQueryAST,
 } from "@ts-safeql/shared";
 import path from "path";
 import { runAsWorker } from "synckit";
@@ -32,7 +32,7 @@ export interface WorkerParams {
   target: ConnectionTarget;
   query: string;
   projectDir: string;
-  pgParsed: ParsedQuery.Root;
+  pgParsed: LibPgQueryAST.ParseResult;
 }
 
 const generator = createGenerator();
