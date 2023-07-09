@@ -1,6 +1,6 @@
 ---
-- "@ts-safeql/eslint-plugin": major
-- "@ts-safeql/generate": major
+"@ts-safeql/eslint-plugin": major
+"@ts-safeql/generate": major
 ---
 
 # Enhanced Nullability Checks
