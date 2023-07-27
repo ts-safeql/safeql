@@ -39,6 +39,13 @@ function recursiveTraverseJoins(
       return recursiveTraverseJoins([join, ...joins], joinExpr.larg?.JoinExpr);
     }
 
+    if (joinExpr.larg?.RangeSubselect?.alias !== undefined) {
+      return {
+        relName: joinExpr.larg.RangeSubselect.alias.aliasname,
+        joins: [join, ...joins],
+      };
+    }
+
     return { relName: joinExpr.larg!.RangeVar!.relname, joins: [join, ...joins] };
   }
 
