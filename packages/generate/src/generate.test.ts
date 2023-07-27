@@ -277,3 +277,12 @@ test("select domain type", async () => {
     expected: [["phone_number", "string"]],
   });
 });
+
+test("select from subselect with an alias", async () => {
+  await testQuery({
+    query: `
+      SELECT subselect.id FROM (SELECT * FROM caregiver) AS subselect
+    `,
+    expected: [["id", "number"]],
+  });
+});
