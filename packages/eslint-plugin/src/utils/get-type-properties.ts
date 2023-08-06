@@ -85,7 +85,9 @@ function getTypePropertiesFromTypeLiteral(params: {
       })
       .join(" | ");
 
-    properties.push([member.key.name, actualType]);
+    const key = member.optional ? `${member.key.name}?` : member.key.name;
+
+    properties.push([key, actualType]);
   }
 
   return properties;

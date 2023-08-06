@@ -16,10 +16,16 @@ const sql = postgres({
       serialize: (value: LocalDateTime) => value.toString(),
     },
   },
+  transform: {
+    // JS -> Postgres - Convert undefined to null
+    undefined: null,
+    // Postgres -> JS - Convert null to undefined
+    value: (value) => value ?? undefined,
+  },
 });
 
 async function check() {
-  const value = await sql<{ x: LocalDate | null }[]>`SELECT ${LocalDate.now()} as x`;
+  const value = await sql<{ x?: LocalDate | undefined }[]>`SELECT ${LocalDate.now()} as x`;
 
   await sql.end();
 
