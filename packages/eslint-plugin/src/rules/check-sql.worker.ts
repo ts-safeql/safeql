@@ -113,6 +113,8 @@ function workerHandler(params: WorkerParams): TE.TaskEither<WorkerError, WorkerR
         pgParsed: params.pgParsed,
         overrides: params.connection.overrides,
         fieldTransform: params.target.fieldTransform,
+        nullAsUndefined: params.connection.nullAsUndefined,
+        nullAsOptional: params.connection.nullAsOptional,
       });
     }),
     TE.chainW(TE.fromEither)

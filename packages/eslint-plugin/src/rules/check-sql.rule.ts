@@ -124,6 +124,16 @@ const zBaseSchema = z.object({
     })
     .partial()
     .optional(),
+
+  /**
+   * Use `undefined` instead of `null` when the value is nullable.
+   */
+  nullAsUndefined: z.boolean().optional(),
+
+  /**
+   * Mark the property as optional when the value is nullable.
+   */
+  nullAsOptional: z.boolean().optional(),
 });
 
 export const zConnectionMigration = z.object({

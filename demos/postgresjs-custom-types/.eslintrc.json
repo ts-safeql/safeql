@@ -13,9 +13,14 @@
           "targets": [{ "tag": "sql", "transform": "{type}[]" }],
           "overrides": {
             "types": {
-              "timestamptz": { "parameter": "+(Parameter<LocalDate>|LocalDate)", "return": "LocalDate" }
+              "timestamptz": {
+                "parameter": "+(Parameter<LocalDate>|LocalDate)",
+                "return": "LocalDate"
+              }
             }
-          }
+          },
+          "nullAsUndefined": true,
+          "nullAsOptional": true
         }
       }
     ]

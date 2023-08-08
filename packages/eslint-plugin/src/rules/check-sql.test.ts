@@ -1126,6 +1126,77 @@ RuleTester.describe("check-sql", () => {
     ],
   });
 
+  ruleTester.run("connection with null options", rules["check-sql"], {
+    valid: [
+      {
+        name: "use undefined instead of null",
+        filename,
+        options: withConnection(connections.withTag, {
+          nullAsUndefined: true,
+        }),
+        code: "sql<{ middle_name: string | undefined }>`select middle_name from caregiver`",
+      },
+      {
+        name: "mark nullable field as optional",
+        filename,
+        options: withConnection(connections.withTag, {
+          nullAsUndefined: true,
+          nullAsOptional: true,
+        }),
+        code: "sql<{ middle_name?: string | undefined }>`select middle_name from caregiver`",
+      },
+    ],
+    invalid: [
+      {
+        name: "without nullAsUndefined while result is undefined",
+        filename,
+        options: withConnection(connections.withTag),
+        code: "sql<{ middle_name: string | undefined }>`select middle_name from caregiver`",
+        output: "sql<{ middle_name: string | null; }>`select middle_name from caregiver`",
+        errors: [
+          { messageId: "incorrectTypeAnnotations", line: 1, column: 5, endLine: 1, endColumn: 40 },
+        ],
+      },
+      {
+        name: "with nullAsUndefined while result is null",
+        filename,
+        options: withConnection(connections.withTag, {
+          nullAsUndefined: true,
+        }),
+        code: "sql<{ middle_name: string | null }>`select middle_name from caregiver`",
+        output: "sql<{ middle_name: string | undefined; }>`select middle_name from caregiver`",
+        errors: [
+          { messageId: "incorrectTypeAnnotations", line: 1, column: 5, endLine: 1, endColumn: 35 },
+        ],
+      },
+      {
+        name: "without nullAsOptional while result is marked as optional",
+        filename,
+        options: withConnection(connections.withTag, {
+          nullAsUndefined: true,
+        }),
+        code: "sql<{ middle_name?: string | undefined }>`select middle_name from caregiver`",
+        output: "sql<{ middle_name: string | undefined; }>`select middle_name from caregiver`",
+        errors: [
+          { messageId: "incorrectTypeAnnotations", line: 1, column: 5, endLine: 1, endColumn: 41 },
+        ],
+      },
+      {
+        name: "with nullAsOptional while result is marked as required",
+        filename,
+        options: withConnection(connections.withTag, {
+          nullAsUndefined: true,
+          nullAsOptional: true,
+        }),
+        code: "sql<{ middle_name: string | undefined }>`select middle_name from caregiver`",
+        output: "sql<{ middle_name?: string | undefined; }>`select middle_name from caregiver`",
+        errors: [
+          { messageId: "incorrectTypeAnnotations", line: 1, column: 5, endLine: 1, endColumn: 40 },
+        ],
+      },
+    ],
+  });
+
   ruleTester.run("strict null check", rules["check-sql"], {
     valid: [
       {

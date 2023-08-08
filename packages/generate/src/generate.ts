@@ -43,6 +43,8 @@ export interface GenerateParams {
   cacheMetadata?: boolean;
   cacheKey: CacheKey;
   fieldTransform: IdentiferCase | undefined;
+  nullAsUndefined?: boolean;
+  nullAsOptional?: boolean;
   overrides?: Partial<{
     types: Record<string, OverrideValue>;
   }>;
@@ -140,6 +142,8 @@ async function generate(
         relationsWithJoins,
         overrides,
         fieldTransform: params.fieldTransform,
+        nullAsUndefined: params.nullAsUndefined,
+        nullAsOptional: params.nullAsOptional,
       }),
       stmt: result,
       query: query,
@@ -182,6 +186,8 @@ function mapColumnAnalysisResultsToTypeLiteral(params: {
   relationsWithJoins: FlattenedRelationWithJoins[];
   overrides: Overrides | undefined;
   fieldTransform: IdentiferCase | undefined;
+  nullAsUndefined?: boolean;
+  nullAsOptional?: boolean;
 }): [string, string][] {
   const properties = params.columns.map((col) => {
     const propertySignature = mapColumnAnalysisResultToPropertySignature({
@@ -191,6 +197,8 @@ function mapColumnAnalysisResultsToTypeLiteral(params: {
       relationsWithJoins: params.relationsWithJoins,
       overrides: params.overrides,
       fieldTransform: params.fieldTransform,
+      nullAsUndefined: params.nullAsUndefined,
+      nullAsOptional: params.nullAsOptional,
     });
 
     return propertySignature;
@@ -202,10 +210,17 @@ function buildInterfacePropertyValue(params: {
   key: string;
   value: string;
   isNullable: boolean;
+  nullAsUndefined?: boolean;
+  nullAsOptional?: boolean;
 }): [string, string] {
+  const nullType = params.nullAsUndefined ? "undefined" : "null";
   const isNullable = params.isNullable && ["any", "null"].includes(params.value) === false;
 
-  return [params.key, isNullable ? `${params.value} | null` : params.value];
+  if (!isNullable) {
+    return [params.key, params.value];
+  }
+
+  return [params.nullAsOptional ? `${params.key}?` : params.key, `${params.value} | ${nullType}`];
 }
 
 function checkIsNullableDueToRelation(params: {
@@ -266,6 +281,8 @@ function mapColumnAnalysisResultToPropertySignature(params: {
   relationsWithJoins: FlattenedRelationWithJoins[];
   overrides: Overrides | undefined;
   fieldTransform: IdentiferCase | undefined;
+  nullAsUndefined?: boolean;
+  nullAsOptional?: boolean;
 }) {
   const pgTypeOid = params.col.introspected?.colBaseTypeOid ?? params.col.described.type;
 
@@ -314,6 +331,8 @@ function mapColumnAnalysisResultToPropertySignature(params: {
     key: toCase(key, params.fieldTransform),
     value: value,
     isNullable: !isNonNullable,
+    nullAsUndefined: params.nullAsUndefined,
+    nullAsOptional: params.nullAsOptional,
   });
 }
 
