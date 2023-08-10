@@ -1,5 +1,13 @@
 # @ts-safeql/eslint-plugin
 
+## 2.0.2
+
+### Patch Changes
+
+- 5e35a22: Improve join expressions detection
+- Updated dependencies [5e35a22]
+  - @ts-safeql/generate@1.0.2
+
 ## 2.0.1
 
 ### Patch Changes
