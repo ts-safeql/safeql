@@ -8,6 +8,7 @@ import { getRelationsWithJoins } from "./get-relations-with-joins";
 
 const cases: {
   query: string;
+  only?: boolean;
   expected: [
     string,
     {
@@ -89,6 +90,25 @@ const cases: {
       ],
     ],
   },
+  {
+    query: `
+      SELECT subselect.id
+      FROM tbl
+        LEFT JOIN (SELECT * FROM inner1) AS subselect1 on subselect.id = tbl.id 
+        LEFT JOIN (SELECT * FROM inner2) AS subselect2 on subselect2.id = tbl.id 
+        LEFT JOIN (SELECT * FROM inner3) AS subselect3 on subselect3.id = tbl.id 
+    `,
+    expected: [
+      [
+        "tbl",
+        [
+          { name: "subselect1", type: LibPgQueryAST.JoinType.JOIN_LEFT },
+          { name: "subselect2", type: LibPgQueryAST.JoinType.JOIN_LEFT },
+          { name: "subselect3", type: LibPgQueryAST.JoinType.JOIN_LEFT },
+        ],
+      ],
+    ],
+  },
 ];
 
 export const getRelationsWithJoinsTE = flow(
@@ -97,8 +117,9 @@ export const getRelationsWithJoinsTE = flow(
   taskEither.map(getRelationsWithJoins)
 );
 
-for (const { query, expected } of cases) {
-  test(`get relations with joins: ${query}`, async () => {
+for (const { query, expected, only } of cases) {
+  const tester = only ? test.only : test;
+  tester(`get relations with joins: ${query}`, async () => {
     return pipe(
       getRelationsWithJoinsTE(query),
       taskEither.match(
