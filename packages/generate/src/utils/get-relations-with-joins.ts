@@ -32,24 +32,30 @@ function recursiveTraverseJoins(
   relName: string;
   joins: Join[];
 } {
-  if (joinExpr.rarg?.RangeVar !== undefined) {
-    const join = { type: joinExpr.jointype, name: joinExpr.rarg.RangeVar.relname };
+  const joinName =
+    joinExpr.rarg?.RangeVar?.relname ?? joinExpr.rarg?.RangeSubselect?.alias?.aliasname;
 
-    if (joinExpr.larg?.JoinExpr !== undefined) {
-      return recursiveTraverseJoins([join, ...joins], joinExpr.larg?.JoinExpr);
-    }
-
-    if (joinExpr.larg?.RangeSubselect?.alias !== undefined) {
-      return {
-        relName: joinExpr.larg.RangeSubselect.alias.aliasname,
-        joins: [join, ...joins],
-      };
-    }
-
-    return { relName: joinExpr.larg!.RangeVar!.relname, joins: [join, ...joins] };
+  if (joinName === undefined) {
+    throw new Error("joinName is undefined");
   }
 
-  return { relName: joinExpr.rarg!.RangeVar!.relname, joins };
+  const join = { type: joinExpr.jointype, name: joinName };
+
+  if (joinExpr.larg?.JoinExpr !== undefined) {
+    return recursiveTraverseJoins([join, ...joins], joinExpr.larg?.JoinExpr);
+  }
+
+  if (joinExpr.rarg?.JoinExpr !== undefined) {
+    return recursiveTraverseJoins([join, ...joins], joinExpr.rarg?.JoinExpr);
+  }
+
+  const relName = joinExpr.larg?.RangeVar?.relname;
+
+  if (relName === undefined) {
+    throw new Error("relName is undefined");
+  }
+
+  return { relName, joins: [join, ...joins] };
 }
 
 export interface FlattenedRelationWithJoins {
