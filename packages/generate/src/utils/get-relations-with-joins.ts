@@ -49,7 +49,7 @@ function recursiveTraverseJoins(
     return recursiveTraverseJoins([join, ...joins], joinExpr.rarg?.JoinExpr);
   }
 
-  const relName = joinExpr.rarg?.RangeVar?.relname ?? joinExpr.larg?.RangeVar?.relname;
+  const relName = joinExpr.larg?.RangeVar?.relname ?? joinExpr.rarg?.RangeVar?.relname;
 
   if (relName === undefined) {
     throw new Error("relName is undefined");
