@@ -287,7 +287,7 @@ test("select from subselect with an alias", async () => {
   });
 });
 
-test.only("select from subselect with a join", async () => {
+test("select from subselect with a join", async () => {
   await testQuery({
     query: `
     SELECT caregiver.first_name
