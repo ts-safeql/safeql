@@ -1,5 +1,11 @@
 # @ts-safeql/generate
 
+## 1.0.3
+
+### Patch Changes
+
+- d1b88ff: fixed an issue when selecting from a subselect with a join
+
 ## 1.0.2
 
 ### Patch Changes
