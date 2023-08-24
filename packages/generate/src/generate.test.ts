@@ -286,3 +286,15 @@ test("select from subselect with an alias", async () => {
     expected: [["id", "number"]],
   });
 });
+
+test("select from subselect with a join", async () => {
+  await testQuery({
+    query: `
+    SELECT caregiver.first_name
+    FROM
+      (SELECT 1 as id) as subselect1
+        LEFT JOIN caregiver ON subselect1.id = caregiver.id
+    `,
+    expected: [["first_name", "string | null"]],
+  });
+});
