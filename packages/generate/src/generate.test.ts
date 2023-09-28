@@ -7,7 +7,7 @@ import { flow, identity, pipe } from "fp-ts/function";
 import { parseQuery } from "libpg-query";
 import { before, test } from "mocha";
 import { Sql } from "postgres";
-import { createGenerator } from "./generate";
+import { createGenerator } from "./generate2";
 
 type SQL = Sql<Record<string, unknown>>;
 
@@ -115,7 +115,7 @@ test("(init generate cache)", async () => {
 
 test("select columns", async () => {
   await testQuery({
-    query: `SELECT id, first_name, last_name from caregiver LIMIT 1`,
+    query: `SELECT caregiver.id, first_name, last_name from caregiver LIMIT 1`,
     expected: [
       ["id", "number"],
       ["first_name", "string"],
