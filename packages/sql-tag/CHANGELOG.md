@@ -1,5 +1,11 @@
 # @ts-safeql/safeql
 
+## 0.1.2
+
+### Patch Changes
+
+- 22a32bd: add type declarations
+
 ## 0.1.1
 
 ### Patch Changes
