@@ -1,5 +1,5 @@
 import { execSync } from "child_process";
-import { AppDataSource } from ".";
+import { AppDataSource } from "./data-source";
 import { Person } from "./entity/Person";
 import { Starship } from "./entity/Starship";
 

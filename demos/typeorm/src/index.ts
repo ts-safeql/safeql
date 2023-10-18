@@ -2,15 +2,7 @@ import "reflect-metadata";
 
 import { sql as SafeQLTag } from "@ts-safeql/sql-tag";
 import { DataSource } from "typeorm";
-
-export const AppDataSource = new DataSource({
-  type: "postgres",
-  host: "localhost",
-  port: 5432,
-  database: "safeql_typeorm",
-  synchronize: true,
-  entities: [__dirname + "/entity/*"],
-});
+import { AppDataSource } from "./data-source";
 
 function createDataSourceSqlTag(dataSource: DataSource) {
   return <TValue>(template: TemplateStringsArray, ...values: unknown[]): Promise<TValue> => {
@@ -44,7 +36,7 @@ async function run() {
 
 run();
 // Prints:
-// 
+//
 // {
 //   "persons": [
 //     {
