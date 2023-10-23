@@ -18,18 +18,18 @@
     "clean": "rm -rf lib"
   },
   "devDependencies": {
-    "@esbuild-kit/cjs-loader": "^2.4.2",
-    "@types/mocha": "^10.0.1",
-    "@types/node": "^18.15.11",
-    "@typescript-eslint/eslint-plugin": "^5.59.2",
-    "@typescript-eslint/parser": "^5.59.2",
-    "@typescript-eslint/utils": "^5.59.0",
-    "eslint": "^8.39.0",
+    "@esbuild-kit/cjs-loader": "^2.4.4",
+    "@types/mocha": "^10.0.3",
+    "@types/node": "^20.8.7",
+    "@typescript-eslint/eslint-plugin": "^6.8.0",
+    "@typescript-eslint/parser": "^6.8.0",
+    "@typescript-eslint/utils": "^6.8.0",
+    "eslint": "^8.52.0",
     "mocha": "^10.2.0",
-    "typescript": "^5.0.4"
+    "typescript": "^5.2.2"
   },
   "dependencies": {
-    "minimatch": "^9.0.0",
-    "postgres": "^3.3.4"
+    "minimatch": "^9.0.3",
+    "postgres": "^3.4.0"
   }
 }

@@ -11,19 +11,19 @@
     "typeorm": "typeorm-ts-node-commonjs"
   },
   "devDependencies": {
-    "@types/pg": "^8.6.6",
-    "@types/node": "^16.11.10",
     "@ts-safeql/eslint-plugin": "workspace:*",
-    "@typescript-eslint/eslint-plugin": "^5.59.2",
-    "@typescript-eslint/parser": "^5.59.2",
-    "eslint": "^8.39.0",
-    "tsx": "^3.12.6",
-    "typescript": "^5.0.4",
-    "ts-node": "10.7.0"
+    "@types/node": "^20.8.7",
+    "@types/pg": "^8.10.7",
+    "@typescript-eslint/eslint-plugin": "^6.8.0",
+    "@typescript-eslint/parser": "^6.8.0",
+    "eslint": "^8.52.0",
+    "ts-node": "10.9.1",
+    "tsx": "^3.14.0",
+    "typescript": "^5.2.2"
   },
   "dependencies": {
     "@ts-safeql/sql-tag": "workspace:*",
-    "pg": "^8.4.0",
+    "pg": "^8.11.3",
     "reflect-metadata": "^0.1.13",
     "typeorm": "0.3.17"
   }
