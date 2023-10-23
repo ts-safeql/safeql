@@ -37,7 +37,7 @@ function transformType(typeString: string, typeReplacer: TypeTransformer[number]
 
 export function transformTypes(
   typeString: string | null,
-  transform: TypeTransformer
+  transform: TypeTransformer,
 ): string | null {
   if (transform === undefined || typeString === null) {
     return typeString;
@@ -229,13 +229,13 @@ export function shouldLintFile(params: RuleContext) {
 }
 
 function isMigrationConnection(
-  connection: RuleOptionConnection
+  connection: RuleOptionConnection,
 ): connection is RuleOptionConnection & z.infer<typeof zConnectionMigration> {
   return "migrationsDir" in connection;
 }
 
 export function isWatchMigrationsDirEnabled(
-  connection: RuleOptionConnection
+  connection: RuleOptionConnection,
 ): connection is RuleOptionConnection & z.infer<typeof zConnectionMigration> & { watchMode: true } {
   return isMigrationConnection(connection) && (connection.watchMode ?? true) === true;
 }
@@ -307,7 +307,7 @@ export function runMigrations(params: { migrationsPath: string; sql: Sql }) {
   return pipe(
     TE.Do,
     TE.chain(() => getMigrationFiles(params.migrationsPath)),
-    TE.chainW((files) => TE.sequenceSeqArray(files.map(runSingleMigrationFileWithSql)))
+    TE.chainW((files) => TE.sequenceSeqArray(files.map(runSingleMigrationFileWithSql))),
   );
 }
 
@@ -338,7 +338,7 @@ function getMigrationFiles(migrationsPath: string) {
   return pipe(
     E.tryCatch(() => findDeepSqlFiles(migrationsPath), E.toError),
     TE.fromEither,
-    TE.mapLeft(InvalidMigrationsPathError.fromErrorC(migrationsPath))
+    TE.mapLeft(InvalidMigrationsPathError.fromErrorC(migrationsPath)),
   );
 }
 
@@ -346,7 +346,7 @@ function runSingleMigrationFile(sql: Sql, filePath: string) {
   return pipe(
     TE.tryCatch(() => fs.promises.readFile(filePath).then((x) => x.toString()), E.toError),
     TE.chain((content) => TE.tryCatch(() => sql.unsafe(content), E.toError)),
-    TE.mapLeft(InvalidMigrationError.fromErrorC(filePath))
+    TE.mapLeft(InvalidMigrationError.fromErrorC(filePath)),
   );
 }
 

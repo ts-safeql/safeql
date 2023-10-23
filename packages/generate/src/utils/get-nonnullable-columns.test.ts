@@ -71,7 +71,7 @@ export const getNonNullableColumnsTE = flow(
   parser.parseQuery,
   taskEither.tryCatchK(identity, InternalError.to),
   taskEither.map(getNonNullableColumns),
-  taskEither.map((set) => Array.from(set))
+  taskEither.map((set) => Array.from(set)),
 );
 
 for (const { query, expected, only } of cases) {
@@ -81,8 +81,8 @@ for (const { query, expected, only } of cases) {
       getNonNullableColumnsTE(query),
       taskEither.match(
         (error) => assert.fail(error.message),
-        (result) => assert.deepEqual(result, expected)
-      )
+        (result) => assert.deepEqual(result, expected),
+      ),
     )();
   });
 }

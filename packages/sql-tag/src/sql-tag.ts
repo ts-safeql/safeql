@@ -16,7 +16,7 @@ class SqlTag<$Value> {
   constructor(
     private template: TemplateStringsArray,
     private rawValues: $Value[],
-    private options?: Partial<SqlTagOptions<$Value>>
+    private options?: Partial<SqlTagOptions<$Value>>,
   ) {}
 
   get values() {
@@ -29,7 +29,7 @@ class SqlTag<$Value> {
   get text() {
     return this.template.reduce(
       (acc, part, i) => acc + part + (i === this.values.length ? "" : `$${++i}`),
-      ""
+      "",
     );
   }
 

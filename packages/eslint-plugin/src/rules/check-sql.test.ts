@@ -135,7 +135,7 @@ RuleTester.describe("check-sql", () => {
 
   function withConnection(
     connection: RuleOptionConnection,
-    options?: Partial<RuleOptionConnection>
+    options?: Partial<RuleOptionConnection>,
   ): RuleOptions {
     return [{ connections: [{ ...connection, ...options }] }];
   }

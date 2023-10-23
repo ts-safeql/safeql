@@ -12,7 +12,7 @@ async function run() {
   test(`SELECT id FROM "User" LIMIT 1`, async () => {
     return assert.deepEqual(
       await prisma.$queryRaw<{ id: number }[]>`SELECT id FROM "User" LIMIT 1`,
-      await prisma.user.findMany({ select: { id: true }, take: 1 })
+      await prisma.user.findMany({ select: { id: true }, take: 1 }),
     );
   });
 
@@ -21,7 +21,7 @@ async function run() {
       await prisma.$queryRaw<
         { id: number; createdAt: Date; email: string; name: string | null }[]
       >`SELECT * FROM "User"`,
-      await prisma.user.findMany()
+      await prisma.user.findMany(),
     );
   });
 }

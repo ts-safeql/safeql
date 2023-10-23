@@ -17,7 +17,7 @@ export function getConfigFromFileWithContext(params: {
     getConfigFromFile(params.projectDir),
     E.getOrElseW((message) => {
       throw new Error(`safeql: ${message}`);
-    })
+    }),
   );
 }
 

@@ -14,7 +14,7 @@ const cases: {
     {
       type: LibPgQueryAST.JoinType;
       name: string;
-    }[]
+    }[],
   ][];
 }[] = [
   {
@@ -114,7 +114,7 @@ const cases: {
 export const getRelationsWithJoinsTE = flow(
   parser.parseQuery,
   taskEither.tryCatchK(identity, InternalError.to),
-  taskEither.map(getRelationsWithJoins)
+  taskEither.map(getRelationsWithJoins),
 );
 
 for (const { query, expected, only } of cases) {
@@ -124,8 +124,8 @@ for (const { query, expected, only } of cases) {
       getRelationsWithJoinsTE(query),
       taskEither.match(
         (error) => assert.fail(error.message),
-        (result) => assert.deepEqual([...result.entries()], expected)
-      )
+        (result) => assert.deepEqual([...result.entries()], expected),
+      ),
     )();
   });
 }

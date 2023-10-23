@@ -88,7 +88,7 @@ const testQuery = async (params: { query: string; expected?: unknown; expectedEr
     TE.Do,
     TE.bind("pgParsed", () => parseQueryTE(params.query)),
     TE.bind("result", ({ pgParsed }) =>
-      generateTE({ sql, pgParsed, query, cacheKey, fieldTransform: undefined })
+      generateTE({ sql, pgParsed, query, cacheKey, fieldTransform: undefined }),
     ),
     TE.chainW(({ result }) => TE.fromEither(result)),
     TE.match(
@@ -98,11 +98,11 @@ const testQuery = async (params: { query: string; expected?: unknown; expectedEr
           O.fromNullable,
           O.fold(
             () => assert.fail(error.message),
-            (expectedError) => assert.strictEqual(error.message, expectedError)
-          )
+            (expectedError) => assert.strictEqual(error.message, expectedError),
+          ),
         ),
-      ({ result }) => assert.deepEqual(result, params.expected)
-    )
+      ({ result }) => assert.deepEqual(result, params.expected),
+    ),
   )();
 };
 

@@ -55,7 +55,7 @@ export function isCallExpression(node?: TSESTree.Node): node is TSESTree.CallExp
 }
 
 export function isTaggedTemplateExpression(
-  node?: TSESTree.Node
+  node?: TSESTree.Node,
 ): node is TSESTree.TaggedTemplateExpression {
   return node?.type === TSESTree.AST_NODE_TYPES.TaggedTemplateExpression;
 }

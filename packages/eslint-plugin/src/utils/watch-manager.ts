@@ -26,7 +26,7 @@ interface WatchMigrationsDirParams {
 
 export function watchMigrationsDir(
   params: WatchMigrationsDirParams,
-  watchers: Map<string, unknown>
+  watchers: Map<string, unknown>,
 ) {
   const migrationsPath = path.join(params.projectDir, params.connection.migrationsDir);
 

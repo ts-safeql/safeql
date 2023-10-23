@@ -76,7 +76,7 @@ export function createGenerator() {
 async function generate(
   params: GenerateParams,
   cacheMap: CacheMap,
-  overrideMap: OverrideMap
+  overrideMap: OverrideMap,
 ): Promise<either.Either<GenerateError, GenerateResult>> {
   const { sql, query, cacheKey, cacheMetadata = true } = params;
 
@@ -102,7 +102,7 @@ async function generate(
     }
 
     const duplicateCols = result.columns.filter((col, index) =>
-      result.columns.find((c, i) => c.name === col.name && i != index)
+      result.columns.find((c, i) => c.name === col.name && i != index),
     );
 
     if (duplicateCols.length > 0) {
@@ -115,7 +115,7 @@ async function generate(
         DuplicateColumnsError.of({
           queryText: query,
           columns: dupes.map((x) => `${x.table}.${x.column}`),
-        })
+        }),
       );
     }
 
@@ -156,7 +156,7 @@ async function generate(
           message: e.message,
           line: e.line,
           position: e.position,
-        })
+        }),
       );
     }
 
@@ -298,7 +298,7 @@ function mapColumnAnalysisResultToPropertySignature(params: {
 
   const valueAsOverride = (() => {
     const pgType = params.pgTypes.get(
-      params.col.introspected?.colTypeOid ?? params.col.described.type
+      params.col.introspected?.colTypeOid ?? params.col.described.type,
     );
 
     if (params.overrides?.types === undefined || pgType === undefined) {

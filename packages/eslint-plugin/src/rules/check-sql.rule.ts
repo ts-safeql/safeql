@@ -198,7 +198,7 @@ const generateSync = createSyncFn<(params: WorkerParams) => Promise<E.Either<unk
   {
     tsRunner: "esbuild-register",
     timeout: 1000 * 60 * 5,
-  }
+  },
 );
 
 function check(params: {
@@ -219,7 +219,7 @@ function check(params: {
 }
 
 function isTagMemberValid(
-  expr: TSESTree.TaggedTemplateExpression
+  expr: TSESTree.TaggedTemplateExpression,
 ): expr is TSESTree.TaggedTemplateExpression &
   (
     | {
@@ -266,8 +266,8 @@ const pgParseQueryE = (query: string) => {
   return pipe(
     E.tryCatch(
       () => pgParser.parseQuerySync(query),
-      (error) => PostgresError.to(query, error)
-    )
+      (error) => PostgresError.to(query, error),
+    ),
   );
 };
 
@@ -275,7 +275,7 @@ const generateSyncE = flow(
   generateSync,
   E.chain(J.parse),
   E.chainW((parsed) => parsed as unknown as E.Either<WorkerError, WorkerResult>),
-  E.mapLeft((error) => error as unknown as WorkerError)
+  E.mapLeft((error) => error as unknown as WorkerError),
 );
 
 function reportCheck(params: {
@@ -294,11 +294,11 @@ function reportCheck(params: {
     E.bind("parser", () => E.of(ESLintUtils.getParserServices(context))),
     E.bind("checker", ({ parser }) => E.of(parser.program.getTypeChecker())),
     E.bind("query", ({ parser, checker }) =>
-      mapTemplateLiteralToQueryText(tag.quasi, parser, checker, params.connection)
+      mapTemplateLiteralToQueryText(tag.quasi, parser, checker, params.connection),
     ),
     E.bindW("pgParsed", ({ query }) => pgParseQueryE(query)),
     E.bindW("result", ({ query, pgParsed }) =>
-      generateSyncE({ query, pgParsed, connection, target, projectDir })
+      generateSyncE({ query, pgParsed, connection, target, projectDir }),
     ),
     E.fold(
       (error) => {
@@ -319,7 +319,7 @@ function reportCheck(params: {
             { _tag: "InternalError" },
             (error) => {
               return reportBaseError({ context, error, tag });
-            }
+            },
           )
           .exhaustive();
       },
@@ -383,8 +383,8 @@ function reportCheck(params: {
             actual: resultWithTransformed.resultAsString,
           });
         }
-      }
-    )
+      },
+    ),
   );
 }
 
