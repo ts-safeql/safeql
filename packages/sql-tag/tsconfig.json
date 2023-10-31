@@ -1,7 +1,9 @@
 {
+  "extends": "../../tsconfig.node.json",
   "compilerOptions": {
     "outDir": "lib",
     "declaration": true
   },
-  "extends": "../../tsconfig.node.json"
+  "include": ["src", "index.ts"],
+  "exclude": ["src/**/*.test.ts"]
 }

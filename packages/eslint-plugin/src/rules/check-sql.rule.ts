@@ -34,6 +34,7 @@ import {
   withTransformType,
 } from "./check-sql.utils";
 import { WorkerError, WorkerParams, WorkerResult } from "./check-sql.worker";
+import { JSONSchema4 } from "@typescript-eslint/utils/json-schema";
 
 const messages = {
   typeInferenceFailed: "Type inference failed {{error}}",
@@ -531,13 +532,12 @@ export default createRule({
     fixable: "code",
     docs: {
       description: "Ensure that sql queries have type annotations",
-      recommended: "error",
-      suggestion: true,
-      requiresTypeChecking: false,
+      recommended: "recommended",
+      requiresTypeChecking: true,
     },
     messages: messages,
     type: "problem",
-    schema: zodToJsonSchema(RuleOptions, { target: "openApi3" }) as object,
+    schema: zodToJsonSchema(RuleOptions, { target: "openApi3" }) as JSONSchema4,
   },
   defaultOptions: [],
   create(context) {

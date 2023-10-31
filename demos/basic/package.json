@@ -2,15 +2,15 @@
   "name": "@ts-safeql-demos/basic",
   "version": "0.0.0",
   "scripts": {
-    "build": "tsc",
+    "typecheck": "tsc",
     "watch": "tsc --watch",
     "setup": "tsx src/setup.ts",
     "lint": "eslint src",
     "lint!": "eslint src --fix"
   },
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^6.8.0",
-    "@typescript-eslint/parser": "^6.8.0",
+    "@typescript-eslint/eslint-plugin": "^6.9.0",
+    "@typescript-eslint/parser": "^6.9.0",
     "eslint": "^8.52.0",
     "tsx": "^3.14.0",
     "typescript": "^5.2.2"

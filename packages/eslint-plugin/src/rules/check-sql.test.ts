@@ -1,6 +1,5 @@
 import { generateTestDatabaseName, setupTestDatabase } from "@ts-safeql/test-utils";
-import { ESLintUtils } from "@typescript-eslint/utils";
-import { RuleTester } from "@typescript-eslint/utils/dist/ts-eslint";
+import { RuleTester } from '@typescript-eslint/rule-tester';
 import { after, before, describe, it } from "mocha";
 import path from "path";
 import { Sql } from "postgres";
@@ -11,7 +10,7 @@ const tsconfigRootDir = path.resolve(__dirname, "../../");
 const project = "tsconfig.json";
 const filename = path.join(tsconfigRootDir, "src/file.ts");
 
-const ruleTester = new ESLintUtils.RuleTester({
+const ruleTester = new RuleTester({
   parser: "@typescript-eslint/parser",
   parserOptions: { project, tsconfigRootDir },
   settings: {},

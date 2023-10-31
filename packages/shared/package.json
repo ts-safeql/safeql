@@ -1,8 +1,7 @@
 {
   "name": "@ts-safeql/shared",
   "version": "0.2.0",
-  "main": "lib/index.js",
-  "types": "src/index.ts",
+  "main": "src/index.ts",
   "license": "MIT",
   "repository": "https://github.com/ts-safeql/safeql/tree/master/packages/eslint-plugin",
   "files": [
@@ -10,7 +9,7 @@
     "package.json"
   ],
   "scripts": {
-    "build": "tsc",
+    "typecheck": "tsc",
     "watch": "tsc --watch",
     "test": "mocha -r=@esbuild-kit/cjs-loader '**/*.test.ts' --timeout 10000",
     "lint": "eslint src",
@@ -21,9 +20,9 @@
     "@esbuild-kit/cjs-loader": "^2.4.4",
     "@types/mocha": "^10.0.3",
     "@types/node": "^20.8.7",
-    "@typescript-eslint/eslint-plugin": "^6.8.0",
-    "@typescript-eslint/parser": "^6.8.0",
-    "@typescript-eslint/utils": "^6.8.0",
+    "@typescript-eslint/eslint-plugin": "^6.9.0",
+    "@typescript-eslint/parser": "^6.9.0",
+    "@typescript-eslint/utils": "^6.9.0",
     "eslint": "^8.52.0",
     "mocha": "^10.2.0",
     "typescript": "^5.2.2"

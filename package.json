@@ -6,6 +6,7 @@
   "repository": "https://github.com/ts-safeql/safeql",
   "license": "MIT",
   "scripts": {
+    "typecheck": "turbo run typecheck",
     "build": "turbo run build",
     "test": "turbo run test",
     "lint": "turbo run lint",

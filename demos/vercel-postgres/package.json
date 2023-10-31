@@ -2,7 +2,7 @@
   "name": "@ts-safeql-demos/vercel-postgres",
   "version": "0.0.0",
   "scripts": {
-    "build": "tsc",
+    "typecheck": "tsc",
     "watch": "tsc --watch",
     "setup": "tsx src/setup.ts",
     "lint": "eslint src",
@@ -10,8 +10,8 @@
   },
   "devDependencies": {
     "@types/pg": "^8.10.7",
-    "@typescript-eslint/eslint-plugin": "^6.8.0",
-    "@typescript-eslint/parser": "^6.8.0",
+    "@typescript-eslint/eslint-plugin": "^6.9.0",
+    "@typescript-eslint/parser": "^6.9.0",
     "dotenv": "16.3.1",
     "eslint": "^8.52.0",
     "tsx": "^3.14.0",

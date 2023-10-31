@@ -11,7 +11,7 @@ import {
   toCase,
 } from "@ts-safeql/shared";
 import { either } from "fp-ts";
-import postgres, { PostgresError as OriginalPostgresError } from "postgres";
+import postgres from "postgres";
 import { ColType } from "./utils/colTypes";
 import {
   FlattenedRelationWithJoins,
@@ -149,7 +149,7 @@ async function generate(
       query: query,
     });
   } catch (e) {
-    if (e instanceof OriginalPostgresError) {
+    if (e instanceof postgres.PostgresError) {
       return either.left(
         PostgresError.of({
           queryText: query,
