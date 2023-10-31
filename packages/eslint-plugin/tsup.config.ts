@@ -3,7 +3,7 @@ import { defineConfig } from "tsup";
 export default defineConfig({
   outDir: "lib",
   entry: {
-    "index": "src/index.ts",
+    index: "src/index.ts",
     "check-sql.worker": "src/rules/check-sql.worker.ts",
   },
   legacyOutput: true,

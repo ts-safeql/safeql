@@ -1,5 +1,5 @@
 import { generateTestDatabaseName, setupTestDatabase } from "@ts-safeql/test-utils";
-import { RuleTester } from '@typescript-eslint/rule-tester';
+import { RuleTester } from "@typescript-eslint/rule-tester";
 import { after, before, describe, it } from "mocha";
 import path from "path";
 import { Sql } from "postgres";
