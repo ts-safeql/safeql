@@ -18,6 +18,7 @@ const cases: {
   { query: `SELECT INTERVAL '1 day'`, expected: ["interval"] },
   { query: `SELECT '1 day'::interval`, expected: ["interval"] },
   { query: `SELECT EXISTS(SELECT col FROM tbl WHERE false)`, expected: ["exists"] },
+  { query: `SELECT NOT EXISTS(SELECT col FROM tbl WHERE false)`, expected: ["?column?"] },
   { query: `SELECT upper('hello')`, expected: ["upper"] },
   { query: `SELECT COUNT(*) OVER ()`, expected: ["count"] },
   { query: `SELECT row_number() over()`, expected: ["row_number"] },

@@ -1,10 +1,11 @@
-import { GenerateResult } from "@ts-safeql/generate";
+import { ResolvedTarget } from "@ts-safeql/generate";
 import {
   DuplicateColumnsError,
   InvalidMigrationError,
   InvalidMigrationsPathError,
   InvalidQueryError,
   PostgresError,
+  fmap,
 } from "@ts-safeql/shared";
 import { TSESTree } from "@typescript-eslint/utils";
 import crypto from "crypto";
@@ -14,7 +15,7 @@ import { Sql } from "postgres";
 import { match } from "ts-pattern";
 import { z } from "zod";
 import { ESTreeUtils } from "../utils";
-import { E, pipe, TE } from "../utils/fp-ts";
+import { E, TE, pipe } from "../utils/fp-ts";
 import { mapConnectionOptionsToString, parseConnection } from "../utils/pg.utils";
 import { RuleContext, RuleOptionConnection, zConnectionMigration } from "./check-sql.rule";
 import { WorkerError } from "./check-sql.worker";
@@ -35,10 +36,7 @@ function transformType(typeString: string, typeReplacer: TypeTransformer[number]
     : typeReplacer.replace("{type}", typeString);
 }
 
-export function transformTypes(
-  typeString: string | null,
-  transform: TypeTransformer
-): string | null {
+export function transformTypes(typeString: string, transform: TypeTransformer): string {
   if (transform === undefined || typeString === null) {
     return typeString;
   }
@@ -65,16 +63,19 @@ export function transformTypes(
  *  - an array of tuples that behave as [valueToBeReplaced, typeToReplaceWith]
  *  - an array that has a mix of the above (such as ["{type}[]", ["colname", "x_colname"]])
  */
-export function withTransformType(result: GenerateResult, transform?: TypeTransformer) {
-  const resultAsString = arrayEntriesToTsTypeString(result.result);
+export function getFinalResolvedTargetString(params: {
+  target: ResolvedTarget;
+  transform?: TypeTransformer;
+  nullAsUndefined: boolean;
+  nullAsOptional: boolean;
+}) {
+  const asString = getResolvedTargetString({
+    target: params.target,
+    nullAsOptional: params.nullAsOptional,
+    nullAsUndefined: params.nullAsUndefined,
+  });
 
-  if (transform === undefined || result.result === null) {
-    return { ...result, resultAsString };
-  }
-
-  const transformed = transformTypes(resultAsString, transform);
-
-  return { ...result, resultAsString: transformed };
+  return fmap(params.transform, (transform) => transformTypes(asString, transform)) ?? asString;
 }
 
 export function reportInvalidQueryError(params: {
@@ -350,16 +351,96 @@ function runSingleMigrationFile(sql: Sql, filePath: string) {
   );
 }
 
-export function arrayEntriesToTsTypeString(entries: [string, string][] | null) {
-  if (entries === null) {
-    return null;
+export function getResolvedTargetComparableString(params: {
+  target: ResolvedTarget;
+  nullAsOptional: boolean;
+  nullAsUndefined: boolean;
+}): string {
+  const { target, nullAsUndefined, nullAsOptional } = params;
+  const nullType = nullAsUndefined ? "undefined" : "null";
+
+  switch (target.kind) {
+    case "type":
+      return (target.value === "null" ? nullType : target.value).replace(/"/g, "'");
+
+    case "union":
+      return target.value
+        .map((target) => getResolvedTargetComparableString({ ...params, target }))
+        .sort()
+        .join("|");
+    case "array":
+      return `${getResolvedTargetComparableString({ ...params, target: target.value })}[]`;
+    case "object": {
+      if (target.value.length === 0) {
+        return `{ }`;
+      }
+
+      const entriesString = target.value
+        .map(([key, target]) => {
+          const isNullable = isNullableResolvedTarget(target);
+          const keyString = isNullable && nullAsOptional ? `${key}?` : key;
+          const valueString = getResolvedTargetComparableString({ ...params, target });
+
+          return `${keyString}:${valueString}`;
+        })
+        .sort()
+        .join(";");
+
+      return `{${entriesString}}`;
+    }
   }
+}
 
-  const properties = entries.map(([key, value]) => `${key}: ${value};`);
+export function getResolvedTargetString(params: {
+  target: ResolvedTarget;
+  nullAsUndefined: boolean;
+  nullAsOptional: boolean;
+}): string {
+  const { target, nullAsUndefined, nullAsOptional } = params;
+  const nullType = nullAsUndefined ? "undefined" : "null";
 
-  if (properties.length === 0) {
-    return "{ }";
+  switch (target.kind) {
+    case "type":
+      return target.value === "null" ? nullType : target.value;
+
+    case "union":
+      return target.value
+        .map((target) => getResolvedTargetString({ ...params, target }))
+        .join(" | ");
+
+    case "array":
+      return `${getResolvedTargetString({ ...params, target: target.value })}[]`;
+
+    case "object": {
+      if (target.value.length === 0) {
+        return `{ }`;
+      }
+
+      const entriesString = target.value
+        .map(([key, target]) => {
+          const isNullable = isNullableResolvedTarget(target);
+          const keyString = isNullable && nullAsOptional ? `${key}?` : key;
+          const valueString = getResolvedTargetString({ ...params, target });
+
+          return `${keyString}: ${valueString}`;
+        })
+        .join("; ");
+
+      return `{ ${entriesString} }`;
+    }
   }
+}
 
-  return `{ ${properties.join(" ")} }`;
+function isNullableResolvedTarget(target: ResolvedTarget): boolean {
+  switch (target.kind) {
+    case "type":
+      return ["any", "null"].includes(target.value) === false;
+
+    case "union":
+      return target.value.some((x) => x.kind === "type" && x.value === "null");
+
+    case "array":
+    case "object":
+      return false;
+  }
 }

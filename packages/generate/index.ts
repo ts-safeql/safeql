@@ -1,1 +1,8 @@
-export { createGenerator, GenerateError, GenerateParams, GenerateResult } from "./src/generate";
+export {
+  GenerateError,
+  GenerateParams,
+  GenerateResult,
+  ResolvedTargetEntry,
+  ResolvedTarget,
+  createGenerator,
+} from "./src/generate";

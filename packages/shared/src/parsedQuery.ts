@@ -1714,7 +1714,7 @@ export namespace LibPgQueryAST {
 
   export interface FuncCall {
     funcname: Node[];
-    args: Node[];
+    args?: Node[];
     aggOrder: Node[];
     aggFilter: Node | undefined;
     over: WindowDef | undefined;
@@ -1745,7 +1745,7 @@ export namespace LibPgQueryAST {
   }
 
   export interface ResTarget {
-    name: string;
+    name: string | undefined;
     indirection: Node[];
     val: Node | undefined;
     location: number;
