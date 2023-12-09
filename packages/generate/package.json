@@ -27,7 +27,7 @@
     "eslint": "^8.39.0",
     "libpg-query": "^15.0.2",
     "mocha": "^10.2.0",
-    "tsx": "^3.12.6",
+    "tsx": "^4.6.2",
     "typescript": "^5.0.4"
   },
   "dependencies": {
