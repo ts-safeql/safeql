@@ -1,6 +1,6 @@
-import { InternalError, LibPgQueryAST, isNonEmpty, normalizeIndent } from "@ts-safeql/shared";
-import { ResolvedStatement } from "./get-resolved-statement";
+import { LibPgQueryAST, isNonEmpty, normalizeIndent } from "@ts-safeql/shared";
 import { ColType } from "./colTypes";
+import { ResolvedStatement } from "./get-resolved-statement";
 
 export type JsonTarget =
   | {
