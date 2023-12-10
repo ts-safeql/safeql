@@ -13,7 +13,7 @@ import {
 import { either } from "fp-ts";
 import postgres, { PostgresError as OriginalPostgresError } from "postgres";
 import { ColType } from "./utils/colTypes";
-import { getJsonTargetTypes, JsonTarget, NamedJsonTarget } from "./utils/get-json-target-types";
+import { getJsonTargets, JsonTarget, NamedJsonTarget } from "./utils/get-json-target-types";
 import { getNonNullableColumns } from "./utils/get-nonnullable-columns";
 import {
   FlattenedRelationWithJoins,
@@ -143,7 +143,7 @@ async function generate(
     const relationsWithJoins = flattenRelationsWithJoinsMap(getRelationsWithJoins(params.pgParsed));
     const nonNullableColumnsBasedOnAST = getNonNullableColumns(params.pgParsed);
     const resolvedStatement = getResolvedStatementFromParseResult(params.pgParsed);
-    const jsonTargets = getJsonTargetTypes(params.pgParsed, resolvedStatement);
+    const jsonTargets = getJsonTargets(params.pgParsed, resolvedStatement);
 
     const columns = result.columns.map((col): ColumnAnalysisResult => {
       const introspected = pgColsByTableOidCache

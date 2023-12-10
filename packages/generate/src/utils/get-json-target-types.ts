@@ -36,7 +36,7 @@ export type NamedJsonTarget = {
   [Kind in JsonTarget["kind"]]: Extract<JsonTarget, { kind: Kind }> & { kind: Kind };
 };
 
-export function getJsonTargetTypes(
+export function getJsonTargets(
   pgParsed: LibPgQueryAST.ParseResult,
   resolvedStatement: ResolvedStatement
 ): JsonTarget[] {

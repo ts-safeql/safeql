@@ -1714,7 +1714,7 @@ export namespace LibPgQueryAST {
 
   export interface FuncCall {
     funcname: Node[];
-    args?: Node[];
+    args: Node[] | undefined;
     aggOrder: Node[];
     aggFilter: Node | undefined;
     over: WindowDef | undefined;
