@@ -15,7 +15,7 @@ import z from "zod";
 import zodToJsonSchema from "zod-to-json-schema";
 import { ESTreeUtils } from "../utils";
 import { E, J, flow, pipe } from "../utils/fp-ts";
-import { getTypeProperties } from "../utils/get-type-properties";
+import { getResolvedTargetByTypeNode } from "../utils/get-resolved-target-by-type-node";
 import { memoize } from "../utils/memoize";
 import { locateNearestPackageJsonDir } from "../utils/node.utils";
 import { mapTemplateLiteralToQueryText } from "../utils/ts-pg.utils";
@@ -501,7 +501,7 @@ function getTypeAnnotationState({
 
   const typeNode = typeParameter.params[0];
 
-  const expected = getTypeProperties({
+  const expected = getResolvedTargetByTypeNode({
     checker,
     parser,
     typeNode,
@@ -524,7 +524,6 @@ function getResolvedTargetsEquality(params: {
   nullAsUndefined: boolean;
   transform?: TypeTransformer;
 }) {
-  // strict check for both being null
   if (params.expected === null && params.generated === null) {
     return {
       isEqual: true,
@@ -533,7 +532,6 @@ function getResolvedTargetsEquality(params: {
     };
   }
 
-  // strict check for either being null
   if (params.expected === null || params.generated === null) {
     return {
       isEqual: false,
@@ -554,7 +552,6 @@ function getResolvedTargetsEquality(params: {
     nullAsUndefined: params.nullAsUndefined,
   });
 
-  // strict check for either produced string being null
   if (expectedString === null || generatedString === null) {
     return {
       isEqual: false,
@@ -563,11 +560,9 @@ function getResolvedTargetsEquality(params: {
     };
   }
 
-  // Replace all single quotes with double quotes for equality
   expectedString = expectedString.replace(/'/g, '"');
   generatedString = generatedString.replace(/'/g, '"');
 
-  // Sort key-value pairs in objects to ensure equality regardless of order
   expectedString = expectedString.split(", ").sort().join(", ");
   generatedString = generatedString.split(", ").sort().join(", ");
 

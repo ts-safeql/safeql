@@ -88,7 +88,7 @@ type GenerateContext = {
   pgEnums: PgEnumsMaps;
   relationsWithJoins: FlattenedRelationWithJoins[];
   overrides: Overrides | undefined;
-  jsonTargetTypes: JsonTarget[];
+  jsonTargets: JsonTarget[];
   pgColsByTableName: Map<string, PgColRow[]>;
   fieldTransform: IdentiferCase | undefined;
 };
@@ -143,7 +143,7 @@ async function generate(
     const relationsWithJoins = flattenRelationsWithJoinsMap(getRelationsWithJoins(params.pgParsed));
     const nonNullableColumnsBasedOnAST = getNonNullableColumns(params.pgParsed);
     const resolvedStatement = getResolvedStatementFromParseResult(params.pgParsed);
-    const jsonTargetTypes = getJsonTargetTypes(params.pgParsed, resolvedStatement);
+    const jsonTargets = getJsonTargetTypes(params.pgParsed, resolvedStatement);
 
     const columns = result.columns.map((col): ColumnAnalysisResult => {
       const introspected = pgColsByTableOidCache
@@ -163,7 +163,7 @@ async function generate(
       pgEnums,
       relationsWithJoins,
       overrides,
-      jsonTargetTypes,
+      jsonTargets,
       pgColsByTableName,
       fieldTransform: params.fieldTransform,
     };
@@ -300,7 +300,7 @@ function getResolvedTargetEntry(params: {
 }): ResolvedTargetEntry {
   const pgTypeOid = params.col.introspected?.colBaseTypeOid ?? params.col.described.type;
 
-  const valueAsJson = getJsonResolvedTargetEntryOrUndefined({
+  const valueAsJson = getColJsonResolvedTargetEntry({
     col: params.col,
     context: params.context,
   });
@@ -364,9 +364,9 @@ function getResolvedTargetEntry(params: {
   });
 }
 
-function getJsonTypedTableEntryOrUndefined(params: {
+function getResolvedTargetEntryByTableJsonTarget(params: {
   col: ColumnAnalysisResult;
-  jsonTargetType: NamedJsonTarget["Table"];
+  jsonTarget: NamedJsonTarget["table"];
   context: GenerateContext;
 }): ResolvedTargetEntry | undefined {
   const { value } = getTypedColumnEntries({
@@ -374,7 +374,7 @@ function getJsonTypedTableEntryOrUndefined(params: {
       ...params.context,
       columns:
         params.context.pgColsByTableName
-          .get(params.jsonTargetType.table)
+          .get(params.jsonTarget.table)
           ?.map((col) => ({
             described: {
               name: col.colName,
@@ -392,14 +392,14 @@ function getJsonTypedTableEntryOrUndefined(params: {
   return [params.col.described.name, { kind: "object", value }];
 }
 
-function getJsonTypedColumnEntryOrUndefined(params: {
+function getResolvedTargetEntryByColumnJsonTarget(params: {
   col: ColumnAnalysisResult;
-  jsonTargetType: NamedJsonTarget["Column"];
+  jsonTarget: NamedJsonTarget["column"];
   context: GenerateContext;
 }): ResolvedTargetEntry | undefined {
   const col = params.context.pgColsByTableName
-    .get(params.jsonTargetType.table)
-    ?.find((col) => col.colName === params.jsonTargetType.column);
+    .get(params.jsonTarget.table)
+    ?.find((col) => col.colName === params.jsonTarget.column);
 
   if (col === undefined) {
     return;
@@ -422,7 +422,7 @@ function getJsonTypedColumnEntryOrUndefined(params: {
   return [params.col.described.name, entryType];
 }
 
-function getJsonResolvedTargetEntryOrUndefined(params: {
+function getColJsonResolvedTargetEntry(params: {
   col: ColumnAnalysisResult;
   context: GenerateContext;
 }): ResolvedTargetEntry | undefined {
@@ -437,39 +437,55 @@ function getJsonResolvedTargetEntryOrUndefined(params: {
     return;
   }
 
-  const jsonTargetType = params.context.jsonTargetTypes.find(
-    (x) => x.name === params.col.described.name
+  const jsonTarget = params.context.jsonTargets.find(
+    (x) => x.kind !== "type" && x.name === params.col.described.name
   );
 
-  if (jsonTargetType === undefined) {
-    return;
+  if (jsonTarget !== undefined) {
+    return getResolvedTargetEntryByJsonTarget({ ...params, jsonTarget });
   }
-
-  switch (jsonTargetType?.type) {
-    case "Table":
-      return getJsonTypedTableEntryOrUndefined({ ...params, jsonTargetType });
-    case "Column":
-      return getJsonTypedColumnEntryOrUndefined({ ...params, jsonTargetType });
-    case "Object":
-      return getJsonTypedObjectEntryOrUndefined({ ...params, jsonTargetType });
-    case "Array":
-      return getJsonTypedArrayEntryOrUndefined({ ...params, jsonTargetType });
+}
+function getResolvedTargetEntryByJsonTarget(params: {
+  col: ColumnAnalysisResult;
+  jsonTarget: JsonTarget;
+  context: GenerateContext;
+}): ResolvedTargetEntry | undefined {
+  switch (params.jsonTarget.kind) {
+    case "table":
+      return getResolvedTargetEntryByTableJsonTarget({ ...params, jsonTarget: params.jsonTarget });
+    case "column":
+      return getResolvedTargetEntryByColumnJsonTarget({ ...params, jsonTarget: params.jsonTarget });
+    case "object":
+      return getResolvedTargetEntryByObjectJsonTarget({ ...params, jsonTarget: params.jsonTarget });
+    case "array":
+      return getResolvedTargetEntryByArrayTarget({ ...params, jsonTarget: params.jsonTarget });
+    case "type":
+      return [
+        params.col.described.name,
+        getTsTypeFromPgType({ pgTypeName: params.jsonTarget.type }),
+      ];
+    case "type-cast":
+      return [
+        params.col.described.name,
+        getTsTypeFromPgType({ pgTypeName: params.jsonTarget.type }),
+      ];
   }
 }
 
-function getJsonTypedArrayEntryOrUndefined(params: {
+function getResolvedTargetEntryByArrayTarget(params: {
   col: ColumnAnalysisResult;
-  jsonTargetType: NamedJsonTarget["Array"];
+  jsonTarget: NamedJsonTarget["array"];
   context: GenerateContext;
 }): ResolvedTargetEntry | undefined {
-  if (params.jsonTargetType.of.type === "Const") {
-    return [params.col.described.name, { kind: "type", value: params.jsonTargetType.of.tsType }];
+  if (params.jsonTarget.target.kind === "type") {
+    const tsType = getTsTypeFromPgType({ pgTypeName: params.jsonTarget.target.type });
+    return [params.col.described.name, tsType];
   }
 
-  const typedEntry = getJsonResolvedTargetEntryOrUndefined({
+  const typedEntry = getColJsonResolvedTargetEntry({
     context: {
       ...params.context,
-      jsonTargetTypes: [params.jsonTargetType.of],
+      jsonTargets: [params.jsonTarget.target],
     },
     col: {
       described: {
@@ -492,16 +508,16 @@ function getJsonTypedArrayEntryOrUndefined(params: {
   return [params.col.described.name, { kind: "array", value: entryType }];
 }
 
-function getJsonTypedObjectEntryOrUndefined(params: {
+function getResolvedTargetEntryByObjectJsonTarget(params: {
   col: ColumnAnalysisResult;
-  jsonTargetType: NamedJsonTarget["Object"];
+  jsonTarget: NamedJsonTarget["object"];
   context: GenerateContext;
 }): [string, { kind: "object"; value: ResolvedTargetEntry[] }] | undefined {
   const entries: ResolvedTargetEntry[] = [];
 
-  for (const [key, entryTarget] of params.jsonTargetType.entries) {
-    switch (entryTarget.type) {
-      case "Column":
+  for (const [key, entryTarget] of params.jsonTarget.entries) {
+    switch (entryTarget.kind) {
+      case "column":
         {
           const col = params.context.pgColsByTableName
             .get(entryTarget.table)
@@ -511,7 +527,7 @@ function getJsonTypedObjectEntryOrUndefined(params: {
             return;
           }
 
-          const typedTargetEntry = getJsonTypedColumnEntryOrUndefined({
+          const typedTargetEntry = getResolvedTargetEntryByColumnJsonTarget({
             ...params,
             col: {
               described: {
@@ -523,7 +539,7 @@ function getJsonTypedObjectEntryOrUndefined(params: {
               introspected: undefined,
               isNonNullableBasedOnAST: true,
             },
-            jsonTargetType: entryTarget,
+            jsonTarget: entryTarget,
           });
 
           if (typedTargetEntry === undefined) {
@@ -536,11 +552,11 @@ function getJsonTypedObjectEntryOrUndefined(params: {
         }
         break;
 
-      case "Table":
+      case "table":
         {
-          const typedTargetEntry = getJsonTypedTableEntryOrUndefined({
+          const typedTargetEntry = getResolvedTargetEntryByTableJsonTarget({
             ...params,
-            jsonTargetType: entryTarget,
+            jsonTarget: entryTarget,
           });
 
           if (typedTargetEntry === undefined) {
@@ -553,11 +569,11 @@ function getJsonTypedObjectEntryOrUndefined(params: {
         }
         break;
 
-      case "Object":
+      case "object":
         {
-          const typedTargetEntry = getJsonTypedObjectEntryOrUndefined({
+          const typedTargetEntry = getResolvedTargetEntryByObjectJsonTarget({
             ...params,
-            jsonTargetType: entryTarget,
+            jsonTarget: entryTarget,
           });
 
           if (typedTargetEntry === undefined) {
@@ -570,12 +586,28 @@ function getJsonTypedObjectEntryOrUndefined(params: {
         }
         break;
 
-      case "Const":
-        entries.push([key, { kind: "type", value: entryTarget.tsType }]);
+      case "type":
+        entries.push([key, getTsTypeFromPgType({ pgTypeName: entryTarget.type })]);
         break;
 
-      case "Array":
-        throw new Error("test");
+      case "type-cast":
+        entries.push([key, getTsTypeFromPgType({ pgTypeName: entryTarget.type })]);
+        break;
+      case "array":
+        {
+          const typedTargetEntry = getResolvedTargetEntryByArrayTarget({
+            ...params,
+            jsonTarget: entryTarget,
+          });
+
+          if (typedTargetEntry === undefined) {
+            return undefined;
+          }
+
+          const [, value] = typedTargetEntry;
+
+          entries.push([key, { kind: "array", value }]);
+        }
         break;
     }
   }

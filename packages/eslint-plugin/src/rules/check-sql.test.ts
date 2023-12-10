@@ -1322,6 +1322,12 @@ RuleTester.describe("check-sql", () => {
         options: withConnection(connections.withTag),
         code: `sql<{ json_build_object: { id: number } }>\`SELECT json_build_object('id', agency.id) FROM agency\``,
       },
+      {
+        filename,
+        name: "json/b: select jsonb_build_object(const, [int,int,int])",
+        options: withConnection(connections.withTag),
+        code: `sql<{ a: { ids: number[] } }>\`SELECT json_build_object('ids', array[1,2,3]) a\``,
+      },
     ],
     invalid: [
       {
@@ -1394,6 +1400,22 @@ RuleTester.describe("check-sql", () => {
         options: withConnection(connections.withTag),
         code: "sql`SELECT jsonb_agg(json_build_object('id', agency.id)) FROM agency`",
         output: `sql<{ jsonb_agg: { id: number }[] }>\`SELECT jsonb_agg(json_build_object('id', agency.id)) FROM agency\``,
+        errors: [{ messageId: "missingTypeAnnotations" }],
+      },
+      {
+        name: "json/b: invalid select jsonb_agg(jsonb_build_object(const, columnref::text))",
+        filename,
+        options: withConnection(connections.withTag),
+        code: "sql`SELECT jsonb_agg(json_build_object('id', agency.id::text)) FROM agency`",
+        output: `sql<{ jsonb_agg: { id: string }[] }>\`SELECT jsonb_agg(json_build_object('id', agency.id::text)) FROM agency\``,
+        errors: [{ messageId: "missingTypeAnnotations" }],
+      },
+      {
+        name: "json/b: invalid select jsonb_agg(jsonb_build_object(const, columnref::text::int))",
+        filename,
+        options: withConnection(connections.withTag),
+        code: "sql`SELECT jsonb_agg(json_build_object('id', agency.id::text::int)) FROM agency`",
+        output: `sql<{ jsonb_agg: { id: number }[] }>\`SELECT jsonb_agg(json_build_object('id', agency.id::text::int)) FROM agency\``,
         errors: [{ messageId: "missingTypeAnnotations" }],
       },
       {

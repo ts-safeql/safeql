@@ -138,6 +138,26 @@ const cases: {
     expected: [{ kind: "column", table: { name: "caregiver", alias: undefined }, column: "id" }],
   },
   {
+    query: `SELECT json_build_object('id', agency.id::text) FROM agency`,
+    expected: [
+      {
+        kind: "function-column",
+        column: "json_build_object",
+        targets: [
+          {
+            kind: "type-cast",
+            target: {
+              column: "id",
+              kind: "column",
+              table: { name: "agency", alias: undefined },
+            },
+            type: "text",
+          },
+        ],
+      },
+    ],
+  },
+  {
     query: `SELECT json_build_object('id', agency.id) FROM agency`,
     expected: [
       {

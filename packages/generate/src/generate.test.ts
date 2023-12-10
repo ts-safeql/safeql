@@ -1,4 +1,4 @@
-import { InternalError } from "@ts-safeql/shared";
+import { InternalError, normalizeIndent } from "@ts-safeql/shared";
 import { generateTestDatabaseName, setupTestDatabase } from "@ts-safeql/test-utils";
 import assert from "assert";
 import * as TE from "fp-ts/TaskEither";
@@ -101,7 +101,7 @@ const testQuery = async (params: {
           params.expectedError,
           O.fromNullable,
           O.fold(
-            () => assert.fail(error.message),
+            () => assert.fail(error),
             (expectedError) => assert.strictEqual(error.message, expectedError)
           )
         ),
@@ -374,6 +374,16 @@ test("select from subselect with a join", async () => {
   });
 });
 
+test("invalid: select jsonb_build_object(const)", async () => {
+  await testQuery({
+    query: `SELECT jsonb_build_object('key') as col`,
+    expectedError: normalizeIndent`
+      Internal error: argument list must have even number of elements
+      Hint: The arguments of jsonb_build_object() must consist of alternating keys and values.
+    `,
+  });
+});
+
 test("select jsonb_build_object(const, const)", async () => {
   await testQuery({
     query: `SELECT jsonb_build_object('key', 'value')`,
@@ -408,6 +418,39 @@ test("select jsonb_build_object(const, columnref)", async () => {
     query: `SELECT json_build_object('id', agency.id) FROM agency`,
     expected: [
       ["json_build_object", { kind: "object", value: [["id", { kind: "type", value: "number" }]] }],
+    ],
+  });
+});
+
+test("select jsonb_build_object(const, columnref::text)", async () => {
+  await testQuery({
+    query: `SELECT json_build_object('id', agency.id::text) FROM agency`,
+    expected: [
+      ["json_build_object", { kind: "object", value: [["id", { kind: "type", value: "string" }]] }],
+    ],
+  });
+});
+
+test("select jsonb_build_object(const, const::text::int)", async () => {
+  await testQuery({
+    query: `SELECT json_build_object('id', 1::text::int)`,
+    expected: [
+      ["json_build_object", { kind: "object", value: [["id", { kind: "type", value: "number" }]] }],
+    ],
+  });
+});
+
+test("select jsonb_build_object(const, array[int,int,int])", async () => {
+  await testQuery({
+    query: `SELECT json_build_object('id', array[1,2,3])`,
+    expected: [
+      [
+        "json_build_object",
+        {
+          kind: "object",
+          value: [["id", { kind: "array", value: { kind: "type", value: "number" } }]],
+        },
+      ],
     ],
   });
 });
