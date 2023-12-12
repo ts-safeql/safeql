@@ -543,9 +543,24 @@ test("select jsonb_agg(jsonb_build_object(const, const))", async () => {
   });
 });
 
-test("select jsonb_agg(jsonb_build_object(const, columnref))", async () => {
+test("select jsonb_agg(jsonb_build_object(const, tbl.col))", async () => {
   await testQuery({
     query: `SELECT jsonb_agg(json_build_object('id', agency.id)) FROM agency`,
+    expected: [
+      [
+        "jsonb_agg",
+        {
+          kind: "array",
+          value: { kind: "object", value: [["id", { kind: "type", value: "number" }]] },
+        },
+      ],
+    ],
+  });
+});
+
+test("select jsonb_agg(jsonb_build_object(const, col)) from tbl", async () => {
+  await testQuery({
+    query: `SELECT jsonb_agg(json_build_object('id', id)) FROM agency`,
     expected: [
       [
         "jsonb_agg",

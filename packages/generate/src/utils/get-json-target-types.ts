@@ -1,4 +1,4 @@
-import { LibPgQueryAST, isNonEmpty, normalizeIndent } from "@ts-safeql/shared";
+import { LibPgQueryAST, fmap, isNonEmpty, normalizeIndent } from "@ts-safeql/shared";
 import { ColType } from "./colTypes";
 import { ResolvedStatement } from "./get-resolved-statement";
 
@@ -30,7 +30,8 @@ export type JsonTarget =
       name: string;
       entries: [string, JsonTarget][];
     }
-  | { kind: "type"; type: ColType };
+  | { kind: "type"; type: ColType }
+  | { kind: "unknown" };
 
 export type NamedJsonTarget = {
   [Kind in JsonTarget["kind"]]: Extract<JsonTarget, { kind: Kind }> & { kind: Kind };
@@ -129,7 +130,7 @@ function getNodeJsonTarget(params: {
     return getConstJsonTarget(params.node.A_Const);
   }
 
-  return undefined;
+  return { kind: "unknown" };
 }
 
 function getArrayExprJsonTarget(params: {
@@ -155,6 +156,7 @@ function getArrayExprJsonTarget(params: {
     };
   }
 }
+
 function getTypeCastJsonTarget(params: {
   name: string;
   typeCast: LibPgQueryAST.TypeCast;
@@ -247,7 +249,7 @@ function getJsonObjectTargetTypes(params: {
   name: string;
   funcCall: LibPgQueryAST.FuncCall;
   resolvedStatement: ResolvedStatement;
-}): NamedJsonTarget["object"] | undefined {
+}): JsonTarget | undefined {
   const { name, funcCall, resolvedStatement } = params;
   const entries: NamedJsonTarget["object"]["entries"] = [];
   const functionName = concatStringNodes(params.funcCall.funcname);
@@ -287,7 +289,11 @@ function getJsonObjectTargetTypes(params: {
       resolvedStatement: resolvedStatement,
     });
 
-    entries.push([key, valueTarget ?? { kind: "type", type: "text" }]);
+    entries.push([key, valueTarget ?? { kind: "unknown" }]);
+  }
+
+  if (entries.length === 0) {
+    return { kind: "unknown" };
   }
 
   return {
@@ -304,42 +310,52 @@ function getColumnRefJsonTarget(params: {
 }): NamedJsonTarget["table"] | NamedJsonTarget["column"] | undefined {
   const { name, columnRef, resolvedStatement } = params;
   const fields = columnRef.fields;
-  const fromName = fields?.[0]?.String?.sval;
-  const colName = fields?.[1]?.String?.sval;
+  const firstField = fields?.[0]?.String?.sval;
+  const secondField = fields?.[1]?.String?.sval;
 
-  if (fromName === undefined) {
+  if (firstField === undefined) {
     return undefined;
   }
 
-  const origin = resolvedStatement.utils.getColumnRefOrigin(columnRef);
+  const origin = resolvedStatement.utils.getByNode(columnRef);
 
-  const actualRelationName = (() => {
-    switch (origin?.kind) {
+  if (origin !== undefined) {
+    switch (origin.kind) {
       case "table":
       case "table-star":
+        return {
+          kind: "table",
+          table: origin.table.name,
+          name: name,
+        };
       case "column":
-        return origin.table.name ?? fromName;
+        return {
+          kind: "column",
+          table: origin.table.name,
+          column: origin.column,
+          name: name,
+        };
       case "star":
       case "function-column":
       case "arbitrary-column":
       case "type-cast":
-      case undefined:
-        return fromName;
+      case "const-column":
+        return undefined;
     }
-  })();
+  }
 
-  if (colName === undefined) {
+  if (secondField === undefined) {
     return {
       kind: "table",
-      table: actualRelationName,
+      table: firstField,
       name: name,
     };
   }
 
   return {
     kind: "column",
-    table: actualRelationName,
-    column: colName,
+    table: firstField,
+    column: secondField,
     name: name,
   };
 }
@@ -353,11 +369,11 @@ function concatStringNodes(nodes: LibPgQueryAST.Node[] | undefined): string {
   );
 }
 
-function getConstJsonTarget(node: LibPgQueryAST.AConst): NamedJsonTarget["type"] {
-  return { kind: "type", type: getConstJsonTargetType(node) ?? "text" };
+function getConstJsonTarget(node: LibPgQueryAST.AConst): JsonTarget {
+  return fmap(getConstColType(node), (type) => ({ kind: "type", type })) ?? { kind: "unknown" };
 }
 
-function getConstJsonTargetType(node: LibPgQueryAST.AConst): ColType | undefined {
+export function getConstColType(node: LibPgQueryAST.AConst): ColType | undefined {
   if (node?.boolval !== undefined) {
     return "bool";
   }

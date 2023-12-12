@@ -1,11 +1,13 @@
 import { LibPgQueryAST, isNonEmpty } from "@ts-safeql/shared";
+import { ColType } from "./colTypes";
+import { getConstColType } from "./get-json-target-types";
 
 export type ResolvedStatement = {
-  targets: ResolvedTarget[];
+  origins: TargetOrigin[];
   ctes: ResolvedCTE[];
   subSelects: ResolvedSubSelect[];
   tables: ResolvedTable[];
-  utils: ReturnType<typeof getResolvedTargetUtils>;
+  utils: ReturnType<typeof getTargetOriginUtils>;
 };
 
 type ResolvedTable = { name: string; alias: string | undefined };
@@ -22,21 +24,28 @@ type ResolvedSubSelect = {
   sources: ResolvedStatement;
 };
 
-type ResolvedTarget =
-  | { kind: "table"; table: ResolvedTable }
-  | { kind: "table-star"; table: ResolvedTable }
-  | { kind: "star"; tables: ResolvedTable[] }
-  | { kind: "column"; table: ResolvedTable; column: string }
-  | { kind: "type-cast"; target: ResolvedTarget; type: string }
+export type TargetOrigin =
+  | { kind: "table"; table: ResolvedTable; node: LibPgQueryAST.ColumnRef }
+  | { kind: "table-star"; table: ResolvedTable; node: LibPgQueryAST.ColumnRef }
+  | { kind: "star"; tables: ResolvedTable[]; node: LibPgQueryAST.ColumnRef }
+  | { kind: "column"; table: ResolvedTable; column: string; node: LibPgQueryAST.ColumnRef }
+  | { kind: "type-cast"; target: TargetOrigin; type: string; node: LibPgQueryAST.TypeCast }
+  | { kind: "const-column"; column: string; type: ColType | "unknown"; node: LibPgQueryAST.AConst }
   | {
       kind: "function-column";
       column: string;
-      targets: ResolvedTarget[];
+      targets: TargetOrigin[];
+      node: LibPgQueryAST.FuncCall;
     }
-  | { kind: "arbitrary-column"; tables: ResolvedTable[]; column: string };
+  | {
+      kind: "arbitrary-column";
+      tables: ResolvedTable[];
+      column: string;
+      node: LibPgQueryAST.ColumnRef;
+    };
 
-type NamedResolvedTarget = {
-  [Kind in ResolvedTarget["kind"]]: Extract<ResolvedTarget, { kind: Kind }> & { kind: Kind };
+type NamedTargetOrigin = {
+  [Kind in TargetOrigin["kind"]]: Extract<TargetOrigin, { kind: Kind }> & { kind: Kind };
 };
 
 type Context = {
@@ -55,11 +64,11 @@ export function getResolvedStatementFromParseResult(
 export function getResolvedStatement(stmt: LibPgQueryAST.Node | undefined): ResolvedStatement {
   if (stmt?.SelectStmt === undefined) {
     return {
-      targets: [],
+      origins: [],
       ctes: [],
       subSelects: [],
       tables: [],
-      utils: getResolvedTargetUtils({ targets: [] }),
+      utils: getTargetOriginUtils({ origins: [] }),
     };
   }
 
@@ -70,13 +79,13 @@ export function getResolvedStatement(stmt: LibPgQueryAST.Node | undefined): Reso
     subSelects: getStatementsSubSelects(stmt) ?? [],
   };
 
-  const targets: ResolvedTarget[] = [];
+  const origins: TargetOrigin[] = [];
 
   for (const target of stmt.SelectStmt.targetList) {
     if (target.ResTarget?.val !== undefined) {
-      targets.push(
-        ...getNodeResolvedTargets({
-          target: target.ResTarget.val,
+      origins.push(
+        ...getTargetOriginByNode({
+          origin: target.ResTarget.val,
           name: target.ResTarget.name,
           context,
         })
@@ -85,41 +94,41 @@ export function getResolvedStatement(stmt: LibPgQueryAST.Node | undefined): Reso
   }
 
   return {
-    targets: targets,
+    origins: origins,
     ctes: context.ctes,
     subSelects: context.subSelects,
     tables: context.tables,
-    utils: getResolvedTargetUtils({ targets: targets }),
+    utils: getTargetOriginUtils({ origins: origins }),
   };
 }
 
-function getNodeResolvedTargets(params: {
+function getTargetOriginByNode(params: {
   name: string | undefined;
-  target: LibPgQueryAST.Node;
+  origin: LibPgQueryAST.Node;
   context: Context;
-}): ResolvedTarget[] {
-  if (params.target.ColumnRef !== undefined) {
-    return getColumnRefOrigin({ columnRef: params.target.ColumnRef, context: params.context });
+}): TargetOrigin[] {
+  if (params.origin.ColumnRef !== undefined) {
+    return getColumnRefOrigin({ columnRef: params.origin.ColumnRef, context: params.context });
   }
 
-  if (params.target.FuncCall !== undefined) {
+  if (params.origin.FuncCall !== undefined) {
     return [
-      getFuncCallResolvedTargets({
+      getFuncCallTargetOrigins({
         name: params.name,
-        funcCall: params.target.FuncCall,
+        funcCall: params.origin.FuncCall,
         context: params.context,
       }),
     ];
   }
 
   if (
-    params.target?.TypeCast?.arg !== undefined &&
-    params.target?.TypeCast?.typeName !== undefined
+    params.origin?.TypeCast?.arg !== undefined &&
+    params.origin?.TypeCast?.typeName !== undefined
   ) {
-    const targets = getNodeResolvedTargets({
+    const targets = getTargetOriginByNode({
       context: params.context,
       name: params.name,
-      target: params.target.TypeCast.arg,
+      origin: params.origin.TypeCast.arg,
     });
 
     if (isNonEmpty(targets)) {
@@ -127,10 +136,42 @@ function getNodeResolvedTargets(params: {
         {
           kind: "type-cast",
           target: targets[0],
-          type: concatStringNodes(params.target.TypeCast.typeName.names),
+          type: concatStringNodes(params.origin.TypeCast.typeName.names),
+          node: params.origin.TypeCast,
         },
       ];
     }
+  }
+
+  if (params.origin.SubLink?.subselect !== undefined) {
+    return getTargetOriginByNode({
+      name: params.name,
+      origin: params.origin.SubLink.subselect,
+      context: params.context,
+    });
+  }
+
+  if (params.origin.SelectStmt !== undefined) {
+    return getResolvedStatement(params.origin).origins;
+  }
+
+  if (params.origin.ResTarget?.val !== undefined) {
+    return getTargetOriginByNode({
+      name: params.name,
+      origin: params.origin.ResTarget.val,
+      context: params.context,
+    });
+  }
+
+  if (params.origin.A_Const !== undefined) {
+    return [
+      {
+        kind: "const-column",
+        column: params.name ?? "?column?",
+        type: getConstColType(params.origin.A_Const) ?? "unknown",
+        node: params.origin.A_Const,
+      },
+    ];
   }
 
   return [];
@@ -139,7 +180,7 @@ function getNodeResolvedTargets(params: {
 function getColumnRefOrigin(params: {
   columnRef: LibPgQueryAST.ColumnRef;
   context: Context;
-}): ResolvedTarget[] {
+}): TargetOrigin[] {
   const { columnRef, context } = params;
 
   if (columnRef.fields.length === 0) {
@@ -155,29 +196,43 @@ function getColumnRefOrigin(params: {
       const tableName = context.tables[0].alias ?? context.tables[0].name;
 
       return (
-        context.ctes.find((c) => c.expression.ctename === tableName)?.sources.targets ??
+        context.ctes.find((c) => c.expression.ctename === tableName)?.sources.origins ??
         context.subSelects.find((c) => c.expression.alias?.aliasname === tableName)?.sources
-          .targets ?? [{ kind: "table-star", table: context.tables[0] }]
+          .origins ?? [{ kind: "table-star", table: context.tables[0], node: columnRef }]
       );
     }
 
     if (context.subSelects.length === 1) {
-      return context.subSelects[0].sources.targets;
+      return context.subSelects[0].sources.origins;
     }
 
-    return [{ kind: "star", tables: context.tables }];
+    return [{ kind: "star", tables: context.tables, node: columnRef }];
   }
 
   if (firstField.String !== undefined && secondField === undefined) {
     const tableAsTarget = context.tables.find((t) => (t.alias ?? t.name) === firstFieldString);
 
     if (tableAsTarget !== undefined) {
-      return [{ kind: "table", table: tableAsTarget }];
+      return [{ kind: "table", table: tableAsTarget, node: columnRef }];
     }
 
     return context.tables.length === 1
-      ? [{ kind: "column", table: context.tables[0], column: firstField.String.sval }]
-      : [{ kind: "arbitrary-column", tables: context.tables, column: firstField.String.sval }];
+      ? [
+          {
+            kind: "column",
+            table: context.tables[0],
+            column: firstField.String.sval,
+            node: columnRef,
+          },
+        ]
+      : [
+          {
+            kind: "arbitrary-column",
+            tables: context.tables,
+            column: firstField.String.sval,
+            node: columnRef,
+          },
+        ];
   }
 
   if (secondField?.A_Star !== undefined) {
@@ -186,7 +241,7 @@ function getColumnRefOrigin(params: {
       context.subSelects.find((c) => c.expression.alias?.aliasname === firstFieldString)?.sources;
 
     if (nonTableSources !== undefined) {
-      return nonTableSources.targets;
+      return nonTableSources.origins;
     }
 
     const table = context.tables.find(
@@ -194,7 +249,7 @@ function getColumnRefOrigin(params: {
     );
 
     if (table !== undefined) {
-      return [{ kind: "table-star", table }];
+      return [{ kind: "table-star", table, node: columnRef }];
     }
   }
 
@@ -205,24 +260,29 @@ function getColumnRefOrigin(params: {
     );
 
     if (table !== undefined) {
-      return [{ kind: "column", table, column: secondFieldString }];
+      return [{ kind: "column", table, column: secondFieldString, node: columnRef }];
     }
   }
 
   return [];
 }
 
-function getFuncCallResolvedTargets(params: {
+function getFuncCallTargetOrigins(params: {
   name: string | undefined;
   funcCall: LibPgQueryAST.FuncCall;
   context: Context;
-}): NamedResolvedTarget["function-column"] {
-  const name = params.name ?? concatStringNodes(params.funcCall.funcname);
-  const targets = (params.funcCall?.args ?? []).flatMap((x) => {
-    return getNodeResolvedTargets({
+}): NamedTargetOrigin["function-column"] {
+  const functionName = concatStringNodes(params.funcCall.funcname);
+  const name = params.name ?? functionName;
+  const targets = (params.funcCall?.args ?? []).flatMap((x, i) => {
+    if (functionName.endsWith("_build_object") && i % 2 === 0) {
+      return [];
+    }
+
+    return getTargetOriginByNode({
       name: undefined,
       context: params.context,
-      target: x,
+      origin: x,
     });
   });
 
@@ -230,6 +290,7 @@ function getFuncCallResolvedTargets(params: {
     kind: "function-column",
     column: name,
     targets,
+    node: params.funcCall,
   };
 }
 
@@ -295,49 +356,46 @@ function getStatementTables(
   return tables;
 }
 
-export const getResolvedTargetUtils = (stmt: Pick<ResolvedStatement, "targets">) => {
+export const getTargetOriginUtils = (stmt: Pick<ResolvedStatement, "origins">) => {
   const utils = {
-    getFlatTargets: (targets = stmt.targets): ResolvedTarget[] => {
-      return targets.flatMap((x): ResolvedTarget[] => {
-        switch (x.kind) {
-          case "table":
-          case "table-star":
-          case "star":
-          case "arbitrary-column":
-          case "column":
-          case "type-cast":
-            return [x];
-          case "function-column":
-            return utils.getFlatTargets(x.targets);
-        }
-      });
+    getFlatTargets: (targets = stmt.origins): TargetOrigin[] => {
+      return targets
+        .flatMap((x): TargetOrigin[] => {
+          switch (x.kind) {
+            case "table":
+            case "table-star":
+            case "star":
+            case "arbitrary-column":
+            case "column":
+            case "type-cast":
+            case "const-column":
+              return [x];
+            case "function-column":
+              return utils.getFlatTargets(x.targets);
+          }
+        })
+        .sort((a, b) => {
+          const order = [
+            "column",
+            "table",
+            "table-star",
+            "star",
+            "arbitrary-column",
+            "function-column",
+            "type-cast",
+          ];
+
+          return order.indexOf(a.kind) - order.indexOf(b.kind);
+        });
     },
-    getColumnRefOrigin: (columnRef: LibPgQueryAST.ColumnRef): ResolvedTarget | undefined => {
-      const fields = columnRef.fields;
-      const firstField = fields?.[0]?.String?.sval;
-      const secondField = fields?.[1]?.String?.sval;
-      const flatTargets = utils.getFlatTargets();
-
-      return flatTargets.find((target) => {
-        switch (target.kind) {
-          case "table":
-          case "table-star":
-            return (target.table.alias ?? target.table.name) === firstField;
-          case "column":
-            if (
-              secondField !== undefined &&
-              (target.table.alias ?? target.table.name) !== firstField
-            ) {
-              return false;
-            }
-
-            return target.column === secondField;
-          case "star":
-          case "function-column":
-          case "arbitrary-column":
-            return false;
-        }
-      });
+    getByNode: (
+      node:
+        | LibPgQueryAST.ColumnRef
+        | LibPgQueryAST.TypeCast
+        | LibPgQueryAST.AConst
+        | LibPgQueryAST.FuncCall
+    ): TargetOrigin | undefined => {
+      return utils.getFlatTargets().find((target) => target.node === node);
     },
   };
 

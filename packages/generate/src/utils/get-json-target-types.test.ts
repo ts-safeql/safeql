@@ -23,6 +23,30 @@ const cases: {
     ],
   },
   {
+    query: `SELECT jsonb_agg(json_build_object('id', id)) FROM agency`,
+    expected: [
+      {
+        kind: "array",
+        name: "jsonb_agg",
+        target: {
+          entries: [["id", { kind: "column", column: "id", name: "id", table: "agency" }]],
+          kind: "object",
+          name: "jsonb_agg",
+        },
+      },
+    ],
+  },
+  {
+    query: `SELECT jsonb_build_object('id', (select 5))`,
+    expected: [
+      {
+        entries: [["id", { kind: "unknown" }]],
+        kind: "object",
+        name: "jsonb_build_object",
+      },
+    ],
+  },
+  {
     query: `SELECT jsonb_build_object('deeply', jsonb_build_object('nested', 'object'))`,
     expected: [
       {

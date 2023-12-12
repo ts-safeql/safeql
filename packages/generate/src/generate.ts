@@ -437,9 +437,19 @@ function getColJsonResolvedTargetEntry(params: {
     return;
   }
 
-  const jsonTarget = params.context.jsonTargets.find(
-    (x) => x.kind !== "type" && x.name === params.col.described.name
-  );
+  const jsonTarget = params.context.jsonTargets.find((x) => {
+    switch (x.kind) {
+      case "object":
+      case "type-cast":
+      case "table":
+      case "column":
+      case "array":
+        return x.name === params.col.described.name;
+      case "type":
+      case "unknown":
+        return false;
+    }
+  });
 
   if (jsonTarget !== undefined) {
     return getResolvedTargetEntryByJsonTarget({ ...params, jsonTarget });
@@ -469,6 +479,9 @@ function getResolvedTargetEntryByJsonTarget(params: {
         params.col.described.name,
         getTsTypeFromPgType({ pgTypeName: params.jsonTarget.type }),
       ];
+    case "unknown": {
+      return [params.col.described.name, { kind: "type", value: "any" }];
+    }
   }
 }
 
@@ -608,6 +621,9 @@ function getResolvedTargetEntryByObjectJsonTarget(params: {
 
           entries.push([key, { kind: "array", value }]);
         }
+        break;
+      case "unknown":
+        entries.push([key, { kind: "type", value: "any" }]);
         break;
     }
   }
