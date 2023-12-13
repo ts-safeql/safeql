@@ -82,6 +82,10 @@ function isColumnNonNullable(
     return false;
   }
 
+  if (val.BoolExpr?.boolop === LibPgQueryAST.BoolExprType.NOT_EXPR) {
+    return true;
+  }
+
   if (val.A_Const) {
     return val.A_Const.isnull !== true;
   }

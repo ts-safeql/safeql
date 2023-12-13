@@ -16,7 +16,7 @@
     "clean": "turbo run clean",
     "release": "pnpm build --filter='./packages/*' -- --declaration && changeset publish",
     "version": "changeset version && pnpm i --frozen-lockfile=false",
-    "setup": "turbo run setup"
+    "setup": "pnpm run --parallel setup"
   },
   "workspaces": [
     "packages/**",

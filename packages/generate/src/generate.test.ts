@@ -1,4 +1,4 @@
-import { InternalError } from "@ts-safeql/shared";
+import { InternalError, normalizeIndent } from "@ts-safeql/shared";
 import { generateTestDatabaseName, setupTestDatabase } from "@ts-safeql/test-utils";
 import assert from "assert";
 import * as TE from "fp-ts/TaskEither";
@@ -7,7 +7,7 @@ import { flow, identity, pipe } from "fp-ts/function";
 import { parseQuery } from "libpg-query";
 import { before, test } from "mocha";
 import { Sql } from "postgres";
-import { createGenerator } from "./generate";
+import { ResolvedTargetEntry, createGenerator } from "./generate";
 
 type SQL = Sql<Record<string, unknown>>;
 
@@ -79,7 +79,11 @@ const { generate } = createGenerator();
 const generateTE = flow(generate, TE.tryCatchK(identity, InternalError.to));
 const parseQueryTE = flow(parseQuery, TE.tryCatchK(identity, InternalError.to));
 
-const testQuery = async (params: { query: string; expected?: unknown; expectedError?: string }) => {
+const testQuery = async (params: {
+  query: string;
+  expected?: ResolvedTargetEntry[] | null;
+  expectedError?: string;
+}) => {
   const { query } = params;
 
   const cacheKey = "test";
@@ -97,11 +101,11 @@ const testQuery = async (params: { query: string; expected?: unknown; expectedEr
           params.expectedError,
           O.fromNullable,
           O.fold(
-            () => assert.fail(error.message),
+            () => assert.fail(error),
             (expectedError) => assert.strictEqual(error.message, expectedError)
           )
         ),
-      ({ result }) => assert.deepEqual(result, params.expected)
+      ({ output }) => assert.deepEqual(output?.value ?? null, params.expected)
     )
   )();
 };
@@ -109,7 +113,7 @@ const testQuery = async (params: { query: string; expected?: unknown; expectedEr
 test("(init generate cache)", async () => {
   await testQuery({
     query: `SELECT 1 as x`,
-    expected: [["x", "number"]],
+    expected: [["x", { kind: "type", value: "number" }]],
   });
 });
 
@@ -117,9 +121,9 @@ test("select columns", async () => {
   await testQuery({
     query: `SELECT id, first_name, last_name from caregiver LIMIT 1`,
     expected: [
-      ["id", "number"],
-      ["first_name", "string"],
-      ["last_name", "string"],
+      ["id", { kind: "type", value: "number" }],
+      ["first_name", { kind: "type", value: "string" }],
+      ["last_name", { kind: "type", value: "string" }],
     ],
   });
 });
@@ -127,14 +131,14 @@ test("select columns", async () => {
 test("select column as camelCase", async () => {
   await testQuery({
     query: `SELECT first_name as "firstName" from caregiver LIMIT 1`,
-    expected: [["firstName", "string"]],
+    expected: [["firstName", { kind: "type", value: "string" }]],
   });
 });
 
 test("select non-table column", async () =>
   await testQuery({
     query: `SELECT 1 as count`,
-    expected: [["count", "number"]],
+    expected: [["count", { kind: "type", value: "number" }]],
   }));
 
 test("select with an inner join", async () => {
@@ -147,8 +151,8 @@ test("select with an inner join", async () => {
             JOIN caregiver_agency ON caregiver.id = caregiver_agency.caregiver_id
     `,
     expected: [
-      ["caregiver_id", "number"],
-      ["assoc_id", "number"],
+      ["caregiver_id", { kind: "type", value: "number" }],
+      ["assoc_id", { kind: "type", value: "number" }],
     ],
   });
 });
@@ -163,8 +167,17 @@ test("select with left join should return all cols from left join as nullable", 
             LEFT JOIN caregiver_agency ON caregiver.id = caregiver_agency.caregiver_id
     `,
     expected: [
-      ["caregiver_id", "number"],
-      ["assoc_id", "number | null"],
+      ["caregiver_id", { kind: "type", value: "number" }],
+      [
+        "assoc_id",
+        {
+          kind: "union",
+          value: [
+            { kind: "type", value: "number" },
+            { kind: "type", value: "null" },
+          ],
+        },
+      ],
     ],
   });
 });
@@ -179,8 +192,17 @@ test("select with right join should return all cols from the other table as null
             RIGHT JOIN caregiver_agency ON caregiver.id = caregiver_agency.caregiver_id
     `,
     expected: [
-      ["caregiver_id", "number | null"],
-      ["assoc_id", "number"],
+      [
+        "caregiver_id",
+        {
+          kind: "union",
+          value: [
+            { kind: "type", value: "number" },
+            { kind: "type", value: "null" },
+          ],
+        },
+      ],
+      ["assoc_id", { kind: "type", value: "number" }],
     ],
   });
 });
@@ -195,8 +217,26 @@ test("select with full join should return all cols as nullable", async () => {
             FULL JOIN caregiver_agency ON caregiver.id = caregiver_agency.caregiver_id
     `,
     expected: [
-      ["caregiver_id", "number | null"],
-      ["assoc_id", "number | null"],
+      [
+        "caregiver_id",
+        {
+          kind: "union",
+          value: [
+            { kind: "type", value: "number" },
+            { kind: "type", value: "null" },
+          ],
+        },
+      ],
+      [
+        "assoc_id",
+        {
+          kind: "union",
+          value: [
+            { kind: "type", value: "number" },
+            { kind: "type", value: "null" },
+          ],
+        },
+      ],
     ],
   });
 });
@@ -217,7 +257,7 @@ test("select with duplicate columns should throw duplicate columns error", async
 test("insert into table with returning", async () => {
   await testQuery({
     query: `INSERT INTO caregiver (first_name, last_name) VALUES (null, null) RETURNING id`,
-    expected: [["id", "number"]],
+    expected: [["id", { kind: "type", value: "number" }]],
   });
 });
 
@@ -238,7 +278,7 @@ test("select with incorrect operation", async () => {
 test("select where int column = any(array)", async () => {
   await testQuery({
     query: `SELECT id FROM caregiver WHERE id = ANY($1::int[])`,
-    expected: [["id", "number"]],
+    expected: [["id", { kind: "type", value: "number" }]],
   });
 });
 
@@ -253,13 +293,22 @@ test("select date columns", async () => {
   await testQuery({
     query: `SELECT * FROM test_date_column`,
     expected: [
-      ["date_col", "Date"],
-      ["date_array", "Date[]"],
-      ["instant_arr", "Date[]"],
-      ["time_arr", "string[]"],
-      ["timetz_arr", "string[]"],
-      ["local_date_time_arr", "Date[]"],
-      ["nullable_date_arr", "Date[] | null"],
+      ["date_col", { kind: "type", value: "Date" }],
+      ["date_array", { kind: "array", value: { kind: "type", value: "Date" } }],
+      ["instant_arr", { kind: "array", value: { kind: "type", value: "Date" } }],
+      ["time_arr", { kind: "array", value: { kind: "type", value: "string" } }],
+      ["timetz_arr", { kind: "array", value: { kind: "type", value: "string" } }],
+      ["local_date_time_arr", { kind: "array", value: { kind: "type", value: "Date" } }],
+      [
+        "nullable_date_arr",
+        {
+          kind: "union",
+          value: [
+            { kind: "array", value: { kind: "type", value: "Date" } },
+            { kind: "type", value: "null" },
+          ],
+        },
+      ],
     ],
   });
 });
@@ -267,14 +316,29 @@ test("select date columns", async () => {
 test("select enum", async () => {
   await testQuery({
     query: `SELECT certification from caregiver_certification`,
-    expected: [["certification", "'HHA' | 'RN' | 'LPN' | 'CNA' | 'PCA' | 'OTHER'"]],
+    expected: [
+      [
+        "certification",
+        {
+          kind: "union",
+          value: [
+            { kind: "type", value: "'HHA'" },
+            { kind: "type", value: "'RN'" },
+            { kind: "type", value: "'LPN'" },
+            { kind: "type", value: "'CNA'" },
+            { kind: "type", value: "'PCA'" },
+            { kind: "type", value: "'OTHER'" },
+          ],
+        },
+      ],
+    ],
   });
 });
 
 test("select domain type", async () => {
   await testQuery({
     query: `SELECT phone_number from caregiver_phonenumber`,
-    expected: [["phone_number", "string"]],
+    expected: [["phone_number", { kind: "type", value: "string" }]],
   });
 });
 
@@ -283,7 +347,7 @@ test("select from subselect with an alias", async () => {
     query: `
       SELECT subselect.id FROM (SELECT * FROM caregiver) AS subselect
     `,
-    expected: [["id", "number"]],
+    expected: [["id", { kind: "type", value: "number" }]],
   });
 });
 
@@ -295,6 +359,272 @@ test("select from subselect with a join", async () => {
       (SELECT 1 as id) as subselect1
         LEFT JOIN caregiver ON subselect1.id = caregiver.id
     `,
-    expected: [["first_name", "string | null"]],
+    expected: [
+      [
+        "first_name",
+        {
+          kind: "union",
+          value: [
+            { kind: "type", value: "string" },
+            { kind: "type", value: "null" },
+          ],
+        },
+      ],
+    ],
+  });
+});
+
+test("invalid: select jsonb_build_object(const)", async () => {
+  await testQuery({
+    query: `SELECT jsonb_build_object('key') as col`,
+    expectedError: normalizeIndent`
+      Internal error: argument list must have even number of elements
+      Hint: The arguments of jsonb_build_object() must consist of alternating keys and values.
+    `,
+  });
+});
+
+test("select jsonb_build_object(const, const)", async () => {
+  await testQuery({
+    query: `SELECT jsonb_build_object('key', 'value')`,
+    expected: [
+      [
+        "jsonb_build_object",
+        { kind: "object", value: [["key", { kind: "type", value: "string" }]] },
+      ],
+    ],
+  });
+});
+
+test("select jsonb_build_object(deeply nested)", async () => {
+  await testQuery({
+    query: `SELECT jsonb_build_object('deeply', jsonb_build_object('nested', 'object'))`,
+    expected: [
+      [
+        "jsonb_build_object",
+        {
+          kind: "object",
+          value: [
+            ["deeply", { kind: "object", value: [["nested", { kind: "type", value: "string" }]] }],
+          ],
+        },
+      ],
+    ],
+  });
+});
+
+test("select jsonb_build_object(const, columnref)", async () => {
+  await testQuery({
+    query: `SELECT json_build_object('id', agency.id) FROM agency`,
+    expected: [
+      ["json_build_object", { kind: "object", value: [["id", { kind: "type", value: "number" }]] }],
+    ],
+  });
+});
+
+test("select jsonb_build_object(const, columnref::text)", async () => {
+  await testQuery({
+    query: `SELECT json_build_object('id', agency.id::text) FROM agency`,
+    expected: [
+      ["json_build_object", { kind: "object", value: [["id", { kind: "type", value: "string" }]] }],
+    ],
+  });
+});
+
+test("select jsonb_build_object(const, const::text::int)", async () => {
+  await testQuery({
+    query: `SELECT json_build_object('id', 1::text::int)`,
+    expected: [
+      ["json_build_object", { kind: "object", value: [["id", { kind: "type", value: "number" }]] }],
+    ],
+  });
+});
+
+test("select jsonb_build_object(const, array[int,int,int])", async () => {
+  await testQuery({
+    query: `SELECT json_build_object('id', array[1,2,3])`,
+    expected: [
+      [
+        "json_build_object",
+        {
+          kind: "object",
+          value: [["id", { kind: "array", value: { kind: "type", value: "number" } }]],
+        },
+      ],
+    ],
+  });
+});
+
+test("select jsonb_agg(tbl)", async () => {
+  await testQuery({
+    query: `SELECT jsonb_agg(agency) FROM agency`,
+    expected: [
+      [
+        "jsonb_agg",
+        {
+          kind: "array",
+          value: {
+            kind: "object",
+            value: [
+              ["id", { kind: "type", value: "number" }],
+              ["name", { kind: "type", value: "string" }],
+            ],
+          },
+        },
+      ],
+    ],
+  });
+});
+
+test("select json_agg(tbl) as colname", async () => {
+  await testQuery({
+    query: `SELECT json_agg(agency) as colname FROM agency`,
+    expected: [
+      [
+        "colname",
+        {
+          kind: "array",
+          value: {
+            kind: "object",
+            value: [
+              ["id", { kind: "type", value: "number" }],
+              ["name", { kind: "type", value: "string" }],
+            ],
+          },
+        },
+      ],
+    ],
+  });
+});
+
+test("select jsonb_agg(alias) from tbl alias", async () => {
+  await testQuery({
+    query: `SELECT jsonb_agg(a) FROM agency a`,
+    expected: [
+      [
+        "jsonb_agg",
+        {
+          kind: "array",
+          value: {
+            kind: "object",
+            value: [
+              ["id", { kind: "type", value: "number" }],
+              ["name", { kind: "type", value: "string" }],
+            ],
+          },
+        },
+      ],
+    ],
+  });
+});
+
+test("select jsonb_agg(aliasname.col)", async () => {
+  await testQuery({
+    query: `SELECT jsonb_agg(a.id) FROM agency a`,
+    expected: [["jsonb_agg", { kind: "array", value: { kind: "type", value: "number" } }]],
+  });
+});
+
+test("select jsonb_agg(jsonb_build_object(const, const))", async () => {
+  await testQuery({
+    query: `SELECT jsonb_agg(jsonb_build_object('key', 'value'))`,
+    expected: [
+      [
+        "jsonb_agg",
+        {
+          kind: "array",
+          value: {
+            kind: "object",
+            value: [["key", { kind: "type", value: "string" }]],
+          },
+        },
+      ],
+    ],
+  });
+});
+
+test("select jsonb_agg(jsonb_build_object(const, tbl.col))", async () => {
+  await testQuery({
+    query: `SELECT jsonb_agg(json_build_object('id', agency.id)) FROM agency`,
+    expected: [
+      [
+        "jsonb_agg",
+        {
+          kind: "array",
+          value: { kind: "object", value: [["id", { kind: "type", value: "number" }]] },
+        },
+      ],
+    ],
+  });
+});
+
+test("select jsonb_agg(jsonb_build_object(const, col)) from tbl", async () => {
+  await testQuery({
+    query: `SELECT jsonb_agg(json_build_object('id', id)) FROM agency`,
+    expected: [
+      [
+        "jsonb_agg",
+        {
+          kind: "array",
+          value: { kind: "object", value: [["id", { kind: "type", value: "number" }]] },
+        },
+      ],
+    ],
+  });
+});
+
+test("select jsonb_agg all use cases", async () => {
+  await testQuery({
+    query: `
+    SELECT
+      agency.id,
+      jsonb_agg(c) as jsonb_tbl,
+      jsonb_agg(c.*) as jsonb_tbl_star,
+      jsonb_agg(c.id) as jsonb_tbl_col,
+      jsonb_agg(json_build_object('firstName', c.first_name)) as jsonb_object
+    FROM agency
+      JOIN caregiver_agency ON agency.id = caregiver_agency.agency_id
+      JOIN caregiver c ON c.id = caregiver_agency.caregiver_id
+    GROUP BY agency.id
+    `,
+    expected: [
+      ["id", { kind: "type", value: "number" }],
+      [
+        "jsonb_tbl",
+        {
+          kind: "array",
+          value: {
+            kind: "object",
+            value: [
+              ["id", { kind: "type", value: "number" }],
+              ["first_name", { kind: "type", value: "string" }],
+              ["last_name", { kind: "type", value: "string" }],
+            ],
+          },
+        },
+      ],
+      [
+        "jsonb_tbl_star",
+        {
+          kind: "array",
+          value: {
+            kind: "object",
+            value: [
+              ["id", { kind: "type", value: "number" }],
+              ["first_name", { kind: "type", value: "string" }],
+              ["last_name", { kind: "type", value: "string" }],
+            ],
+          },
+        },
+      ],
+      ["jsonb_tbl_col", { kind: "array", value: { kind: "type", value: "number" } }],
+      [
+        "jsonb_object",
+        {
+          kind: "array",
+          value: { kind: "object", value: [["firstName", { kind: "type", value: "string" }]] },
+        },
+      ],
+    ],
   });
 });
