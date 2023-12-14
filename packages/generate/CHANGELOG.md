@@ -1,5 +1,31 @@
 # @ts-safeql/generate
 
+## 3.0.0-next.0
+
+### Major Changes
+
+- Significantly improved the validation and type-inference of JSON/B expressions (e.g., jsonb_agg, json_build_object).
+
+Before:
+
+```ts
+sql<{ rows: any[] }>`
+  SELECT jsonb_agg(json_build_object('id', id, 'name', name)) AS rows
+`;
+```
+
+After:
+
+```ts
+sql<{ rows: { id: number; name: string }[] }>`
+  SELECT jsonb_agg(json_build_object('id', id, 'name', name)) AS rows
+`;
+
+### Patch Changes
+
+- @ts-safeql/shared@3.0.0-next.0
+- @ts-safeql/test-utils@0.0.13-next.0
+
 ## 1.0.3
 
 ### Patch Changes
