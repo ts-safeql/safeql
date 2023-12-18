@@ -1,5 +1,13 @@
 # @ts-safeql/generate
 
+## 3.0.0-next.1
+
+### Patch Changes
+
+- improved json/b type inference for subselects and aggregators
+  - @ts-safeql/shared@3.0.0-next.1
+  - @ts-safeql/test-utils@0.0.13-next.1
+
 ## 3.0.0-next.0
 
 ### Major Changes
@@ -16,7 +24,7 @@ sql<{ rows: any[] }>`
 
 After:
 
-```ts
+````ts
 sql<{ rows: { id: number; name: string }[] }>`
   SELECT jsonb_agg(json_build_object('id', id, 'name', name)) AS rows
 `;
@@ -62,22 +70,22 @@ sql<{ rows: { id: number; name: string }[] }>`
 
   // ✅✅ You could add a fallback via `coalesce` to make it non-nullable again
   const result = await sql<{ max: number }>`SELECT coalesce(max(col), '0') FROM tbl WHERE FALSE`;
-  ```
+````
 
-  Moreover, the nullability checks for WHERE clauses have been enhanced.
+Moreover, the nullability checks for WHERE clauses have been enhanced.
 
-  ```ts
-  // ❌ Previously, SafeQL annotated a nullable column as null,
-  // even though it was checked for nullability:
-  const result = await sql<{ text_nullable: string | null }>`
-    SELECT text_nullable FROM tbl WHERE text_nullable IS NOT NULL
-  `;
+```ts
+// ❌ Previously, SafeQL annotated a nullable column as null,
+// even though it was checked for nullability:
+const result = await sql<{ text_nullable: string | null }>`
+  SELECT text_nullable FROM tbl WHERE text_nullable IS NOT NULL
+`;
 
-  // ✅ Now, SafeQL accurately annotates the column as non-nullable
-  const result = await sql<{ text_nullable: string }>`
-    SELECT text_nullable FROM tbl WHERE text_nullable IS NOT NULL
-  `;
-  ```
+// ✅ Now, SafeQL accurately annotates the column as non-nullable
+const result = await sql<{ text_nullable: string }>`
+  SELECT text_nullable FROM tbl WHERE text_nullable IS NOT NULL
+`;
+```
 
 ### Patch Changes
 

@@ -10,6 +10,7 @@
     "@ts-safeql/test-utils": "0.0.12"
   },
   "changesets": [
-    "honest-chicken-repair"
+    "honest-chicken-repair",
+    "nine-tips-arrive"
   ]
 }
