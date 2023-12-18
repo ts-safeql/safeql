@@ -1,5 +1,15 @@
 # @ts-safeql/eslint-plugin
 
+## 3.0.0-next.2
+
+### Patch Changes
+
+- fix build artifact
+- Updated dependencies
+  - @ts-safeql/test-utils@0.0.13-next.2
+  - @ts-safeql/generate@3.0.0-next.2
+  - @ts-safeql/shared@3.0.0-next.2
+
 ## 3.0.0-next.1
 
 ### Patch Changes

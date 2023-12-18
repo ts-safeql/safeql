@@ -1,5 +1,11 @@
 # @ts-safeql/shared
 
+## 3.0.0-next.2
+
+### Patch Changes
+
+- fix build artifact
+
 ## 3.0.0-next.1
 
 ## 3.0.0-next.0
