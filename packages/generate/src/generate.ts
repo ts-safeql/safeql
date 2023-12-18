@@ -383,7 +383,7 @@ function getResolvedTargetEntryByTableJsonTarget(params: {
               number: col.colNum,
             },
             introspected: col,
-            isNonNullableBasedOnAST: true,
+            isNonNullableBasedOnAST: false,
           }))
           .sort((a, b) => a.described.number - b.described.number) ?? [],
     },
@@ -419,7 +419,11 @@ function getResolvedTargetEntryByColumnJsonTarget(params: {
     },
   });
 
-  return [params.col.described.name, entryType];
+  const finalTarget: ResolvedTarget = col.colNotNull
+    ? entryType
+    : { kind: "union", value: [entryType, { kind: "type", value: "null" }] };
+
+  return [params.col.described.name, finalTarget];
 }
 
 function getColJsonResolvedTargetEntry(params: {
@@ -559,9 +563,13 @@ function getResolvedTargetEntryByObjectJsonTarget(params: {
             return undefined;
           }
 
-          const [, typedTargetEntryType] = typedTargetEntry;
+          const [, entryType] = typedTargetEntry;
 
-          entries.push([key, typedTargetEntryType]);
+          const finalTarget: ResolvedTarget = col.colNotNull
+            ? entryType
+            : { kind: "union", value: [entryType, { kind: "type", value: "null" }] };
+
+          entries.push([key, finalTarget]);
         }
         break;
 

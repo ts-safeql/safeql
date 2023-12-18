@@ -40,6 +40,8 @@ export function getResolvedTargetByTypeNode(
     return {
       kind: "object",
       value: params.typeNode.members.flatMap((member) => {
+        params.parser.esTreeNodeToTSNodeMap.get(member).getText();
+
         if (
           member.type !== TSESTree.AST_NODE_TYPES.TSPropertySignature ||
           member.key.type !== TSESTree.AST_NODE_TYPES.Identifier ||
@@ -117,6 +119,10 @@ function getTypePropertiesFromTypeReference(params: {
 }): ResolvedTarget {
   const { type, checker, parser, typeNode, reservedTypes } = params;
 
+  if (reservedTypes.has(checker.typeToString(type))) {
+    return { kind: "type", value: checker.typeToString(type) };
+  }
+
   if (type.flags === ts.TypeFlags.String) {
     return { kind: "type", value: "string" };
   }
@@ -177,13 +183,21 @@ function getTypePropertiesFromTypeReference(params: {
 
   if (type.flags === ts.TypeFlags.Object) {
     const entries = type.getProperties().map((property): [string, ResolvedTarget] => {
+      const key = property.escapedName.toString();
+
       const propType = checker.getTypeOfSymbolAtLocation(
         property,
         parser.esTreeNodeToTSNodeMap.get(typeNode)
       );
 
+      const propTypeString = checker.typeToString(propType);
+
+      if (reservedTypes.has(propTypeString)) {
+        return [key, { kind: "type", value: propTypeString }];
+      }
+
       return [
-        property.escapedName.toString(),
+        key,
         getTypePropertiesFromTypeReference({
           type: propType,
           typeNode,
