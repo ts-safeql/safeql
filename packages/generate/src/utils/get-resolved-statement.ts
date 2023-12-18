@@ -216,23 +216,39 @@ function getColumnRefOrigin(params: {
       return [{ kind: "table", table: tableAsTarget, node: columnRef }];
     }
 
-    return context.tables.length === 1
-      ? [
-          {
-            kind: "column",
-            table: context.tables[0],
-            column: firstField.String.sval,
-            node: columnRef,
-          },
-        ]
-      : [
-          {
-            kind: "arbitrary-column",
-            tables: context.tables,
-            column: firstField.String.sval,
-            node: columnRef,
-          },
-        ];
+    if (context.tables.length === 1) {
+      return [
+        {
+          kind: "column",
+          table: context.tables[0],
+          column: firstField.String.sval,
+          node: columnRef,
+        },
+      ];
+    }
+
+    const subselectAsTarget = context.subSelects.find(
+      (t) => t.expression.alias?.aliasname === firstFieldString
+    );
+
+    if (subselectAsTarget !== undefined && subselectAsTarget.tables.length === 1) {
+      return [
+        {
+          kind: "table",
+          table: subselectAsTarget.tables[0],
+          node: columnRef,
+        }
+      ]
+    }
+
+    return [
+      {
+        kind: "arbitrary-column",
+        tables: context.tables,
+        column: firstField.String.sval,
+        node: columnRef,
+      },
+    ];
   }
 
   if (secondField?.A_Star !== undefined) {

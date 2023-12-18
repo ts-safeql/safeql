@@ -1328,6 +1328,35 @@ RuleTester.describe("check-sql", () => {
         options: withConnection(connections.withTag),
         code: `sql<{ a: { ids: number[] } }>\`SELECT json_build_object('ids', array[1,2,3]) a\``,
       },
+      {
+        filename,
+        name: "json/b: select json/b_agg with override",
+        options: withConnection({
+          ...connections.withTag,
+          overrides: { types: { jsonb: "JsonbAgg", json: "JsonAgg" } },
+        }),
+        code: `
+          type JsonAgg = { id: number; name: string; type: string; }
+          type JsonbAgg = { id: number; name: string; type: string; }
+
+          type Row = {
+            jsonbcol: JsonbAgg | null,
+            jsonbcol_coalesced: JsonbAgg,
+            jsoncol: JsonAgg | null
+          };
+
+          await sql<Row>\`
+            SELECT
+              jsonb_agg(test_jsonb) AS jsonbcol,
+              coalesce(jsonb_agg(test_jsonb), '[]'::jsonb) AS jsonbcol_coalesced,
+              json_agg(test_jsonb) AS jsoncol
+            FROM
+              (SELECT * FROM test_jsonb) as test_jsonb
+            WHERE
+              false
+          \`;
+        `,
+      }
     ],
     invalid: [
       {
@@ -1425,29 +1454,29 @@ RuleTester.describe("check-sql", () => {
         code: `
           sql\`
             SELECT
-            agency.id,
-            jsonb_agg(c) as jsonb_tbl,
-            jsonb_agg(c.*) as jsonb_tbl_star,
-            jsonb_agg(c.id) as jsonb_tbl_col,
-            jsonb_agg(json_build_object('firstName', c.first_name)) as jsonb_object
-          FROM agency
-            JOIN caregiver_agency ON agency.id = caregiver_agency.agency_id
-            JOIN caregiver c ON c.id = caregiver_agency.caregiver_id
-          GROUP BY agency.id
+              agency.id,
+              jsonb_agg(c) as jsonb_tbl,
+              jsonb_agg(c.*) as jsonb_tbl_star,
+              jsonb_agg(c.id) as jsonb_tbl_col,
+              jsonb_agg(json_build_object('firstName', c.first_name)) as jsonb_object
+            FROM agency
+              JOIN caregiver_agency ON agency.id = caregiver_agency.agency_id
+              JOIN caregiver c ON c.id = caregiver_agency.caregiver_id
+            GROUP BY agency.id
           \`
         `,
         output: `
           sql<{ id: number; jsonb_tbl: { id: number; first_name: string; middle_name: string; last_name: string; certification: 'HHA' | 'RN' | 'LPN' | 'CNA' | 'PCA' | 'OTHER' }[]; jsonb_tbl_star: { id: number; first_name: string; middle_name: string; last_name: string; certification: 'HHA' | 'RN' | 'LPN' | 'CNA' | 'PCA' | 'OTHER' }[]; jsonb_tbl_col: number[]; jsonb_object: { firstName: string }[] }>\`
             SELECT
-            agency.id,
-            jsonb_agg(c) as jsonb_tbl,
-            jsonb_agg(c.*) as jsonb_tbl_star,
-            jsonb_agg(c.id) as jsonb_tbl_col,
-            jsonb_agg(json_build_object('firstName', c.first_name)) as jsonb_object
-          FROM agency
-            JOIN caregiver_agency ON agency.id = caregiver_agency.agency_id
-            JOIN caregiver c ON c.id = caregiver_agency.caregiver_id
-          GROUP BY agency.id
+              agency.id,
+              jsonb_agg(c) as jsonb_tbl,
+              jsonb_agg(c.*) as jsonb_tbl_star,
+              jsonb_agg(c.id) as jsonb_tbl_col,
+              jsonb_agg(json_build_object('firstName', c.first_name)) as jsonb_object
+            FROM agency
+              JOIN caregiver_agency ON agency.id = caregiver_agency.agency_id
+              JOIN caregiver c ON c.id = caregiver_agency.caregiver_id
+            GROUP BY agency.id
           \`
         `,
         errors: [{ messageId: "missingTypeAnnotations" }],

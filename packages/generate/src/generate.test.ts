@@ -52,6 +52,11 @@ function runMigrations(sql: SQL) {
         local_date_time_arr timestamp[] NOT NULL,
         nullable_date_arr date[] NULL
     );
+
+    CREATE TABLE test_jsonb (
+      id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+      nullable_col TEXT
+    );
   `);
 }
 
@@ -623,6 +628,66 @@ test("select jsonb_agg all use cases", async () => {
         {
           kind: "array",
           value: { kind: "object", value: [["firstName", { kind: "type", value: "string" }]] },
+        },
+      ],
+    ],
+  });
+});
+
+test("select jsonb_agg(tbl) from (subselect) tbl", async () => {
+  await testQuery({
+    query: `select jsonb_agg(tbl) from (select * from test_jsonb) tbl`,
+    expected: [
+      [
+        "jsonb_agg",
+        {
+          kind: "array",
+          value: {
+            kind: "object",
+            value: [
+              ["id", { kind: "type", value: "number" }],
+              [
+                "nullable_col",
+                {
+                  kind: "union",
+                  value: [
+                    { kind: "type", value: "string" },
+                    { kind: "type", value: "null" },
+                  ],
+                },
+              ],
+            ],
+          },
+        },
+      ],
+    ],
+  });
+});
+
+test("select jsonb_agg(table with nullable column)", async () => {
+  await testQuery({
+    query: `select jsonb_agg(test_jsonb) FROM test_jsonb`,
+    expected: [
+      [
+        "jsonb_agg",
+        {
+          kind: "array",
+          value: {
+            kind: "object",
+            value: [
+              ["id", { kind: "type", value: "number" }],
+              [
+                "nullable_col",
+                {
+                  kind: "union",
+                  value: [
+                    { kind: "type", value: "string" },
+                    { kind: "type", value: "null" },
+                  ],
+                },
+              ],
+            ],
+          },
         },
       ],
     ],
