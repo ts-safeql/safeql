@@ -1,5 +1,15 @@
 # @ts-safeql/eslint-plugin
 
+## 3.0.0-next.3
+
+### Patch Changes
+
+- fixed json/b type inference bugs
+- Updated dependencies
+  - @ts-safeql/generate@3.0.0-next.3
+  - @ts-safeql/shared@3.0.0-next.3
+  - @ts-safeql/test-utils@0.0.13-next.3
+
 ## 3.0.0-next.2
 
 ### Patch Changes
