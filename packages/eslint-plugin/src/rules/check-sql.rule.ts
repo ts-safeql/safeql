@@ -567,7 +567,7 @@ function getResolvedTargetsEquality(params: {
   generatedString = generatedString.split(", ").sort().join(", ");
 
   if (params.transform !== undefined) {
-    generatedString = transformTypes(generatedString, params.transform).replace(/[ ']/g, "");
+    generatedString = transformTypes(generatedString, params.transform);
   }
 
   return {

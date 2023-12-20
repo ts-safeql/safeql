@@ -237,8 +237,8 @@ function getColumnRefOrigin(params: {
           kind: "table",
           table: subselectAsTarget.tables[0],
           node: columnRef,
-        }
-      ]
+        },
+      ];
     }
 
     return [

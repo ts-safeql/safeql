@@ -44,18 +44,16 @@ export function getJsonTargets(
   const targets: JsonTarget[] = [];
 
   for (const target of pgParsed.stmts[0].stmt?.SelectStmt?.targetList ?? []) {
-    if (target.ResTarget?.val?.FuncCall === undefined) {
-      continue;
-    }
+    if (target.ResTarget?.val !== undefined) {
+      const targetType = getNodeJsonTarget({
+        node: target.ResTarget.val,
+        name: target.ResTarget.name,
+        resolvedStatement: resolvedStatement,
+      });
 
-    const targetType = getFunCallJsonTarget({
-      funcCall: target.ResTarget.val.FuncCall,
-      targetName: target.ResTarget.name,
-      resolvedStatement: resolvedStatement,
-    });
-
-    if (targetType !== undefined) {
-      targets.push(targetType);
+      if (targetType !== undefined) {
+        targets.push(targetType);
+      }
     }
   }
 
@@ -90,7 +88,7 @@ function getFunCallJsonTarget(params: {
 }
 
 function getNodeJsonTarget(params: {
-  name: string;
+  name: string | undefined;
   node: LibPgQueryAST.Node;
   resolvedStatement: ResolvedStatement;
 }): JsonTarget | undefined {
@@ -105,20 +103,20 @@ function getNodeJsonTarget(params: {
   if (params.node.ColumnRef !== undefined) {
     return getColumnRefJsonTarget({
       columnRef: params.node.ColumnRef,
-      name: params.name,
+      name: params.name ?? concatStringNodes(params.node.ColumnRef.fields),
       resolvedStatement: params.resolvedStatement,
     });
   }
 
   if (params.node.A_ArrayExpr !== undefined) {
     return getArrayExprJsonTarget({
-      name: params.name,
+      name: params.name ?? "array",
       arrayExpr: params.node.A_ArrayExpr,
       resolvedStatement: params.resolvedStatement,
     });
   }
 
-  if (params.node.TypeCast !== undefined) {
+  if (params.node.TypeCast !== undefined && params.name !== undefined) {
     return getTypeCastJsonTarget({
       name: params.name,
       typeCast: params.node.TypeCast,
@@ -130,7 +128,33 @@ function getNodeJsonTarget(params: {
     return getConstJsonTarget(params.node.A_Const);
   }
 
-  return { kind: "unknown" };
+  if (params.node.CoalesceExpr !== undefined) {
+    return getCoalesceJsonTarget({
+      name: params.name ?? "coalesce",
+      coalesceExpr: params.node.CoalesceExpr,
+      resolvedStatement: params.resolvedStatement,
+    });
+  }
+}
+
+function getCoalesceJsonTarget(params: {
+  name: string;
+  coalesceExpr: LibPgQueryAST.CoalesceExpr;
+  resolvedStatement: ResolvedStatement;
+}): JsonTarget | undefined {
+  const { name, coalesceExpr, resolvedStatement } = params;
+
+  if (coalesceExpr.args === undefined) {
+    return;
+  }
+
+  const targetType = getNodeJsonTarget({
+    name: name,
+    node: coalesceExpr.args[0],
+    resolvedStatement: resolvedStatement,
+  });
+
+  return targetType;
 }
 
 function getArrayExprJsonTarget(params: {

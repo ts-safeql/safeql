@@ -367,9 +367,13 @@ export function getResolvedTargetComparableString(params: {
       return target.value
         .map((target) => getResolvedTargetComparableString({ ...params, target }))
         .sort()
-        .join("|");
-    case "array":
-      return `${getResolvedTargetComparableString({ ...params, target: target.value })}[]`;
+        .join(" | ");
+
+    case "array": {
+      const arrayString = getResolvedTargetComparableString({ ...params, target: target.value });
+      return target.value.kind === "union" ? `(${arrayString})[]` : `${arrayString}[]`;
+    }
+
     case "object": {
       if (target.value.length === 0) {
         return `{ }`;
@@ -381,12 +385,12 @@ export function getResolvedTargetComparableString(params: {
           const keyString = isNullable && nullAsOptional ? `${key}?` : key;
           const valueString = getResolvedTargetComparableString({ ...params, target });
 
-          return `${keyString}:${valueString}`;
+          return `${keyString}: ${valueString}`;
         })
         .sort()
         .join(";");
 
-      return `{${entriesString}}`;
+      return `{ ${entriesString} }`;
     }
   }
 }
@@ -408,8 +412,10 @@ export function getResolvedTargetString(params: {
         .map((target) => getResolvedTargetString({ ...params, target }))
         .join(" | ");
 
-    case "array":
-      return `${getResolvedTargetString({ ...params, target: target.value })}[]`;
+    case "array": {
+      const arrayString = getResolvedTargetString({ ...params, target: target.value });
+      return target.value.kind === "union" ? `(${arrayString})[]` : `${arrayString}[]`;
+    }
 
     case "object": {
       if (target.value.length === 0) {
@@ -419,8 +425,14 @@ export function getResolvedTargetString(params: {
       const entriesString = target.value
         .map(([key, target]) => {
           const isNullable = isNullableResolvedTarget(target);
-          const keyString = isNullable && nullAsOptional ? `${key}?` : key;
           const valueString = getResolvedTargetString({ ...params, target });
+          let keyString = key;
+
+          if (/[^A-z_]/.test(keyString)) {
+            keyString = `'${keyString}'`;
+          }
+
+          keyString = isNullable && nullAsOptional ? `${keyString}?` : keyString;
 
           return `${keyString}: ${valueString}`;
         })

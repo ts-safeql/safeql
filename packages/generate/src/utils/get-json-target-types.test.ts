@@ -256,7 +256,6 @@ const cases: {
   {
     query: `
       SELECT
-        agency.id,
         jsonb_agg(c) as jsonb_tbl,
         jsonb_agg(c.*) as jsonb_tbl_star,
         jsonb_agg(c.id) as jsonb_tbl_col,
@@ -328,7 +327,7 @@ export const getTargetSourcesTE = flow(
 
 for (const { query, expected, only } of cases) {
   const tester = only ? test.only : test;
-  tester(`get resolved statement: ${query}`, async () => {
+  tester(`get json target types: ${query}`, async () => {
     return pipe(
       getTargetSourcesTE(query),
       taskEither.match(

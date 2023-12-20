@@ -1,4 +1,5 @@
 import { ResolvedTarget } from "@ts-safeql/generate";
+import { fmap } from "@ts-safeql/shared";
 import { ParserServices, TSESTree } from "@typescript-eslint/utils";
 import ts from "typescript";
 
@@ -40,22 +41,34 @@ export function getResolvedTargetByTypeNode(
     return {
       kind: "object",
       value: params.typeNode.members.flatMap((member) => {
-        params.parser.esTreeNodeToTSNodeMap.get(member).getText();
-
         if (
           member.type !== TSESTree.AST_NODE_TYPES.TSPropertySignature ||
-          member.key.type !== TSESTree.AST_NODE_TYPES.Identifier ||
           member.typeAnnotation === undefined
         ) {
           return [];
         }
 
+        const keyAsString = (() => {
+          switch (member.key.type) {
+            case TSESTree.AST_NODE_TYPES.Identifier:
+              return member.key.name;
+            case TSESTree.AST_NODE_TYPES.Literal:
+              return String(member.key.value);
+            default:
+              return undefined;
+          }
+        })();
+
+        if (keyAsString === undefined) {
+          return [];
+        }
+
+        const key = member.optional ? `${keyAsString}?` : keyAsString;
+
         const value = getResolvedTargetByTypeNode({
           ...params,
           typeNode: member.typeAnnotation.typeAnnotation,
         });
-
-        const key = member.optional ? `${member.key.name}?` : member.key.name;
 
         return [[key, value]];
       }),
@@ -171,6 +184,13 @@ function getTypePropertiesFromTypeReference(params: {
         return targetEntry.kind === "object" ? targetEntry.value : [];
       }),
     };
+  }
+
+  if (checker.isArrayType(type)) {
+    const typeArguments = (type as ts.TypeReference).typeArguments;
+    const typeAsString = fmap(typeArguments?.[0], (x) => checker.typeToString(x)) ?? "unknown";
+
+    return { kind: "array", value: { kind: "type", value: typeAsString } };
   }
 
   if (type.symbol === undefined) {

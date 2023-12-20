@@ -1318,6 +1318,12 @@ RuleTester.describe("check-sql", () => {
       },
       {
         filename,
+        name: "json/b: select jsonb_build_object(key with space, const)",
+        options: withConnection(connections.withTag),
+        code: `sql<{ jsonb_build_object: { 'hello world': string } }>\`SELECT jsonb_build_object('hello world', 'value')\``,
+      },
+      {
+        filename,
         name: "json/b: select jsonb_build_object(const, columnref)",
         options: withConnection(connections.withTag),
         code: `sql<{ json_build_object: { id: number } }>\`SELECT json_build_object('id', agency.id) FROM agency\``,
@@ -1333,30 +1339,30 @@ RuleTester.describe("check-sql", () => {
         name: "json/b: select json/b_agg with override",
         options: withConnection({
           ...connections.withTag,
-          overrides: { types: { jsonb: "JsonbAgg", json: "JsonAgg" } },
+          overrides: { types: { jsonb: "JsonB", json: "Json" } },
         }),
         code: `
-          type JsonAgg = { id: number; name: string; type: string; }
-          type JsonbAgg = { id: number; name: string; type: string; }
+          type Json = { id: number; name: string; type: string; }
+          type JsonB = { id: number; name: string; type: string; }
 
           type Row = {
-            jsonbcol: JsonbAgg | null,
-            jsonbcol_coalesced: JsonbAgg,
-            jsoncol: JsonAgg | null
+            jsonbcol: JsonB[];
+            jsonbcoalesced: JsonB[];
+            jsoncol: JsonB[]
           };
 
           await sql<Row>\`
             SELECT
-              jsonb_agg(test_jsonb) AS jsonbcol,
-              coalesce(jsonb_agg(test_jsonb), '[]'::jsonb) AS jsonbcol_coalesced,
-              json_agg(test_jsonb) AS jsoncol
+              jsonb_agg(test_jsonb.jsonb_col) AS jsonbcol,
+              coalesce(jsonb_agg(test_jsonb.jsonb_col), '[]'::jsonb) AS jsonbcoalesced,
+              json_agg(test_jsonb.jsonb_col) AS jsoncol
             FROM
               (SELECT * FROM test_jsonb) as test_jsonb
             WHERE
               false
           \`;
         `,
-      }
+      },
     ],
     invalid: [
       {
@@ -1365,6 +1371,14 @@ RuleTester.describe("check-sql", () => {
         options: withConnection(connections.withTag),
         code: "sql`SELECT jsonb_build_object('key', 'value')`",
         output: `sql<{ jsonb_build_object: { key: string } }>\`SELECT jsonb_build_object('key', 'value')\``,
+        errors: [{ messageId: "missingTypeAnnotations" }],
+      },
+      {
+        name: "json/b: jsonb key with spaces should be wrapped in quotes",
+        filename,
+        options: withConnection(connections.withTag),
+        code: "sql`SELECT jsonb_build_object('A b C', 'value') as col`",
+        output: "sql<{ col: { 'A b C': string } }>`SELECT jsonb_build_object('A b C', 'value') as col`",
         errors: [{ messageId: "missingTypeAnnotations" }],
       },
       {
@@ -1466,7 +1480,7 @@ RuleTester.describe("check-sql", () => {
           \`
         `,
         output: `
-          sql<{ id: number; jsonb_tbl: { id: number; first_name: string; middle_name: string; last_name: string; certification: 'HHA' | 'RN' | 'LPN' | 'CNA' | 'PCA' | 'OTHER' }[]; jsonb_tbl_star: { id: number; first_name: string; middle_name: string; last_name: string; certification: 'HHA' | 'RN' | 'LPN' | 'CNA' | 'PCA' | 'OTHER' }[]; jsonb_tbl_col: number[]; jsonb_object: { firstName: string }[] }>\`
+          sql<{ id: number; jsonb_tbl: { id: number; first_name: string; middle_name: string | null; last_name: string; certification: 'HHA' | 'RN' | 'LPN' | 'CNA' | 'PCA' | 'OTHER' }[]; jsonb_tbl_star: { id: number; first_name: string; middle_name: string | null; last_name: string; certification: 'HHA' | 'RN' | 'LPN' | 'CNA' | 'PCA' | 'OTHER' }[]; jsonb_tbl_col: number[]; jsonb_object: { firstName: string }[] }>\`
             SELECT
               agency.id,
               jsonb_agg(c) as jsonb_tbl,
