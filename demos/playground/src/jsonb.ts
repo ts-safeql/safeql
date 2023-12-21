@@ -1,15 +1,12 @@
-import postgres from "postgres";
-
-const sql = postgres({ username: "postgres", password: "postgres", host: "localhost" });
+import { sql } from "./sql";
 
 async function run() {
-  const rows = await sql<{ id: number; episode_list: { Title: string; Number: number }[] }[]>`
+  const rows = await sql<{ episode_list: { 'Episode Title': string; 'Episode Number': number }[] }[]>`
     SELECT 
-      season.id,
       jsonb_agg(
         jsonb_build_object(
-          'Title', episode.title,
-          'Number', episode.episode_number
+          'Episode Title', episode.title,
+          'Episode Number', episode.episode_number
         )
       ) AS episode_list
     FROM season
@@ -19,7 +16,7 @@ async function run() {
 
   for (const row of rows) {
     for (const episode of row.episode_list) {
-      console.log(episode["Title"], episode["Number"]);
+      console.log(episode["Episode Title"], episode["Episode Number"]);
     }
   }
 }
