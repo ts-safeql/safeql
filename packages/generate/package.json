@@ -1,6 +1,6 @@
 {
   "name": "@ts-safeql/generate",
-  "version": "3.0.0-next.3",
+  "version": "3.0.0-next.4",
   "description": "",
   "main": "lib/index.js",
   "license": "MIT",
@@ -31,8 +31,8 @@
     "typescript": "^5.3.3"
   },
   "dependencies": {
-    "@ts-safeql/shared": "workspace:3.0.0-next.3",
-    "@ts-safeql/test-utils": "workspace:0.0.13-next.3",
+    "@ts-safeql/shared": "workspace:3.0.0-next.4",
+    "@ts-safeql/test-utils": "workspace:0.0.13-next.4",
     "fp-ts": "^2.13.1",
     "pg-connection-string": "^2.5.0",
     "postgres": "^3.3.4"

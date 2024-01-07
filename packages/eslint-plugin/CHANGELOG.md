@@ -1,5 +1,15 @@
 # @ts-safeql/eslint-plugin
 
+## 3.0.0-next.4
+
+### Patch Changes
+
+- 7475acd: improve query type inference by AST lookup
+- Updated dependencies [7475acd]
+  - @ts-safeql/generate@3.0.0-next.4
+  - @ts-safeql/shared@3.0.0-next.4
+  - @ts-safeql/test-utils@0.0.13-next.4
+
 ## 3.0.0-next.3
 
 ### Patch Changes
