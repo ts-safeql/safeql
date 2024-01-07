@@ -27,7 +27,7 @@
     "libpg-query": "^15.0.2",
     "mocha": "^10.2.0",
     "tsx": "3.12.6",
-    "typescript": "^5.0.4"
+    "typescript": "^5.3.3"
   },
   "dependencies": {
     "@ts-safeql/generate": "workspace:*",

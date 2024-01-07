@@ -892,7 +892,7 @@ export namespace LibPgQueryAST {
     distinctClause: Node[];
     intoClause: IntoClause | undefined;
     targetList: Node[];
-    fromClause: Node[];
+    fromClause?: Node[];
     whereClause: Node | undefined;
     groupClause: Node[];
     groupDistinct: boolean;

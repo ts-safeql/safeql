@@ -723,7 +723,15 @@ RuleTester.describe("check-sql", () => {
         options: withConnection(connections.base, {
           targets: [{ wrapper: "conn.query", transform: "{type}[]" }],
         }),
-        code: "const result = conn.query<{ id: number; }[]>(sql`select id from caregiver`);",
+        code: "const result = conn.query<{ id: number; }[]>(sql`select id from agency`);",
+      },
+      {
+        name: "transform: Array<{type}>",
+        filename,
+        options: withConnection(connections.base, {
+          targets: [{ wrapper: "conn.query", transform: "Array<{type}>" }],
+        }),
+        code: "const result = conn.query<Array<{ id: number; }>>(sql`select id from caregiver`);",
       },
       {
         name: "transform: ['{type}[]']",
@@ -1346,9 +1354,9 @@ RuleTester.describe("check-sql", () => {
           type JsonB = { id: number; name: string; type: string; }
 
           type Row = {
-            jsonbcol: JsonB[];
+            jsonbcol: JsonB[] | null;
             jsonbcoalesced: JsonB[];
-            jsoncol: JsonB[]
+            jsoncol: JsonB[] | null
           };
 
           await sql<Row>\`
@@ -1360,6 +1368,39 @@ RuleTester.describe("check-sql", () => {
               (SELECT * FROM test_jsonb) as test_jsonb
             WHERE
               false
+          \`;
+        `,
+      },
+      {
+        filename,
+        name: "json/b: select json/b_agg with override",
+        options: withConnection(connections.withTag),
+        code: `
+          type Agency = {
+            id: number;
+            name: string;
+          };
+        
+          type Row = {
+            agencies: Agency[];
+          }
+        
+          const rows = await sql<Row>\`
+            SELECT 
+              coalesce(
+                jsonb_agg(
+                  jsonb_build_object(
+                    'id', agency.id,
+                    'name', agency.name
+                  )
+                ),
+                '[]'::jsonb
+              ) AS agencies
+            FROM caregiver
+              JOIN caregiver_agency ON caregiver.id = caregiver_agency.caregiver_id
+              JOIN agency ON caregiver_agency.agency_id = agency.id
+            GROUP BY
+              caregiver.id
           \`;
         `,
       },
@@ -1378,7 +1419,7 @@ RuleTester.describe("check-sql", () => {
         filename,
         options: withConnection(connections.withTag),
         code: "sql`SELECT jsonb_build_object('A b C', 'value') as col`",
-        output: "sql<{ col: { 'A b C': string } }>`SELECT jsonb_build_object('A b C', 'value') as col`",
+        output: `sql<{ col: { 'A b C': string } }>\`SELECT jsonb_build_object('A b C', 'value') as col\``,
         errors: [{ messageId: "missingTypeAnnotations" }],
       },
       {
@@ -1402,7 +1443,7 @@ RuleTester.describe("check-sql", () => {
         filename,
         options: withConnection(connections.withTag),
         code: "sql`SELECT jsonb_agg(agency) FROM agency`",
-        output: `sql<{ jsonb_agg: { id: number; name: string }[] }>\`SELECT jsonb_agg(agency) FROM agency\``,
+        output: `sql<{ jsonb_agg: { id: number; name: string }[] | null }>\`SELECT jsonb_agg(agency) FROM agency\``,
         errors: [{ messageId: "missingTypeAnnotations" }],
       },
       {
@@ -1410,7 +1451,7 @@ RuleTester.describe("check-sql", () => {
         filename,
         options: withConnection(connections.withTag),
         code: "sql`SELECT json_agg(agency) as colname FROM agency`",
-        output: `sql<{ colname: { id: number; name: string }[] }>\`SELECT json_agg(agency) as colname FROM agency\``,
+        output: `sql<{ colname: { id: number; name: string }[] | null }>\`SELECT json_agg(agency) as colname FROM agency\``,
         errors: [{ messageId: "missingTypeAnnotations" }],
       },
       {
@@ -1418,7 +1459,7 @@ RuleTester.describe("check-sql", () => {
         filename,
         options: withConnection(connections.withTag),
         code: "sql`SELECT jsonb_agg(a) FROM agency a`",
-        output: `sql<{ jsonb_agg: { id: number; name: string }[] }>\`SELECT jsonb_agg(a) FROM agency a\``,
+        output: `sql<{ jsonb_agg: { id: number; name: string }[] | null }>\`SELECT jsonb_agg(a) FROM agency a\``,
         errors: [{ messageId: "missingTypeAnnotations" }],
       },
       {
@@ -1426,7 +1467,7 @@ RuleTester.describe("check-sql", () => {
         filename,
         options: withConnection(connections.withTag),
         code: "sql`SELECT jsonb_agg(a.id) FROM agency a`",
-        output: `sql<{ jsonb_agg: number[] }>\`SELECT jsonb_agg(a.id) FROM agency a\``,
+        output: `sql<{ jsonb_agg: number[] | null }>\`SELECT jsonb_agg(a.id) FROM agency a\``,
         errors: [{ messageId: "missingTypeAnnotations" }],
       },
       {
@@ -1434,7 +1475,7 @@ RuleTester.describe("check-sql", () => {
         filename,
         options: withConnection(connections.withTag),
         code: "sql`SELECT jsonb_agg(jsonb_build_object('key', 'value'))`",
-        output: `sql<{ jsonb_agg: { key: string }[] }>\`SELECT jsonb_agg(jsonb_build_object('key', 'value'))\``,
+        output: `sql<{ jsonb_agg: { key: string }[] | null }>\`SELECT jsonb_agg(jsonb_build_object('key', 'value'))\``,
         errors: [{ messageId: "missingTypeAnnotations" }],
       },
       {
@@ -1442,7 +1483,7 @@ RuleTester.describe("check-sql", () => {
         filename,
         options: withConnection(connections.withTag),
         code: "sql`SELECT jsonb_agg(json_build_object('id', agency.id)) FROM agency`",
-        output: `sql<{ jsonb_agg: { id: number }[] }>\`SELECT jsonb_agg(json_build_object('id', agency.id)) FROM agency\``,
+        output: `sql<{ jsonb_agg: { id: number }[] | null }>\`SELECT jsonb_agg(json_build_object('id', agency.id)) FROM agency\``,
         errors: [{ messageId: "missingTypeAnnotations" }],
       },
       {
@@ -1450,7 +1491,7 @@ RuleTester.describe("check-sql", () => {
         filename,
         options: withConnection(connections.withTag),
         code: "sql`SELECT jsonb_agg(json_build_object('id', agency.id::text)) FROM agency`",
-        output: `sql<{ jsonb_agg: { id: string }[] }>\`SELECT jsonb_agg(json_build_object('id', agency.id::text)) FROM agency\``,
+        output: `sql<{ jsonb_agg: { id: string }[] | null }>\`SELECT jsonb_agg(json_build_object('id', agency.id::text)) FROM agency\``,
         errors: [{ messageId: "missingTypeAnnotations" }],
       },
       {
@@ -1458,7 +1499,7 @@ RuleTester.describe("check-sql", () => {
         filename,
         options: withConnection(connections.withTag),
         code: "sql`SELECT jsonb_agg(json_build_object('id', agency.id::text::int)) FROM agency`",
-        output: `sql<{ jsonb_agg: { id: number }[] }>\`SELECT jsonb_agg(json_build_object('id', agency.id::text::int)) FROM agency\``,
+        output: `sql<{ jsonb_agg: { id: number }[] | null }>\`SELECT jsonb_agg(json_build_object('id', agency.id::text::int)) FROM agency\``,
         errors: [{ messageId: "missingTypeAnnotations" }],
       },
       {
@@ -1480,7 +1521,7 @@ RuleTester.describe("check-sql", () => {
           \`
         `,
         output: `
-          sql<{ id: number; jsonb_tbl: { id: number; first_name: string; middle_name: string | null; last_name: string; certification: 'HHA' | 'RN' | 'LPN' | 'CNA' | 'PCA' | 'OTHER' }[]; jsonb_tbl_star: { id: number; first_name: string; middle_name: string | null; last_name: string; certification: 'HHA' | 'RN' | 'LPN' | 'CNA' | 'PCA' | 'OTHER' }[]; jsonb_tbl_col: number[]; jsonb_object: { firstName: string }[] }>\`
+          sql<{ id: number; jsonb_tbl: { id: number; first_name: string; middle_name: string | null; last_name: string; certification: 'HHA' | 'RN' | 'LPN' | 'CNA' | 'PCA' | 'OTHER' }[] | null; jsonb_tbl_star: { id: number; first_name: string; middle_name: string | null; last_name: string; certification: 'HHA' | 'RN' | 'LPN' | 'CNA' | 'PCA' | 'OTHER' }[] | null; jsonb_tbl_col: number[] | null; jsonb_object: { firstName: string }[] | null }>\`
             SELECT
               agency.id,
               jsonb_agg(c) as jsonb_tbl,

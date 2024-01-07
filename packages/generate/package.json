@@ -28,7 +28,7 @@
     "libpg-query": "^15.0.2",
     "mocha": "^10.2.0",
     "tsx": "^4.6.2",
-    "typescript": "^5.0.4"
+    "typescript": "^5.3.3"
   },
   "dependencies": {
     "@ts-safeql/shared": "workspace:3.0.0-next.3",

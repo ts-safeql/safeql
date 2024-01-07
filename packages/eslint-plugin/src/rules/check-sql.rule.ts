@@ -42,7 +42,7 @@ const messages = {
   error: "{{error}}",
   invalidQuery: "Invalid Query: {{error}}",
   missingTypeAnnotations: "Query is missing type annotation\n\tFix with: {{fix}}",
-  incorrectTypeAnnotations: `Query has incorrect type annotation.\n\tExpected: {{expected}}\n\tActual: {{actual}}`,
+  incorrectTypeAnnotations: `Query has incorrect type annotation.\n\tExpected: {{expected}}\n\t  Actual: {{actual}}`,
   invalidTypeAnnotations: `Query has invalid type annotation (SafeQL does not support it. If you think it should, please open an issue)`,
 };
 export type RuleMessage = keyof typeof messages;

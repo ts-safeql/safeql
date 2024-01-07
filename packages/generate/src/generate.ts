@@ -12,15 +12,14 @@ import {
 } from "@ts-safeql/shared";
 import { either } from "fp-ts";
 import postgres, { PostgresError as OriginalPostgresError } from "postgres";
+import { ASTDescribedColumn, getASTDescription } from "./ast-describe";
 import { ColType } from "./utils/colTypes";
-import { getJsonTargets, JsonTarget, NamedJsonTarget } from "./utils/get-json-target-types";
 import { getNonNullableColumns } from "./utils/get-nonnullable-columns";
 import {
   FlattenedRelationWithJoins,
   flattenRelationsWithJoinsMap,
   getRelationsWithJoins,
 } from "./utils/get-relations-with-joins";
-import { getResolvedStatementFromParseResult } from "./utils/get-resolved-statement";
 
 type JSToPostgresTypeMap = Record<string, unknown>;
 type Sql = postgres.Sql<JSToPostgresTypeMap>;
@@ -28,13 +27,14 @@ type Sql = postgres.Sql<JSToPostgresTypeMap>;
 export type ResolvedTarget =
   | { kind: "type"; value: string }
   | { kind: "union"; value: ResolvedTarget[] }
-  | { kind: "array"; value: ResolvedTarget }
+  | { kind: "array"; value: ResolvedTarget; syntax?: "array-type" | "type-reference" }
   | { kind: "object"; value: ResolvedTargetEntry[] };
 
 export type ResolvedTargetEntry = [string, ResolvedTarget];
 
 export type GenerateResult = {
   output: Extract<ResolvedTarget, { kind: "object" }> | null;
+  unknownColumns: string[];
   stmt: postgres.Statement;
   query: string;
 };
@@ -43,7 +43,7 @@ export type GenerateError = DuplicateColumnsError | PostgresError;
 type CacheKey = string;
 type OverrideValue = string | { parameter: string | { regex: string }; return: string };
 type Overrides = {
-  types: Map<string, OverrideValue>;
+  types: TypesMap;
 };
 
 export interface GenerateParams {
@@ -58,27 +58,45 @@ export interface GenerateParams {
   }>;
 }
 
-type CacheMap = Map<
-  CacheKey,
-  {
-    pgTypes: PgTypesMap;
-    pgCols: PgColRow[];
-    pgEnums: PgEnumsMaps;
-    pgColsByTableOidCache: Map<number, PgColRow[]>;
-    pgColsByTableName: Map<string, PgColRow[]>;
-  }
->;
+type TypesMap = Map<string, { override: boolean; value: string }>;
 
-type OverrideMap = Map<CacheKey, { types: Map<string, OverrideValue> }>;
+type FunctionsMap = Map<string, string>;
+
+type Cache = {
+  base: Map<
+    CacheKey,
+    {
+      pgTypes: PgTypesMap;
+      pgCols: PgColRow[];
+      pgEnums: PgEnumsMaps;
+      pgColsByTableOidCache: Map<number, PgColRow[]>;
+      pgColsByTableName: Map<string, PgColRow[]>;
+      pgFnsByName: Map<string, PgFnRow[]>;
+    }
+  >;
+  types: Map<string, TypesMap>;
+  functions: Map<string, FunctionsMap>;
+};
+
+function createEmptyCache(): Cache {
+  return {
+    base: new Map(),
+    types: new Map(),
+    functions: new Map(),
+  };
+}
 
 export function createGenerator() {
-  const cacheMap: CacheMap = new Map();
-  const overrideMap: OverrideMap = new Map();
+  const cache = createEmptyCache();
 
   return {
-    generate: (params: GenerateParams) => generate(params, cacheMap, overrideMap),
-    dropCacheKey: (cacheKey: CacheKey) => cacheMap.delete(cacheKey),
-    clearCache: () => cacheMap.clear(),
+    generate: (params: GenerateParams) => generate(params, cache),
+    dropCacheKey: (cacheKey: CacheKey) => cache.base.delete(cacheKey),
+    clearCache: () => {
+      cache.base.clear();
+      cache.types.clear();
+      cache.functions.clear();
+    },
   };
 }
 
@@ -88,38 +106,78 @@ type GenerateContext = {
   pgEnums: PgEnumsMaps;
   relationsWithJoins: FlattenedRelationWithJoins[];
   overrides: Overrides | undefined;
-  jsonTargets: JsonTarget[];
   pgColsByTableName: Map<string, PgColRow[]>;
   fieldTransform: IdentiferCase | undefined;
 };
 
 async function generate(
   params: GenerateParams,
-  cacheMap: CacheMap,
-  overrideMap: OverrideMap
+  cache: Cache
 ): Promise<either.Either<GenerateError, GenerateResult>> {
   const { sql, query, cacheKey, cacheMetadata = true } = params;
 
-  const { pgColsByTableOidCache, pgColsByTableName, pgTypes, pgEnums } =
+  const { pgColsByTableOidCache, pgColsByTableName, pgTypes, pgEnums, pgFnsByName } =
     await getOrSetFromMapWithEnabled({
       shouldCache: cacheMetadata,
-      map: cacheMap,
+      map: cache.base,
       key: cacheKey,
       value: () => getDatabaseMetadata(sql),
     });
 
-  const overrides = await getOrSetFromMapWithEnabled({
+  const typesMap = await getOrSetFromMapWithEnabled({
     shouldCache: cacheMetadata,
-    map: overrideMap,
-    key: JSON.stringify(params.overrides),
-    value: () => ({ types: new Map(Object.entries(params.overrides?.types ?? {})) }),
+    map: cache.types,
+    key: JSON.stringify(params.overrides?.types),
+    value: () => {
+      const map: TypesMap = new Map();
+
+      for (const [key, value] of defaultTypesMap.entries()) {
+        map.set(key, { override: false, value });
+      }
+
+      for (const [k, v] of Object.entries(params.overrides?.types ?? {})) {
+        map.set(k, { override: true, value: typeof v === "string" ? v : v.return });
+      }
+
+      return map;
+    },
+  });
+
+  function byReturnType(a: PgFnRow, b: PgFnRow) {
+    const priority = ["numeric", "int8"];
+    return priority.indexOf(a.returnType) - priority.indexOf(b.returnType);
+  }
+
+  const functionsMap = await getOrSetFromMapWithEnabled({
+    shouldCache: cacheMetadata,
+    map: cache.functions,
+    key: JSON.stringify(params.overrides?.types),
+    value: () => {
+      const map: FunctionsMap = new Map();
+
+      for (const [functionName, signatures] of pgFnsByName.entries()) {
+        for (const signature of signatures.sort(byReturnType)) {
+          const tsArgs = signature.arguments.map((arg) => {
+            return typesMap.get(arg)?.value ?? "unknown";
+          });
+
+          const tsReturnType = typesMap.get(signature.returnType)?.value ?? signature.returnType;
+
+          const key = tsArgs.length === 0 ? functionName : `${functionName}(${tsArgs.join(", ")})`;
+
+          map.set(key, tsReturnType);
+        }
+      }
+
+      return map;
+    },
   });
 
   try {
     const result = await sql.unsafe(query, [], { prepare: true }).describe();
 
     if (result.columns === undefined || result.columns === null || result.columns.length === 0) {
-      return either.right({ output: null, stmt: result, query: query });
+      return either.right({ output: null, unknownColumns: [], stmt: result, query: query });
     }
 
     const duplicateCols = result.columns.filter((col, index) =>
@@ -142,16 +200,28 @@ async function generate(
 
     const relationsWithJoins = flattenRelationsWithJoinsMap(getRelationsWithJoins(params.pgParsed));
     const nonNullableColumnsBasedOnAST = getNonNullableColumns(params.pgParsed);
-    const resolvedStatement = getResolvedStatementFromParseResult(params.pgParsed);
-    const jsonTargets = getJsonTargets(params.pgParsed, resolvedStatement);
+
+    const astQueryDescription = getASTDescription({
+      parsed: params.pgParsed,
+      relations: relationsWithJoins,
+      typesMap: typesMap,
+      nonNullableColumns: nonNullableColumnsBasedOnAST,
+      pgColsByTableName: pgColsByTableName,
+      pgTypes: pgTypes,
+      pgEnums: pgEnums,
+      pgFns: functionsMap,
+    });
 
     const columns = result.columns.map((col): ColumnAnalysisResult => {
       const introspected = pgColsByTableOidCache
         .get(col.table)
         ?.find((x) => x.colNum === col.number);
 
+      const astDescribed = astQueryDescription.get(col.name);
+
       return {
         described: col,
+        astDescribed: astDescribed,
         introspected: introspected,
         isNonNullableBasedOnAST: nonNullableColumnsBasedOnAST.has(col.name),
       };
@@ -162,14 +232,16 @@ async function generate(
       pgTypes,
       pgEnums,
       relationsWithJoins,
-      overrides,
-      jsonTargets,
+      overrides: { types: typesMap },
       pgColsByTableName,
       fieldTransform: params.fieldTransform,
     };
 
     return either.right({
       output: getTypedColumnEntries({ context }),
+      unknownColumns: columns
+        .filter((x) => x.astDescribed === undefined)
+        .map((x) => x.described.name),
       stmt: result,
       query: query,
     });
@@ -193,14 +265,17 @@ async function getDatabaseMetadata(sql: Sql) {
   const pgTypes = await getPgTypes(sql);
   const pgCols = await getPgCols(sql);
   const pgEnums = await getPgEnums(sql);
+  const pgFns = await getPgFunctions(sql);
   const pgColsByTableOidCache = groupBy(pgCols, "tableOid");
   const pgColsByTableName = groupBy(pgCols, "tableName");
+  const pgFnsByName = groupBy(pgFns, "name");
 
-  return { pgTypes, pgCols, pgEnums, pgColsByTableOidCache, pgColsByTableName };
+  return { pgTypes, pgCols, pgEnums, pgColsByTableOidCache, pgColsByTableName, pgFnsByName };
 }
 
 type ColumnAnalysisResult = {
   described: postgres.Column<string>;
+  astDescribed: ASTDescribedColumn | undefined;
   introspected: PgColRow | undefined;
   isNonNullableBasedOnAST: boolean;
 };
@@ -298,16 +373,14 @@ function getResolvedTargetEntry(params: {
   col: ColumnAnalysisResult;
   context: GenerateContext;
 }): ResolvedTargetEntry {
-  const pgTypeOid = params.col.introspected?.colBaseTypeOid ?? params.col.described.type;
-
-  const valueAsJson = getColJsonResolvedTargetEntry({
-    col: params.col,
-    context: params.context,
-  });
-
-  if (valueAsJson !== undefined) {
-    return valueAsJson;
+  if (params.col.astDescribed !== undefined) {
+    return [
+      toCase(params.col.astDescribed.name, params.context.fieldTransform),
+      params.col.astDescribed.type,
+    ];
   }
+
+  const pgTypeOid = params.col.introspected?.colBaseTypeOid ?? params.col.described.type;
 
   const valueAsEnum = fmap(
     params.context.pgEnums.get(pgTypeOid),
@@ -333,10 +406,7 @@ function getResolvedTargetEntry(params: {
 
     const override = params.context.overrides.types.get(pgType.name);
 
-    return fmap(
-      override,
-      (x): ResolvedTarget => ({ kind: "type", value: typeof x === "string" ? x : x.return })
-    );
+    return fmap(override, ({ value }): ResolvedTarget => ({ kind: "type", value }));
   })();
 
   const value = valueAsOverride ?? valueAsEnum ?? valueAsType;
@@ -362,281 +432,6 @@ function getResolvedTargetEntry(params: {
     value: value,
     isNullable: !isNonNullable,
   });
-}
-
-function getResolvedTargetEntryByTableJsonTarget(params: {
-  col: ColumnAnalysisResult;
-  jsonTarget: NamedJsonTarget["table"];
-  context: GenerateContext;
-}): ResolvedTargetEntry | undefined {
-  const { value } = getTypedColumnEntries({
-    context: {
-      ...params.context,
-      columns:
-        params.context.pgColsByTableName
-          .get(params.jsonTarget.table)
-          ?.map((col) => ({
-            described: {
-              name: col.colName,
-              table: col.tableOid,
-              type: col.colTypeOid,
-              number: col.colNum,
-            },
-            introspected: col,
-            isNonNullableBasedOnAST: false,
-          }))
-          .sort((a, b) => a.described.number - b.described.number) ?? [],
-    },
-  });
-
-  return [params.col.described.name, { kind: "object", value }];
-}
-
-function getResolvedTargetEntryByColumnJsonTarget(params: {
-  col: ColumnAnalysisResult;
-  jsonTarget: NamedJsonTarget["column"];
-  context: GenerateContext;
-}): ResolvedTargetEntry | undefined {
-  const col = params.context.pgColsByTableName
-    .get(params.jsonTarget.table)
-    ?.find((col) => col.colName === params.jsonTarget.column);
-
-  if (col === undefined) {
-    return;
-  }
-
-  const [, entryType] = getResolvedTargetEntry({
-    context: params.context,
-    col: {
-      described: {
-        name: col.colName,
-        table: col.tableOid,
-        type: col.colTypeOid,
-        number: col.colNum,
-      },
-      introspected: col,
-      isNonNullableBasedOnAST: true,
-    },
-  });
-
-  const finalTarget: ResolvedTarget = col.colNotNull
-    ? entryType
-    : { kind: "union", value: [entryType, { kind: "type", value: "null" }] };
-
-  return [params.col.described.name, finalTarget];
-}
-
-function getColJsonResolvedTargetEntry(params: {
-  col: ColumnAnalysisResult;
-  context: GenerateContext;
-}): ResolvedTargetEntry | undefined {
-  const pgTypeOid = params.col.introspected?.colBaseTypeOid ?? params.col.described.type;
-  const pgTypeName = params.context.pgTypes.get(pgTypeOid)?.name;
-
-  if (
-    params.col.described.table !== 0 ||
-    pgTypeName === undefined ||
-    !["json", "jsonb"].includes(pgTypeName)
-  ) {
-    return;
-  }
-
-  const jsonTarget = params.context.jsonTargets.find((x) => {
-    switch (x.kind) {
-      case "object":
-      case "type-cast":
-      case "table":
-      case "column":
-      case "array":
-        return x.name === params.col.described.name;
-      case "type":
-      case "unknown":
-        return false;
-    }
-  });
-
-  if (jsonTarget !== undefined) {
-    return getResolvedTargetEntryByJsonTarget({ ...params, jsonTarget });
-  }
-}
-function getResolvedTargetEntryByJsonTarget(params: {
-  col: ColumnAnalysisResult;
-  jsonTarget: JsonTarget;
-  context: GenerateContext;
-}): ResolvedTargetEntry | undefined {
-  switch (params.jsonTarget.kind) {
-    case "table":
-      return getResolvedTargetEntryByTableJsonTarget({ ...params, jsonTarget: params.jsonTarget });
-    case "column":
-      return getResolvedTargetEntryByColumnJsonTarget({ ...params, jsonTarget: params.jsonTarget });
-    case "object":
-      return getResolvedTargetEntryByObjectJsonTarget({ ...params, jsonTarget: params.jsonTarget });
-    case "array":
-      return getResolvedTargetEntryByArrayTarget({ ...params, jsonTarget: params.jsonTarget });
-    case "type":
-      return [
-        params.col.described.name,
-        getTsTypeFromPgType({ pgTypeName: params.jsonTarget.type }),
-      ];
-    case "type-cast":
-      return [
-        params.col.described.name,
-        getTsTypeFromPgType({ pgTypeName: params.jsonTarget.type }),
-      ];
-    case "unknown": {
-      return [params.col.described.name, { kind: "type", value: "any" }];
-    }
-  }
-}
-
-function getResolvedTargetEntryByArrayTarget(params: {
-  col: ColumnAnalysisResult;
-  jsonTarget: NamedJsonTarget["array"];
-  context: GenerateContext;
-}): ResolvedTargetEntry | undefined {
-  if (params.jsonTarget.target.kind === "type") {
-    const tsType = getTsTypeFromPgType({ pgTypeName: params.jsonTarget.target.type });
-    return [params.col.described.name, tsType];
-  }
-
-  const typedEntry = getColJsonResolvedTargetEntry({
-    context: {
-      ...params.context,
-      jsonTargets: [params.jsonTarget.target],
-    },
-    col: {
-      described: {
-        name: params.col.described.name,
-        table: params.col.described.table,
-        type: params.col.described.type,
-        number: params.col.described.number,
-      },
-      introspected: undefined,
-      isNonNullableBasedOnAST: true,
-    },
-  });
-
-  if (typedEntry === undefined) {
-    return undefined;
-  }
-
-  const [, entryType] = typedEntry;
-
-  return [params.col.described.name, { kind: "array", value: entryType }];
-}
-
-function getResolvedTargetEntryByObjectJsonTarget(params: {
-  col: ColumnAnalysisResult;
-  jsonTarget: NamedJsonTarget["object"];
-  context: GenerateContext;
-}): [string, { kind: "object"; value: ResolvedTargetEntry[] }] | undefined {
-  const entries: ResolvedTargetEntry[] = [];
-
-  for (const [key, entryTarget] of params.jsonTarget.entries) {
-    switch (entryTarget.kind) {
-      case "column":
-        {
-          const col = params.context.pgColsByTableName
-            .get(entryTarget.table)
-            ?.find((col) => col.colName === entryTarget.column);
-
-          if (col === undefined) {
-            return;
-          }
-
-          const typedTargetEntry = getResolvedTargetEntryByColumnJsonTarget({
-            ...params,
-            col: {
-              described: {
-                name: col.colName,
-                table: col.tableOid,
-                type: col.colTypeOid,
-                number: col.colNum,
-              },
-              introspected: undefined,
-              isNonNullableBasedOnAST: true,
-            },
-            jsonTarget: entryTarget,
-          });
-
-          if (typedTargetEntry === undefined) {
-            return undefined;
-          }
-
-          const [, entryType] = typedTargetEntry;
-
-          const finalTarget: ResolvedTarget = col.colNotNull
-            ? entryType
-            : { kind: "union", value: [entryType, { kind: "type", value: "null" }] };
-
-          entries.push([key, finalTarget]);
-        }
-        break;
-
-      case "table":
-        {
-          const typedTargetEntry = getResolvedTargetEntryByTableJsonTarget({
-            ...params,
-            jsonTarget: entryTarget,
-          });
-
-          if (typedTargetEntry === undefined) {
-            return undefined;
-          }
-
-          const [, typedTargetEntryType] = typedTargetEntry;
-
-          entries.push([key, typedTargetEntryType]);
-        }
-        break;
-
-      case "object":
-        {
-          const typedTargetEntry = getResolvedTargetEntryByObjectJsonTarget({
-            ...params,
-            jsonTarget: entryTarget,
-          });
-
-          if (typedTargetEntry === undefined) {
-            return undefined;
-          }
-
-          const [, value] = typedTargetEntry;
-
-          entries.push([key, value]);
-        }
-        break;
-
-      case "type":
-        entries.push([key, getTsTypeFromPgType({ pgTypeName: entryTarget.type })]);
-        break;
-
-      case "type-cast":
-        entries.push([key, getTsTypeFromPgType({ pgTypeName: entryTarget.type })]);
-        break;
-      case "array":
-        {
-          const typedTargetEntry = getResolvedTargetEntryByArrayTarget({
-            ...params,
-            jsonTarget: entryTarget,
-          });
-
-          if (typedTargetEntry === undefined) {
-            return undefined;
-          }
-
-          const [, value] = typedTargetEntry;
-
-          entries.push([key, { kind: "array", value }]);
-        }
-        break;
-      case "unknown":
-        entries.push([key, { kind: "type", value: "any" }]);
-        break;
-    }
-  }
-
-  return [params.col.described.name, { kind: "object", value: entries }];
 }
 
 function getTsTypeFromPgTypeOid(params: {
@@ -679,7 +474,7 @@ interface PgEnumRow {
   enumlabel: string;
 }
 
-type PgEnumsMaps = Map<number, { name: string; values: string[] }>;
+export type PgEnumsMaps = Map<number, { name: string; values: string[] }>;
 
 async function getPgEnums(sql: Sql): Promise<PgEnumsMaps> {
   const rows = await sql<PgEnumRow[]>`
@@ -715,7 +510,7 @@ interface PgTypeRow {
   name: ColType;
 }
 
-type PgTypesMap = Map<number, PgTypeRow>;
+export type PgTypesMap = Map<number, PgTypeRow>;
 
 async function getPgTypes(sql: Sql): Promise<PgTypesMap> {
   const rows = await sql<PgTypeRow[]>`
@@ -731,7 +526,7 @@ async function getPgTypes(sql: Sql): Promise<PgTypesMap> {
   return map;
 }
 
-interface PgColRow {
+export interface PgColRow {
   tableOid: number;
   tableName: string;
   colName: string;
@@ -768,8 +563,38 @@ async function getPgCols(sql: Sql) {
           AND pg_attribute.attnum >= 1
       ORDER BY
           pg_class.relname,
-          pg_attribute.attname
+          pg_attribute.attnum
   `;
 
   return rows;
+}
+
+export interface PgFnRow {
+  name: string;
+  arguments: string[];
+  returnType: string;
+}
+
+async function getPgFunctions(sql: Sql) {
+  const rows = await sql<{ name: string; argumentsString: string; returnType: string }[]>`
+      SELECT
+          pg_proc.proname AS "name",
+          pg_catalog.pg_get_function_arguments(pg_proc.oid) AS "argumentsString",
+          pg_type.typname AS "returnType"
+      FROM
+          pg_catalog.pg_proc
+      JOIN
+          pg_catalog.pg_type ON pg_proc.prorettype = pg_type.oid
+      WHERE
+          pg_proc.pronamespace::regnamespace = 'pg_catalog'::regnamespace
+  `;
+
+  return rows.map((row) => ({
+    name: row.name,
+    arguments: row.argumentsString
+      .replace(/"/, "")
+      .split(", ")
+      .filter((x) => x !== ""),
+    returnType: row.returnType,
+  }));
 }

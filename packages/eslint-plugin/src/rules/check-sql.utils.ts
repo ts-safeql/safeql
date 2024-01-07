@@ -370,8 +370,13 @@ export function getResolvedTargetComparableString(params: {
         .join(" | ");
 
     case "array": {
-      const arrayString = getResolvedTargetComparableString({ ...params, target: target.value });
-      return target.value.kind === "union" ? `(${arrayString})[]` : `${arrayString}[]`;
+      let arrayString = getResolvedTargetComparableString({ ...params, target: target.value });
+
+      if (target.value.kind === "union") {
+        arrayString = `(${arrayString})`;
+      }
+
+      return target.syntax === "type-reference" ? `Array<${arrayString}>` : `${arrayString}[]`;
     }
 
     case "object": {

@@ -75,12 +75,24 @@ export function getResolvedTargetByTypeNode(
     };
   }
 
-  if (params.typeNode.type === TSESTree.AST_NODE_TYPES.TSTypeReference) {
-    if (
-      params.typeNode.typeName.type === TSESTree.AST_NODE_TYPES.Identifier &&
-      params.reservedTypes.has(params.typeNode.typeName.name)
-    ) {
+  if (
+    params.typeNode.type === TSESTree.AST_NODE_TYPES.TSTypeReference &&
+    params.typeNode.typeName.type === TSESTree.AST_NODE_TYPES.Identifier
+  ) {
+    if (params.reservedTypes.has(params.typeNode.typeName.name)) {
       return { kind: "type", value: params.typeNode.typeName.name };
+    }
+
+    if (params.typeNode.typeName.name === "Array") {
+      const firstParam = params.typeNode.typeParameters?.params[0];
+
+      if (firstParam !== undefined) {
+        return {
+          kind: "array",
+          syntax: "type-reference",
+          value: getResolvedTargetByTypeNode({ ...params, typeNode: firstParam }),
+        };
+      }
     }
 
     const type = params.checker.getTypeFromTypeNode(
@@ -188,9 +200,21 @@ function getTypePropertiesFromTypeReference(params: {
 
   if (checker.isArrayType(type)) {
     const typeArguments = (type as ts.TypeReference).typeArguments;
-    const typeAsString = fmap(typeArguments?.[0], (x) => checker.typeToString(x)) ?? "unknown";
+    const firstArgument = typeArguments?.[0];
 
-    return { kind: "array", value: { kind: "type", value: typeAsString } };
+    if (firstArgument !== undefined) {
+      const value = getTypePropertiesFromTypeReference({
+        type: firstArgument,
+        typeNode,
+        parser,
+        checker,
+        reservedTypes,
+      });
+
+      return { kind: "array", value };
+    }
+
+    return { kind: "array", value: { kind: "type", value: "unknown" } };
   }
 
   if (type.symbol === undefined) {

@@ -12,7 +12,7 @@ export const defaultTypeMapping = {
   float4: "number",
   float: "number",
   float8: "number",
-  numeric: "number",
+  numeric: "string",
   decimal: "number",
 
   // Serial types
@@ -57,6 +57,9 @@ export const defaultTypeMapping = {
 
   // Bytes
   bytea: "any",
+
+  // null
+  null: "null",
 } as const;
 
 export const defaultTypesMap = new Map<string, string>(Object.entries(defaultTypeMapping));

@@ -22,7 +22,7 @@
     "@typescript-eslint/parser": "^5.59.2",
     "@typescript-eslint/utils": "^5.59.0",
     "eslint": "^8.39.0",
-    "typescript": "^5.0.4"
+    "typescript": "^5.3.3"
   },
   "dependencies": {
     "@ts-safeql/shared": "workspace:3.0.0-next.3",
