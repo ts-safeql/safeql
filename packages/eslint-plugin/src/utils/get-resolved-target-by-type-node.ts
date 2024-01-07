@@ -1,5 +1,4 @@
 import { ResolvedTarget } from "@ts-safeql/generate";
-import { fmap } from "@ts-safeql/shared";
 import { ParserServices, TSESTree } from "@typescript-eslint/utils";
 import ts from "typescript";
 
