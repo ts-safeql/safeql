@@ -9,11 +9,11 @@
   },
   "license": "MIT",
   "devDependencies": {
-    "@algolia/client-search": "4.17.0",
-    "vitepress": "1.0.0-alpha.72",
-    "vue": "3.2.47"
+    "@algolia/client-search": "4.20.0",
+    "vitepress": "1.0.0-rc.23",
+    "vue": "3.3.6"
   },
   "dependencies": {
-    "@vercel/analytics": "^1.0.0"
+    "@vercel/analytics": "^1.1.1"
   }
 }

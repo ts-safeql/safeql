@@ -2,10 +2,10 @@
   "name": "@ts-safeql-demos/shared",
   "version": "0.0.0",
   "devDependencies": {
-    "typescript": "^5.0.4"
+    "typescript": "^5.2.2"
   },
   "dependencies": {
-    "@types/node": "^18.15.11",
-    "postgres": "^3.3.4"
+    "@types/node": "^20.8.7",
+    "postgres": "^3.4.0"
   }
 }

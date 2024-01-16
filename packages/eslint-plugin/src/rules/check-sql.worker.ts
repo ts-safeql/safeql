@@ -51,7 +51,7 @@ runAsWorker(async (params: WorkerParams) => {
 
   const result = await pipe(
     TE.Do,
-    TE.chain(() => workerHandler(params))
+    TE.chain(() => workerHandler(params)),
   )();
 
   if (params.connection.keepAlive === false) {
@@ -74,7 +74,7 @@ function workerHandler(params: WorkerParams): TE.TaskEither<WorkerError, WorkerR
 
   const connnectionPayload = match(strategy)
     .with({ type: "databaseUrl" }, ({ databaseUrl }) =>
-      TE.right(connections.getOrCreate(databaseUrl))
+      TE.right(connections.getOrCreate(databaseUrl)),
     )
     .with({ type: "migrations" }, ({ migrationsDir, databaseName, connectionUrl }) => {
       const { connectionOptions, databaseUrl } = getMigrationDatabaseMetadata({
@@ -91,7 +91,7 @@ function workerHandler(params: WorkerParams): TE.TaskEither<WorkerError, WorkerR
           TE.Do,
           TE.chainW(() => initDatabase(connectionOptions)),
           TE.chainW(() => runMigrations({ migrationsPath, sql })),
-          TE.map(() => connectionPayload)
+          TE.map(() => connectionPayload),
         );
       }
 
@@ -117,6 +117,6 @@ function workerHandler(params: WorkerParams): TE.TaskEither<WorkerError, WorkerR
         nullAsOptional: params.connection.nullAsOptional,
       });
     }),
-    TE.chainW(TE.fromEither)
+    TE.chainW(TE.fromEither),
   );
 }

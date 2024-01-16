@@ -23,7 +23,7 @@ export function getTypeProperties(params: {
 
   if (typeNode.type === TSESTree.AST_NODE_TYPES.TSIntersectionType) {
     const properties = typeNode.types.flatMap(
-      (type) => getTypeProperties({ typeNode: type, parser, checker, reservedTypes }).properties
+      (type) => getTypeProperties({ typeNode: type, parser, checker, reservedTypes }).properties,
     );
 
     return { properties, isArray: false };
@@ -104,7 +104,7 @@ function getTypePropertiesFromTypeReference(params: {
   return type.getProperties().map((property) => {
     const type = checker.getTypeOfSymbolAtLocation(
       property,
-      parser.esTreeNodeToTSNodeMap.get(typeNode)
+      parser.esTreeNodeToTSNodeMap.get(typeNode),
     );
 
     const typeName = checker.typeToString(type);

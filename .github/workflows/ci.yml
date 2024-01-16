@@ -42,6 +42,7 @@ jobs:
           PGPASSWORD: postgres
           PGHOST: localhost
           PGDATABASE: postgres
+      - run: pnpm typecheck
       - run: pnpm build
       - run: pnpm lint
       - run: pnpm run prettier

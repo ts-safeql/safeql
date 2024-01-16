@@ -96,7 +96,7 @@ function createDatabase(connection: ConnectionOptions) {
     ],
     {
       env: { ...process.env, PGPASSWORD: connection.password },
-    }
+    },
   );
 
   return new Promise((resolve, reject) => {
@@ -120,7 +120,7 @@ function dropDatabase(connection: ConnectionOptions) {
     ],
     {
       env: { ...process.env, PGPASSWORD: connection.password },
-    }
+    },
   );
 
   return new Promise<number>((resolve, reject) => {

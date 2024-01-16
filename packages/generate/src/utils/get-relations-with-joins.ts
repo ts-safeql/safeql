@@ -27,7 +27,7 @@ export function getRelationsWithJoins(parsed: LibPgQueryAST.ParseResult): Relati
 
 function recursiveTraverseJoins(
   joins: Join[],
-  joinExpr: LibPgQueryAST.JoinExpr
+  joinExpr: LibPgQueryAST.JoinExpr,
 ): {
   relName: string;
   joins: Join[];
@@ -65,7 +65,7 @@ export interface FlattenedRelationWithJoins {
 }
 
 export function flattenRelationsWithJoinsMap(
-  relationsWithJoinsMap: RelationsWithJoinsMap
+  relationsWithJoinsMap: RelationsWithJoinsMap,
 ): FlattenedRelationWithJoins[] {
   const result: {
     relName: string;

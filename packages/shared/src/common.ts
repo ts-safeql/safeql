@@ -16,8 +16,8 @@ export function validateOneOf<T>(value: unknown, possibilies: readonly T[]): T {
   if (!possibilies.includes(valueAsT)) {
     throw new Error(
       `validation of validateOneOf failed. Expected "${value}" to be one of "${possibilies.join(
-        ", "
-      )}"`
+        ", ",
+      )}"`,
     );
   }
 
