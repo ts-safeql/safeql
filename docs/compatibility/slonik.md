@@ -30,13 +30,15 @@ Second, add the following rule to your ESLint config:
         "connections": [
           {
             // ...
-            "targets": {
-              // The name of the tag that should be checked:
-              "tag": "sql.+(type\\(*\\)|unsafe)",
-              // this will tell safeql to not suggest type annotations
-              // since we will be using our Zod schemas in slonik
-              "skipTypeAnnotations": true 
-            }
+            "targets": [
+              {
+                // The name of the tag that should be checked:
+                "tag": "sql.+(type\\(*\\)|unsafe)",
+                // this will tell safeql to not suggest type annotations
+                // since we will be using our Zod schemas in slonik
+                "skipTypeAnnotations": true 
+              }
+            ]
           }
         ]
       }

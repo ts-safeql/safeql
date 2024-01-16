@@ -35,13 +35,15 @@ Second, add the following rule to your ESLint config:
           {
             // The migrations path:
             "migrationsDir": "./prisma/migrations",
-            "targets": {
-              // The sql tags that should be checked.
-              // either `db.$queryRaw` or `db.$executeRaw`:
-              "tag": "prisma.+($queryRaw|$executeRaw)",
-              // Transform the query result to array
-              "transform": "{type}[]"
-            }
+            "targets": [
+              {
+                // The sql tags that should be checked.
+                // either `db.$queryRaw` or `db.$executeRaw`:
+                "tag": "prisma.+($queryRaw|$executeRaw)",
+                // Transform the query result to array
+                "transform": "{type}[]"
+              }
+            ]
           }
         ]
       }
