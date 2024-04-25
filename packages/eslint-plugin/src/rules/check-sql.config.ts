@@ -9,31 +9,20 @@ export function getConfigFromFileWithContext(params: {
   context: RuleContext;
   projectDir: string;
 }): Config {
-  if (!isConfigFileRuleOptions(params.context.options[0])) {
-    return params.context.options[0];
+  const options = params.context.options[0];
+  if (!isConfigFileRuleOptions(options)) {
+    return options;
   }
 
   return pipe(
-    getConfigFromFile(params.projectDir),
+    getConfigFromFile(params.projectDir, options.format ?? "cjs"),
     E.getOrElseW((message) => {
       throw new Error(`safeql: ${message}`);
     })
   );
 }
 
-function isProjectESM(projectDir: string): boolean {
-  const packageJsonPath = path.join(projectDir, "package.json");
-
-  if (!fs.existsSync(packageJsonPath)) {
-    return false;
-  }
-
-  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8"));
-
-  return packageJson.type === "module";
-}
-
-function getConfigFromFile(projectDir: string): E.Either<string, Config> {
+function getConfigFromFile(projectDir: string, format: "esm" | "cjs"): E.Either<string, Config> {
   const configFilePath = path.join(projectDir, "safeql.config.ts");
   const tempFileName = `safeql.config.temp-${Date.now()}.js`;
   const tempFilePath = path.join(projectDir, tempFileName);
@@ -52,7 +41,7 @@ function getConfigFromFile(projectDir: string): E.Either<string, Config> {
     const result = esbuild.buildSync({
       entryPoints: [configFilePath],
       write: false,
-      format: isProjectESM(projectDir) ? "esm" : "cjs",
+      format: format,
     });
 
     fs.writeFileSync(tempFilePath, result.outputFiles[0].text);

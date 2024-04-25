@@ -182,7 +182,10 @@ export const zConfig = z.object({
 });
 export type Config = z.infer<typeof zConfig>;
 
-export const UserConfigFile = z.object({ useConfigFile: z.boolean() });
+export const UserConfigFile = z.object({
+  useConfigFile: z.boolean(),
+  format: z.enum(["esm", "cjs"]).optional(),
+});
 export type UserConfigFile = z.infer<typeof UserConfigFile>;
 
 export const Options = z.union([zConfig, UserConfigFile]);
