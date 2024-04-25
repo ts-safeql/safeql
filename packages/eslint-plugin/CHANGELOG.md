@@ -1,5 +1,42 @@
 # @ts-safeql/eslint-plugin
 
+## 3.0.0
+
+### Major Changes
+
+- 649a592: Significantly improved the validation and type-inference of JSON/B expressions (e.g., jsonb_agg, json_build_object).
+
+  Before:
+
+  ```ts
+  sql<{ rows: any[] }>`
+    SELECT jsonb_agg(json_build_object('id', id, 'name', name)) AS rows
+  `;
+  ```
+
+  After:
+
+  ```ts
+  sql<{ rows: { id: number; name: string }[] }>`
+    SELECT jsonb_agg(json_build_object('id', id, 'name', name)) AS rows
+  `;
+  ```
+
+### Patch Changes
+
+- 7475acd: improve query type inference by AST lookup
+- ad221c9: improved json/b type inference for subselects and aggregators
+- 54de7d2: fixed json/b type inference bugs
+- 3614126: fix build artifact
+- Updated dependencies [649a592]
+- Updated dependencies [7475acd]
+- Updated dependencies [ad221c9]
+- Updated dependencies [54de7d2]
+- Updated dependencies [3614126]
+  - @ts-safeql/generate@3.0.0
+  - @ts-safeql/shared@3.0.0
+  - @ts-safeql/test-utils@0.0.13
+
 ## 3.0.0-next.4
 
 ### Patch Changes
