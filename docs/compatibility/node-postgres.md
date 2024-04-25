@@ -43,10 +43,12 @@ Second, add the following rule to your ESLint config:
         "connections": [
           {
             // ...
-            "targets": {
-              // The name of the wrapper that should be checked:
-              "wrapper": "client.query",
-            }
+            "targets": [
+              {
+                // The name of the wrapper that should be checked:
+                "wrapper": "client.query",
+              }
+            ]
           }
         ]
       }
