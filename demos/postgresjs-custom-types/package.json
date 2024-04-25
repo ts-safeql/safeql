@@ -8,6 +8,7 @@
     "lint!": "eslint src --fix"
   },
   "devDependencies": {
+    "@types/node": "^20.12.7",
     "@typescript-eslint/eslint-plugin": "^5.59.2",
     "@typescript-eslint/parser": "^5.59.2",
     "eslint": "^8.39.0",
