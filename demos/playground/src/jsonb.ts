@@ -8,7 +8,7 @@ async function run() {
 
   type Row = {
     "Episode List": Episode[];
-  }
+  };
 
   const rows = await sql<Row[]>`
     SELECT 

@@ -34,7 +34,7 @@ function recursiveTraverseJoins(
   joins: Join[];
 } {
   const joinName =
-  joinExpr.rarg?.RangeVar?.relname ?? joinExpr.rarg?.RangeSubselect?.alias?.aliasname;
+    joinExpr.rarg?.RangeVar?.relname ?? joinExpr.rarg?.RangeSubselect?.alias?.aliasname;
   const aliasName = joinExpr.rarg?.RangeVar?.alias?.aliasname;
 
   if (joinName === undefined) {
