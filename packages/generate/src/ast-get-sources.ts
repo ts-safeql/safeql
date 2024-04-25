@@ -55,7 +55,12 @@ export function getSources({
       return null;
     }
 
-    return resolveColumn(columnSource.column);
+    const resolved =
+      columnSource.source.kind === "table" && columnSource.source.alias !== undefined
+        ? resolveColumn({ ...columnSource.column, tableName: columnSource.source.alias })
+        : resolveColumn(columnSource.column);
+
+    return resolved;
   }
 
   function getColumnsByTargetField(field: TargetField): ResolvedColumn[] | null {
@@ -82,7 +87,7 @@ export function getSources({
   }
 
   function checkIsNullableDueToRelation(column: PgColRow) {
-    const findByJoin = relations.find((x) => x.joinRelName === column.tableName);
+    const findByJoin = relations.find((x) => (x.alias ?? x.joinRelName) === column.tableName);
 
     if (findByJoin !== undefined) {
       switch (findByJoin.joinType) {

@@ -1053,3 +1053,28 @@ test("select jsonb_agg(table with nullable column)", async () => {
     ],
   });
 });
+
+test("select tbl with left join of self tbl", async () => {
+  await testQuery({
+    query: `
+      SELECT
+        caregiver.id as caregiver_id,
+        self.id as self_id
+      FROM caregiver
+        LEFT JOIN caregiver self ON caregiver.id = self.id
+    `,
+    expected: [
+      ["caregiver_id", { kind: "type", value: "number" }],
+      [
+        "self_id",
+        {
+          kind: "union",
+          value: [
+            { kind: "type", value: "number" },
+            { kind: "type", value: "null" },
+          ],
+        },
+      ],
+    ],
+  });
+});
