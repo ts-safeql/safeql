@@ -1,0 +1,14 @@
+{
+  "prettier.printWidth": 100,
+  "window.zoomLevel": 4,
+  "breadcrumbs.enabled": false,
+  "explorer.autoReveal": false,
+  "workbench.colorTheme": "GitHub Dark Mode",
+  "workbench.statusBar.visible": false,
+  "editor.tabSize": 2,
+  "editor.minimap.enabled": false,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+  "workbench.editor.showTabs": "none",
+}

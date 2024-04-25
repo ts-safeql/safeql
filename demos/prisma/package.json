@@ -18,7 +18,7 @@
     "conditional-type-checks": "1.0.6",
     "eslint": "^8.39.0",
     "tsx": "3.12.6",
-    "typescript": "^5.0.4"
+    "typescript": "^5.3.3"
   },
   "dependencies": {
     "@prisma/client": "4.12.0",

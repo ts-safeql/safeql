@@ -1,5 +1,47 @@
 # @ts-safeql/test-utils
 
+## 0.0.13
+
+### Patch Changes
+
+- 3614126: fix build artifact
+- Updated dependencies [7475acd]
+- Updated dependencies [3614126]
+  - @ts-safeql/shared@3.0.0
+
+## 0.0.13-next.4
+
+### Patch Changes
+
+- Updated dependencies [7475acd]
+  - @ts-safeql/shared@3.0.0-next.4
+
+## 0.0.13-next.3
+
+### Patch Changes
+
+- @ts-safeql/shared@3.0.0-next.3
+
+## 0.0.13-next.2
+
+### Patch Changes
+
+- fix build artifact
+- Updated dependencies
+  - @ts-safeql/shared@3.0.0-next.2
+
+## 0.0.13-next.1
+
+### Patch Changes
+
+- @ts-safeql/shared@3.0.0-next.1
+
+## 0.0.13-next.0
+
+### Patch Changes
+
+- @ts-safeql/shared@3.0.0-next.0
+
 ## 0.0.12
 
 ### Patch Changes

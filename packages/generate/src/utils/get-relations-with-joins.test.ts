@@ -12,6 +12,7 @@ const cases: {
   expected: [
     string,
     {
+      alias: string | undefined;
       type: LibPgQueryAST.JoinType;
       name: string;
     }[]
@@ -31,7 +32,9 @@ const cases: {
       caregiver
         LEFT JOIN agency ON caregiver.id = agency.id
     `,
-    expected: [["caregiver", [{ name: "agency", type: LibPgQueryAST.JoinType.JOIN_LEFT }]]],
+    expected: [
+      ["caregiver", [{ alias: undefined, name: "agency", type: LibPgQueryAST.JoinType.JOIN_LEFT }]],
+    ],
   },
   {
     query: `
@@ -46,8 +49,8 @@ const cases: {
       [
         "caregiver",
         [
-          { name: "caregiver_agency", type: LibPgQueryAST.JoinType.JOIN_LEFT },
-          { name: "agency", type: LibPgQueryAST.JoinType.JOIN_LEFT },
+          { alias: undefined, name: "caregiver_agency", type: LibPgQueryAST.JoinType.JOIN_LEFT },
+          { alias: undefined, name: "agency", type: LibPgQueryAST.JoinType.JOIN_LEFT },
         ],
       ],
     ],
@@ -73,19 +76,19 @@ const cases: {
       [
         "a",
         [
-          { name: "w", type: LibPgQueryAST.JoinType.JOIN_FULL },
-          { name: "x", type: LibPgQueryAST.JoinType.JOIN_INNER },
-          { name: "y", type: LibPgQueryAST.JoinType.JOIN_LEFT },
-          { name: "z", type: LibPgQueryAST.JoinType.JOIN_RIGHT },
+          { alias: undefined, name: "w", type: LibPgQueryAST.JoinType.JOIN_FULL },
+          { alias: undefined, name: "x", type: LibPgQueryAST.JoinType.JOIN_INNER },
+          { alias: undefined, name: "y", type: LibPgQueryAST.JoinType.JOIN_LEFT },
+          { alias: undefined, name: "z", type: LibPgQueryAST.JoinType.JOIN_RIGHT },
         ],
       ],
       [
         "b",
         [
-          { name: "w", type: LibPgQueryAST.JoinType.JOIN_FULL },
-          { name: "x", type: LibPgQueryAST.JoinType.JOIN_INNER },
-          { name: "y", type: LibPgQueryAST.JoinType.JOIN_LEFT },
-          { name: "z", type: LibPgQueryAST.JoinType.JOIN_RIGHT },
+          { alias: undefined, name: "w", type: LibPgQueryAST.JoinType.JOIN_FULL },
+          { alias: undefined, name: "x", type: LibPgQueryAST.JoinType.JOIN_INNER },
+          { alias: undefined, name: "y", type: LibPgQueryAST.JoinType.JOIN_LEFT },
+          { alias: undefined, name: "z", type: LibPgQueryAST.JoinType.JOIN_RIGHT },
         ],
       ],
     ],
@@ -102,9 +105,9 @@ const cases: {
       [
         "tbl",
         [
-          { name: "subselect1", type: LibPgQueryAST.JoinType.JOIN_LEFT },
-          { name: "subselect2", type: LibPgQueryAST.JoinType.JOIN_LEFT },
-          { name: "subselect3", type: LibPgQueryAST.JoinType.JOIN_LEFT },
+          { alias: undefined, name: "subselect1", type: LibPgQueryAST.JoinType.JOIN_LEFT },
+          { alias: undefined, name: "subselect2", type: LibPgQueryAST.JoinType.JOIN_LEFT },
+          { alias: undefined, name: "subselect3", type: LibPgQueryAST.JoinType.JOIN_LEFT },
         ],
       ],
     ],

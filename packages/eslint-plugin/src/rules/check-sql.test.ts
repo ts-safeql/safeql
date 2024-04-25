@@ -61,6 +61,11 @@ const runMigrations1 = <TTypes extends Record<string, unknown>>(sql: Sql<TTypes>
       id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
       nullable_int INTEGER
     );
+
+    CREATE TABLE test_jsonb (
+      id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+      jsonb_col JSONB NOT NULL
+    );
 `);
 
 RuleTester.describe = describe;
@@ -146,38 +151,38 @@ RuleTester.describe("check-sql", () => {
         name: "select non-table column",
         filename,
         options: withConnection(connections.base),
-        code: "const result = conn.query<{ x: number; }>(sql`SELECT 1 as x`);",
+        code: "const result = conn.query<{ x: number }>(sql`SELECT 1 as x`);",
       },
       {
         name: "select array_agg(stmt)",
         filename,
-        options: withConnection(connections.base),
-        code: "sql<{ ids: number[]; }[]>`SELECT ARRAY_AGG(id ORDER BY id) AS ids FROM caregiver`",
+        options: withConnection(connections.withTag),
+        code: "sql<{ ids: number[] | null }>`SELECT ARRAY_AGG(id ORDER BY id) AS ids FROM caregiver`",
       },
       {
-        name: "select exists(stmt",
+        name: "select exists(stmt)",
         filename,
-        options: withConnection(connections.base),
-        code: "sql<{ exists: boolean }[]>`SELECT EXISTS(select id FROM caregiver)`",
+        options: withConnection(connections.withTag),
+        code: "sql<{ exists: boolean }>`SELECT EXISTS(select id FROM caregiver)`",
       },
       {
         name: "select not exists(stmt)",
         filename,
-        options: withConnection(connections.base),
-        code: "sql<{ not_exists: boolean }[]>`SELECT NOT EXISTS(select id FROM caregiver) as not_exists`",
+        options: withConnection(connections.withTag),
+        code: "sql<{ not_exists: boolean }>`SELECT NOT EXISTS(select id FROM caregiver) as not_exists`",
       },
       {
         name: "select column from table",
         filename,
         options: withConnection(connections.base),
-        code: "const result = conn.query<{ id: number; }>(sql`select id from caregiver`);",
+        code: "const result = conn.query<{ id: number }>(sql`select id from caregiver`);",
       },
       {
         name: "select * from table",
         filename,
         options: withConnection(connections.base),
         code: `
-          const result = conn.query<{ id: number; first_name: string; middle_name: string | null; last_name: string; certification: 'HHA' | 'RN' | 'LPN' | 'CNA' | 'PCA' | 'OTHER'; }>(sql\`
+          const result = conn.query<{ id: number; first_name: string; middle_name: string | null; last_name: string; certification: 'HHA' | 'RN' | 'LPN' | 'CNA' | 'PCA' | 'OTHER' }>(sql\`
               select * from caregiver
           \`);
           `,
@@ -187,7 +192,7 @@ RuleTester.describe("check-sql", () => {
         filename,
         options: withConnection(connections.base),
         code: `
-          const result = conn.query<{ certification: 'HHA' | 'RN' | 'LPN' | 'CNA' | 'PCA' | 'OTHER'; }>(sql\`
+          const result = conn.query<{ certification: 'HHA' | 'RN' | 'LPN' | 'CNA' | 'PCA' | 'OTHER' }>(sql\`
               select certification from caregiver
           \`);
         `,
@@ -197,7 +202,7 @@ RuleTester.describe("check-sql", () => {
         filename,
         options: withConnection(connections.base),
         code: `
-            const result = conn.query<{ caregiver_id: number; agency_id: number; }>(sql\`
+            const result = conn.query<{ caregiver_id: number; agency_id: number }>(sql\`
                 select
                     caregiver.id as caregiver_id,
                     agency.id as agency_id
@@ -212,7 +217,7 @@ RuleTester.describe("check-sql", () => {
         filename,
         options: withConnection(connections.base),
         code: `
-            const result = conn.query<{ caregiver_id: number; agency_id: number | null; }>(sql\`
+            const result = conn.query<{ caregiver_id: number; agency_id: number | null }>(sql\`
                 select
                     caregiver.id as caregiver_id,
                     agency.id as agency_id
@@ -328,7 +333,7 @@ RuleTester.describe("check-sql", () => {
       {
         filename,
         options: withConnection(connections.base),
-        name: "type annotation with a valid type reference (diffrent property order)",
+        name: "type annotation with a valid type reference (different property order)",
         code: `
           type Agency = { name: string; id: number; };
           conn.query<Agency>(sql\`select id, name from agency\`);
@@ -348,7 +353,7 @@ RuleTester.describe("check-sql", () => {
         options: withConnection(connections.base),
         name: "type annotation with a valid intersection",
         code: `
-          conn.query<{ id: number; } & { name: string; }>(sql\`select id, name from agency\`);
+          conn.query<{ id: number; } & { name: string }>(sql\`select id, name from agency\`);
         `,
       },
       {
@@ -366,7 +371,7 @@ RuleTester.describe("check-sql", () => {
         name: "type annotation with Pick & intersection",
         code: `
           interface Agency { id: number; name: string }
-          conn.query<Pick<Agency, "id"> & { name: string; }>(sql\`select id, name from agency\`);
+          conn.query<Pick<Agency, "id"> & { name: string }>(sql\`select id, name from agency\`);
         `,
       },
       {
@@ -375,7 +380,7 @@ RuleTester.describe("check-sql", () => {
         name: "type annotation with Pick overriden by intersection",
         code: `
           interface Agency { id: number; name: string | null }
-          conn.query<Agency & { name: string; }>(sql\`select id, name from agency\`);
+          conn.query<Agency & { name: string }>(sql\`select id, name from agency\`);
         `,
       },
       {
@@ -467,6 +472,12 @@ RuleTester.describe("check-sql", () => {
         options: withConnection(connections.withTag),
         code: `sql<{ interval: string; }>\`SELECT INTERVAL '1 day 2 hours 3 minutes 4 seconds'\``,
       },
+      {
+        filename,
+        name: "select jsonb column",
+        options: withConnection(connections.withTag),
+        code: `sql<{ jsonb_col: any }>\`SELECT jsonb_col FROM test_jsonb\``,
+      },
     ],
     invalid: [
       {
@@ -474,7 +485,7 @@ RuleTester.describe("check-sql", () => {
         options: withConnection(connections.base),
         name: "select computed column without type annotation",
         code: "const result = conn.query(sql`SELECT 1 as x`);",
-        output: "const result = conn.query<{ x: number; }>(sql`SELECT 1 as x`);",
+        output: "const result = conn.query<{ x: number }>(sql`SELECT 1 as x`);",
         errors: [
           { messageId: "missingTypeAnnotations", line: 1, column: 16, endLine: 1, endColumn: 26 },
         ],
@@ -484,7 +495,7 @@ RuleTester.describe("check-sql", () => {
         options: withConnection(connections.base),
         name: "select computed column without type annotation (with Prisma.sql)",
         code: "const result = conn.query(Prisma.sql`SELECT 1 as x`);",
-        output: "const result = conn.query<{ x: number; }>(Prisma.sql`SELECT 1 as x`);",
+        output: "const result = conn.query<{ x: number }>(Prisma.sql`SELECT 1 as x`);",
         errors: [
           { messageId: "missingTypeAnnotations", line: 1, column: 16, endLine: 1, endColumn: 26 },
         ],
@@ -494,7 +505,7 @@ RuleTester.describe("check-sql", () => {
         options: withConnection(connections.base),
         name: "select column without type annotation",
         code: "const result = conn.query(sql`select id from caregiver`);",
-        output: "const result = conn.query<{ id: number; }>(sql`select id from caregiver`);",
+        output: "const result = conn.query<{ id: number }>(sql`select id from caregiver`);",
         errors: [
           { messageId: "missingTypeAnnotations", line: 1, column: 16, endLine: 1, endColumn: 26 },
         ],
@@ -503,10 +514,10 @@ RuleTester.describe("check-sql", () => {
         filename,
         options: withConnection(connections.base),
         name: "select column with incorrect type annotation",
-        code: "const result = conn.query<{ id: string; }>(sql`select id from caregiver`);",
-        output: "const result = conn.query<{ id: number; }>(sql`select id from caregiver`);",
+        code: "const result = conn.query<{ id: string }>(sql`select id from caregiver`);",
+        output: "const result = conn.query<{ id: number }>(sql`select id from caregiver`);",
         errors: [
-          { messageId: "incorrectTypeAnnotations", line: 1, column: 27, endLine: 1, endColumn: 42 },
+          { messageId: "incorrectTypeAnnotations", line: 1, column: 27, endLine: 1, endColumn: 41 },
         ],
       },
       {
@@ -579,7 +590,7 @@ RuleTester.describe("check-sql", () => {
         output: `
             type Agency = { name: string };
             function run() {
-                const result = conn.query<{ id: number; }>(sql\`
+                const result = conn.query<{ id: number }>(sql\`
                     select id from agency where id = \${1}
                 \`);
             }
@@ -588,8 +599,8 @@ RuleTester.describe("check-sql", () => {
           {
             messageId: "incorrectTypeAnnotations",
             data: {
-              expected: "{ name: string; }",
-              actual: "{ id: number; }",
+              expected: "{ name: string }",
+              actual: "{ id: number }",
             },
             line: 4,
             column: 43,
@@ -648,7 +659,7 @@ RuleTester.describe("check-sql", () => {
         `,
         output: `
           class X {
-            run() { const result = this.conn.query<{ num: number; }>(sql\`select 1 as num\`); }
+            run() { const result = this.conn.query<{ num: number }>(sql\`select 1 as num\`); }
           }
         `,
         errors: [{ messageId: "missingTypeAnnotations" }],
@@ -707,7 +718,23 @@ RuleTester.describe("check-sql", () => {
   ruleTester.run("base with transform", rules["check-sql"], {
     valid: [
       {
-        name: "transform as {type}[]",
+        name: "transform: {type}[]",
+        filename,
+        options: withConnection(connections.base, {
+          targets: [{ wrapper: "conn.query", transform: "{type}[]" }],
+        }),
+        code: "const result = conn.query<{ id: number; }[]>(sql`select id from agency`);",
+      },
+      {
+        name: "transform: Array<{type}>",
+        filename,
+        options: withConnection(connections.base, {
+          targets: [{ wrapper: "conn.query", transform: "Array<{type}>" }],
+        }),
+        code: "const result = conn.query<Array<{ id: number; }>>(sql`select id from caregiver`);",
+      },
+      {
+        name: "transform: ['{type}[]']",
         filename,
         options: withConnection(connections.base, {
           targets: [{ wrapper: "conn.query", transform: "{type}[]" }],
@@ -715,23 +742,15 @@ RuleTester.describe("check-sql", () => {
         code: "const result = conn.query<{ id: number; }[]>(sql`select id from caregiver`);",
       },
       {
-        name: "transform as ['{type}[]']",
-        filename,
-        options: withConnection(connections.base, {
-          targets: [{ wrapper: "conn.query", transform: "{type}[]" }],
-        }),
-        code: "const result = conn.query<{ id: number; }[]>(sql`select id from caregiver`);",
-      },
-      {
-        name: "transform as [['middle_name', 'x_middle_name']]",
+        name: "transform: [['middle_name', 'x_middle_name']]",
         filename,
         options: withConnection(connections.base, {
           targets: [{ wrapper: "conn.query", transform: [["middle_name", "x_middle_name"]] }],
         }),
-        code: "const result = conn.query<{ x_middle_name: string | null; }>(sql`select middle_name from caregiver`);",
+        code: "const result = conn.query<{ x_middle_name: string | null }>(sql`select middle_name from caregiver`);",
       },
       {
-        name: "transform as ['{type}[]', ['middle_name', 'x_middle_name']]",
+        name: "transform: ['{type}[]', ['middle_name', 'x_middle_name']]",
         filename,
         options: withConnection(connections.base, {
           targets: [
@@ -740,8 +759,28 @@ RuleTester.describe("check-sql", () => {
         }),
         code: "const result = conn.query<{ x_middle_name: string | null; }[]>(sql`select middle_name from caregiver`);",
       },
+      {
+        name: "transform: nested object (knex)",
+        filename,
+        options: withConnection(connections.base, {
+          targets: [{ tag: "knex.raw", transform: "{ rows: {type}[] }" }],
+        }),
+        code: "knex.raw<{ rows: { middle_name: string | null }[] }>(sql`select middle_name from caregiver`)",
+      },
     ],
-    invalid: [],
+    invalid: [
+      {
+        name: "transform: invalid nested object (knex)",
+        filename,
+        options: withConnection(connections.base, {
+          targets: [{ tag: "knex.raw", transform: "{ rows: {type}[] }" }],
+        }),
+        code: "knex.raw`select middle_name from caregiver`",
+        output:
+          "knex.raw<{ rows: { middle_name: string | null }[] }>`select middle_name from caregiver`",
+        errors: [{ messageId: "missingTypeAnnotations" }],
+      },
+    ],
   });
 
   ruleTester.run("connection with tag target", rules["check-sql"], {
@@ -773,7 +812,7 @@ RuleTester.describe("check-sql", () => {
         filename,
         options: withConnection(connections.withTag),
         code: "sql`select id from caregiver`",
-        output: "sql<{ id: number; }>`select id from caregiver`",
+        output: "sql<{ id: number }>`select id from caregiver`",
         errors: [
           { messageId: "missingTypeAnnotations", line: 1, column: 1, endLine: 1, endColumn: 4 },
         ],
@@ -783,7 +822,7 @@ RuleTester.describe("check-sql", () => {
         filename,
         options: withConnection(connections.withTag),
         code: "const result = conn.query(sql`select id from caregiver`)",
-        output: "const result = conn.query(sql<{ id: number; }>`select id from caregiver`)",
+        output: "const result = conn.query(sql<{ id: number }>`select id from caregiver`)",
         errors: [
           { messageId: "missingTypeAnnotations", line: 1, column: 27, endLine: 1, endColumn: 30 },
         ],
@@ -869,7 +908,7 @@ RuleTester.describe("check-sql", () => {
         options: withConnection(connections.withTag, {
           overrides: { types: { certification: "Certification" } },
         }),
-        code: "sql<{ certification: Certification; }>`select certification from caregiver`",
+        code: "sql<{ certification: Certification }>`select certification from caregiver`",
       },
       {
         name: 'with custom derived type { certification: "Certification" }',
@@ -889,7 +928,7 @@ RuleTester.describe("check-sql", () => {
         options: withConnection(connections.withTag, {
           overrides: { types: { phone_number: "PhoneNumber" } },
         }),
-        code: "sql<{ phone_number: PhoneNumber; }>`select phone_number from caregiver_phone`",
+        code: "sql<{ phone_number: PhoneNumber }>`select phone_number from caregiver_phone`",
       },
     ],
     invalid: [
@@ -900,7 +939,7 @@ RuleTester.describe("check-sql", () => {
           overrides: { types: { int4: "Integer" } },
         }),
         code: "sql<{ id: number }>`select id from caregiver`",
-        output: "sql<{ id: Integer; }>`select id from caregiver`",
+        output: "sql<{ id: Integer }>`select id from caregiver`",
         errors: [
           { messageId: "incorrectTypeAnnotations", line: 1, column: 5, endLine: 1, endColumn: 19 },
         ],
@@ -934,8 +973,8 @@ RuleTester.describe("check-sql", () => {
         output: `
           class X {
             run() {
-              conn.query<{ num: number; }>(sql\`select 1 as num\`);
-              conn.queryOne<{ num: number; }>(sql\`select 1 as num\`);
+              conn.query<{ num: number }>(sql\`select 1 as num\`);
+              conn.queryOne<{ num: number }>(sql\`select 1 as num\`);
               diff.query(sql\`select 1 as num\`);
             }
           }
@@ -959,8 +998,8 @@ RuleTester.describe("check-sql", () => {
         output: `
           class X {
             run() {
-              conn.query<{ num: number; }>(sql\`select 1 as num\`);
-              conn.queryOne<{ num: number; }>(sql\`select 1 as num\`);
+              conn.query<{ num: number }>(sql\`select 1 as num\`);
+              conn.queryOne<{ num: number }>(sql\`select 1 as num\`);
               conn.queryOneDiff(sql\`select 1 as num\`);
               diff.query(sql\`select 1 as num\`);
             }
@@ -984,8 +1023,8 @@ RuleTester.describe("check-sql", () => {
         output: `
           class X {
             run() {
-              conn1.sql<{ num: number; }>\`select 1 as num\`;
-              conn2.sql<{ num: number; }>\`select 1 as num\`;
+              conn1.sql<{ num: number }>\`select 1 as num\`;
+              conn2.sql<{ num: number }>\`select 1 as num\`;
               conn3.sql\`select 1 as num\`;
             }
           }
@@ -1008,8 +1047,8 @@ RuleTester.describe("check-sql", () => {
         output: `
           class X {
             run() {
-              conn1.sql<{ num: number; }>\`select 1 as num\`;
-              conn2.sql<{ num: number; }>\`select 1 as num\`;
+              conn1.sql<{ num: number }>\`select 1 as num\`;
+              conn2.sql<{ num: number }>\`select 1 as num\`;
               conn3.sql\`select 1 as num\`;
             }
           }
@@ -1027,7 +1066,7 @@ RuleTester.describe("check-sql", () => {
         `,
         output: `
           class X {
-            run() { const result = Db.sql<{ num: number; }>\`select 1 as num\` }
+            run() { const result = Db.sql<{ num: number }>\`select 1 as num\` }
           }
         `,
         errors: [{ messageId: "missingTypeAnnotations" }],
@@ -1043,7 +1082,7 @@ RuleTester.describe("check-sql", () => {
         `,
         output: `
           class X {
-            run() { const result = this.sql<{ num: number; }>\`select 1 as num\` }
+            run() { const result = this.sql<{ num: number }>\`select 1 as num\` }
           }
         `,
         errors: [{ messageId: "missingTypeAnnotations" }],
@@ -1118,7 +1157,7 @@ RuleTester.describe("check-sql", () => {
           targets: [{ tag: "sql", fieldTransform: "camel" }],
         }),
         code: "sql<{ first_name: string }>`select first_name from caregiver`",
-        output: "sql<{ firstName: string; }>`select first_name from caregiver`",
+        output: "sql<{ firstName: string }>`select first_name from caregiver`",
         errors: [
           { messageId: "incorrectTypeAnnotations", line: 1, column: 5, endLine: 1, endColumn: 27 },
         ],
@@ -1152,7 +1191,7 @@ RuleTester.describe("check-sql", () => {
         filename,
         options: withConnection(connections.withTag),
         code: "sql<{ middle_name: string | undefined }>`select middle_name from caregiver`",
-        output: "sql<{ middle_name: string | null; }>`select middle_name from caregiver`",
+        output: "sql<{ middle_name: string | null }>`select middle_name from caregiver`",
         errors: [
           { messageId: "incorrectTypeAnnotations", line: 1, column: 5, endLine: 1, endColumn: 40 },
         ],
@@ -1164,7 +1203,7 @@ RuleTester.describe("check-sql", () => {
           nullAsUndefined: true,
         }),
         code: "sql<{ middle_name: string | null }>`select middle_name from caregiver`",
-        output: "sql<{ middle_name: string | undefined; }>`select middle_name from caregiver`",
+        output: "sql<{ middle_name: string | undefined }>`select middle_name from caregiver`",
         errors: [
           { messageId: "incorrectTypeAnnotations", line: 1, column: 5, endLine: 1, endColumn: 35 },
         ],
@@ -1176,7 +1215,7 @@ RuleTester.describe("check-sql", () => {
           nullAsUndefined: true,
         }),
         code: "sql<{ middle_name?: string | undefined }>`select middle_name from caregiver`",
-        output: "sql<{ middle_name: string | undefined; }>`select middle_name from caregiver`",
+        output: "sql<{ middle_name: string | undefined }>`select middle_name from caregiver`",
         errors: [
           { messageId: "incorrectTypeAnnotations", line: 1, column: 5, endLine: 1, endColumn: 41 },
         ],
@@ -1189,7 +1228,7 @@ RuleTester.describe("check-sql", () => {
           nullAsOptional: true,
         }),
         code: "sql<{ middle_name: string | undefined }>`select middle_name from caregiver`",
-        output: "sql<{ middle_name?: string | undefined; }>`select middle_name from caregiver`",
+        output: "sql<{ middle_name?: string | undefined }>`select middle_name from caregiver`",
         errors: [
           { messageId: "incorrectTypeAnnotations", line: 1, column: 5, endLine: 1, endColumn: 40 },
         ],
@@ -1203,7 +1242,7 @@ RuleTester.describe("check-sql", () => {
         filename,
         name: "strict: select * with a const column. const column should be non-nullable",
         options: withConnection(connections.withTag),
-        code: "sql<{ id: number; name: string; now: Date; }>`select *, now() from agency`",
+        code: "sql<{ id: number; name: string; now: Date }>`select *, now() from agency`",
       },
       {
         filename,
@@ -1227,19 +1266,19 @@ RuleTester.describe("check-sql", () => {
         filename,
         name: "strict: select count should be non-nullable",
         options: withConnection(connections.withTag),
-        code: "sql<{ count: string; }>`select count(1)`",
+        code: "sql<{ count: string }>`select count(1)`",
       },
       {
         filename,
         name: "strict: select interval should be non-nullable",
         options: withConnection(connections.withTag),
-        code: "sql<{ interval: string; }>`select interval '1 day'`",
+        code: "sql<{ interval: string }>`select interval '1 day'`",
       },
       {
         filename,
         name: "strict: select interval as typecast should be non-nullable",
         options: withConnection(connections.withTag),
-        code: "sql<{ interval: string; }>`select '1 day'::interval`",
+        code: "sql<{ interval: string }>`select '1 day'::interval`",
       },
     ],
     invalid: [
@@ -1248,7 +1287,7 @@ RuleTester.describe("check-sql", () => {
         filename,
         options: withConnection(connections.withTag),
         code: "sql`SELECT sum(caregiver.id) FROM caregiver`",
-        output: "sql<{ sum: string | null; }>`SELECT sum(caregiver.id) FROM caregiver`",
+        output: "sql<{ sum: string | null }>`SELECT sum(caregiver.id) FROM caregiver`",
         errors: [{ messageId: "missingTypeAnnotations" }],
       },
       {
@@ -1256,17 +1295,246 @@ RuleTester.describe("check-sql", () => {
         filename,
         options: withConnection(connections.withTag),
         code: "sql`SELECT sum(1)::int`",
-        output: "sql<{ sum: number | null; }>`SELECT sum(1)::int`",
+        output: "sql<{ sum: number | null }>`SELECT sum(1)::int`",
         errors: [{ messageId: "missingTypeAnnotations" }],
       },
       {
         name: "strict: select nullable column with where clause is not null will never be null",
         filename,
         options: withConnection(connections.withTag),
-        code: "sql<{ middle_name: string | null; }>`SELECT middle_name FROM caregiver WHERE middle_name IS NOT NULL`",
+        code: "sql<{ middle_name: string | null }>`SELECT middle_name FROM caregiver WHERE middle_name IS NOT NULL`",
         output:
-          "sql<{ middle_name: string; }>`SELECT middle_name FROM caregiver WHERE middle_name IS NOT NULL`",
+          "sql<{ middle_name: string }>`SELECT middle_name FROM caregiver WHERE middle_name IS NOT NULL`",
         errors: [{ messageId: "incorrectTypeAnnotations" }],
+      },
+    ],
+  });
+
+  ruleTester.run("json/b", rules["check-sql"], {
+    valid: [
+      {
+        filename,
+        name: "json/b: select jsonb_build_object(const, const)",
+        options: withConnection(connections.withTag),
+        code: `sql<{ jsonb_build_object: { key: string } }>\`SELECT jsonb_build_object('key', 'value')\``,
+      },
+      {
+        filename,
+        name: "json/b: select jsonb_build_object(deeply nested)",
+        options: withConnection(connections.withTag),
+        code: `sql<{ jsonb_build_object: { deeply: { nested: string } } }>\`SELECT jsonb_build_object('deeply', jsonb_build_object('nested', 'object'))\``,
+      },
+      {
+        filename,
+        name: "json/b: select jsonb_build_object(key with space, const)",
+        options: withConnection(connections.withTag),
+        code: `sql<{ jsonb_build_object: { 'hello world': string } }>\`SELECT jsonb_build_object('hello world', 'value')\``,
+      },
+      {
+        filename,
+        name: "json/b: select jsonb_build_object(const, columnref)",
+        options: withConnection(connections.withTag),
+        code: `sql<{ json_build_object: { id: number } }>\`SELECT json_build_object('id', agency.id) FROM agency\``,
+      },
+      {
+        filename,
+        name: "json/b: select jsonb_build_object(const, [int,int,int])",
+        options: withConnection(connections.withTag),
+        code: `sql<{ a: { ids: number[] } }>\`SELECT json_build_object('ids', array[1,2,3]) a\``,
+      },
+      {
+        filename,
+        name: "json/b: select json/b_agg with override",
+        options: withConnection({
+          ...connections.withTag,
+          overrides: { types: { jsonb: "JsonB", json: "Json" } },
+        }),
+        code: `
+          type Json = { id: number; name: string; type: string; }
+          type JsonB = { id: number; name: string; type: string; }
+
+          type Row = {
+            jsonbcol: JsonB[] | null;
+            jsonbcoalesced: JsonB[];
+            jsoncol: JsonB[] | null
+          };
+
+          await sql<Row>\`
+            SELECT
+              jsonb_agg(test_jsonb.jsonb_col) AS jsonbcol,
+              coalesce(jsonb_agg(test_jsonb.jsonb_col), '[]'::jsonb) AS jsonbcoalesced,
+              json_agg(test_jsonb.jsonb_col) AS jsoncol
+            FROM
+              (SELECT * FROM test_jsonb) as test_jsonb
+            WHERE
+              false
+          \`;
+        `,
+      },
+      {
+        filename,
+        name: "json/b: select json/b_agg with override",
+        options: withConnection(connections.withTag),
+        code: `
+          type Agency = {
+            id: number;
+            name: string;
+          };
+        
+          type Row = {
+            agencies: Agency[];
+          }
+        
+          const rows = await sql<Row>\`
+            SELECT 
+              coalesce(
+                jsonb_agg(
+                  jsonb_build_object(
+                    'id', agency.id,
+                    'name', agency.name
+                  )
+                ),
+                '[]'::jsonb
+              ) AS agencies
+            FROM caregiver
+              JOIN caregiver_agency ON caregiver.id = caregiver_agency.caregiver_id
+              JOIN agency ON caregiver_agency.agency_id = agency.id
+            GROUP BY
+              caregiver.id
+          \`;
+        `,
+      },
+    ],
+    invalid: [
+      {
+        name: "json/b: invalid select jsonb_build_object(const, const)",
+        filename,
+        options: withConnection(connections.withTag),
+        code: "sql`SELECT jsonb_build_object('key', 'value')`",
+        output: `sql<{ jsonb_build_object: { key: string } }>\`SELECT jsonb_build_object('key', 'value')\``,
+        errors: [{ messageId: "missingTypeAnnotations" }],
+      },
+      {
+        name: "json/b: jsonb key with spaces should be wrapped in quotes",
+        filename,
+        options: withConnection(connections.withTag),
+        code: "sql`SELECT jsonb_build_object('A b C', 'value') as col`",
+        output: `sql<{ col: { 'A b C': string } }>\`SELECT jsonb_build_object('A b C', 'value') as col\``,
+        errors: [{ messageId: "missingTypeAnnotations" }],
+      },
+      {
+        name: "json/b: invalid select jsonb_build_object(deeply nested)",
+        filename,
+        options: withConnection(connections.withTag),
+        code: "sql`SELECT jsonb_build_object('deeply', jsonb_build_object('nested', 'object'))`",
+        output: `sql<{ jsonb_build_object: { deeply: { nested: string } } }>\`SELECT jsonb_build_object('deeply', jsonb_build_object('nested', 'object'))\``,
+        errors: [{ messageId: "missingTypeAnnotations" }],
+      },
+      {
+        name: "json/b: invalid select jsonb_build_object(const, columnref)",
+        filename,
+        options: withConnection(connections.withTag),
+        code: "sql`SELECT json_build_object('id', agency.id) FROM agency`",
+        output: `sql<{ json_build_object: { id: number } }>\`SELECT json_build_object('id', agency.id) FROM agency\``,
+        errors: [{ messageId: "missingTypeAnnotations" }],
+      },
+      {
+        name: "json/b: invalid select jsonb_agg(tbl)",
+        filename,
+        options: withConnection(connections.withTag),
+        code: "sql`SELECT jsonb_agg(agency) FROM agency`",
+        output: `sql<{ jsonb_agg: { id: number; name: string }[] | null }>\`SELECT jsonb_agg(agency) FROM agency\``,
+        errors: [{ messageId: "missingTypeAnnotations" }],
+      },
+      {
+        name: "json/b: invalid select json_agg(tbl) as colname",
+        filename,
+        options: withConnection(connections.withTag),
+        code: "sql`SELECT json_agg(agency) as colname FROM agency`",
+        output: `sql<{ colname: { id: number; name: string }[] | null }>\`SELECT json_agg(agency) as colname FROM agency\``,
+        errors: [{ messageId: "missingTypeAnnotations" }],
+      },
+      {
+        name: "json/b: invalid select jsonb_agg(alias) from tbl alias",
+        filename,
+        options: withConnection(connections.withTag),
+        code: "sql`SELECT jsonb_agg(a) FROM agency a`",
+        output: `sql<{ jsonb_agg: { id: number; name: string }[] | null }>\`SELECT jsonb_agg(a) FROM agency a\``,
+        errors: [{ messageId: "missingTypeAnnotations" }],
+      },
+      {
+        name: "json/b: invalid select jsonb_agg(aliasname.col)",
+        filename,
+        options: withConnection(connections.withTag),
+        code: "sql`SELECT jsonb_agg(a.id) FROM agency a`",
+        output: `sql<{ jsonb_agg: number[] | null }>\`SELECT jsonb_agg(a.id) FROM agency a\``,
+        errors: [{ messageId: "missingTypeAnnotations" }],
+      },
+      {
+        name: "json/b: invalid select jsonb_agg(jsonb_build_object(const, const))",
+        filename,
+        options: withConnection(connections.withTag),
+        code: "sql`SELECT jsonb_agg(jsonb_build_object('key', 'value'))`",
+        output: `sql<{ jsonb_agg: { key: string }[] | null }>\`SELECT jsonb_agg(jsonb_build_object('key', 'value'))\``,
+        errors: [{ messageId: "missingTypeAnnotations" }],
+      },
+      {
+        name: "json/b: invalid select jsonb_agg(jsonb_build_object(const, columnref))",
+        filename,
+        options: withConnection(connections.withTag),
+        code: "sql`SELECT jsonb_agg(json_build_object('id', agency.id)) FROM agency`",
+        output: `sql<{ jsonb_agg: { id: number }[] | null }>\`SELECT jsonb_agg(json_build_object('id', agency.id)) FROM agency\``,
+        errors: [{ messageId: "missingTypeAnnotations" }],
+      },
+      {
+        name: "json/b: invalid select jsonb_agg(jsonb_build_object(const, columnref::text))",
+        filename,
+        options: withConnection(connections.withTag),
+        code: "sql`SELECT jsonb_agg(json_build_object('id', agency.id::text)) FROM agency`",
+        output: `sql<{ jsonb_agg: { id: string }[] | null }>\`SELECT jsonb_agg(json_build_object('id', agency.id::text)) FROM agency\``,
+        errors: [{ messageId: "missingTypeAnnotations" }],
+      },
+      {
+        name: "json/b: invalid select jsonb_agg(jsonb_build_object(const, columnref::text::int))",
+        filename,
+        options: withConnection(connections.withTag),
+        code: "sql`SELECT jsonb_agg(json_build_object('id', agency.id::text::int)) FROM agency`",
+        output: `sql<{ jsonb_agg: { id: number }[] | null }>\`SELECT jsonb_agg(json_build_object('id', agency.id::text::int)) FROM agency\``,
+        errors: [{ messageId: "missingTypeAnnotations" }],
+      },
+      {
+        name: "json/b: invalid select jsonb_agg all use cases",
+        filename,
+        options: withConnection(connections.withTag),
+        code: `
+          sql\`
+            SELECT
+              agency.id,
+              jsonb_agg(c) as jsonb_tbl,
+              jsonb_agg(c.*) as jsonb_tbl_star,
+              jsonb_agg(c.id) as jsonb_tbl_col,
+              jsonb_agg(json_build_object('firstName', c.first_name)) as jsonb_object
+            FROM agency
+              JOIN caregiver_agency ON agency.id = caregiver_agency.agency_id
+              JOIN caregiver c ON c.id = caregiver_agency.caregiver_id
+            GROUP BY agency.id
+          \`
+        `,
+        output: `
+          sql<{ id: number; jsonb_tbl: { id: number; first_name: string; middle_name: string | null; last_name: string; certification: 'HHA' | 'RN' | 'LPN' | 'CNA' | 'PCA' | 'OTHER' }[] | null; jsonb_tbl_star: { id: number; first_name: string; middle_name: string | null; last_name: string; certification: 'HHA' | 'RN' | 'LPN' | 'CNA' | 'PCA' | 'OTHER' }[] | null; jsonb_tbl_col: number[] | null; jsonb_object: { firstName: string }[] | null }>\`
+            SELECT
+              agency.id,
+              jsonb_agg(c) as jsonb_tbl,
+              jsonb_agg(c.*) as jsonb_tbl_star,
+              jsonb_agg(c.id) as jsonb_tbl_col,
+              jsonb_agg(json_build_object('firstName', c.first_name)) as jsonb_object
+            FROM agency
+              JOIN caregiver_agency ON agency.id = caregiver_agency.agency_id
+              JOIN caregiver c ON c.id = caregiver_agency.caregiver_id
+            GROUP BY agency.id
+          \`
+        `,
+        errors: [{ messageId: "missingTypeAnnotations" }],
       },
     ],
   });

@@ -1,5 +1,30 @@
 # @ts-safeql/shared
 
+## 3.0.0
+
+### Patch Changes
+
+- 7475acd: improve query type inference by AST lookup
+- 3614126: fix build artifact
+
+## 3.0.0-next.4
+
+### Patch Changes
+
+- 7475acd: improve query type inference by AST lookup
+
+## 3.0.0-next.3
+
+## 3.0.0-next.2
+
+### Patch Changes
+
+- fix build artifact
+
+## 3.0.0-next.1
+
+## 3.0.0-next.0
+
 ## 0.2.0
 
 ### Minor Changes

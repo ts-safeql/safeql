@@ -3,6 +3,7 @@ import { LibPgQueryAST } from "@ts-safeql/shared";
 interface Join {
   type: LibPgQueryAST.JoinType;
   name: string;
+  alias?: string;
 }
 
 export type RelationsWithJoinsMap = Map<string, Join[]>;
@@ -34,12 +35,13 @@ function recursiveTraverseJoins(
 } {
   const joinName =
     joinExpr.rarg?.RangeVar?.relname ?? joinExpr.rarg?.RangeSubselect?.alias?.aliasname;
+  const aliasName = joinExpr.rarg?.RangeVar?.alias?.aliasname;
 
   if (joinName === undefined) {
     throw new Error("joinName is undefined");
   }
 
-  const join = { type: joinExpr.jointype, name: joinName };
+  const join: Join = { type: joinExpr.jointype, name: joinName, alias: aliasName };
 
   if (joinExpr.larg?.JoinExpr !== undefined) {
     return recursiveTraverseJoins([join, ...joins], joinExpr.larg?.JoinExpr);
@@ -60,6 +62,7 @@ function recursiveTraverseJoins(
 
 export interface FlattenedRelationWithJoins {
   relName: string;
+  alias: string | undefined;
   joinType: LibPgQueryAST.JoinType;
   joinRelName: string;
 }
@@ -67,15 +70,11 @@ export interface FlattenedRelationWithJoins {
 export function flattenRelationsWithJoinsMap(
   relationsWithJoinsMap: RelationsWithJoinsMap
 ): FlattenedRelationWithJoins[] {
-  const result: {
-    relName: string;
-    joinType: LibPgQueryAST.JoinType;
-    joinRelName: string;
-  }[] = [];
+  const result: FlattenedRelationWithJoins[] = [];
 
   relationsWithJoinsMap.forEach((joins, relName) => {
     joins.forEach((join) => {
-      result.push({ relName, joinType: join.type, joinRelName: join.name });
+      result.push({ relName, joinType: join.type, joinRelName: join.name, alias: join.alias });
     });
   });
 

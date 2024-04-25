@@ -122,7 +122,10 @@ export class InternalError extends Error {
 
   static to(error: unknown) {
     if (error instanceof Error) {
-      return InternalError.of(error.message);
+      const e = InternalError.of(error.message);
+      e.stack = error.stack;
+
+      return e;
     }
 
     return InternalError.of("Unknown error");

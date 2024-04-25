@@ -1,9 +1,10 @@
-import { GenerateResult } from "@ts-safeql/generate";
+import { ResolvedTarget } from "@ts-safeql/generate";
 import {
+  PostgresError,
   defaultTypeMapping,
   doesMatchPattern,
+  fmap,
   objectKeysNonEmpty,
-  PostgresError,
 } from "@ts-safeql/shared";
 import { ESLintUtils, ParserServices, TSESLint, TSESTree } from "@typescript-eslint/utils";
 import pgParser from "libpg-query";
@@ -13,14 +14,15 @@ import ts from "typescript";
 import z from "zod";
 import zodToJsonSchema from "zod-to-json-schema";
 import { ESTreeUtils } from "../utils";
-import { E, flow, J, pipe } from "../utils/fp-ts";
-import { getTypeProperties } from "../utils/get-type-properties";
+import { E, J, flow, pipe } from "../utils/fp-ts";
+import { getResolvedTargetByTypeNode } from "../utils/get-resolved-target-by-type-node";
 import { memoize } from "../utils/memoize";
 import { locateNearestPackageJsonDir } from "../utils/node.utils";
 import { mapTemplateLiteralToQueryText } from "../utils/ts-pg.utils";
 import { getConfigFromFileWithContext } from "./check-sql.config";
 import {
-  arrayEntriesToTsTypeString,
+  TypeTransformer,
+  getFinalResolvedTargetString,
   reportBaseError,
   reportDuplicateColumns,
   reportIncorrectTypeAnnotations,
@@ -29,9 +31,9 @@ import {
   reportMissingTypeAnnotations,
   reportPostgresError,
   shouldLintFile,
+  getResolvedTargetComparableString,
+  getResolvedTargetString,
   transformTypes,
-  TypeTransformer,
-  withTransformType,
 } from "./check-sql.utils";
 import { WorkerError, WorkerParams, WorkerResult } from "./check-sql.worker";
 
@@ -40,7 +42,7 @@ const messages = {
   error: "{{error}}",
   invalidQuery: "Invalid Query: {{error}}",
   missingTypeAnnotations: "Query is missing type annotation\n\tFix with: {{fix}}",
-  incorrectTypeAnnotations: `Query has incorrect type annotation.\n\tExpected: {{expected}}\n\tActual: {{actual}}`,
+  incorrectTypeAnnotations: `Query has incorrect type annotation.\n\tExpected: {{expected}}\n\t  Actual: {{actual}}`,
   invalidTypeAnnotations: `Query has invalid type annotation (SafeQL does not support it. If you think it should, please open an issue)`,
 };
 export type RuleMessage = keyof typeof messages;
@@ -289,9 +291,12 @@ function reportCheck(params: {
 }) {
   const { context, tag, connection, target, projectDir, typeParameter, baseNode } = params;
 
+  const nullAsOptional = connection.nullAsOptional ?? false;
+  const nullAsUndefined = connection.nullAsUndefined ?? false;
+
   return pipe(
     E.Do,
-    E.bind("parser", () => E.of(ESLintUtils.getParserServices(context))),
+    E.bind("parser", () => E.of(context.getSourceCode().parserServices)),
     E.bind("checker", ({ parser }) => E.of(parser.program.getTypeChecker())),
     E.bind("query", ({ parser, checker }) =>
       mapTemplateLiteralToQueryText(tag.quasi, parser, checker, params.connection)
@@ -331,10 +336,9 @@ function reportCheck(params: {
         }
 
         const isMissingTypeAnnotations = typeParameter === undefined;
-        const resultWithTransformed = withTransformType(result, target.transform);
 
         if (isMissingTypeAnnotations) {
-          if (resultWithTransformed.resultAsString === null) {
+          if (result.output === null) {
             return;
           }
 
@@ -342,7 +346,12 @@ function reportCheck(params: {
             tag: tag,
             context: context,
             baseNode: baseNode,
-            actual: resultWithTransformed.resultAsString,
+            actual: getFinalResolvedTargetString({
+              target: result.output,
+              nullAsOptional: nullAsOptional ?? false,
+              nullAsUndefined: nullAsUndefined ?? false,
+              transform: target.transform,
+            }),
           });
         }
 
@@ -360,12 +369,14 @@ function reportCheck(params: {
         });
 
         const typeAnnotationState = getTypeAnnotationState({
-          result: resultWithTransformed,
+          generated: result.output,
           typeParameter: typeParameter,
           transform: target.transform,
           checker: checker,
           parser: parser,
           reservedTypes: reservedTypes,
+          nullAsOptional: nullAsOptional,
+          nullAsUndefined: nullAsUndefined,
         });
 
         if (typeAnnotationState === "INVALID") {
@@ -379,8 +390,21 @@ function reportCheck(params: {
           return reportIncorrectTypeAnnotations({
             context,
             typeParameter: typeParameter,
-            expected: arrayEntriesToTsTypeString(typeAnnotationState.expected),
-            actual: resultWithTransformed.resultAsString,
+            expected: fmap(typeAnnotationState.expected, (expected) =>
+              getResolvedTargetString({
+                target: expected,
+                nullAsOptional: false,
+                nullAsUndefined: false,
+              })
+            ),
+            actual: fmap(result.output, (output) =>
+              getFinalResolvedTargetString({
+                target: output,
+                nullAsOptional: connection.nullAsOptional ?? false,
+                nullAsUndefined: connection.nullAsUndefined ?? false,
+                transform: target.transform,
+              })
+            ),
           });
         }
       }
@@ -450,73 +474,106 @@ function checkConnectionByWrapperExpression(params: {
   }
 }
 
-function getTypeAnnotationState(params: {
-  result: GenerateResult;
+type GetTypeAnnotationStateParams = {
+  generated: ResolvedTarget | null;
   typeParameter: TSESTree.TSTypeParameterInstantiation;
   transform?: TypeTransformer;
   parser: ParserServices;
   checker: ts.TypeChecker;
   reservedTypes: Set<string>;
-}) {
-  const {
-    result: { result: generated },
-    typeParameter,
-    transform,
-    parser,
-    checker,
-    reservedTypes,
-  } = params;
+  nullAsOptional: boolean;
+  nullAsUndefined: boolean;
+};
 
+function getTypeAnnotationState({
+  generated,
+  typeParameter,
+  transform,
+  parser,
+  checker,
+  reservedTypes,
+  nullAsOptional,
+  nullAsUndefined,
+}: GetTypeAnnotationStateParams) {
   if (typeParameter.params.length !== 1) {
     return "INVALID" as const;
   }
 
   const typeNode = typeParameter.params[0];
 
-  const { properties, isArray } = getTypeProperties({
+  const expected = getResolvedTargetByTypeNode({
     checker,
     parser,
     typeNode,
     reservedTypes,
   });
 
-  const expected = [...new Map(properties).entries()];
-
-  return getTypesEquality({ expected, generated, transform, isArray });
+  return getResolvedTargetsEquality({
+    expected,
+    generated,
+    nullAsOptional,
+    nullAsUndefined,
+    transform,
+  });
 }
 
-function getTypesEquality(params: {
-  expected: [string, string][] | null;
-  generated: [string, string][] | null;
-  isArray: boolean;
+function getResolvedTargetsEquality(params: {
+  expected: ResolvedTarget | null;
+  generated: ResolvedTarget | null;
+  nullAsOptional: boolean;
+  nullAsUndefined: boolean;
   transform?: TypeTransformer;
 }) {
-  const { expected, generated, isArray, transform } = params;
-
-  if (expected === null && generated === null) {
-    return { isEqual: true, expected, generated };
+  if (params.expected === null && params.generated === null) {
+    return {
+      isEqual: true,
+      expected: params.expected,
+      generated: params.generated,
+    };
   }
 
-  if (expected === null || generated === null) {
-    return { isEqual: false, expected, generated };
+  if (params.expected === null || params.generated === null) {
+    return {
+      isEqual: false,
+      expected: params.expected,
+      generated: params.generated,
+    };
   }
 
-  const omitRegex = /[\n ;'"]/g;
-  const expectedSorted = [...expected].sort(([a], [b]) => a.localeCompare(b));
-  const generatedSorted = [...generated].sort(([a], [b]) => a.localeCompare(b));
-  const $toString = (x: [string, string][]): string => {
-    return x.map(([key, value]) => [key, value.replace(omitRegex, "")]).join("");
-  };
+  let expectedString = getResolvedTargetComparableString({
+    target: params.expected,
+    nullAsOptional: false,
+    nullAsUndefined: false,
+  });
 
-  const expectedString = $toString(expectedSorted) + (isArray ? "[]" : "");
-  const generatedString = transform
-    ? transformTypes($toString(generatedSorted), transform)
-    : $toString(generatedSorted);
+  let generatedString = getResolvedTargetComparableString({
+    target: params.generated,
+    nullAsOptional: params.nullAsOptional,
+    nullAsUndefined: params.nullAsUndefined,
+  });
+
+  if (expectedString === null || generatedString === null) {
+    return {
+      isEqual: false,
+      expected: params.expected,
+      generated: params.generated,
+    };
+  }
+
+  expectedString = expectedString.replace(/'/g, '"');
+  generatedString = generatedString.replace(/'/g, '"');
+
+  expectedString = expectedString.split(", ").sort().join(", ");
+  generatedString = generatedString.split(", ").sort().join(", ");
+
+  if (params.transform !== undefined) {
+    generatedString = transformTypes(generatedString, params.transform);
+  }
 
   return {
     isEqual: expectedString === generatedString,
-    expected,
-    generated,
+    expected: params.expected,
+    generated: params.generated,
   };
 }
 
