@@ -9,19 +9,20 @@ export function getConfigFromFileWithContext(params: {
   context: RuleContext;
   projectDir: string;
 }): Config {
-  if (!isConfigFileRuleOptions(params.context.options[0])) {
-    return params.context.options[0];
+  const options = params.context.options[0];
+  if (!isConfigFileRuleOptions(options)) {
+    return options;
   }
 
   return pipe(
-    getConfigFromFile(params.projectDir),
+    getConfigFromFile(params.projectDir, options.format ?? "cjs"),
     E.getOrElseW((message) => {
       throw new Error(`safeql: ${message}`);
     })
   );
 }
 
-function getConfigFromFile(projectDir: string): E.Either<string, Config> {
+function getConfigFromFile(projectDir: string, format: "esm" | "cjs"): E.Either<string, Config> {
   const configFilePath = path.join(projectDir, "safeql.config.ts");
   const tempFileName = `safeql.config.temp-${Date.now()}.js`;
   const tempFilePath = path.join(projectDir, tempFileName);
@@ -40,7 +41,7 @@ function getConfigFromFile(projectDir: string): E.Either<string, Config> {
     const result = esbuild.buildSync({
       entryPoints: [configFilePath],
       write: false,
-      format: "cjs",
+      format: format,
     });
 
     fs.writeFileSync(tempFilePath, result.outputFiles[0].text);
