@@ -1,5 +1,29 @@
 # @ts-safeql/eslint-plugin
 
+## 3.0.1
+
+### Patch Changes
+
+- 74547c2: Allow importing safeql.config.ts in ESM project using the `format` property:
+
+  ```json
+  {
+    "rules": {
+      "@ts-safeql/check-sql": [
+        "error",
+        {
+          "useConfigFile": true,
+          "format": "esm"
+        }
+      ]
+    }
+  }
+  ```
+
+  - @ts-safeql/generate@3.0.1
+  - @ts-safeql/shared@3.0.1
+  - @ts-safeql/test-utils@0.0.14
+
 ## 3.0.0
 
 ### Major Changes
