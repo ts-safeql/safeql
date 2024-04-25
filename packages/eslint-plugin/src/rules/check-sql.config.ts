@@ -21,6 +21,18 @@ export function getConfigFromFileWithContext(params: {
   );
 }
 
+function isProjectESM(projectDir: string): boolean {
+  const packageJsonPath = path.join(projectDir, "package.json");
+
+  if (!fs.existsSync(packageJsonPath)) {
+    return false;
+  }
+
+  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8"));
+
+  return packageJson.type === "module";
+}
+
 function getConfigFromFile(projectDir: string): E.Either<string, Config> {
   const configFilePath = path.join(projectDir, "safeql.config.ts");
   const tempFileName = `safeql.config.temp-${Date.now()}.js`;
@@ -40,7 +52,7 @@ function getConfigFromFile(projectDir: string): E.Either<string, Config> {
     const result = esbuild.buildSync({
       entryPoints: [configFilePath],
       write: false,
-      format: "cjs",
+      format: isProjectESM(projectDir) ? "esm" : "cjs",
     });
 
     fs.writeFileSync(tempFilePath, result.outputFiles[0].text);
