@@ -1,4 +1,8 @@
-import { generateTestDatabaseName, setupTestDatabase } from "@ts-safeql/test-utils";
+import {
+  generateTestDatabaseName,
+  setupTestDatabase,
+  typeColumnTsTypeEntries,
+} from "@ts-safeql/test-utils";
 import { ESLintUtils } from "@typescript-eslint/utils";
 import { RuleTester } from "@typescript-eslint/utils/dist/ts-eslint";
 import { after, before, describe, it } from "mocha";
@@ -65,6 +69,52 @@ const runMigrations1 = <TTypes extends Record<string, unknown>>(sql: Sql<TTypes>
     CREATE TABLE test_jsonb (
       id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
       jsonb_col JSONB NOT NULL
+    );
+
+    CREATE TABLE all_types (
+      id SERIAL PRIMARY KEY NOT NULL,
+      text_column TEXT NOT NULL,
+      varchar_column VARCHAR(255) NOT NULL,
+      char_column CHAR(10) NOT NULL,
+      int_column INTEGER NOT NULL,
+      smallint_column SMALLINT NOT NULL,
+      bigint_column BIGINT NOT NULL,
+      decimal_column DECIMAL(10, 2) NOT NULL,
+      numeric_column NUMERIC(14, 4) NOT NULL,
+      real_column REAL NOT NULL,
+      double_column DOUBLE PRECISION NOT NULL,
+      serial_column SERIAL NOT NULL,
+      bigserial_column BIGSERIAL NOT NULL,
+      boolean_column BOOLEAN NOT NULL,
+      date_column DATE NOT NULL,
+      time_column TIME NOT NULL,
+      time_with_timezone_column TIME WITH TIME ZONE NOT NULL,
+      timestamp_column TIMESTAMP NOT NULL,
+      timestamp_with_timezone_column TIMESTAMP WITH TIME ZONE NOT NULL,
+      interval_column INTERVAL NOT NULL,
+      uuid_column UUID NOT NULL,
+      json_column JSON NOT NULL,
+      jsonb_column JSONB NOT NULL,
+      array_text_column TEXT[] NOT NULL,
+      array_int_column INTEGER[] NOT NULL,
+      bytea_column BYTEA NOT NULL,
+      inet_column INET NOT NULL,
+      cidr_column CIDR NOT NULL,
+      macaddr_column MACADDR NOT NULL,
+      macaddr8_column MACADDR8 NOT NULL,
+      tsvector_column TSVECTOR NOT NULL,
+      tsquery_column TSQUERY NOT NULL,
+      xml_column XML NOT NULL,
+      point_column POINT NOT NULL,
+      line_column LINE NOT NULL,
+      lseg_column LSEG NOT NULL,
+      box_column BOX NOT NULL,
+      path_column PATH NOT NULL,
+      polygon_column POLYGON NOT NULL,
+      circle_column CIRCLE NOT NULL,
+      money_column MONEY NOT NULL,
+      bit_column BIT(3) NOT NULL,
+      bit_varying_column BIT VARYING(5) NOT NULL
     );
 `);
 
@@ -713,6 +763,29 @@ RuleTester.describe("check-sql", () => {
         ],
       },
     ],
+  });
+
+  ruleTester.run("pg type to ts type check (inline type)", rules["check-sql"], {
+    valid: typeColumnTsTypeEntries.map(([colName, colType]) => ({
+      name: `select ${colName} from table as ${colType} (using type reference)`,
+      filename,
+      options: withConnection(connections.withTag),
+      code: `sql<{ ${colName}: ${colType} }>\`select ${colName} from all_types\``,
+    })),
+    invalid: [],
+  });
+
+  ruleTester.run("pg type to ts type check (type reference)", rules["check-sql"], {
+    valid: typeColumnTsTypeEntries.map(([colName, colType]) => ({
+      name: `select ${colName} from table as ${colType} (using type reference)`,
+      filename,
+      options: withConnection(connections.withTag),
+      code: `
+          type MyType = { ${colName}: ${colType} };
+          sql<MyType>\`select ${colName} from all_types\`
+        `,
+    })),
+    invalid: [],
   });
 
   ruleTester.run("base with transform", rules["check-sql"], {
