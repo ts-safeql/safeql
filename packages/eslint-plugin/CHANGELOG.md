@@ -1,5 +1,14 @@
 # @ts-safeql/eslint-plugin
 
+## 3.0.2
+
+### Patch Changes
+
+- 240d993: fixed an issue where type reference was inferred incorrectly
+  - @ts-safeql/generate@3.0.2
+  - @ts-safeql/shared@3.0.2
+  - @ts-safeql/test-utils@0.0.15
+
 ## 3.0.1
 
 ### Patch Changes
