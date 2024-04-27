@@ -143,28 +143,46 @@ function getTypePropertiesFromTypeReference(params: {
 }): ResolvedTarget {
   const { type, checker, parser, typeNode, reservedTypes } = params;
 
-  if (reservedTypes.has(checker.typeToString(type))) {
+  const typeAsString = checker.typeToString(type);
+
+  if (reservedTypes.has(typeAsString)) {
     return { kind: "type", value: checker.typeToString(type) };
   }
 
-  if (type.flags === ts.TypeFlags.String) {
-    return { kind: "type", value: "string" };
+  switch (typeAsString) {
+    case "string":
+      return { kind: "type", value: "string" };
+    case "number":
+      return { kind: "type", value: "number" };
+    case "boolean":
+      return { kind: "type", value: "boolean" };
+    case "false":
+      return { kind: "type", value: "false" };
+    case "true":
+      return { kind: "type", value: "true" };
+    case "null":
+      return { kind: "type", value: "null" };
+    case "undefined":
+      return { kind: "type", value: "undefined" };
+    case "any":
+      return { kind: "type", value: "any" };
   }
 
-  if (type.flags === ts.TypeFlags.Number) {
-    return { kind: "type", value: "number" };
-  }
-
-  if (type.flags === ts.TypeFlags.Boolean) {
-    return { kind: "type", value: "boolean" };
-  }
-
-  if (type.flags === ts.TypeFlags.Null) {
-    return { kind: "type", value: "null" };
-  }
-
-  if (type.flags === ts.TypeFlags.Undefined) {
-    return { kind: "type", value: "undefined" };
+  switch (type.flags) {
+    case ts.TypeFlags.String:
+      return { kind: "type", value: "string" };
+    case ts.TypeFlags.Number:
+      return { kind: "type", value: "number" };
+    case ts.TypeFlags.Boolean:
+      return { kind: "type", value: "boolean" };
+    case ts.TypeFlags.Null:
+      return { kind: "type", value: "null" };
+    case ts.TypeFlags.Undefined:
+      return { kind: "type", value: "undefined" };
+    case ts.TypeFlags.Any:
+      return { kind: "type", value: "any" };
+    default:
+      break;
   }
 
   if (type.isLiteral()) {
