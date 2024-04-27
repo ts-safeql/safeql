@@ -378,8 +378,8 @@ importers:
   packages/generate:
     specifiers:
       '@esbuild-kit/cjs-loader': ^2.4.2
-      '@ts-safeql/shared': workspace:3.0.1
-      '@ts-safeql/test-utils': workspace:0.0.14
+      '@ts-safeql/shared': workspace:3.0.2
+      '@ts-safeql/test-utils': workspace:0.0.15
       '@types/mocha': ^10.0.1
       '@types/node': ^18.15.11
       '@typescript-eslint/eslint-plugin': ^5.59.2
@@ -459,7 +459,7 @@ importers:
 
   packages/test-utils:
     specifiers:
-      '@ts-safeql/shared': workspace:3.0.1
+      '@ts-safeql/shared': workspace:3.0.2
       '@types/node': ^18.15.11
       '@typescript-eslint/eslint-plugin': ^5.59.2
       '@typescript-eslint/parser': ^5.59.2
