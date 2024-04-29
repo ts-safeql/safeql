@@ -1,5 +1,32 @@
 # @ts-safeql/eslint-plugin
 
+## 3.1.0
+
+### Minor Changes
+
+- 56c956c: You can now modify the expected type for each table column. This could be useful when dealing with
+  dynamic types such as JSONB or when you want to enforce a specific type for a column.
+
+  ```json
+  {
+    // ...,
+    "overrides": {
+      "columns": {
+        "table_name.column_name": "CustomType"
+      }
+    }
+  }
+  ```
+
+  You can read more about it in the [documentation](https://safeql.dev/api/#connections-overrides-columns-optional)
+
+### Patch Changes
+
+- Updated dependencies [56c956c]
+  - @ts-safeql/generate@3.1.0
+  - @ts-safeql/shared@3.1.0
+  - @ts-safeql/test-utils@0.0.16
+
 ## 3.0.2
 
 ### Patch Changes
