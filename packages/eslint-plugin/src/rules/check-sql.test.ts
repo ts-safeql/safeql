@@ -1239,7 +1239,6 @@ RuleTester.describe("check-sql", () => {
         errors: [{ messageId: "missingTypeAnnotations" }],
       },
       {
-        only: true,
         filename,
         options: withConnection(connections.withTag, {
           overrides: {
