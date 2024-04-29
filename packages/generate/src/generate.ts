@@ -44,6 +44,7 @@ type CacheKey = string;
 type OverrideValue = string | { parameter: string | { regex: string }; return: string };
 type Overrides = {
   types: TypesMap;
+  columns: Map<string, Map<string, string>>;
 };
 
 export interface GenerateParams {
@@ -55,6 +56,7 @@ export interface GenerateParams {
   fieldTransform: IdentiferCase | undefined;
   overrides?: Partial<{
     types: Record<string, OverrideValue>;
+    columns: Record<string, string>;
   }>;
 }
 
@@ -74,14 +76,20 @@ type Cache = {
       pgFnsByName: Map<string, PgFnRow[]>;
     }
   >;
-  types: Map<string, TypesMap>;
+  overrides: {
+    types: Map<string, TypesMap>;
+    columns: Map<string, Map<string, Map<string, string>>>;
+  };
   functions: Map<string, FunctionsMap>;
 };
 
 function createEmptyCache(): Cache {
   return {
     base: new Map(),
-    types: new Map(),
+    overrides: {
+      types: new Map(),
+      columns: new Map(),
+    },
     functions: new Map(),
   };
 }
@@ -94,7 +102,8 @@ export function createGenerator() {
     dropCacheKey: (cacheKey: CacheKey) => cache.base.delete(cacheKey),
     clearCache: () => {
       cache.base.clear();
-      cache.types.clear();
+      cache.overrides.types.clear();
+      cache.overrides.columns.clear();
       cache.functions.clear();
     },
   };
@@ -126,7 +135,7 @@ async function generate(
 
   const typesMap = await getOrSetFromMapWithEnabled({
     shouldCache: cacheMetadata,
-    map: cache.types,
+    map: cache.overrides.types,
     key: JSON.stringify(params.overrides?.types),
     value: () => {
       const map: TypesMap = new Map();
@@ -137,6 +146,29 @@ async function generate(
 
       for (const [k, v] of Object.entries(params.overrides?.types ?? {})) {
         map.set(k, { override: true, value: typeof v === "string" ? v : v.return });
+      }
+
+      return map;
+    },
+  });
+
+  const overridenColumnTypesMap = await getOrSetFromMapWithEnabled({
+    shouldCache: cacheMetadata,
+    map: cache.overrides.columns,
+    key: JSON.stringify(params.overrides?.columns),
+    value: () => {
+      const map: Map<string, Map<string, string>> = new Map();
+
+      for (const [colPath, type] of Object.entries(params.overrides?.columns ?? {})) {
+        const [table, column] = colPath.split(".");
+
+        if (table === undefined || column === undefined) {
+          throw new Error(`Invalid override column key: ${colPath}. Expected format: table.column`);
+        }
+
+        map.has(table)
+          ? map.get(table)?.set(column, type)
+          : map.set(table, new Map([[column, type]]));
       }
 
       return map;
@@ -205,6 +237,7 @@ async function generate(
       parsed: params.pgParsed,
       relations: relationsWithJoins,
       typesMap: typesMap,
+      overridenColumnTypesMap: overridenColumnTypesMap,
       nonNullableColumns: nonNullableColumnsBasedOnAST,
       pgColsByTableName: pgColsByTableName,
       pgTypes: pgTypes,
@@ -232,7 +265,10 @@ async function generate(
       pgTypes,
       pgEnums,
       relationsWithJoins,
-      overrides: { types: typesMap },
+      overrides: {
+        types: typesMap,
+        columns: overridenColumnTypesMap,
+      },
       pgColsByTableName,
       fieldTransform: params.fieldTransform,
     };

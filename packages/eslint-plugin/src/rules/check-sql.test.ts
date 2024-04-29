@@ -71,6 +71,12 @@ const runMigrations1 = <TTypes extends Record<string, unknown>>(sql: Sql<TTypes>
       jsonb_col JSONB NOT NULL
     );
 
+    CREATE TABLE test_override_column_type (
+      jsonb_col JSONB NOT NULL,
+      jsonb_col_nullable JSONB,
+      jsonb_col_not_overriden JSONB
+    );
+
     CREATE TABLE all_types (
       id SERIAL PRIMARY KEY NOT NULL,
       text_column TEXT NOT NULL,
@@ -1159,6 +1165,99 @@ RuleTester.describe("check-sql", () => {
           }
         `,
         errors: [{ messageId: "missingTypeAnnotations" }],
+      },
+    ],
+  });
+
+  ruleTester.run("connection with overrides.columns", rules["check-sql"], {
+    valid: [
+      {
+        filename,
+        options: withConnection(connections.withTag, {
+          overrides: {
+            columns: {
+              "test_override_column_type.jsonb_col": "JsonbColType",
+              "test_override_column_type.jsonb_col_nullable": "JsonbColType",
+            },
+          },
+        }),
+        name: "overriden-column: valid type annotation",
+        code: `
+          type JsonbColType = { foo: string; };
+
+          sql<{
+            jsonb_col: JsonbColType;
+            jsonb_col_nullable: JsonbColType | null;
+            jsonb_col_not_overriden: any | null
+          }>\`
+            select
+              jsonb_col,
+              jsonb_col_nullable,
+              jsonb_col_not_overriden
+            from
+              test_override_column_type
+          \`
+        `,
+      },
+    ],
+    invalid: [
+      {
+        filename,
+        options: withConnection(connections.withTag, {
+          overrides: {
+            columns: {
+              "test_override_column_type.jsonb_col": "JsonbColType",
+              "test_override_column_type.jsonb_col_nullable": "JsonbColType",
+            },
+          },
+        }),
+        name: "overriden-column: invalid missing type annotation",
+        code: `
+          type JsonbColType = { foo: string; };
+
+          sql\`
+            select
+              jsonb_col,
+              jsonb_col_nullable,
+              jsonb_col_not_overriden
+            from
+              test_override_column_type
+          \`
+        `,
+        output: `
+          type JsonbColType = { foo: string; };
+
+          sql<{ jsonb_col: JsonbColType; jsonb_col_nullable: JsonbColType | null; jsonb_col_not_overriden: any | null }>\`
+            select
+              jsonb_col,
+              jsonb_col_nullable,
+              jsonb_col_not_overriden
+            from
+              test_override_column_type
+          \`
+        `,
+        errors: [{ messageId: "missingTypeAnnotations" }],
+      },
+      {
+        filename,
+        options: withConnection(connections.withTag, {
+          overrides: {
+            columns: {
+              "invalid-config": "JsonbColType",
+            },
+          },
+        }),
+        name: "overriden-column: invalid configuration",
+        code: "sql`select 1`",
+        errors: [
+          {
+            messageId: "error",
+            data: {
+              error:
+                "Internal error: Invalid override column key: invalid-config. Expected format: table.column",
+            },
+          },
+        ],
       },
     ],
   });

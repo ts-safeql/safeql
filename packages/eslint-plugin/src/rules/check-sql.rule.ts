@@ -123,6 +123,7 @@ const zBaseSchema = z.object({
         z.record(z.enum(objectKeysNonEmpty(defaultTypeMapping)), zOverrideTypeResolver),
         z.record(z.string(), zOverrideTypeResolver),
       ]),
+      columns: z.record(z.string(), z.string()),
     })
     .partial()
     .optional(),
@@ -359,12 +360,16 @@ function reportCheck(params: {
         }
 
         const reservedTypes = memoize({
-          key: `reserved-types:${JSON.stringify(connection.overrides?.types)}`,
+          key: `reserved-types:${JSON.stringify(connection.overrides)}`,
           value: () => {
             const types = new Set<string>();
 
             for (const value of Object.values(connection.overrides?.types ?? {})) {
               types.add(typeof value === "string" ? value : value.return);
+            }
+
+            for (const columnType of Object.values(connection.overrides?.columns ?? {})) {
+              types.add(columnType);
             }
 
             return types;

@@ -393,3 +393,23 @@ In this case, you can use the following syntax:
   }
 }
 ```
+
+### `connections.overrides.columns` (Optional)
+
+::: info
+
+While SafeQL generally succeeds in inferring column types, it sometimes cannot, particularly with `JSONB` columns where the type is not explicitly defined. Additionally, there may be scenarios where you want to enforce a specific type for a column.
+
+:::
+
+```json
+{
+  "connections": {
+    "overrides": {
+      "columns": {
+        "table_name.column_name": "CustomType"
+      }
+    }
+  }
+}
+```
