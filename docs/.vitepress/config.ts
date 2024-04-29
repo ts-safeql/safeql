@@ -76,7 +76,7 @@ export default defineConfig({
               {
                 text: "overrides.columns",
                 link: "/api/index.md#connections-overrides-columns-optional",
-              }
+              },
             ],
           },
         ],
