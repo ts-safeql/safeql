@@ -14,6 +14,7 @@ type ASTDescriptionOptions = {
   parsed: LibPgQueryAST.ParseResult;
   relations: FlattenedRelationWithJoins[];
   typesMap: Map<string, { override: boolean; value: string }>;
+  overridenColumnTypesMap: Map<string, Map<string, string>>;
   nonNullableColumns: Set<string>;
   pgColsByTableName: Map<string, PgColRow[]>;
   pgTypes: PgTypesMap;
@@ -604,15 +605,27 @@ function getDescribedColumnByResolvedColumns(params: {
   context: ASTDescriptionContext;
 }) {
   return params.resolved.map(({ column, isNotNull }) => {
+    const getType = (): ASTDescribedColumnType => {
+      const overridenType = params.context.overridenColumnTypesMap
+        .get(column.tableName)
+        ?.get(column.colName);
+
+      if (overridenType !== undefined) {
+        return { kind: "type", value: overridenType };
+      }
+
+      return params.context.toTypeScriptType({
+        oid: column.colTypeOid,
+        baseOid: column.colBaseTypeOid,
+      });
+    };
+
     return {
       name: params.alias ?? column.colName,
       type: resolveType({
         context: params.context,
         nullable: !isNotNull,
-        type: params.context.toTypeScriptType({
-          oid: column.colTypeOid,
-          baseOid: column.colBaseTypeOid,
-        }),
+        type: getType(),
       }),
     };
   });
