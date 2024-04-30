@@ -48,18 +48,16 @@ export default defineConfig({
 
 3. Lint your queries with SafeQL:
 
-<div class="error">
-
-```typescript{5,9}
+```typescript
 import { db, sql } from "@vercel/postgres";
 
 // Before:
 const query = client.sql`SELECT idd FROM users`;
-                     ~~~ Error: column "idd" does not exist
+                     ~~~ Error: column "idd" does not exist // [!code error]
 
 // After bug fix:
 const query = client.sql`SELECT id FROM users`;
-              ~~~~~~~~~~ Error: Query is missing type annotation
+              ~~~~~~~~~~ Error: Query is missing type annotation // [!code error]
 
 // ✅ After:
 const query = client.sql<{ id: number; }>`SELECT id FROM users`;
@@ -67,5 +65,3 @@ const query = client.sql<{ id: number; }>`SELECT id FROM users`;
 // ✅ Vercel's sql tag is also supported:
 const query = sql<{ id: number; }>`SELECT id FROM users`;
 ```
-
-</div>

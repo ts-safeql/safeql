@@ -52,14 +52,10 @@ Check out [@ts-safeql-demos/basic](https://github.com/ts-safeql/safeql/tree/main
 
 And now SafeQL will be able to lint your queries like so:
 
-<div class="error">
-
-```typescript{2}
+```typescript
 const query = sql`SELECT * FROM users`
-              ~~~ Error: Query is missing type annotation (auto-fix)
+              ~~~ Error: Query is missing type annotation (auto-fix) // [!code error]
 ```
-
-</div>
 
 After auto-fix
 
@@ -67,7 +63,7 @@ After auto-fix
 
 ```typescript{2}
 const query = sql<{ id: number; name: string; }>`SELECT * FROM users`
-              ^^^ ✅ Query is valid and type-safe!
+              ^^^ ✅ Query is valid and type-safe! // [!code highlight]
 ```
 
 </div>

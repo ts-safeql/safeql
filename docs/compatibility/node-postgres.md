@@ -59,24 +59,19 @@ Second, add the following rule to your ESLint config:
 
 Lastly, SafeQL will be able to lint your queries like so:
 
-<div class="error">
-
-```typescript{7,11}
+```typescript
 import { Client } from "pg";
 
 const client = new Client();
 
 // Before
 const query = client.query("SELECT idd FROM users");
-                                   ~~~ Error: column "idd" does not exist
+                                   ~~~ Error: column "idd" does not exist // [!code error]
 
 // After bug fix
 const query = client.query("SELECT id FROM users");
-              ~~~~~~~~~~~~ Error: Query is missing type annotation
+              ~~~~~~~~~~~~ Error: Query is missing type annotation  // [!code error]
 
 // After: ✅
 const query = client.query(sql`SELECT id FROM users`);
 ```
-
-</div>
-

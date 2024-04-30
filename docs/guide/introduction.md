@@ -8,51 +8,35 @@ SafeQL is an [ESLint](https://eslint.org/) plugin that helps you write SQL (Post
 
 1. Warn you when you've misspelled a query (could be a column, table, function, etc.)
 
-<div class="error">
-
-```typescript{2}
+```typescript
 client.query(sql`SELECT idd FROM comments`);
-                        ~~~ Error: column "idd" does not exist
+                        ~~~ Error: column "idd" does not exist  // [!code error]
 ```
-
-</div>
 
 2. Warn you about type errors (e.g., trying to compare a string to an integer)
 
-<div class="error">
-
-```typescript{3-4}
+```typescript
 function getById(id: number) {
     client.query(sql`SELECT * FROM comments WHERE body = ${id}`);
-                                                       ~
-                        Error: operator does not exist: text = integer
+                                                       ~ // [!code error]
+                        Error: operator does not exist: text = integer // [!code error]
 }
 ```
 
-</div>
-
 3. Warn you about missing/incorrect query TS types (and suggest fixes).
 
-<div class="error">
-
-```typescript{2}
+```typescript
 client.query(sql`SELECT id FROM comments`);
-~~~~~~~~~~~~ Error: Query is missing type annotation
+~~~~~~~~~~~~ Error: Query is missing type annotation // [!code error]
 ```
-
-</div>
 
 4. Warn you about incorrect query TS types (and suggest fixes).
 
 
-<div class="error">
-
 ```typescript{2}
 client.query<{ id: string }>(sql`SELECT id FROM comments`);
-             ~~~~~~~~~~~~~~ Error: Query has incorrect type annotation
+             ~~~~~~~~~~~~~~ Error: Query has incorrect type annotation // [!code error]
 ```
-
-</div>
 
 ## Why SafeQL?
 

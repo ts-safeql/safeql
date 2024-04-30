@@ -54,23 +54,19 @@ Second, add the following rule to your ESLint config:
 
 Lastly, SafeQL will be able to lint your queries like so:
 
-<div class="error">
-
-```typescript{7,11}
+```typescript
 import { Prisma, PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
 // Before:
 const query = prisma.$queryRaw`SELECT idd FROM users`;
-                    ~~~ Error: column "idd" does not exist
+                    ~~~ Error: column "idd" does not exist // [!code error]
 
 // After bug fix:
 const query = prisma.$queryRaw`SELECT id FROM users`;
-              ~~~~~~~~~~~~~~~~ Error: Query is missing type annotation
+              ~~~~~~~~~~~~~~~~ Error: Query is missing type annotation // [!code error]
 
 // After: ✅
 const query = prisma.$queryRaw<{ id: number; }[]>`SELECT id FROM users`;
 ```
-
-</div>

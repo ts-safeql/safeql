@@ -37,3 +37,11 @@ npm install --save-dev @ts-safeql/eslint-plugin libpg-query
 
 ## Limitations 
 Since libpg-query doesn't seem to support Windows, the only way to make SafeQL work on Windows is by using WSL2 ([see issue](https://github.com/ts-safeql/safeql/issues/80)).
+
+## Sponsors
+
+<p align="center">
+	<a href="https://github.com/sponsors/Newbie012">
+		<img src="https://cdn.jsdelivr.net/gh/newbie012/sponsors/sponsors.svg">
+	</a>
+</p>

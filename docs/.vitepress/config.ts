@@ -3,7 +3,16 @@ import { defineConfig } from "vitepress";
 export default defineConfig({
   title: "SafeQL",
   description: "Write SQL queries with confidence!",
+  markdown: {
+    theme: {
+      dark: "material-theme-ocean",
+      light: "min-light",
+    },
+  },
   themeConfig: {
+    search: {
+      provider: "local",
+    },
     editLink: {
       pattern: "https://github.com/ts-safeql/safeql/tree/main/docs/:path",
     },

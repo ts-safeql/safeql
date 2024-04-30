@@ -49,18 +49,14 @@ Second, add the following rule to your ESLint config:
 
 Lastly, SafeQL will be able to lint your queries like so:
 
-<div class="error">
-
-```typescript{6}
+```typescript
 import { z } from 'zod';
 import { sql } from 'slonik';
 
 // Before:
 const query = sql.type(z.object({ id: z.number() }))`SELECT idd FROM users`;
-                    ~~~ Error: column "idd" does not exist
+                    ~~~ Error: column "idd" does not exist // [!code error]
 
 // After: ✅
 const query = sql.type(z.object({ id: z.number() }))`SELECT id FROM users`;
 ```
-
-</div>

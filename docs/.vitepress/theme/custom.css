@@ -1,23 +1,17 @@
-:root {
-  --vp-c-brand-darker: hsl(211, 60%, 38%);
-  --vp-c-brand-dark: hsl(211, 60%, 48%);
-  --vp-c-brand: hsl(211, 60%, 58%);
-  --vp-c-brand-light: hsl(211, 60%, 68%);
-  --vp-c-brand-lighter: hsl(211, 60%, 78%);
-}
-
-.error {
+.line.highlighted.error {
   --vp-code-line-highlight-color: var(--vp-c-red-dimm-2);
 }
 
-.error code span.highlighted span {
-    color: var(--vp-c-red-light) !important;
+.line.highlighted.error span {
+    --shiki-light: var(--vp-c-danger-1) !important;
+    --shiki-dark: var(--vp-c-danger-1) !important;
 }
 
-.success {
-  --vp-code-line-highlight-color: var(--vp-c-green-dimm-2);
+
+.success .line.highlighted {
+  --vp-code-line-highlight-color: var(--vp-c-green-soft) !important;
 }
 
-.success code span.highlighted span {
-    color: var(--vp-c-green-light) !important;
+.success .line.highlighted span {
+    color: var(--vp-c-green-1) !important;
 }
