@@ -35,9 +35,6 @@ I would first recommend follow the instructions in the [documentation](https://w
 npm install --save-dev @ts-safeql/eslint-plugin libpg-query
 ```
 
-## Limitations 
-Since libpg-query doesn't seem to support Windows, the only way to make SafeQL work on Windows is by using WSL2 ([see issue](https://github.com/ts-safeql/safeql/issues/80)).
-
 ## Sponsors
 
 <p align="center">
