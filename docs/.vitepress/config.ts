@@ -1,4 +1,5 @@
 import { defineConfig } from "vitepress";
+import { tabsMarkdownPlugin } from "vitepress-plugin-tabs";
 
 export default defineConfig({
   title: "SafeQL",
@@ -7,6 +8,9 @@ export default defineConfig({
     theme: {
       dark: "material-theme-ocean",
       light: "min-light",
+    },
+    config(md) {
+      md.use(tabsMarkdownPlugin);
     },
   },
   themeConfig: {
@@ -30,11 +34,11 @@ export default defineConfig({
         text: "Compatibility",
         items: [
           { text: "Prisma", link: "/compatibility/prisma" },
-          { text: "Sequelize", link: "/compatibility/sequelize" },
           { text: "Postgres.js", link: "/compatibility/postgres.js" },
-          { text: "node-postgres (pg)", link: "/compatibility/node-postgres" },
           { text: "@vercel/postgres", link: "/compatibility/vercel" },
           { text: "slonik", link: "/compatibility/slonik" },
+          { text: "node-postgres (pg)", link: "/compatibility/node-postgres" },
+          { text: "Sequelize", link: "/compatibility/sequelize" },
         ],
       },
       {

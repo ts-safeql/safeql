@@ -12,7 +12,7 @@ export const TSUtils = {
   },
   isTsArrayUnionType(
     checker: ts.TypeChecker,
-    type: ts.Type
+    type: ts.Type,
   ): type is ts.ObjectType & {
     objectFlags: ts.ObjectFlags.Reference;
     resolvedTypeArguments: (ts.TypeReference & { types: [ts.UnionType] })[];

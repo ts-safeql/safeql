@@ -33,6 +33,7 @@ This example uses the development `DATABASE_URL` environment variable, but you c
 
 ```ts
 // safeql.config.ts
+
 import { defineConfig } from "@ts-safeql/eslint-plugin";
 import dotenv from "dotenv";
 
@@ -46,7 +47,7 @@ export default defineConfig({
 });
 ```
 
-3. Lint your queries with SafeQL:
+Once you've set up your configuration, you can start linting your queries:
 
 ```typescript
 import { db, sql } from "@vercel/postgres";

@@ -1,9 +1,9 @@
 import { InternalError } from "@ts-safeql/shared";
 import assert from "assert";
 import { taskEither } from "fp-ts";
-import { flow, identity, pipe } from "fp-ts/function";
+import { flow, identity, pipe } from "fp-ts/lib/function";
 import parser from "libpg-query";
-import { test } from "mocha";
+import { test } from "vitest";
 import { getNonNullableColumns } from "./get-nonnullable-columns";
 
 const cases: {
@@ -72,7 +72,7 @@ export const getNonNullableColumnsTE = flow(
   parser.parseQuery,
   taskEither.tryCatchK(identity, InternalError.to),
   taskEither.map(getNonNullableColumns),
-  taskEither.map((set) => Array.from(set))
+  taskEither.map((set) => Array.from(set)),
 );
 
 for (const { query, expected, only } of cases) {
@@ -82,8 +82,8 @@ for (const { query, expected, only } of cases) {
       getNonNullableColumnsTE(query),
       taskEither.match(
         (error) => assert.fail(error.message),
-        (result) => assert.deepEqual(result, expected)
-      )
+        (result) => assert.deepEqual(result, expected),
+      ),
     )();
   });
 }

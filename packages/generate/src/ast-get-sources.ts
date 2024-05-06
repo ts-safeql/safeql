@@ -1,4 +1,5 @@
-import { LibPgQueryAST, assertNever, fmap } from "@ts-safeql/shared";
+import { assertNever, fmap } from "@ts-safeql/shared";
+import * as LibPgQueryAST from "@ts-safeql/sql-ast";
 import { PgColRow } from "./generate";
 import { FlattenedRelationWithJoins } from "./utils/get-relations-with-joins";
 
@@ -195,7 +196,7 @@ export function getSources({
         sources.push([source.name, source]);
 
         const resolvedColumns = getColumnSources(
-          node.RangeSubselect.subquery.SelectStmt.fromClause
+          node.RangeSubselect.subquery.SelectStmt.fromClause,
         ).columns.map((x) => x.column);
 
         for (const column of resolvedColumns) {

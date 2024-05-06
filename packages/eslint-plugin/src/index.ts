@@ -1,4 +1,2 @@
-import rules from "./rules";
-import { defineConfig } from "./rules/check-sql.config";
-
-export = { rules, defineConfig };
+export { default as rules } from "./rules";
+export { defineConfig } from "./rules/check-sql.config";

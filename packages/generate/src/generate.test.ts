@@ -1,11 +1,11 @@
 import { InternalError, normalizeIndent } from "@ts-safeql/shared";
 import { generateTestDatabaseName, setupTestDatabase } from "@ts-safeql/test-utils";
 import assert from "assert";
-import * as TE from "fp-ts/TaskEither";
-import * as O from "fp-ts/Option";
-import { flow, identity, pipe } from "fp-ts/function";
+import * as TE from "fp-ts/lib/TaskEither";
+import * as O from "fp-ts/lib/Option";
+import { flow, identity, pipe } from "fp-ts/lib/function";
 import { parseQuery } from "libpg-query";
-import { before, test } from "mocha";
+import { beforeAll, afterAll, test } from "vitest";
 import { Sql } from "postgres";
 import { GenerateParams, ResolvedTargetEntry, createGenerator } from "./generate";
 
@@ -127,7 +127,7 @@ function runMigrations(sql: SQL) {
 let sql!: SQL;
 let dropFn!: () => Promise<number>;
 
-before(async () => {
+beforeAll(async () => {
   const testDatabase = await setupTestDatabase({
     databaseName: generateTestDatabaseName(),
     postgresUrl: "postgres://postgres:postgres@localhost:5432/postgres",
@@ -139,7 +139,7 @@ before(async () => {
   await runMigrations(sql);
 });
 
-after(async () => {
+afterAll(async () => {
   await sql.end();
   await dropFn();
 });
@@ -176,7 +176,7 @@ const testQuery = async (params: {
           },
         },
         ...params.options,
-      })
+      }),
     ),
     TE.chainW(({ result }) => TE.fromEither(result)),
     TE.match(
@@ -186,8 +186,8 @@ const testQuery = async (params: {
           O.fromNullable,
           O.fold(
             () => assert.fail(error),
-            (expectedError) => assert.strictEqual(error.message, expectedError)
-          )
+            (expectedError) => assert.strictEqual(error.message, expectedError),
+          ),
         ),
       ({ output, unknownColumns }) => {
         assert.deepEqual(output?.value ?? null, params.expected);
@@ -195,8 +195,8 @@ const testQuery = async (params: {
         if (unknownColumns.length > 0) {
           assert.deepEqual(unknownColumns, params.unknownColumns);
         }
-      }
-    )
+      },
+    ),
   )();
 };
 
@@ -218,7 +218,7 @@ test("select columns", async () => {
   });
 });
 
-test.only("select all_types", async () => {
+test("select all_types", async () => {
   await testQuery({
     query: `SELECT * FROM all_types`,
     expected: [

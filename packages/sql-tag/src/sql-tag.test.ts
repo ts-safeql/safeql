@@ -1,5 +1,5 @@
 import assert from "assert";
-import { test } from "mocha";
+import { test } from "vitest";
 import { createTypedSqlTag, sql } from "./sql-tag";
 
 test("sql", () => {
@@ -76,7 +76,7 @@ test("createTypedSql", () => {
       AND id = $1
       AND created_at = $2
       AND first_name = $3
-  `
+  `,
   );
   assert.deepEqual(query.values, [5, new Date("2023-01-01"), "John"]);
 });
@@ -108,7 +108,7 @@ test("createTypedSql transform", () => {
     FROM users
     WHERE TRUE
       AND created_at = $1
-      AND first_name = $2`
+      AND first_name = $2`,
   );
 
   assert.deepEqual(query.values, ["2023-01-01T00:00:00.000Z", "bar"]);

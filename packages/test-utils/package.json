@@ -1,28 +1,38 @@
 {
   "name": "@ts-safeql/test-utils",
   "version": "0.0.16",
-  "main": "lib/index.js",
-  "types": "src/index.ts",
   "license": "MIT",
   "repository": "https://github.com/ts-safeql/safeql/tree/master/packages/eslint-plugin",
   "files": [
-    "lib",
+    "dist",
     "package.json"
   ],
+  "type": "module",
+  "types": "dist/index.d.ts",
+  "module": "dist/index.mjs",
+  "main": "dist/index.cjs",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  },
   "scripts": {
-    "build": "tsc",
-    "watch": "tsc --watch",
+    "build": "unbuild",
+    "dev": "unbuild --stub",
     "lint": "eslint src",
     "lint!": "eslint src --fix",
     "clean": "rm -rf lib"
   },
   "devDependencies": {
     "@types/node": "^18.15.11",
-    "@typescript-eslint/eslint-plugin": "^5.59.2",
-    "@typescript-eslint/parser": "^5.59.2",
-    "@typescript-eslint/utils": "^5.59.0",
-    "eslint": "^8.39.0",
-    "typescript": "^5.3.3"
+    "@typescript-eslint/eslint-plugin": "^7.8.0",
+    "@typescript-eslint/parser": "^7.8.0",
+    "@typescript-eslint/utils": "^7.8.0",
+    "eslint": "^8.57.0",
+    "typescript": "^5.4.5",
+    "unbuild": "^2.0.0"
   },
   "dependencies": {
     "@ts-safeql/shared": "workspace:3.1.0",

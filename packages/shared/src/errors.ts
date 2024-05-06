@@ -1,6 +1,6 @@
 import path from "path";
-import { TSESTree } from "@typescript-eslint/types";
-import { PostgresError as OriginalPostgresError } from "postgres";
+import { TSESTree } from "@typescript-eslint/utils";
+import postgres from "postgres";
 
 export class DatabaseInitializationError extends Error {
   _tag = "DatabaseInitializationError" as const;
@@ -53,6 +53,26 @@ export class InvalidMigrationsPathError extends Error {
     return {
       _tag: this._tag,
       migrationsPath: this.migrationsPath,
+      message: this.message,
+    };
+  }
+}
+
+export class InvalidConfigError extends Error {
+  _tag = "InvalidConfigError" as const;
+
+  constructor(message: string) {
+    super(`Invalid configuration (${message})`);
+    this.message = message;
+  }
+
+  static of(message: string) {
+    return new InvalidConfigError(message);
+  }
+
+  toJSON() {
+    return {
+      _tag: this._tag,
       message: this.message,
     };
   }
@@ -185,7 +205,7 @@ export class PostgresError extends Error {
   }
 
   static to(query: string, error: unknown) {
-    if (error instanceof OriginalPostgresError) {
+    if (error instanceof postgres.PostgresError) {
       return PostgresError.of({
         queryText: query,
         message: error.message,

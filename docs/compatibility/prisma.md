@@ -10,20 +10,46 @@ SafeQL is compatible with [Prisma](https://www.prisma.io/) which [supports raw q
 Check out [@ts-safeql-demos/prisma](https://github.com/ts-safeql/safeql/tree/main/demos/prisma) for a working example.
 :::
 
-First, Make sure you've added `@ts-safeql/eslint-plugin` to your ESLint plugins:
+:::tabs key:eslintrc
+== Flat Config
+
+```js
+// eslint.config.js
+
+import safeql from "@ts-safeql/eslint-plugin/config";
+import tseslint from "typescript-eslint";
+
+export default tseslint.config(
+  // ...
+  safeql.configs.connections({
+    // ... (read more about configuration in the API docs)
+    targets: [
+      // this will lint syntax that matches
+      // `prisma.$queryRaw` or `prisma.$executeRaw`
+      { tag: "prisma.+($queryRaw|$executeRaw)", transform: "{type}[]" },
+    ],
+  })
+);
+```
+
+== Legacy Config
+
+1. Add `@ts-safeql/eslint-plugin` to your ESLint plugins:
 
 ```json{3}
 // .eslintrc.json
+
 {
   "plugins": [..., "@ts-safeql/eslint-plugin"],
-  ...
+  // ...
 }
 ```
 
-Second, add the following rule to your ESLint config:
+2. Add `@ts-safeql/check-sql` to your rules and set the `connections` option:
 
 ```json
 // .eslintrc.json
+
 {
   // ...
   "rules": {
@@ -33,14 +59,12 @@ Second, add the following rule to your ESLint config:
       {
         "connections": [
           {
-            // The migrations path:
-            "migrationsDir": "./prisma/migrations",
+            // ... (read more about configuration in the API docs)
             "targets": [
+              // this will lint syntax that matches
+              // `prisma.$queryRaw` or `prisma.$executeRaw`
               {
-                // The sql tags that should be checked.
-                // either `db.$queryRaw` or `db.$executeRaw`:
                 "tag": "prisma.+($queryRaw|$executeRaw)",
-                // Transform the query result to array
                 "transform": "{type}[]"
               }
             ]
@@ -52,7 +76,9 @@ Second, add the following rule to your ESLint config:
 }
 ```
 
-Lastly, SafeQL will be able to lint your queries like so:
+:::
+
+Once you've set up your configuration, you can start linting your queries:
 
 ```typescript
 import { Prisma, PrismaClient } from "@prisma/client";
@@ -61,7 +87,7 @@ const prisma = new PrismaClient();
 
 // Before:
 const query = prisma.$queryRaw`SELECT idd FROM users`;
-                    ~~~ Error: column "idd" does not exist // [!code error]
+                                      ~~~ Error: column "idd" does not exist // [!code error]
 
 // After bug fix:
 const query = prisma.$queryRaw`SELECT id FROM users`;

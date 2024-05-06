@@ -10,7 +10,7 @@ type GetResolvedTargetByTypeNodeParams = {
 };
 
 export function getResolvedTargetByTypeNode(
-  params: GetResolvedTargetByTypeNodeParams
+  params: GetResolvedTargetByTypeNodeParams,
 ): ResolvedTarget {
   if (
     params.typeNode.type === TSESTree.AST_NODE_TYPES.TSLiteralType &&
@@ -23,7 +23,7 @@ export function getResolvedTargetByTypeNode(
     return {
       kind: "union",
       value: params.typeNode.types.map((type) =>
-        getResolvedTargetByTypeNode({ ...params, typeNode: type })
+        getResolvedTargetByTypeNode({ ...params, typeNode: type }),
       ),
     };
   }
@@ -83,7 +83,7 @@ export function getResolvedTargetByTypeNode(
     }
 
     if (params.typeNode.typeName.name === "Array") {
-      const firstParam = params.typeNode.typeParameters?.params[0];
+      const firstParam = params.typeNode.typeArguments?.params[0];
 
       if (firstParam !== undefined) {
         return {
@@ -95,7 +95,7 @@ export function getResolvedTargetByTypeNode(
     }
 
     const type = params.checker.getTypeFromTypeNode(
-      params.parser.esTreeNodeToTSNodeMap.get(params.typeNode)
+      params.parser.esTreeNodeToTSNodeMap.get(params.typeNode),
     );
 
     return getTypePropertiesFromTypeReference({
@@ -115,7 +115,7 @@ export function getResolvedTargetByTypeNode(
           params.typeNode.types.flatMap((type) => {
             const targetEntry = getResolvedTargetByTypeNode({ ...params, typeNode: type });
             return targetEntry.kind === "object" ? targetEntry.value : [];
-          })
+          }),
         ).entries(),
       ],
     };
@@ -193,7 +193,7 @@ function getTypePropertiesFromTypeReference(params: {
     return {
       kind: "union",
       value: type.types.map((type) =>
-        getTypePropertiesFromTypeReference({ type, typeNode, parser, checker, reservedTypes })
+        getTypePropertiesFromTypeReference({ type, typeNode, parser, checker, reservedTypes }),
       ),
     };
   }
@@ -248,7 +248,7 @@ function getTypePropertiesFromTypeReference(params: {
 
       const propType = checker.getTypeOfSymbolAtLocation(
         property,
-        parser.esTreeNodeToTSNodeMap.get(typeNode)
+        parser.esTreeNodeToTSNodeMap.get(typeNode),
       );
 
       const propTypeString = checker.typeToString(propType);

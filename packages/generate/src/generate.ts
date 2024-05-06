@@ -6,12 +6,12 @@ import {
   getOrSetFromMapWithEnabled,
   groupBy,
   IdentiferCase,
-  LibPgQueryAST,
   PostgresError,
   toCase,
 } from "@ts-safeql/shared";
+import * as LibPgQueryAST from "@ts-safeql/sql-ast";
 import { either } from "fp-ts";
-import postgres, { PostgresError as OriginalPostgresError } from "postgres";
+import postgres from "postgres";
 import { ASTDescribedColumn, getASTDescription } from "./ast-describe";
 import { ColType } from "./utils/colTypes";
 import { getNonNullableColumns } from "./utils/get-nonnullable-columns";
@@ -121,7 +121,7 @@ type GenerateContext = {
 
 async function generate(
   params: GenerateParams,
-  cache: Cache
+  cache: Cache,
 ): Promise<either.Either<GenerateError, GenerateResult>> {
   const { sql, query, cacheKey, cacheMetadata = true } = params;
 
@@ -213,7 +213,7 @@ async function generate(
     }
 
     const duplicateCols = result.columns.filter((col, index) =>
-      result.columns.find((c, i) => c.name === col.name && i != index)
+      result.columns.find((c, i) => c.name === col.name && i != index),
     );
 
     if (duplicateCols.length > 0) {
@@ -226,7 +226,7 @@ async function generate(
         DuplicateColumnsError.of({
           queryText: query,
           columns: dupes.map((x) => `${x.table}.${x.column}`),
-        })
+        }),
       );
     }
 
@@ -282,14 +282,14 @@ async function generate(
       query: query,
     });
   } catch (e) {
-    if (e instanceof OriginalPostgresError) {
+    if (e instanceof postgres.PostgresError) {
       return either.left(
         PostgresError.of({
           queryText: query,
           message: e.message,
           line: e.line,
           position: e.position,
-        })
+        }),
       );
     }
 
@@ -320,7 +320,7 @@ function getTypedColumnEntries(params: {
   context: GenerateContext;
 }): Extract<ResolvedTarget, { kind: "object" }> {
   const value = params.context.columns.map((col) =>
-    getResolvedTargetEntry({ col, context: params.context })
+    getResolvedTargetEntry({ col, context: params.context }),
   );
 
   return { kind: "object", value };
@@ -423,7 +423,7 @@ function getResolvedTargetEntry(params: {
     ({ values }): ResolvedTarget => ({
       kind: "union",
       value: values.map((x): ResolvedTarget => ({ kind: "type", value: `'${x}'` })),
-    })
+    }),
   );
 
   const valueAsType = getTsTypeFromPgTypeOid({
@@ -433,7 +433,7 @@ function getResolvedTargetEntry(params: {
 
   const valueAsOverride = (() => {
     const pgType = params.context.pgTypes.get(
-      params.col.introspected?.colTypeOid ?? params.col.described.type
+      params.col.introspected?.colTypeOid ?? params.col.described.type,
     );
 
     if (params.context.overrides?.types === undefined || pgType === undefined) {

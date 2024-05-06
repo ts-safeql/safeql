@@ -1,6 +1,6 @@
 import postgres, { Sql } from "postgres";
 import { match } from "ts-pattern";
-import { RuleOptionConnection } from "../rules/check-sql.rule";
+import { RuleOptionConnection } from "../rules/RuleOptions";
 import {
   ConnectionPayload,
   getConnectionStartegyByRuleOptionConnection,
@@ -19,7 +19,7 @@ export function createConnectionManager() {
 
 function getOrCreateConnection(
   databaseUrl: string,
-  connectionMap: Map<string, Sql>
+  connectionMap: Map<string, Sql>,
 ): ConnectionPayload {
   return pipe(
     O.fromNullable(connectionMap.get(databaseUrl)),
@@ -29,8 +29,8 @@ function getOrCreateConnection(
         connectionMap.set(databaseUrl, sql);
         return { sql, databaseUrl, isFirst: true };
       },
-      (sql) => ({ sql, databaseUrl, isFirst: false })
-    )
+      (sql) => ({ sql, databaseUrl, isFirst: false }),
+    ),
   );
 }
 

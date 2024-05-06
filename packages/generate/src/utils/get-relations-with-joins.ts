@@ -1,4 +1,4 @@
-import { LibPgQueryAST } from "@ts-safeql/shared";
+import * as LibPgQueryAST from "@ts-safeql/sql-ast";
 
 interface Join {
   type: LibPgQueryAST.JoinType;
@@ -28,7 +28,7 @@ export function getRelationsWithJoins(parsed: LibPgQueryAST.ParseResult): Relati
 
 function recursiveTraverseJoins(
   joins: Join[],
-  joinExpr: LibPgQueryAST.JoinExpr
+  joinExpr: LibPgQueryAST.JoinExpr,
 ): {
   relName: string;
   joins: Join[];
@@ -68,7 +68,7 @@ export interface FlattenedRelationWithJoins {
 }
 
 export function flattenRelationsWithJoinsMap(
-  relationsWithJoinsMap: RelationsWithJoinsMap
+  relationsWithJoinsMap: RelationsWithJoinsMap,
 ): FlattenedRelationWithJoins[] {
   const result: FlattenedRelationWithJoins[] = [];
 

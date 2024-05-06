@@ -7,7 +7,7 @@ import {
 import { TSESTreeToTSNode } from "@typescript-eslint/typescript-estree";
 import { ParserServices, TSESTree } from "@typescript-eslint/utils";
 import ts, { TypeChecker } from "typescript";
-import { RuleOptionConnection } from "../rules/check-sql.rule";
+import { RuleOptionConnection } from "../rules/RuleOptions";
 import { E, pipe } from "./fp-ts";
 import { TSUtils } from "./ts.utils";
 
@@ -15,7 +15,7 @@ export function mapTemplateLiteralToQueryText(
   quasi: TSESTree.TemplateLiteral,
   parser: ParserServices,
   checker: ts.TypeChecker,
-  options: RuleOptionConnection
+  options: RuleOptionConnection,
 ) {
   let $idx = 0;
   let $queryText = "";
@@ -30,7 +30,7 @@ export function mapTemplateLiteralToQueryText(
     const expression = quasi.expressions[$idx];
 
     const pgType = pipe(mapExpressionToTsTypeString({ expression, parser, checker }), (params) =>
-      getPgTypeFromTsType({ ...params, checker, options })
+      getPgTypeFromTsType({ ...params, checker, options }),
     );
 
     if (E.isLeft(pgType)) {
@@ -124,13 +124,13 @@ function getPgTypeFromTsType(params: {
 
     if (whenTrueType === undefined || whenFalseType === undefined) {
       return E.left(
-        `Unsupported conditional expression flags (true = ${whenTrue.flags}, false = ${whenFalse.flags})`
+        `Unsupported conditional expression flags (true = ${whenTrue.flags}, false = ${whenFalse.flags})`,
       );
     }
 
     if (whenTrueType !== whenFalseType) {
       return E.left(
-        `Conditional expression must have the same type (true = ${whenTrueType}, false = ${whenFalseType})`
+        `Conditional expression must have the same type (true = ${whenTrueType}, false = ${whenFalseType})`,
       );
     }
 
@@ -149,7 +149,7 @@ function getPgTypeFromTsType(params: {
       return pipe(
         E.Do,
         E.chain(() => getPgTypeFromTsTypeUnion({ types: type.resolvedTypeArguments[0].types })),
-        E.map((pgType) => `${pgType}[]`)
+        E.map((pgType) => `${pgType}[]`),
       );
     }
   }
@@ -196,7 +196,7 @@ function getPgTypeFromTsType(params: {
       doesMatchPattern({
         pattern: typeof entry.tsType === "string" ? entry.tsType : entry.tsType.parameter,
         text: singularType,
-      })
+      }),
     );
 
   if (override !== undefined) {

@@ -1,46 +1,68 @@
 {
   "name": "@ts-safeql/eslint-plugin",
   "version": "3.1.0",
-  "main": "lib/index.js",
   "license": "MIT",
   "repository": "https://github.com/ts-safeql/safeql/tree/master/packages/eslint-plugin",
   "files": [
-    "lib",
+    "dist",
     "package.json"
   ],
+  "type": "module",
+  "types": "dist/index.d.ts",
+  "module": "dist/index.mjs",
+  "main": "dist/index.cjs",
+  "exports": {
+    ".": {
+      "types": {
+        "import": "./dist/index.d.mts",
+        "require": "./dist/index.d.cts",
+        "default": "./dist/index.d.ts"
+      },
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    },
+    "./config": {
+      "types": {
+        "import": "./dist/config.d.mts",
+        "require": "./dist/config.d.cts",
+        "default": "./dist/config.d.ts"
+      },
+      "import": "./dist/config.mjs",
+      "require": "./dist/config.cjs"
+    }
+  },
   "scripts": {
     "demo": "tsx src/index.ts",
-    "build": "tsc",
-    "watch": "tsc --watch",
-    "test": "mocha -r=@esbuild-kit/cjs-loader '**/*.test.ts' --timeout 10000",
+    "build": "unbuild",
+    "dev": "unbuild --stub",
+    "test": "vitest --pool=forks",
     "lint": "eslint src",
     "lint!": "eslint src --fix",
     "clean": "rm -rf lib"
   },
   "devDependencies": {
-    "@esbuild-kit/cjs-loader": "2.4.2",
-    "@types/mocha": "10.0.1",
-    "@typescript-eslint/eslint-plugin": "^5.59.2",
-    "@typescript-eslint/parser": "^5.59.2",
-    "esbuild-register": "^3.4.2",
-    "eslint": "^8.39.0",
-    "libpg-query": "^15.0.2",
-    "mocha": "^10.2.0",
-    "tsx": "3.12.6",
-    "typescript": "^5.3.3"
-  },
-  "dependencies": {
     "@ts-safeql/generate": "workspace:*",
     "@ts-safeql/shared": "workspace:*",
+    "@ts-safeql/sql-ast": "workspace:*",
     "@ts-safeql/test-utils": "workspace:*",
-    "@typescript-eslint/utils": "^5.59.0",
-    "chokidar": "^3.5.3",
-    "esbuild": "0.17.17",
-    "fp-ts": "^2.13.1",
+    "@types/node": "^20.12.8",
+    "@typescript-eslint/eslint-plugin": "^7.8.0",
+    "@typescript-eslint/parser": "^7.8.0",
+    "@typescript-eslint/rule-tester": "^7.8.0",
+    "eslint": "^8.57.0",
+    "libpg-query": "^16.2.0",
+    "tsx": "^4.9.1",
+    "typescript": "^5.4.5",
+    "unbuild": "^2.0.0",
+    "vitest": "^1.6.0"
+  },
+  "dependencies": {
+    "@typescript-eslint/utils": "^7.8.0",
+    "chokidar": "^3.6.0",
+    "fp-ts": "^2.16.5",
     "pg-connection-string": "2.5.0",
     "postgres": "^3.3.4",
-    "recast": "^0.22.0",
-    "synckit": "^0.8.5",
+    "synckit": "^0.9.0",
     "ts-pattern": "^4.2.2",
     "zod": "^3.21.4",
     "zod-to-json-schema": "3.20.1"
