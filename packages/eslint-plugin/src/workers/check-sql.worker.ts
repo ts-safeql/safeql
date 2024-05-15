@@ -9,8 +9,8 @@ import {
   InternalError,
   InvalidMigrationError,
   InvalidMigrationsPathError,
-  LibPgQueryAST,
 } from "@ts-safeql/shared";
+import * as LibPgQueryAST from "@ts-safeql/sql-ast";
 import path from "path";
 import { runAsWorker } from "synckit";
 import { match } from "ts-pattern";
@@ -18,16 +18,16 @@ import { createConnectionManager } from "../utils/connection-manager";
 import { J, pipe, TE } from "../utils/fp-ts";
 import { initDatabase } from "../utils/pg.utils";
 import { createWatchManager } from "../utils/watch-manager";
-import { ConnectionTarget, RuleOptionConnection } from "./check-sql.rule";
 import {
   ConnectionPayload,
+  getConnectionStartegyByRuleOptionConnection,
   getMigrationDatabaseMetadata,
   isWatchMigrationsDirEnabled,
-  getConnectionStartegyByRuleOptionConnection,
   runMigrations,
-} from "./check-sql.utils";
+} from "../rules/check-sql.utils";
+import { ConnectionTarget, RuleOptionConnection } from "../rules/RuleOptions";
 
-export interface WorkerParams {
+export interface CheckSQLWorkerParams {
   connection: RuleOptionConnection;
   target: ConnectionTarget;
   query: string;
@@ -35,11 +35,13 @@ export interface WorkerParams {
   pgParsed: LibPgQueryAST.ParseResult;
 }
 
+export type CheckSQLWorkerHandler = typeof handler;
+
 const generator = createGenerator();
 const connections = createConnectionManager();
 const watchers = createWatchManager();
 
-runAsWorker(async (params: WorkerParams) => {
+async function handler(params: CheckSQLWorkerParams) {
   if (isWatchMigrationsDirEnabled(params.connection)) {
     watchers.watchMigrationsDir({
       connection: params.connection,
@@ -51,7 +53,7 @@ runAsWorker(async (params: WorkerParams) => {
 
   const result = await pipe(
     TE.Do,
-    TE.chain(() => workerHandler(params))
+    TE.chain(() => workerHandler(params)),
   )();
 
   if (params.connection.keepAlive === false) {
@@ -59,7 +61,9 @@ runAsWorker(async (params: WorkerParams) => {
   }
 
   return J.stringify(result);
-});
+}
+
+runAsWorker(handler);
 
 export type WorkerError =
   | InvalidMigrationsPathError
@@ -69,12 +73,12 @@ export type WorkerError =
   | GenerateError;
 export type WorkerResult = GenerateResult;
 
-function workerHandler(params: WorkerParams): TE.TaskEither<WorkerError, WorkerResult> {
+function workerHandler(params: CheckSQLWorkerParams): TE.TaskEither<WorkerError, WorkerResult> {
   const strategy = getConnectionStartegyByRuleOptionConnection(params);
 
   const connnectionPayload = match(strategy)
     .with({ type: "databaseUrl" }, ({ databaseUrl }) =>
-      TE.right(connections.getOrCreate(databaseUrl))
+      TE.right(connections.getOrCreate(databaseUrl)),
     )
     .with({ type: "migrations" }, ({ migrationsDir, databaseName, connectionUrl }) => {
       const { connectionOptions, databaseUrl } = getMigrationDatabaseMetadata({
@@ -91,7 +95,7 @@ function workerHandler(params: WorkerParams): TE.TaskEither<WorkerError, WorkerR
           TE.Do,
           TE.chainW(() => initDatabase(connectionOptions)),
           TE.chainW(() => runMigrations({ migrationsPath, sql })),
-          TE.map(() => connectionPayload)
+          TE.map(() => connectionPayload),
         );
       }
 
@@ -115,6 +119,6 @@ function workerHandler(params: WorkerParams): TE.TaskEither<WorkerError, WorkerR
         fieldTransform: params.target.fieldTransform,
       });
     }),
-    TE.chainW(TE.fromEither)
+    TE.chainW(TE.fromEither),
   );
 }

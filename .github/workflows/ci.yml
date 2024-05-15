@@ -14,7 +14,12 @@ concurrency:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        node-version: ["18", "20"]
+      fail-fast: false
     services:
       postgres:
         image: postgres:14
@@ -27,13 +32,13 @@ jobs:
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
     env:
       TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-      TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+      TURBO_TEAM: ${{ vars.TURBO_TEAM }}
     steps:
-      - uses: actions/checkout@v3
-      - uses: pnpm/action-setup@v2.2.2
-      - uses: actions/setup-node@v3
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+      - uses: actions/setup-node@v4
         with:
-          node-version: 18.x
+          node-version: ${{ matrix.node-version }}
           cache: "pnpm"
       - run: pnpm install
       - run: pnpm run setup
@@ -43,6 +48,7 @@ jobs:
           PGHOST: localhost
           PGDATABASE: postgres
       - run: pnpm build
+      - run: pnpm typecheck
       - run: pnpm lint
-      - run: pnpm run prettier
+      - run: pnpm format
       - run: pnpm test

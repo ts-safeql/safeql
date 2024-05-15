@@ -1,4 +1,5 @@
-import { LibPgQueryAST, assertNever } from "@ts-safeql/shared";
+import { assertNever } from "@ts-safeql/shared";
+import * as LibPgQueryAST from "@ts-safeql/sql-ast";
 
 // Function names that are always non-nullable.
 const nonNullFunctions: Set<string> = new Set([
@@ -76,7 +77,7 @@ function concatStringNodes(nodes: LibPgQueryAST.Node[] | undefined): string {
 
 function isColumnNonNullable(
   val: LibPgQueryAST.Node | undefined,
-  root: LibPgQueryAST.ParseResult
+  root: LibPgQueryAST.ParseResult,
 ): boolean {
   if (val === undefined) {
     return false;
@@ -154,7 +155,7 @@ function isColumnNonNullable(
       if (stmt?.stmt?.SelectStmt?.whereClause) {
         const whereClause = stmt.stmt.SelectStmt.whereClause;
         const whereClauseColumnName = concatStringNodes(
-          whereClause.NullTest?.arg?.ColumnRef?.fields
+          whereClause.NullTest?.arg?.ColumnRef?.fields,
         );
 
         if (
@@ -252,7 +253,7 @@ function getTargetName(target: LibPgQueryAST.ResTarget): string {
 
 function getNonNullableColumnsInSelectStmt(
   stmt: LibPgQueryAST.SelectStmt,
-  root: LibPgQueryAST.ParseResult
+  root: LibPgQueryAST.ParseResult,
 ): Set<string> {
   const nonNullableColumns = new Set<string>();
 

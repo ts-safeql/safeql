@@ -1,9 +1,9 @@
-import esbuild from "esbuild";
-import fs from "fs";
+import { createRequire } from "module";
 import path from "path";
-import z from "zod";
 import { E, pipe } from "../utils/fp-ts";
-import { Config, Options, RuleContext, UserConfigFile, zConfig } from "./check-sql.rule";
+import { RuleContext } from "./check-sql.rule";
+import { Config, Options, UserConfigFile, zConfig } from "./RuleOptions";
+import { InvalidConfigError } from "@ts-safeql/shared";
 
 export function getConfigFromFileWithContext(params: {
   context: RuleContext;
@@ -15,55 +15,32 @@ export function getConfigFromFileWithContext(params: {
   }
 
   return pipe(
-    getConfigFromFile(params.projectDir, options.format ?? "cjs"),
+    getConfigFromFile(params.projectDir),
     E.getOrElseW((message) => {
       throw new Error(`safeql: ${message}`);
-    })
+    }),
   );
 }
 
-function getConfigFromFile(projectDir: string, format: "esm" | "cjs"): E.Either<string, Config> {
-  const configFilePath = path.join(projectDir, "safeql.config.ts");
-  const tempFileName = `safeql.config.temp-${Date.now()}.js`;
-  const tempFilePath = path.join(projectDir, tempFileName);
-
-  const removeIfExists = (filePath: string) => {
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-    }
-  };
-
+function getConfigFromFile(projectDir: string): E.Either<string, Config> {
   try {
-    if (!fs.existsSync(configFilePath)) {
-      throw new Error(`safeql.config.ts was not found at ${projectDir}`);
-    }
-
-    const result = esbuild.buildSync({
-      entryPoints: [configFilePath],
-      write: false,
-      format: format,
-    });
-
-    fs.writeFileSync(tempFilePath, result.outputFiles[0].text);
-
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const rawConfig = require(tempFilePath).default;
+    const configFilePath = path.join(projectDir, "safeql.config.ts");
+    const require = createRequire(import.meta.url);
+    const rawConfig = require(`tsx/cjs/api`).require(configFilePath, configFilePath).default;
 
     if (rawConfig === undefined) {
-      throw new Error(`safeql.config.ts must export a default value`);
+      throw new InvalidConfigError(`safeql.config.ts must export a default value`);
     }
 
     const config = zConfig.safeParse(rawConfig);
 
     if (!config.success) {
-      throw new Error(`safeql.config.ts is invalid: ${config.error.message}`);
+      throw new InvalidConfigError(`safeql.config.ts is invalid: ${config.error.message}`);
     }
 
     return E.right(config.data);
   } catch (error) {
     return E.left(`${error}`);
-  } finally {
-    removeIfExists(tempFilePath);
   }
 }
 
@@ -71,6 +48,6 @@ function isConfigFileRuleOptions(options: Options): options is UserConfigFile {
   return "useConfigFile" in options;
 }
 
-export function defineConfig(config: z.infer<typeof zConfig>) {
+export function defineConfig(config: Config) {
   return config;
 }

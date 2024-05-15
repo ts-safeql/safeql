@@ -2,7 +2,14 @@
   "$schema": "https://unpkg.com/@changesets/config@2.1.1/schema.json",
   "changelog": "@changesets/cli/changelog",
   "commit": false,
-  "fixed": [["@ts-safeql/eslint-plugin", "@ts-safeql/generate", "@ts-safeql/shared"]],
+  "fixed": [
+    [
+      "@ts-safeql/eslint-plugin",
+      "@ts-safeql/generate",
+      "@ts-safeql/shared",
+      "@ts-safeql/sql-ast"
+    ]
+  ],
   "linked": [],
   "access": "public",
   "baseBranch": "main",

@@ -1,41 +1,50 @@
 import { ResolvedTarget } from "@ts-safeql/generate";
+import { InvalidConfigError, PostgresError, doesMatchPattern, fmap } from "@ts-safeql/shared";
 import {
-  PostgresError,
-  defaultTypeMapping,
-  doesMatchPattern,
-  fmap,
-  objectKeysNonEmpty,
-} from "@ts-safeql/shared";
-import { ESLintUtils, ParserServices, TSESLint, TSESTree } from "@typescript-eslint/utils";
-import pgParser from "libpg-query";
-import { createSyncFn } from "synckit";
+  ESLintUtils,
+  ParserServices,
+  ParserServicesWithTypeInformation,
+  TSESLint,
+  TSESTree,
+} from "@typescript-eslint/utils";
+import { JSONSchema4 } from "@typescript-eslint/utils/json-schema";
+import parser from "libpg-query";
 import { match } from "ts-pattern";
 import ts from "typescript";
-import z from "zod";
-import zodToJsonSchema from "zod-to-json-schema";
+import { zodToJsonSchema } from "zod-to-json-schema";
 import { ESTreeUtils } from "../utils";
 import { E, J, flow, pipe } from "../utils/fp-ts";
 import { getResolvedTargetByTypeNode } from "../utils/get-resolved-target-by-type-node";
 import { memoize } from "../utils/memoize";
 import { locateNearestPackageJsonDir } from "../utils/node.utils";
 import { mapTemplateLiteralToQueryText } from "../utils/ts-pg.utils";
+import { workers } from "../workers";
+import { WorkerError, WorkerResult } from "../workers/check-sql.worker";
+import {
+  Config,
+  ConnectionTarget,
+  RuleOptionConnection,
+  RuleOptions,
+  TagTarget,
+  WrapperTarget,
+} from "./RuleOptions";
 import { getConfigFromFileWithContext } from "./check-sql.config";
 import {
   TypeTransformer,
   getFinalResolvedTargetString,
+  getResolvedTargetComparableString,
+  getResolvedTargetString,
   reportBaseError,
   reportDuplicateColumns,
   reportIncorrectTypeAnnotations,
+  reportInvalidConfig,
   reportInvalidQueryError,
   reportInvalidTypeAnnotations,
   reportMissingTypeAnnotations,
   reportPostgresError,
   shouldLintFile,
-  getResolvedTargetComparableString,
-  getResolvedTargetString,
   transformTypes,
 } from "./check-sql.utils";
-import { WorkerError, WorkerParams, WorkerResult } from "./check-sql.worker";
 
 const messages = {
   typeInferenceFailed: "Type inference failed {{error}}",
@@ -47,165 +56,7 @@ const messages = {
 };
 export type RuleMessage = keyof typeof messages;
 
-const zStringOrRegex = z.union([z.string(), z.object({ regex: z.string() })]);
-
-const zBaseTarget = z.object({
-  /**
-   * Transform the end result of the type.
-   *
-   * For example:
-   *  - `"{type}[]"` will transform the type to an array
-   *  - `["colname", "x_colname"]` will replace `colname` with `x_colname` in the type.
-   *  - `["{type}[]", ["colname", x_colname"]]` will do both
-   */
-  transform: z
-    .union([z.string(), z.array(z.union([z.string(), z.tuple([z.string(), z.string()])]))])
-    .optional(),
-
-  /**
-   * Transform the (column) field key. Can be one of the following:
-   * - `"snake"` - `userId` → `user_id`
-   * - `"camel"` - `user_id` → `userId`
-   * - `"pascal"` - `user_id` → `UserId`
-   * - `"screaming snake"` - `user_id` → `USER_ID`
-   */
-  fieldTransform: z.enum(["snake", "pascal", "camel", "screaming snake"]).optional(),
-
-  /**
-   * Whether or not to skip type annotation.
-   */
-  skipTypeAnnotations: z.boolean().optional(),
-});
-
-/**
- * A target that acts as a wrapper for the query. For example:
- *
- * ```ts
- * const query = conn.query(sql`SELECT * FROM users`);
- *               ^^^^^^^^^^ wrapper
- * ```
- */
-const zWrapperTarget = z.object({ wrapper: zStringOrRegex }).merge(zBaseTarget);
-type WrapperTarget = z.infer<typeof zWrapperTarget>;
-
-/**
- * A target that is a tag expression. For example:
- *
- * ```ts
- * const query = sql`SELECT * FROM users`;
- *               ^^^ tag
- * ```
- */
-const zTagTarget = z.object({ tag: zStringOrRegex }).merge(zBaseTarget);
-type TagTarget = z.infer<typeof zTagTarget>;
-
-export type ConnectionTarget = WrapperTarget | TagTarget;
-
-const zOverrideTypeResolver = z.union([
-  z.string(),
-  z.object({ parameter: zStringOrRegex, return: z.string() }),
-]);
-
-const zBaseSchema = z.object({
-  targets: z.union([zWrapperTarget, zTagTarget]).array(),
-
-  /**
-   * Whether or not keep the connection alive. Change it only if you know what you're doing.
-   */
-  keepAlive: z.boolean().optional(),
-
-  /**
-   * Override defaults
-   */
-  overrides: z
-    .object({
-      types: z.union([
-        z.record(z.enum(objectKeysNonEmpty(defaultTypeMapping)), zOverrideTypeResolver),
-        z.record(z.string(), zOverrideTypeResolver),
-      ]),
-      columns: z.record(z.string(), z.string()),
-    })
-    .partial()
-    .optional(),
-
-  /**
-   * Use `undefined` instead of `null` when the value is nullable.
-   */
-  nullAsUndefined: z.boolean().optional(),
-
-  /**
-   * Mark the property as optional when the value is nullable.
-   */
-  nullAsOptional: z.boolean().optional(),
-});
-
-export const zConnectionMigration = z.object({
-  /**
-   * The path where the migration files are located.
-   */
-  migrationsDir: z.string(),
-
-  /**
-   * THIS IS NOT THE PRODUCTION DATABASE.
-   *
-   * A connection url to the database.
-   * This is required since in order to run the migrations, a connection to postgres is required.
-   * Will be used only to create and drop the shadow database (see `databaseName`).
-   */
-  connectionUrl: z.string().optional(),
-
-  /**
-   * The name of the shadow database that will be created from the migration files.
-   */
-  databaseName: z.string().optional(),
-
-  /**
-   * Whether or not should refresh the shadow database when the migration files change.
-   */
-  watchMode: z.boolean().optional(),
-});
-
-const zConnectionUrl = z.object({
-  /**
-   * The connection url to the database
-   */
-  databaseUrl: z.string(),
-});
-
-const zRuleOptionConnection = z.union([
-  zBaseSchema.merge(zConnectionMigration),
-  zBaseSchema.merge(zConnectionUrl),
-]);
-export type RuleOptionConnection = z.infer<typeof zRuleOptionConnection>;
-
-export const zConfig = z.object({
-  connections: z.union([z.array(zRuleOptionConnection), zRuleOptionConnection]),
-});
-export type Config = z.infer<typeof zConfig>;
-
-export const UserConfigFile = z.object({
-  useConfigFile: z.boolean(),
-  format: z.enum(["esm", "cjs"]).optional(),
-});
-export type UserConfigFile = z.infer<typeof UserConfigFile>;
-
-export const Options = z.union([zConfig, UserConfigFile]);
-export type Options = z.infer<typeof Options>;
-
-export const RuleOptions = z.array(Options).min(1).max(1);
-export type RuleOptions = z.infer<typeof RuleOptions>;
-
 export type RuleContext = Readonly<TSESLint.RuleContext<RuleMessage, RuleOptions>>;
-
-const workerPath = require.resolve("./check-sql.worker");
-
-const generateSync = createSyncFn<(params: WorkerParams) => Promise<E.Either<unknown, string>>>(
-  workerPath,
-  {
-    tsRunner: "esbuild-register",
-    timeout: 1000 * 60 * 5,
-  }
-);
 
 function check(params: {
   context: RuleContext;
@@ -225,7 +76,7 @@ function check(params: {
 }
 
 function isTagMemberValid(
-  expr: TSESTree.TaggedTemplateExpression
+  expr: TSESTree.TaggedTemplateExpression,
 ): expr is TSESTree.TaggedTemplateExpression &
   (
     | {
@@ -271,17 +122,17 @@ function checkConnection(params: {
 const pgParseQueryE = (query: string) => {
   return pipe(
     E.tryCatch(
-      () => pgParser.parseQuerySync(query),
-      (error) => PostgresError.to(query, error)
-    )
+      () => parser.parseQuerySync(query),
+      (error) => PostgresError.to(query, error),
+    ),
   );
 };
 
 const generateSyncE = flow(
-  generateSync,
+  workers.generateSync,
   E.chain(J.parse),
   E.chainW((parsed) => parsed as unknown as E.Either<WorkerError, WorkerResult>),
-  E.mapLeft((error) => error as unknown as WorkerError)
+  E.mapLeft((error) => error as unknown as WorkerError),
 );
 
 function reportCheck(params: {
@@ -300,18 +151,29 @@ function reportCheck(params: {
 
   return pipe(
     E.Do,
-    E.bind("parser", () => E.of(context.getSourceCode().parserServices)),
-    E.bind("checker", ({ parser }) => E.of(parser.program.getTypeChecker())),
-    E.bind("query", ({ parser, checker }) =>
-      mapTemplateLiteralToQueryText(tag.quasi, parser, checker, params.connection)
+    E.bind("parser", () => {
+      return hasParserServicesWithTypeInformation(context.sourceCode.parserServices)
+        ? E.right(context.sourceCode.parserServices)
+        : E.left(new InvalidConfigError("Parser services are not available"));
+    }),
+    E.bind("checker", ({ parser }) => {
+      return !parser.program
+        ? E.left(new InvalidConfigError("Type checker is not available"))
+        : E.right(parser.program.getTypeChecker());
+    }),
+    E.bindW("query", ({ parser, checker }) =>
+      mapTemplateLiteralToQueryText(tag.quasi, parser, checker, params.connection),
     ),
     E.bindW("pgParsed", ({ query }) => pgParseQueryE(query)),
-    E.bindW("result", ({ query, pgParsed }) =>
-      generateSyncE({ query, pgParsed, connection, target, projectDir })
-    ),
+    E.bindW("result", ({ query, pgParsed }) => {
+      return generateSyncE({ query, pgParsed, connection, target, projectDir });
+    }),
     E.fold(
       (error) => {
         return match(error)
+          .with({ _tag: "InvalidConfigError" }, (error) => {
+            return reportInvalidConfig({ context, error, tag });
+          })
           .with({ _tag: "DuplicateColumnsError" }, (error) => {
             return reportDuplicateColumns({ context, error, tag });
           })
@@ -328,7 +190,7 @@ function reportCheck(params: {
             { _tag: "InternalError" },
             (error) => {
               return reportBaseError({ context, error, tag });
-            }
+            },
           )
           .exhaustive();
       },
@@ -403,7 +265,7 @@ function reportCheck(params: {
                 target: expected,
                 nullAsOptional: false,
                 nullAsUndefined: false,
-              })
+              }),
             ),
             actual: fmap(result.output, (output) =>
               getFinalResolvedTargetString({
@@ -411,13 +273,19 @@ function reportCheck(params: {
                 nullAsOptional: connection.nullAsOptional ?? false,
                 nullAsUndefined: connection.nullAsUndefined ?? false,
                 transform: target.transform,
-              })
+              }),
             ),
           });
         }
-      }
-    )
+      },
+    ),
   );
+}
+
+function hasParserServicesWithTypeInformation(
+  parser: Partial<ParserServices> | undefined,
+): parser is ParserServicesWithTypeInformation {
+  return parser !== undefined && parser.program !== null;
 }
 
 function checkConnectionByTagExpression(params: {
@@ -442,7 +310,7 @@ function checkConnectionByTagExpression(params: {
       target,
       projectDir,
       baseNode: tag.tag,
-      typeParameter: tag.typeParameters,
+      typeParameter: tag.typeArguments,
     });
   }
 }
@@ -477,7 +345,7 @@ function checkConnectionByWrapperExpression(params: {
       target,
       projectDir,
       baseNode: tag.parent.callee,
-      typeParameter: tag.parent.typeParameters,
+      typeParameter: tag.parent.typeArguments,
     });
   }
 }
@@ -596,13 +464,12 @@ export default createRule({
     fixable: "code",
     docs: {
       description: "Ensure that sql queries have type annotations",
-      recommended: "error",
-      suggestion: true,
-      requiresTypeChecking: false,
+      recommended: "recommended",
+      requiresTypeChecking: true,
     },
     messages: messages,
     type: "problem",
-    schema: zodToJsonSchema(RuleOptions, { target: "openApi3" }) as object,
+    schema: zodToJsonSchema(RuleOptions, { target: "openApi3" }) as JSONSchema4,
   },
   defaultOptions: [],
   create(context) {
@@ -611,8 +478,8 @@ export default createRule({
     }
 
     const projectDir = memoize({
-      key: context.getFilename(),
-      value: () => locateNearestPackageJsonDir(context.getFilename()),
+      key: context.filename,
+      value: () => locateNearestPackageJsonDir(context.filename),
     });
 
     const config = memoize({

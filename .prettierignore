@@ -1,2 +1,2 @@
-/demos/**/lib
-/packages/**/lib
+/demos/**/dist
+/packages/**/dist

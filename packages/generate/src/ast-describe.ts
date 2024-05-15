@@ -1,4 +1,5 @@
-import { LibPgQueryAST, fmap, normalizeIndent } from "@ts-safeql/shared";
+import { fmap, normalizeIndent } from "@ts-safeql/shared";
+import * as LibPgQueryAST from "@ts-safeql/sql-ast";
 import {
   isColumnStarRef,
   isColumnTableColumnRef,
@@ -27,7 +28,7 @@ type ASTDescriptionContext = ASTDescriptionOptions & {
   resolver: SourcesResolver;
   resolved: WeakMap<LibPgQueryAST.Node, string>;
   toTypeScriptType: (
-    params: { oid: number; baseOid: number | null } | { name: string }
+    params: { oid: number; baseOid: number | null } | { name: string },
   ) => ASTDescribedColumnType;
 };
 
@@ -77,7 +78,7 @@ export function getASTDescription(params: ASTDescriptionOptions): Map<string, AS
     select: select,
     resolved: new WeakMap(),
     toTypeScriptType: (
-      p: { oid: number; baseOid: number | null } | { name: string }
+      p: { oid: number; baseOid: number | null } | { name: string },
     ): ASTDescribedColumnType => {
       if ("name" in p) {
         return { kind: "type", value: params.typesMap.get(p.name)?.value ?? "unknown" };
@@ -246,7 +247,7 @@ function getDescribedArrayExpr({
   const types = dedupDescribedColumnTypes(
     node.elements
       .flatMap((node) => getDescribedNode({ alias: undefined, node, context }))
-      .map((x) => x.type)
+      .map((x) => x.type),
   );
 
   return [
@@ -333,7 +334,7 @@ function getDescribedTypeCast({
 }
 
 function getDescribedResTarget(
-  params: GetDescribedParamsOf<LibPgQueryAST.ResTarget>
+  params: GetDescribedParamsOf<LibPgQueryAST.ResTarget>,
 ): ASTDescribedColumn[] {
   const { node, context } = params;
 
@@ -349,7 +350,7 @@ function getDescribedResTarget(
 }
 
 function getDescribedFuncCall(
-  params: GetDescribedParamsOf<LibPgQueryAST.FuncCall>
+  params: GetDescribedParamsOf<LibPgQueryAST.FuncCall>,
 ): ASTDescribedColumn[] {
   const functionName = params.node.funcname.at(-1)?.String?.sval;
 
@@ -670,7 +671,7 @@ function asNonNullableType(type: ASTDescribedColumnType): ASTDescribedColumnType
       return type;
     case "union": {
       const filtered = type.value.filter(
-        (described) => described.kind !== "type" || described.value !== "null"
+        (described) => described.kind !== "type" || described.value !== "null",
       );
 
       if (filtered.length === 0) {

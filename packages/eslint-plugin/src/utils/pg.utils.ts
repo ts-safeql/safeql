@@ -1,6 +1,6 @@
 import { DatabaseInitializationError } from "@ts-safeql/shared";
 import { spawn, ChildProcessWithoutNullStreams } from "child_process";
-import { parse } from "pg-connection-string";
+import pgConnectionString from "pg-connection-string";
 import { pipe, TE } from "./fp-ts";
 
 export interface ConnectionOptions {
@@ -16,7 +16,7 @@ export function mapConnectionOptionsToString(connectionOptions: ConnectionOption
 }
 
 export function parseConnection(databaseUrl: string): ConnectionOptions {
-  const connection = parse(databaseUrl);
+  const connection = pgConnectionString.parse(databaseUrl);
 
   if (connection.host === null) {
     throw new Error("Could not resolve database host");
@@ -52,7 +52,7 @@ export function initDatabase(connection: ConnectionOptions) {
     TE.Do,
     TE.chain(() => dropDatabase(connection)),
     TE.altW(() => TE.right(undefined)),
-    TE.chain(() => createDatabase(connection))
+    TE.chain(() => createDatabase(connection)),
   );
 }
 
@@ -70,7 +70,7 @@ export function createDatabase(connection: ConnectionOptions) {
     ],
     {
       env: { ...process.env, PGPASSWORD: connection.password },
-    }
+    },
   );
 
   return execToTaskEither(exec, DatabaseInitializationError.to);
@@ -92,7 +92,7 @@ export function dropDatabase(connection: ConnectionOptions) {
     ],
     {
       env: { ...process.env, PGPASSWORD: connection.password },
-    }
+    },
   );
 
   return execToTaskEither(exec, DatabaseInitializationError.to);
@@ -100,7 +100,7 @@ export function dropDatabase(connection: ConnectionOptions) {
 
 function execToTaskEither<L extends Error>(
   exec: ChildProcessWithoutNullStreams,
-  mapLeft: (error: unknown) => L
+  mapLeft: (error: unknown) => L,
 ) {
   return TE.tryCatch(
     () =>
@@ -108,7 +108,7 @@ function execToTaskEither<L extends Error>(
         exec.stderr.on("data", (x) => reject(new Error(x)));
         exec.on("exit", (code) => (code === 0 ? resolve() : reject(new Error(code + ""))));
       }),
-    mapLeft
+    mapLeft,
   );
 }
 

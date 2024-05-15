@@ -1,5 +1,5 @@
 import assert from "assert";
-import { describe, test } from "mocha";
+import { describe, test } from "vitest";
 import { toCamelCase, toPascalCase, toScreamingSnakeCase, toSnakeCase } from "./case";
 
 describe("case", () => {

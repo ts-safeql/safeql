@@ -7,13 +7,14 @@
   "license": "MIT",
   "scripts": {
     "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "lint": "turbo run lint",
     "lint!": "turbo run lint!",
-    "watch": "pnpm run --parallel --filter './packages/**' watch",
-    "prettier": "prettier --check '**/*.ts'",
-    "prettier!": "prettier --write '**/*.ts'",
-    "clean": "turbo run clean",
+    "dev": "pnpm run --parallel --filter './packages/**' dev",
+    "format": "prettier --check '**/*.ts'",
+    "format!": "prettier --write '**/*.ts'",
+    "clean": "pnpm run --parallel --filter './packages/**' clean",
     "release": "pnpm build --filter='./packages/*' -- --declaration && changeset publish",
     "version": "changeset version && pnpm i --frozen-lockfile=false",
     "setup": "pnpm run --parallel setup"
@@ -26,10 +27,10 @@
     "node": "18.x"
   },
   "devDependencies": {
-    "@changesets/cli": "^2.26.1",
-    "prettier": "^2.8.8",
-    "turbo": "^1.9.3",
-    "typescript": "^5.3.3"
+    "@changesets/cli": "^2.27.1",
+    "prettier": "^3.2.5",
+    "turbo": "^1.13.3",
+    "typescript": "^5.4.5"
   },
-  "packageManager": "pnpm@7.11.0"
+  "packageManager": "pnpm@9.0.6"
 }

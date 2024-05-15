@@ -1,6 +1,7 @@
 {
   "name": "@ts-safeql-demos/prisma-demo",
   "version": "0.0.0",
+  "type": "module",
   "scripts": {
     "build": "tsc",
     "watch": "tsc --watch",
@@ -13,16 +14,16 @@
   "devDependencies": {
     "@ts-safeql/eslint-plugin": "workspace:*",
     "@types/node": "^18.15.11",
-    "@typescript-eslint/eslint-plugin": "^5.59.2",
-    "@typescript-eslint/parser": "^5.59.2",
+    "@typescript-eslint/eslint-plugin": "^7.8.0",
+    "@typescript-eslint/parser": "^7.8.0",
     "conditional-type-checks": "1.0.6",
-    "eslint": "^8.39.0",
-    "tsx": "3.12.6",
-    "typescript": "^5.3.3"
+    "eslint": "^8.57.0",
+    "tsx": "^4.9.1",
+    "typescript": "^5.4.5",
+    "zx": "^8.0.2"
   },
   "dependencies": {
-    "@prisma/client": "4.12.0",
-    "dotenv": "16.0.3",
-    "prisma": "4.12.0"
+    "@prisma/client": "5.13.0",
+    "prisma": "5.13.0"
   }
 }

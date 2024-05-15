@@ -1,9 +1,10 @@
-import { InternalError, LibPgQueryAST } from "@ts-safeql/shared";
+import * as LibPgQueryAST from "@ts-safeql/sql-ast";
+import { InternalError } from "@ts-safeql/shared";
 import assert from "assert";
 import { taskEither } from "fp-ts";
-import { flow, identity, pipe } from "fp-ts/function";
+import { flow, identity, pipe } from "fp-ts/lib/function";
 import parser from "libpg-query";
-import { test } from "mocha";
+import { test } from "vitest";
 import { getRelationsWithJoins } from "./get-relations-with-joins";
 
 const cases: {
@@ -15,7 +16,7 @@ const cases: {
       alias: string | undefined;
       type: LibPgQueryAST.JoinType;
       name: string;
-    }[]
+    }[],
   ][];
 }[] = [
   {
@@ -117,7 +118,7 @@ const cases: {
 export const getRelationsWithJoinsTE = flow(
   parser.parseQuery,
   taskEither.tryCatchK(identity, InternalError.to),
-  taskEither.map(getRelationsWithJoins)
+  taskEither.map(getRelationsWithJoins),
 );
 
 for (const { query, expected, only } of cases) {
@@ -127,8 +128,8 @@ for (const { query, expected, only } of cases) {
       getRelationsWithJoinsTE(query),
       taskEither.match(
         (error) => assert.fail(error.message),
-        (result) => assert.deepEqual([...result.entries()], expected)
-      )
+        (result) => assert.deepEqual([...result.entries()], expected),
+      ),
     )();
   });
 }

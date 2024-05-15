@@ -1,6 +1,7 @@
 import { ResolvedTarget } from "@ts-safeql/generate";
 import {
   DuplicateColumnsError,
+  InvalidConfigError,
   InvalidMigrationError,
   InvalidMigrationsPathError,
   InvalidQueryError,
@@ -17,8 +18,9 @@ import { z } from "zod";
 import { ESTreeUtils } from "../utils";
 import { E, TE, pipe } from "../utils/fp-ts";
 import { mapConnectionOptionsToString, parseConnection } from "../utils/pg.utils";
-import { RuleContext, RuleOptionConnection, zConnectionMigration } from "./check-sql.rule";
-import { WorkerError } from "./check-sql.worker";
+import { RuleContext } from "./check-sql.rule";
+import { RuleOptionConnection, zConnectionMigration } from "./RuleOptions";
+import { WorkerError } from "../workers/check-sql.worker";
 
 type TypeReplacerString = string;
 type TypeReplacerFromTo = [string, string];
@@ -101,6 +103,23 @@ export function reportBaseError(params: {
   return context.report({
     node: tag,
     messageId: "error",
+    data: {
+      error: error.message,
+    },
+  });
+}
+
+export function reportInvalidConfig(params: {
+  tag: TSESTree.TaggedTemplateExpression;
+  context: RuleContext;
+  error: InvalidConfigError;
+}) {
+  const { tag, context, error } = params;
+
+  return context.report({
+    node: tag,
+    messageId: "invalidQuery",
+    loc: context.sourceCode.getLocFromIndex(tag.quasi.range[0]),
     data: {
       error: error.message,
     },
@@ -230,13 +249,13 @@ export function shouldLintFile(params: RuleContext) {
 }
 
 function isMigrationConnection(
-  connection: RuleOptionConnection
+  connection: RuleOptionConnection,
 ): connection is RuleOptionConnection & z.infer<typeof zConnectionMigration> {
   return "migrationsDir" in connection;
 }
 
 export function isWatchMigrationsDirEnabled(
-  connection: RuleOptionConnection
+  connection: RuleOptionConnection,
 ): connection is RuleOptionConnection & z.infer<typeof zConnectionMigration> & { watchMode: true } {
   return isMigrationConnection(connection) && (connection.watchMode ?? true) === true;
 }
@@ -308,7 +327,7 @@ export function runMigrations(params: { migrationsPath: string; sql: Sql }) {
   return pipe(
     TE.Do,
     TE.chain(() => getMigrationFiles(params.migrationsPath)),
-    TE.chainW((files) => TE.sequenceSeqArray(files.map(runSingleMigrationFileWithSql)))
+    TE.chainW((files) => TE.sequenceSeqArray(files.map(runSingleMigrationFileWithSql))),
   );
 }
 
@@ -339,7 +358,7 @@ function getMigrationFiles(migrationsPath: string) {
   return pipe(
     E.tryCatch(() => findDeepSqlFiles(migrationsPath), E.toError),
     TE.fromEither,
-    TE.mapLeft(InvalidMigrationsPathError.fromErrorC(migrationsPath))
+    TE.mapLeft(InvalidMigrationsPathError.fromErrorC(migrationsPath)),
   );
 }
 
@@ -347,7 +366,7 @@ function runSingleMigrationFile(sql: Sql, filePath: string) {
   return pipe(
     TE.tryCatch(() => fs.promises.readFile(filePath).then((x) => x.toString()), E.toError),
     TE.chain((content) => TE.tryCatch(() => sql.unsafe(content), E.toError)),
-    TE.mapLeft(InvalidMigrationError.fromErrorC(filePath))
+    TE.mapLeft(InvalidMigrationError.fromErrorC(filePath)),
   );
 }
 

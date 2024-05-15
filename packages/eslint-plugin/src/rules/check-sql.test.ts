@@ -3,19 +3,24 @@ import {
   setupTestDatabase,
   typeColumnTsTypeEntries,
 } from "@ts-safeql/test-utils";
-import { ESLintUtils } from "@typescript-eslint/utils";
-import { RuleTester } from "@typescript-eslint/utils/dist/ts-eslint";
-import { after, before, describe, it } from "mocha";
+import { RuleTester } from "@typescript-eslint/rule-tester";
+
+import { afterAll, beforeAll, describe, it } from "vitest";
 import path from "path";
 import { Sql } from "postgres";
 import rules from ".";
-import { RuleOptionConnection, RuleOptions } from "./check-sql.rule";
+import { RuleOptionConnection, RuleOptions } from "./RuleOptions";
 
 const tsconfigRootDir = path.resolve(__dirname, "../../");
 const project = "tsconfig.json";
 const filename = path.join(tsconfigRootDir, "src/file.ts");
 
-const ruleTester = new ESLintUtils.RuleTester({
+RuleTester.describe = describe;
+RuleTester.it = it;
+RuleTester.itOnly = it.only;
+RuleTester.afterAll = afterAll;
+
+const ruleTester = new RuleTester({
   parser: "@typescript-eslint/parser",
   parserOptions: { project, tsconfigRootDir },
   settings: {},
@@ -124,17 +129,14 @@ const runMigrations1 = <TTypes extends Record<string, unknown>>(sql: Sql<TTypes>
     );
 `);
 
-RuleTester.describe = describe;
-RuleTester.it = it;
-
 RuleTester.describe("check-sql", () => {
-  RuleTester.it = it;
+  // RuleTester.it = it;
   const databaseName = generateTestDatabaseName();
 
   let sql!: Sql<Record<string, unknown>>;
   let dropFn!: () => Promise<number>;
 
-  before(async () => {
+  beforeAll(async () => {
     const testDatabase = await setupTestDatabase({
       databaseName: databaseName,
       postgresUrl: "postgres://postgres:postgres@localhost:5432/postgres",
@@ -146,7 +148,7 @@ RuleTester.describe("check-sql", () => {
     await runMigrations1(sql);
   });
 
-  after(async () => {
+  RuleTester.afterAll(async () => {
     await sql.end();
     await dropFn();
   });
@@ -196,7 +198,7 @@ RuleTester.describe("check-sql", () => {
 
   function withConnection(
     connection: RuleOptionConnection,
-    options?: Partial<RuleOptionConnection>
+    options?: Partial<RuleOptionConnection>,
   ): RuleOptions {
     return [{ connections: [{ ...connection, ...options }] }];
   }

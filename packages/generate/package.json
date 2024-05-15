@@ -2,36 +2,46 @@
   "name": "@ts-safeql/generate",
   "version": "3.1.0",
   "description": "",
-  "main": "lib/index.js",
   "license": "MIT",
   "repository": "https://github.com/ts-safeql/safeql/tree/master/packages/eslint-plugin",
   "files": [
-    "lib",
+    "dist",
     "package.json"
   ],
+  "type": "module",
+  "types": "dist/index.d.ts",
+  "module": "dist/index.mjs",
+  "main": "dist/index.cjs",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  },
   "scripts": {
     "demo": "tsx index.ts",
-    "build": "tsc",
-    "watch": "tsc --watch",
-    "test": "mocha -r=@esbuild-kit/cjs-loader '**/*.test.ts'",
+    "build": "unbuild",
+    "dev": "unbuild --stub",
+    "test": "vitest --pool=forks",
     "lint": "eslint src",
     "lint!": "eslint src --fix",
     "clean": "rm -rf lib"
   },
   "devDependencies": {
-    "@esbuild-kit/cjs-loader": "^2.4.2",
-    "@types/mocha": "^10.0.1",
     "@types/node": "^18.15.11",
-    "@typescript-eslint/eslint-plugin": "^5.59.2",
-    "@typescript-eslint/parser": "^5.59.2",
-    "eslint": "^8.39.0",
-    "libpg-query": "^15.0.2",
-    "mocha": "^10.2.0",
-    "tsx": "^4.6.2",
-    "typescript": "^5.3.3"
+    "@typescript-eslint/eslint-plugin": "^7.8.0",
+    "@typescript-eslint/parser": "^7.8.0",
+    "eslint": "^8.57.0",
+    "libpg-query": "^16.2.0",
+    "tsx": "^4.9.1",
+    "typescript": "^5.4.5",
+    "unbuild": "^2.0.0",
+    "vitest": "^1.6.0"
   },
   "dependencies": {
     "@ts-safeql/shared": "workspace:3.1.0",
+    "@ts-safeql/sql-ast": "workspace:3.1.0",
     "@ts-safeql/test-utils": "workspace:0.0.16",
     "fp-ts": "^2.13.1",
     "pg-connection-string": "^2.5.0",

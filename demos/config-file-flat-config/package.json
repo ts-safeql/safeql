@@ -1,0 +1,25 @@
+{
+  "name": "@ts-safeql-demos/config-file-flat-config",
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "setup": "tsx src/setup.ts",
+    "lint": "eslint src",
+    "lint!": "eslint src --fix"
+  },
+  "devDependencies": {
+    "@types/node": "^18.15.11",
+    "@eslint/js": "^8.56.0",
+    "@types/eslint": "^8.56.10",
+    "eslint": "^8.57.0",
+    "tsx": "^4.9.1",
+    "typescript": "^5.4.5",
+    "typescript-eslint": "^7.8.0"
+  },
+  "dependencies": {
+    "@ts-safeql/eslint-plugin": "workspace:*",
+    "postgres": "^3.3.4"
+  }
+}
