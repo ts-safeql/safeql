@@ -12,6 +12,20 @@ type GetResolvedTargetByTypeNodeParams = {
 export function getResolvedTargetByTypeNode(
   params: GetResolvedTargetByTypeNodeParams,
 ): ResolvedTarget {
+  const asText = params.parser.esTreeNodeToTSNodeMap.get(params.typeNode).getText();
+
+  if (params.reservedTypes.has(asText)) {
+    return { kind: "type", value: asText };
+  }
+
+  if (params.reservedTypes.has(`${asText}[]`)) {
+    return { kind: "array", value: { kind: "type", value: asText } };
+  }
+
+  if (params.reservedTypes.has(`${asText}[]`)) {
+    return { kind: "array", value: { kind: "type", value: asText } };
+  }
+
   if (
     params.typeNode.type === TSESTree.AST_NODE_TYPES.TSLiteralType &&
     params.typeNode.literal.type === TSESTree.AST_NODE_TYPES.Literal
@@ -149,6 +163,11 @@ function getTypePropertiesFromTypeReference(params: {
     return { kind: "type", value: checker.typeToString(type) };
   }
 
+  if (reservedTypes.has(`${typeAsString}[]`)) {
+    const arrayType = typeAsString.replace("[]", "");
+    return { kind: "array", value: { kind: "type", value: arrayType } };
+  }
+
   switch (typeAsString) {
     case "string":
       return { kind: "type", value: "string" };
@@ -250,12 +269,6 @@ function getTypePropertiesFromTypeReference(params: {
         property,
         parser.esTreeNodeToTSNodeMap.get(typeNode),
       );
-
-      const propTypeString = checker.typeToString(propType);
-
-      if (reservedTypes.has(propTypeString)) {
-        return [key, { kind: "type", value: propTypeString }];
-      }
 
       return [
         key,
