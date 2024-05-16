@@ -1201,6 +1201,35 @@ RuleTester.describe("check-sql", () => {
           \`
         `,
       },
+      {
+        filename,
+        options: withConnection(connections.withTag, {
+          overrides: {
+            columns: {
+              "test_override_column_type.jsonb_col": "Entry[]",
+              "test_override_column_type.jsonb_col_nullable": "Entry[]",
+            },
+          },
+        }),
+        name: "overriden-column: recursive type",
+        code: `
+          interface Text { type: 'entry'; name: string; }
+          interface Group { type: 'group'; entries: Entry[]; }
+          type Entry = Text | Group;
+
+          sql<{
+            jsonb_col: Entry[],
+            jsonb_col_nullable: Entry[] | null,
+            with_fallback: Entry[],
+          }>\`
+            select
+              jsonb_col,
+              jsonb_col_nullable,
+              coalesce(jsonb_col_nullable, '[]'::jsonb) with_fallback
+            from test_override_column_type
+          \`
+        `,
+      },
     ],
     invalid: [
       {
@@ -1257,6 +1286,39 @@ RuleTester.describe("check-sql", () => {
             data: {
               error:
                 "Internal error: Invalid override column key: invalid-config. Expected format: table.column",
+            },
+          },
+        ],
+      },
+      {
+        filename,
+        options: withConnection(connections.withTag, {
+          overrides: {
+            columns: {
+              "test_override_column_type.jsonb_col": "Entry[]",
+            },
+          },
+        }),
+        name: "overriden-column: recursive type (missing type annotations)",
+        code: `
+          interface Text { type: 'entry'; name: string; }
+          interface Group { type: 'group'; entries: Entry[]; }
+          type Entry = Text | Group;
+
+          sql\`select jsonb_col from test_override_column_type\`
+        `,
+        output: `
+          interface Text { type: 'entry'; name: string; }
+          interface Group { type: 'group'; entries: Entry[]; }
+          type Entry = Text | Group;
+
+          sql<{ jsonb_col: Entry[] }>\`select jsonb_col from test_override_column_type\`
+        `,
+        errors: [
+          {
+            messageId: "missingTypeAnnotations",
+            data: {
+              fix: "{ jsonb_col: Entry[] }",
             },
           },
         ],
