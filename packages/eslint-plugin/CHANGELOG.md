@@ -1,5 +1,11 @@
 # @ts-safeql/eslint-plugin
 
+## 3.2.1
+
+### Patch Changes
+
+- c618872: fixed an issue with recursive custom column type that ends with "[]"
+
 ## 3.2.0
 
 ### Minor Changes
