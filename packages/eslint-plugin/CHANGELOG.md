@@ -1,5 +1,11 @@
 # @ts-safeql/eslint-plugin
 
+## 3.2.2
+
+### Patch Changes
+
+- 98d25c0: fixed "Cannot find module 'tsx/cjs/api'"
+
 ## 3.2.1
 
 ### Patch Changes
