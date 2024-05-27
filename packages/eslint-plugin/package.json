@@ -51,7 +51,6 @@
     "@typescript-eslint/rule-tester": "^7.8.0",
     "eslint": "^8.57.0",
     "libpg-query": "^16.2.0",
-    "tsx": "^4.9.1",
     "typescript": "^5.4.5",
     "unbuild": "^2.0.0",
     "vitest": "^1.6.0"
@@ -64,6 +63,7 @@
     "postgres": "^3.3.4",
     "synckit": "^0.9.0",
     "ts-pattern": "^4.2.2",
+    "tsx": "^4.9.1",
     "zod": "^3.21.4",
     "zod-to-json-schema": "3.20.1"
   },
