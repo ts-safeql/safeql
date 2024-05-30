@@ -70,6 +70,10 @@ export default defineConfig({
               { text: "targets.tag", link: "/api/index.md#connections-targets-tag" },
               { text: "targets.wrapper", link: "/api/index.md#connections-targets-wrapper" },
               {
+                text: "targets.maxDepth",
+                link: "/api/index.md#connections-targets-maxdepth-optional",
+              },
+              {
                 text: "targets.transform",
                 link: "/api/index.md#connections-targets-transform-optional",
               },
