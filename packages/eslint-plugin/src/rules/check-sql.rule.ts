@@ -315,6 +315,18 @@ function checkConnectionByTagExpression(params: {
   }
 }
 
+function getValidParentUntilDepth(node: TSESTree.Node, depth: number) {
+  if (node.type === "CallExpression" && node.callee.type === "MemberExpression") {
+    return node;
+  }
+
+  if (depth > 0 && node.parent) {
+    return getValidParentUntilDepth(node.parent, depth - 1);
+  }
+
+  return null;
+}
+
 function checkConnectionByWrapperExpression(params: {
   context: RuleContext;
   connection: RuleOptionConnection;
@@ -324,18 +336,17 @@ function checkConnectionByWrapperExpression(params: {
 }) {
   const { context, tag, projectDir, connection, target } = params;
 
-  if (
-    !isTagMemberValid(tag) ||
-    !ESTreeUtils.isCallExpression(tag.parent) ||
-    !ESTreeUtils.isMemberExpression(tag.parent.callee)
-  ) {
+  if (!isTagMemberValid(tag)) {
     return;
   }
 
-  const calleeAsText = context
-    .getSourceCode()
-    .getText(tag.parent.callee)
-    .replace(/^this\./, "");
+  const wrapperNode = getValidParentUntilDepth(tag.parent, target.maxDepth ?? 0);
+
+  if (wrapperNode === null) {
+    return;
+  }
+
+  const calleeAsText = context.sourceCode.getText(wrapperNode.callee).replace(/^this\./, "");
 
   if (doesMatchPattern({ pattern: target.wrapper, text: calleeAsText })) {
     return reportCheck({
@@ -344,8 +355,8 @@ function checkConnectionByWrapperExpression(params: {
       connection,
       target,
       projectDir,
-      baseNode: tag.parent.callee,
-      typeParameter: tag.parent.typeArguments,
+      baseNode: wrapperNode.callee,
+      typeParameter: wrapperNode.typeArguments,
     });
   }
 }

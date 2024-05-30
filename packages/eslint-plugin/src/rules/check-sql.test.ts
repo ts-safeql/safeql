@@ -174,6 +174,11 @@ RuleTester.describe("check-sql", () => {
       targets: [{ wrapper: { regex: "conn.(query|queryOne|queryOneOrNone)" } }],
       keepAlive: false,
     },
+    withMaxDepthOf: (maxDepth: number) => ({
+      databaseUrl: `postgres://postgres:postgres@localhost:5432/${databaseName}`,
+      targets: [{ wrapper: "conn.query", maxDepth }],
+      keepAlive: false,
+    }),
     withTag: {
       databaseUrl: `postgres://postgres:postgres@localhost:5432/${databaseName}`,
       targets: [{ tag: "sql" }],
@@ -194,7 +199,7 @@ RuleTester.describe("check-sql", () => {
       targets: [{ tag: { regex: "(conn1|conn2).sql" } }],
       keepAlive: false,
     },
-  } satisfies Record<string, RuleOptionConnection>;
+  } satisfies Record<string, RuleOptionConnection | ((...args: never[]) => RuleOptionConnection)>;
 
   function withConnection(
     connection: RuleOptionConnection,
@@ -1087,6 +1092,28 @@ RuleTester.describe("check-sql", () => {
           }
         `,
         errors: [{ messageId: "missingTypeAnnotations" }, { messageId: "missingTypeAnnotations" }],
+      },
+      {
+        filename,
+        options: withConnection(connections.withMaxDepthOf(2)),
+        name: "regex pattern should be checked as well (wrapper regex)",
+        code: `
+          conn.query(...sql\`select 1 as num\`);
+          conn.query([sql\`select 1 as num\`]);
+          conn.query([...sql\`select 1 as num\`]);
+          conn.query(...[...sql\`select 1 as num\`]);
+        `,
+        output: `
+          conn.query<{ num: number }>(...sql\`select 1 as num\`);
+          conn.query<{ num: number }>([sql\`select 1 as num\`]);
+          conn.query<{ num: number }>([...sql\`select 1 as num\`]);
+          conn.query(...[...sql\`select 1 as num\`]);
+        `,
+        errors: [
+          { messageId: "missingTypeAnnotations" },
+          { messageId: "missingTypeAnnotations" },
+          { messageId: "missingTypeAnnotations" },
+        ],
       },
       {
         filename,

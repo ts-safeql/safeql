@@ -267,6 +267,33 @@ conn.query(...);
 
 :::
 
+### `connections.targets.maxDepth` (Optional)
+
+By default, SafeQL assumes that each wrapper has a direct descendant of an sql tag. In some cases, you may want to increase the depth of the sql tag lookup. For example:
+
+```ts
+conn.query(sql`SELECT id FROM users`); // depth = 0
+conn.query([sql`SELECT id FROM users`]); // depth = 1
+conn.query(...sql`SELECT id FROM users`); // depth = 1
+conn.query(...[sql`SELECT id FROM users`]); // depth = 2
+```
+
+In this case, you can use the `maxDepth` option to specify the maximum depth of the sql tag. For example:
+
+```json
+{
+  "connections": {
+    // ...
+    "targets": [
+      {
+        "wrapper": "conn.query",
+        "maxDepth": 2 // [!code focus]
+      }
+    ]
+  }
+}
+```
+
 ### `connections.targets.transform` (Optional)
 
 Transform the end result of the query. For example, if you want to transform the result of the query

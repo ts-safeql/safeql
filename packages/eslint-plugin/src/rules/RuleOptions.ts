@@ -37,7 +37,9 @@ const zBaseTarget = z.object({
  *               ^^^^^^^^^^ wrapper
  * ```
  */
-const zWrapperTarget = z.object({ wrapper: zStringOrRegex }).merge(zBaseTarget);
+const zWrapperTarget = z
+  .object({ wrapper: zStringOrRegex, maxDepth: z.number().optional() })
+  .merge(zBaseTarget);
 export type WrapperTarget = z.infer<typeof zWrapperTarget>;
 /**
  * A target that is a tag expression. For example:
