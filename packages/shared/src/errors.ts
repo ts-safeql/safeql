@@ -141,6 +141,12 @@ export class InternalError extends Error {
   }
 
   static to(error: unknown) {
+    if (error instanceof AggregateError) {
+      const e = InternalError.of(error.errors.map((e) => e.message).join(", "));
+      e.stack = error.stack;
+      return e;
+    }
+
     if (error instanceof Error) {
       const e = InternalError.of(error.message);
       e.stack = error.stack;
@@ -148,7 +154,7 @@ export class InternalError extends Error {
       return e;
     }
 
-    return InternalError.of("Unknown error");
+    return InternalError.of(`Unknown (${error})`);
   }
 
   toJSON() {
