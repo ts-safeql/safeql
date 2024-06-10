@@ -1,5 +1,11 @@
 # @ts-safeql/safeql
 
+## 0.2.1
+
+### Patch Changes
+
+- ad801a9: update package.json exports and types paths
+
 ## 0.2.0
 
 ### Minor Changes

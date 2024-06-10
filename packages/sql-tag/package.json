@@ -1,6 +1,6 @@
 {
   "name": "@ts-safeql/sql-tag",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "",
   "license": "MIT",
   "repository": "https://github.com/ts-safeql/safeql/tree/master/packages/eslint-plugin",
