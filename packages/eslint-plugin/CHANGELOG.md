@@ -1,5 +1,11 @@
 # @ts-safeql/eslint-plugin
 
+## 3.3.1
+
+### Patch Changes
+
+- ad801a9: Format AggregateError accordingly
+
 ## 3.3.0
 
 ### Minor Changes

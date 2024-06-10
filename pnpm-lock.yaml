@@ -593,13 +593,13 @@ importers:
   packages/generate:
     dependencies:
       '@ts-safeql/shared':
-        specifier: workspace:3.3.0
+        specifier: workspace:3.3.1
         version: link:../shared
       '@ts-safeql/sql-ast':
-        specifier: workspace:3.3.0
+        specifier: workspace:3.3.1
         version: link:../ast-types
       '@ts-safeql/test-utils':
-        specifier: workspace:0.0.20
+        specifier: workspace:0.0.21
         version: link:../test-utils
       fp-ts:
         specifier: ^2.13.1
@@ -700,7 +700,7 @@ importers:
   packages/test-utils:
     dependencies:
       '@ts-safeql/shared':
-        specifier: workspace:3.3.0
+        specifier: workspace:3.3.1
         version: link:../shared
       nanoid:
         specifier: ^4.0.2
