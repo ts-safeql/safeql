@@ -298,7 +298,7 @@ test("camel case field transform", async () => {
   });
 });
 
-test.skip("select true", async () => {
+test("select true", async () => {
   await testQuery({
     options: { fieldTransform: "camel" },
     query: `SELECT true`,
