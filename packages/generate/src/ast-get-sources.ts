@@ -8,7 +8,7 @@ export type SourcesResolver = ReturnType<typeof getSources>;
 type SourcesOptions = {
   select: LibPgQueryAST.SelectStmt;
   nonNullableColumns: Set<string>;
-  pgColsByTableName: Map<string, PgColRow[]>;
+  pgColsBySchemaAndTableName: Map<string, Map<string, PgColRow[]>>;
   relations: FlattenedRelationWithJoins[];
 };
 
@@ -22,7 +22,7 @@ type TargetField =
   | { kind: "column"; table: string; column: string };
 
 export function getSources({
-  pgColsByTableName,
+  pgColsBySchemaAndTableName,
   relations,
   select,
   nonNullableColumns,
@@ -144,7 +144,7 @@ export function getSources({
   }
 
   type SelectSource =
-    | { kind: "table"; name: string; original: string; alias?: string }
+    | { kind: "table"; schemaName: string; name: string; original: string; alias?: string }
     | { kind: "subselect"; name: string };
 
   type ColumnWithSource = {
@@ -163,6 +163,7 @@ export function getSources({
       if (node.RangeVar !== undefined) {
         const source: SelectSource = {
           kind: "table",
+          schemaName: node.RangeVar.schemaname ?? "public",
           original: node.RangeVar.relname,
           name: node.RangeVar.alias?.aliasname ?? node.RangeVar.relname,
           alias: node.RangeVar.alias?.aliasname,
@@ -170,7 +171,9 @@ export function getSources({
 
         sources.push([source.name, source]);
 
-        for (const column of pgColsByTableName.get(source.original) ?? []) {
+        for (const column of pgColsBySchemaAndTableName
+          .get(source.schemaName)
+          ?.get(source.original) ?? []) {
           columns.push({ column, source });
         }
       }

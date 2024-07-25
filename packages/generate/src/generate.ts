@@ -72,7 +72,7 @@ type Cache = {
       pgCols: PgColRow[];
       pgEnums: PgEnumsMaps;
       pgColsByTableOidCache: Map<number, PgColRow[]>;
-      pgColsByTableName: Map<string, PgColRow[]>;
+      pgColsBySchemaAndTableName: Map<string, Map<string, PgColRow[]>>;
       pgFnsByName: Map<string, PgFnRow[]>;
     }
   >;
@@ -115,7 +115,7 @@ type GenerateContext = {
   pgEnums: PgEnumsMaps;
   relationsWithJoins: FlattenedRelationWithJoins[];
   overrides: Overrides | undefined;
-  pgColsByTableName: Map<string, PgColRow[]>;
+  pgColsBySchemaAndTableName: Map<string, Map<string, PgColRow[]>>;
   fieldTransform: IdentiferCase | undefined;
 };
 
@@ -125,7 +125,7 @@ async function generate(
 ): Promise<either.Either<GenerateError, GenerateResult>> {
   const { sql, query, cacheKey, cacheMetadata = true } = params;
 
-  const { pgColsByTableOidCache, pgColsByTableName, pgTypes, pgEnums, pgFnsByName } =
+  const { pgColsByTableOidCache, pgColsBySchemaAndTableName, pgTypes, pgEnums, pgFnsByName } =
     await getOrSetFromMapWithEnabled({
       shouldCache: cacheMetadata,
       map: cache.base,
@@ -239,7 +239,7 @@ async function generate(
       typesMap: typesMap,
       overridenColumnTypesMap: overridenColumnTypesMap,
       nonNullableColumns: nonNullableColumnsBasedOnAST,
-      pgColsByTableName: pgColsByTableName,
+      pgColsBySchemaAndTableName: pgColsBySchemaAndTableName,
       pgTypes: pgTypes,
       pgEnums: pgEnums,
       pgFns: functionsMap,
@@ -269,7 +269,7 @@ async function generate(
         types: typesMap,
         columns: overridenColumnTypesMap,
       },
-      pgColsByTableName,
+      pgColsBySchemaAndTableName,
       fieldTransform: params.fieldTransform,
     };
 
@@ -303,10 +303,17 @@ async function getDatabaseMetadata(sql: Sql) {
   const pgEnums = await getPgEnums(sql);
   const pgFns = await getPgFunctions(sql);
   const pgColsByTableOidCache = groupBy(pgCols, "tableOid");
-  const pgColsByTableName = groupBy(pgCols, "tableName");
+  const pgColsBySchemaAndTableName = groupBy(pgCols, "schemaName", "tableName");
   const pgFnsByName = groupBy(pgFns, "name");
 
-  return { pgTypes, pgCols, pgEnums, pgColsByTableOidCache, pgColsByTableName, pgFnsByName };
+  return {
+    pgTypes,
+    pgCols,
+    pgEnums,
+    pgColsByTableOidCache,
+    pgColsBySchemaAndTableName,
+    pgFnsByName,
+  };
 }
 
 type ColumnAnalysisResult = {
@@ -563,6 +570,7 @@ async function getPgTypes(sql: Sql): Promise<PgTypesMap> {
 }
 
 export interface PgColRow {
+  schemaName: string;
   tableOid: number;
   tableName: string;
   colName: string;
@@ -577,6 +585,7 @@ async function getPgCols(sql: Sql) {
   const rows = await sql<PgColRow[]>`
       SELECT
           pg_class.oid AS "tableOid",
+          pg_namespace.nspname AS "schemaName",
           pg_class.relname AS "tableName",
           pg_attribute.attname AS "colName",
           pg_type.oid AS "colTypeOid",
@@ -592,10 +601,12 @@ async function getPgCols(sql: Sql) {
       FROM
           pg_attribute,
           pg_class,
-          pg_type
+          pg_type,
+          pg_namespace
       WHERE TRUE
           AND pg_attribute.attrelid = pg_class.oid
           AND pg_attribute.atttypid = pg_type.oid
+          AND pg_class.relnamespace = pg_namespace.oid
           AND pg_attribute.attnum >= 1
       ORDER BY
           pg_class.relname,
