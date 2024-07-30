@@ -1,5 +1,14 @@
 # @ts-safeql/generate
 
+## 3.3.2
+
+### Patch Changes
+
+- 09175c6: fix: distinguish schema in table/column resolution (by @TanguyFir)
+  - @ts-safeql/shared@3.3.2
+  - @ts-safeql/sql-ast@3.3.2
+  - @ts-safeql/test-utils@0.0.22
+
 ## 3.3.1
 
 ### Patch Changes
