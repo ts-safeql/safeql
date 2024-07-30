@@ -17,7 +17,7 @@ type ASTDescriptionOptions = {
   typesMap: Map<string, { override: boolean; value: string }>;
   overridenColumnTypesMap: Map<string, Map<string, string>>;
   nonNullableColumns: Set<string>;
-  pgColsByTableName: Map<string, PgColRow[]>;
+  pgColsBySchemaAndTableName: Map<string, Map<string, PgColRow[]>>;
   pgTypes: PgTypesMap;
   pgEnums: PgEnumsMaps;
   pgFns: Map<string, string>;
@@ -73,7 +73,7 @@ export function getASTDescription(params: ASTDescriptionOptions): Map<string, AS
       relations: params.relations,
       select: select,
       nonNullableColumns: params.nonNullableColumns,
-      pgColsByTableName: params.pgColsByTableName,
+      pgColsBySchemaAndTableName: params.pgColsBySchemaAndTableName,
     }),
     select: select,
     resolved: new WeakMap(),

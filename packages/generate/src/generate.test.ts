@@ -121,6 +121,23 @@ function runMigrations(sql: SQL) {
       bit_column BIT(3) NOT NULL,
       bit_varying_column BIT VARYING(5) NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS table1 (
+      id SERIAL PRIMARY KEY,
+      name INTEGER NOT NULL
+    );
+
+    CREATE SCHEMA IF NOT EXISTS schema1;
+    CREATE TABLE IF NOT EXISTS schema1.table1 (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL
+    );
+
+    CREATE SCHEMA IF NOT EXISTS schema2;
+    CREATE TABLE IF NOT EXISTS schema2.table1 (
+      id SERIAL PRIMARY KEY,
+      name TEXT
+    );
   `);
 }
 
@@ -1168,6 +1185,34 @@ test("select tbl with left join of self tbl", async () => {
           kind: "union",
           value: [
             { kind: "type", value: "number" },
+            { kind: "type", value: "null" },
+          ],
+        },
+      ],
+    ],
+  });
+});
+
+test("should distinguish between schema", async () => {
+  await testQuery({
+    query: `SELECT name FROM table1`,
+    expected: [["name", { kind: "type", value: "number" }]],
+  });
+
+  await testQuery({
+    query: `SELECT name FROM schema1.table1`,
+    expected: [["name", { kind: "type", value: "string" }]],
+  });
+
+  await testQuery({
+    query: `SELECT name FROM schema2.table1`,
+    expected: [
+      [
+        "name",
+        {
+          kind: "union",
+          value: [
+            { kind: "type", value: "string" },
             { kind: "type", value: "null" },
           ],
         },
