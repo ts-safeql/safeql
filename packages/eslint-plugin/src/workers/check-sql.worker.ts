@@ -86,6 +86,11 @@ function workerHandler(params: CheckSQLWorkerParams): TE.TaskEither<WorkerError,
         databaseName,
       });
       const { sql, isFirst } = connections.getOrCreate(databaseUrl);
+      const { sql: migrationSql } = connections.getOrCreate(connectionUrl, {
+        onnotice: () => {
+          /* silence notices */
+        },
+      });
       const connectionPayload: ConnectionPayload = { sql, isFirst, databaseUrl };
 
       if (isFirst) {
@@ -93,7 +98,7 @@ function workerHandler(params: CheckSQLWorkerParams): TE.TaskEither<WorkerError,
 
         return pipe(
           TE.Do,
-          TE.chainW(() => initDatabase(connectionOptions)),
+          TE.chainW(() => initDatabase(migrationSql, connectionOptions.database)),
           TE.chainW(() => runMigrations({ migrationsPath, sql })),
           TE.map(() => connectionPayload),
         );

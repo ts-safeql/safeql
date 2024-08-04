@@ -1,7 +1,7 @@
 import { DatabaseInitializationError } from "@ts-safeql/shared";
-import { spawn, ChildProcessWithoutNullStreams } from "child_process";
 import pgConnectionString from "pg-connection-string";
 import { pipe, TE } from "./fp-ts";
+import { Sql } from "postgres";
 
 export interface ConnectionOptions {
   host: string;
@@ -47,68 +47,26 @@ export function parseConnection(databaseUrl: string): ConnectionOptions {
   };
 }
 
-export function initDatabase(connection: ConnectionOptions) {
+export function initDatabase(sql: Sql, database: string) {
   return pipe(
     TE.Do,
-    TE.chain(() => dropDatabase(connection)),
+    TE.chain(() => dropDatabase(sql, database)),
     TE.altW(() => TE.right(undefined)),
-    TE.chain(() => createDatabase(connection)),
+    TE.chain(() => createDatabase(sql, database)),
   );
 }
 
-export function createDatabase(connection: ConnectionOptions) {
-  const exec = spawn(
-    "createdb",
-    [
-      connection.database,
-      "-h",
-      connection.host,
-      "-p",
-      connection.port.toString(),
-      "-U",
-      connection.user,
-    ],
-    {
-      env: { ...process.env, PGPASSWORD: connection.password },
-    },
-  );
-
-  return execToTaskEither(exec, DatabaseInitializationError.to);
-}
-
-export function dropDatabase(connection: ConnectionOptions) {
-  const exec = spawn(
-    "dropdb",
-    [
-      connection.database,
-      "--if-exists",
-      "-h",
-      connection.host,
-      "-p",
-      connection.port.toString(),
-      "-U",
-      connection.user,
-      "--force",
-    ],
-    {
-      env: { ...process.env, PGPASSWORD: connection.password },
-    },
-  );
-
-  return execToTaskEither(exec, DatabaseInitializationError.to);
-}
-
-function execToTaskEither<L extends Error>(
-  exec: ChildProcessWithoutNullStreams,
-  mapLeft: (error: unknown) => L,
-) {
+export function createDatabase(sql: Sql, database: string) {
   return TE.tryCatch(
-    () =>
-      new Promise<void>((resolve, reject) => {
-        exec.stderr.on("data", (x) => reject(new Error(x)));
-        exec.on("exit", (code) => (code === 0 ? resolve() : reject(new Error(code + ""))));
-      }),
-    mapLeft,
+    () => sql.unsafe(`CREATE DATABASE ${database}`),
+    DatabaseInitializationError.to,
+  );
+}
+
+export function dropDatabase(sql: Sql, database: string) {
+  return TE.tryCatch(
+    () => sql.unsafe(`DROP DATABASE IF EXISTS ${database}`),
+    DatabaseInitializationError.to,
   );
 }
 

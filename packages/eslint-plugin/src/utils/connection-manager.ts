@@ -12,7 +12,8 @@ export function createConnectionManager() {
   const connectionMap: Map<string, Sql> = new Map();
 
   return {
-    getOrCreate: (databaseUrl: string) => getOrCreateConnection(databaseUrl, connectionMap),
+    getOrCreate: (databaseUrl: string, options?: postgres.Options<never>) =>
+      getOrCreateConnection(databaseUrl, connectionMap, options),
     close: (params: CloseConnectionParams) => closeConnection(params, connectionMap),
   };
 }
@@ -20,12 +21,13 @@ export function createConnectionManager() {
 function getOrCreateConnection(
   databaseUrl: string,
   connectionMap: Map<string, Sql>,
+  options?: postgres.Options<never>,
 ): ConnectionPayload {
   return pipe(
     O.fromNullable(connectionMap.get(databaseUrl)),
     O.foldW(
       () => {
-        const sql = postgres(databaseUrl);
+        const sql = postgres(databaseUrl, options);
         connectionMap.set(databaseUrl, sql);
         return { sql, databaseUrl, isFirst: true };
       },
@@ -55,9 +57,14 @@ function closeConnection(params: CloseConnectionParams, connectionMap: Map<strin
       const connectionOptions = { ...parseConnection(connectionUrl), database: databaseName };
       const databaseUrl = mapConnectionOptionsToString(connectionOptions);
       const sql = connectionMap.get(databaseUrl);
+      const migrationSql = connectionMap.get(connectionUrl);
       if (sql) {
         sql.end();
         connectionMap.delete(databaseUrl);
+      }
+      if (migrationSql) {
+        migrationSql.end();
+        connectionMap.delete(connectionUrl);
       }
     })
     .exhaustive();
