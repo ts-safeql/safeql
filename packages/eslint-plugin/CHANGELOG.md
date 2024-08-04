@@ -1,5 +1,11 @@
 # @ts-safeql/eslint-plugin
 
+## 3.4.0
+
+### Minor Changes
+
+- 56c2683: Removed calls to createdb and dropdb and replaced them with SQL commands
+
 ## 3.3.2
 
 ## 3.3.1
