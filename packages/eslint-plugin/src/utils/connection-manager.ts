@@ -12,7 +12,7 @@ export function createConnectionManager() {
   const connectionMap: Map<string, Sql> = new Map();
 
   return {
-    getOrCreate: (databaseUrl: string, options?: postgres.Options<{}>) =>
+    getOrCreate: (databaseUrl: string, options?: postgres.Options<never>) =>
       getOrCreateConnection(databaseUrl, connectionMap, options),
     close: (params: CloseConnectionParams) => closeConnection(params, connectionMap),
   };
@@ -21,7 +21,7 @@ export function createConnectionManager() {
 function getOrCreateConnection(
   databaseUrl: string,
   connectionMap: Map<string, Sql>,
-  options?: postgres.Options<{}>,
+  options?: postgres.Options<never>,
 ): ConnectionPayload {
   return pipe(
     O.fromNullable(connectionMap.get(databaseUrl)),
