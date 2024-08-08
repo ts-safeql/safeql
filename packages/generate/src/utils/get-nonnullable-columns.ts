@@ -257,7 +257,13 @@ function getNonNullableColumnsInSelectStmt(
 ): Set<string> {
   const nonNullableColumns = new Set<string>();
 
-  for (const target of stmt.targetList) {
+  const targetList = [
+    ...(stmt.targetList ?? []),
+    ...(stmt.larg?.targetList ?? []),
+    ...(stmt.rarg?.targetList ?? []),
+  ];
+
+  for (const target of targetList) {
     if (target.ResTarget && isColumnNonNullable(target.ResTarget.val, root)) {
       nonNullableColumns.add(getTargetName(target.ResTarget));
     }

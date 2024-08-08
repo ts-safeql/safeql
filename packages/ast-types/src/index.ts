@@ -890,7 +890,7 @@ export interface MergeStmt {
 export interface SelectStmt {
   distinctClause: Node[];
   intoClause: IntoClause | undefined;
-  targetList: Node[];
+  targetList?: Node[];
   fromClause?: Node[];
   whereClause: Node | undefined;
   groupClause: Node[];
@@ -2345,13 +2345,13 @@ enum CTEMaterialize {
   UNRECOGNIZED = -1,
 }
 
-enum SetOperation {
-  SET_OPERATION_UNDEFINED = 0,
-  SETOP_NONE = 1,
-  SETOP_UNION = 2,
-  SETOP_INTERSECT = 3,
-  SETOP_EXCEPT = 4,
-  UNRECOGNIZED = -1,
+export enum SetOperation {
+  SET_OPERATION_UNDEFINED = "SET_OPERATION_UNDEFINED",
+  SETOP_NONE = "SETOP_NONE",
+  SETOP_UNION = "SETOP_UNION",
+  SETOP_INTERSECT = "SETOP_INTERSECT",
+  SETOP_EXCEPT = "SETOP_EXCEPT",
+  UNRECOGNIZED = "UNRECOGNIZED",
 }
 
 enum ObjectType {
