@@ -205,7 +205,7 @@ function getPgTypeFromTsType(params: {
 
   // Handle overrides
   const typesWithOverrides = { ...defaultTypeMapping, ...options.overrides?.types };
-  const override = Object.entries(typesWithOverrides).find(([_, tsType]) =>
+  const override = Object.entries(typesWithOverrides).find(([, tsType]) =>
     doesMatchPattern({
       pattern: typeof tsType === "string" ? tsType : tsType.parameter,
       text: singularType,
