@@ -116,10 +116,10 @@ export function getASTDescription(params: ASTDescriptionOptions): Map<string, AS
   };
 
   const targetList = [
-    ...select.targetList ?? [],
-    ...select.larg?.targetList ?? [],
-    ...select.rarg?.targetList ?? [],
-  ]
+    ...(select.targetList ?? []),
+    ...(select.larg?.targetList ?? []),
+    ...(select.rarg?.targetList ?? []),
+  ];
 
   const result = targetList
     .map((node) => getDescribedNode({ alias: undefined, node, context }))
