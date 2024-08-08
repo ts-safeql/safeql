@@ -6,6 +6,7 @@ import {
   getOrSetFromMapWithEnabled,
   groupBy,
   IdentiferCase,
+  isPostgresError,
   PostgresError,
   toCase,
 } from "@ts-safeql/shared";
@@ -295,18 +296,6 @@ async function generate(
 
     throw e;
   }
-}
-
-function isPostgresError(e: unknown): e is postgres.PostgresError {
-  if (e instanceof postgres.PostgresError) {
-    return true;
-  }
-
-  if (e instanceof Error && e.name === "PostgresError") {
-    return true;
-  }
-
-  return false;
 }
 
 async function getDatabaseMetadata(sql: Sql) {

@@ -211,7 +211,7 @@ export class PostgresError extends Error {
   }
 
   static to(query: string, error: unknown) {
-    if (error instanceof postgres.PostgresError) {
+    if (isPostgresError(error)) {
       return PostgresError.of({
         queryText: query,
         message: error.message,
@@ -237,4 +237,16 @@ export class PostgresError extends Error {
       position: this.position,
     };
   }
+}
+
+export function isPostgresError(e: unknown): e is postgres.PostgresError {
+  if (e instanceof postgres.PostgresError) {
+    return true;
+  }
+
+  if (e instanceof Error && e.name === "PostgresError") {
+    return true;
+  }
+
+  return false;
 }

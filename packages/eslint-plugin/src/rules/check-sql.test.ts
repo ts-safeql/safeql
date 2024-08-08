@@ -127,6 +127,10 @@ const runMigrations1 = <TTypes extends Record<string, unknown>>(sql: Sql<TTypes>
       bit_column BIT(3) NOT NULL,
       bit_varying_column BIT VARYING(5) NOT NULL
     );
+
+    CREATE TABLE test_insert_array_union_literals (
+      colname TEXT[] NOT NULL
+    );
 `);
 
 RuleTester.describe("check-sql", () => {
@@ -526,7 +530,16 @@ RuleTester.describe("check-sql", () => {
         filename,
         name: "insert into nullable column a null value",
         options: withConnection(connections.withTag),
-        code: `sql\`INSERT INTO test_nullable_column (nullable_int) VALUES (\${null})\`
+        code: `sql\`INSERT INTO test_nullable_column (nullable_int) VALUES (\${null})\``,
+      },
+      {
+        filename,
+        name: "insert into nullable column a null value",
+        options: withConnection(connections.withTag),
+        code: `
+         async function save(literal: "literalA" | "literalB") {
+          sql\`INSERT INTO test_insert_array_union_literals (colname) VALUES (\${[literal]})\`
+          }
         `,
       },
       {
@@ -707,6 +720,26 @@ RuleTester.describe("check-sql", () => {
             messageId: "invalidQuery",
             data: {
               error: "Union types must be of the same type (found string, number)",
+            },
+          },
+        ],
+      },
+      {
+        filename,
+        options: withConnection(connections.base),
+        name: "mixed union literals from function arg",
+        code: `
+          function run(union: UnionStringLiteral) {
+            conn.query<{ name: string }>(sql\`
+              select name from agency WHERE name = \${(Math.random() > 0.5 ? "a" : 1)}
+            \`);
+          }
+        `,
+        errors: [
+          {
+            messageId: "invalidQuery",
+            data: {
+              error: "Conditional expression must have the same type (true = text, false = int)",
             },
           },
         ],
