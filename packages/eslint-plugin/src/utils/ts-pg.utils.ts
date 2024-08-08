@@ -115,16 +115,19 @@ function getPgTypeFromTsType(params: {
   type: ts.Type;
   options: RuleOptionConnection;
 }): E.Either<string, string | null> {
-  if (params.node.kind === ts.SyntaxKind.ConditionalExpression) {
-    const whenTrue = params.checker.getTypeAtLocation(params.node.whenTrue);
-    const whenTrueType = tsFlagToPgTypeMap[whenTrue.flags];
+  const { checker, node, type, options } = params;
 
-    const whenFalse = params.checker.getTypeAtLocation(params.node.whenFalse);
-    const whenFalseType = tsFlagToPgTypeMap[whenFalse.flags];
+  // Utility function to get PostgreSQL type from flags
+  const getPgTypeFromFlags = (flags: ts.TypeFlags) => tsFlagToPgTypeMap[flags];
 
-    if (whenTrueType === undefined || whenFalseType === undefined) {
+  // Check for conditional expression
+  if (node.kind === ts.SyntaxKind.ConditionalExpression) {
+    const whenTrueType = getPgTypeFromFlags(checker.getTypeAtLocation(node.whenTrue).flags);
+    const whenFalseType = getPgTypeFromFlags(checker.getTypeAtLocation(node.whenFalse).flags);
+
+    if (!whenTrueType || !whenFalseType) {
       return E.left(
-        `Unsupported conditional expression flags (true = ${whenTrue.flags}, false = ${whenFalse.flags})`,
+        `Unsupported conditional expression flags (true = ${whenTrueType}, false = ${whenFalseType})`,
       );
     }
 
@@ -137,72 +140,84 @@ function getPgTypeFromTsType(params: {
     return E.right(whenTrueType);
   }
 
-  if (params.node.kind === ts.SyntaxKind.Identifier) {
-    const symbol = params.checker.getSymbolAtLocation(params.node);
-    const type = params.checker.getTypeOfSymbolAtLocation(symbol!, params.node);
+  // Check for identifier
+  if (node.kind === ts.SyntaxKind.Identifier) {
+    const symbol = checker.getSymbolAtLocation(node);
+    const symbolType = checker.getTypeOfSymbolAtLocation(symbol!, node);
 
-    if (TSUtils.isTsUnionType(type)) {
-      return getPgTypeFromTsTypeUnion({ types: type.types });
+    if (TSUtils.isTsUnionType(symbolType)) {
+      return getPgTypeFromTsTypeUnion({ types: symbolType.types });
     }
 
-    if (TSUtils.isTsArrayUnionType(params.checker, type)) {
-      return pipe(
-        E.Do,
-        E.chain(() => getPgTypeFromTsTypeUnion({ types: type.resolvedTypeArguments[0].types })),
-        E.map((pgType) => `${pgType}[]`),
-      );
+    if (TSUtils.isTsArrayUnionType(checker, symbolType)) {
+      const elementTypeUnion = symbolType.resolvedTypeArguments?.[0].types;
+      return elementTypeUnion
+        ? pipe(
+            getPgTypeFromTsTypeUnion({ types: elementTypeUnion }),
+            E.map((pgType) => `${pgType}[]`),
+          )
+        : E.left("Invalid array union type");
     }
   }
 
-  if (params.node.kind in tsKindToPgTypeMap) {
-    return E.right(tsKindToPgTypeMap[params.node.kind]);
+  // Check for known SyntaxKind mappings
+  if (node.kind in tsKindToPgTypeMap) {
+    return E.right(tsKindToPgTypeMap[node.kind]);
   }
 
-  if (params.type.flags in tsFlagToPgTypeMap) {
-    return E.right(tsFlagToPgTypeMap[params.type.flags]);
+  // Check for known type flags
+  if (type.flags in tsFlagToPgTypeMap) {
+    return E.right(tsFlagToPgTypeMap[type.flags]);
   }
 
-  if (params.type.flags === ts.TypeFlags.Null) {
+  // Handle null type
+  if (type.flags === ts.TypeFlags.Null) {
     return E.right(null);
   }
 
-  if (TSUtils.isTsUnionType(params.type)) {
-    const type = params.type.types.find((t) => t.flags in tsFlagToPgTypeMap);
+  // Handle union types
+  if (TSUtils.isTsUnionType(type)) {
+    const matchingType = type.types.find((t) => t.flags in tsFlagToPgTypeMap);
+    return matchingType
+      ? E.right(tsFlagToPgTypeMap[matchingType.flags])
+      : E.left("Unsupported union type");
+  }
 
-    if (type !== undefined) {
-      return E.right(tsFlagToPgTypeMap[type.flags]);
+  // Handle array types
+  const typeStr = checker.typeToString(type);
+  const singularType = typeStr.replace(/\[\]$/, "");
+  const isArray = typeStr !== singularType;
+  const singularPgType = tsTypeToPgTypeMap[singularType];
+
+  if (singularPgType) {
+    return E.right(isArray ? `${singularPgType}[]` : singularPgType);
+  }
+
+  if (checker.isArrayType(type)) {
+    const elementType = (type as ts.TypeReference).typeArguments?.[0];
+    if (
+      elementType?.isUnion() &&
+      elementType.types.every((t) => t.flags === elementType.types[0].flags)
+    ) {
+      return E.right(`${getPgTypeFromFlags(elementType.types[0].flags)}[]`);
     }
   }
 
-  const typeStr = params.checker.typeToString(params.type);
-  const singularType = typeStr.replace(/\[\]$/, "");
-  const isArray = typeStr !== singularType;
-  const isSignularTypeSupported = singularType in tsTypeToPgTypeMap;
+  // Handle overrides
+  const typesWithOverrides = { ...defaultTypeMapping, ...options.overrides?.types };
+  const override = Object.entries(typesWithOverrides).find(([_, tsType]) =>
+    doesMatchPattern({
+      pattern: typeof tsType === "string" ? tsType : tsType.parameter,
+      text: singularType,
+    }),
+  );
 
-  if (isSignularTypeSupported) {
-    return isArray
-      ? E.right(`${tsTypeToPgTypeMap[singularType]}[]`)
-      : E.right(tsTypeToPgTypeMap[singularType]);
+  if (override) {
+    const [pgType] = override;
+    return E.right(isArray ? `${pgType}[]` : pgType);
   }
 
-  const typesWithOverrides = {
-    ...defaultTypeMapping,
-    ...params.options.overrides?.types,
-  };
-
-  const override = Object.entries(typesWithOverrides)
-    .map(([key, value]) => ({ pgType: key, tsType: value }))
-    .find((entry) =>
-      doesMatchPattern({
-        pattern: typeof entry.tsType === "string" ? entry.tsType : entry.tsType.parameter,
-        text: singularType,
-      }),
-    );
-
-  if (override !== undefined) {
-    return isArray ? E.right(`${override.pgType}[]`) : E.right(override.pgType);
-  }
-
+  // Fallback for unsupported types
   return E.left(normalizeIndent`
     The type "${typeStr}" has no corresponding PostgreSQL type.
     Please add it manually using the "overrides.types" option:
