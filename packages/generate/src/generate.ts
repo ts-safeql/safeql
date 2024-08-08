@@ -282,7 +282,7 @@ async function generate(
       query: query,
     });
   } catch (e) {
-    if (e instanceof postgres.PostgresError) {
+    if (isPostgresError(e)) {
       return either.left(
         PostgresError.of({
           queryText: query,
@@ -295,6 +295,18 @@ async function generate(
 
     throw e;
   }
+}
+
+function isPostgresError(e: unknown): e is postgres.PostgresError {
+  if (e instanceof postgres.PostgresError) {
+    return true;
+  }
+
+  if (e instanceof Error && e.name === "PostgresError") {
+    return true;
+  }
+
+  return false;
 }
 
 async function getDatabaseMetadata(sql: Sql) {

@@ -202,7 +202,7 @@ const testQuery = async (params: {
           params.expectedError,
           O.fromNullable,
           O.fold(
-            () => assert.fail(error),
+            () => assert.fail(error.stack),
             (expectedError) => assert.strictEqual(error.message, expectedError),
           ),
         ),
@@ -1190,6 +1190,23 @@ test("select tbl with left join of self tbl", async () => {
         },
       ],
     ],
+  });
+});
+
+test("select union select", async () => {
+  await testQuery({
+    query: `SELECT 1 UNION SELECT 2`,
+    expected: [["?column?", { kind: "type", value: "number" }]],
+  });
+
+  await testQuery({
+    query: `SELECT 1 as a UNION SELECT 2 as b`,
+    expected: [["a", { kind: "type", value: "number" }]],
+  });
+
+  await testQuery({
+    query: `SELECT 'Hello' UNION SELECT 7;`,
+    expectedError: 'invalid input syntax for type integer: "Hello"',
   });
 });
 
