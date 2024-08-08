@@ -1,5 +1,11 @@
 # @ts-safeql/eslint-plugin
 
+## 3.4.1
+
+### Patch Changes
+
+- a61b6a6: fixed an issue where SafeQL was unable to infer an array of union of literals
+
 ## 3.4.0
 
 ### Minor Changes
