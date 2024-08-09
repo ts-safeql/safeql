@@ -1,5 +1,14 @@
 # @ts-safeql/generate
 
+## 3.4.1
+
+### Patch Changes
+
+- 0e1b971: fixed an issue where a query with union would fail
+  - @ts-safeql/shared@3.4.1
+  - @ts-safeql/sql-ast@3.4.1
+  - @ts-safeql/test-utils@0.0.24
+
 ## 3.4.0
 
 ### Patch Changes
