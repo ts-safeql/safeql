@@ -17,7 +17,7 @@ Make sure you have [ESLint](https://eslint.org/) installed in your project and t
 
   You can use **Chocolatey** Package Manager ([See Installation/Setup](https://docs.chocolatey.org/en-us/choco/setup/))
   ```
-  choco install python visualstudio2022-workload-vctools
+  choco install python visualstudio2022-workload-vctools -y
   ```
 </details>
 
