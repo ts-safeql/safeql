@@ -8,6 +8,19 @@ layout: doc
 
 Make sure you have [ESLint](https://eslint.org/) installed in your project and that it's [configured](https://typescript-eslint.io/docs/#quickstart) to work with TypeScript.
 
+<details>
+  <summary>For Windows see here</summary>
+  <br>
+
+  1. Python should be installed on your machine
+  2. Visual C++ build tools workload for Visual Studio 2022
+
+  You can use **Chocolatey** Package Manager ([See Installation/Setup](https://docs.chocolatey.org/en-us/choco/setup/))
+  ```
+  choco install python visualstudio2022-workload-vctools
+  ```
+</details>
+
 ## Installation
 
 ::: tabs npm
