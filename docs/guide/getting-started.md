@@ -14,8 +14,8 @@ Make sure you have [ESLint](https://eslint.org/) installed in your project and t
   1. Python should be installed
   2. Visual C++ build tools workload for Visual Studio 2022
 
-  You can use **Chocolatey** Package Manager ([See Installation/Setup](https://docs.chocolatey.org/en-us/choco/setup/))
-  ```
+  You can use **Chocolatey** Package Manager ([See Installation / Setup](https://docs.chocolatey.org/en-us/choco/setup/))
+  ```bash
   choco install python visualstudio2022-workload-vctools -y
   ```
 </details>
