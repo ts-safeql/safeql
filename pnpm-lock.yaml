@@ -520,7 +520,7 @@ importers:
   packages/eslint-plugin:
     dependencies:
       '@typescript-eslint/utils':
-        specifier: ^7.8.0
+        specifier: '>=7.8.0'
         version: 7.11.0(eslint@8.57.0)(typescript@5.4.5)
       chokidar:
         specifier: ^3.6.0

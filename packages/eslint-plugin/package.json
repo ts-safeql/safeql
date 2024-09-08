@@ -56,7 +56,6 @@
     "vitest": "^1.6.0"
   },
   "dependencies": {
-    "@typescript-eslint/utils": "^7.8.0",
     "chokidar": "^3.6.0",
     "fp-ts": "^2.16.5",
     "pg-connection-string": "2.5.0",
@@ -68,6 +67,7 @@
     "zod-to-json-schema": "3.20.1"
   },
   "peerDependencies": {
+    "@typescript-eslint/utils": ">=7.8.0",
     "libpg-query": ">=13.2.5"
   }
 }
