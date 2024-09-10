@@ -32,18 +32,9 @@ https://user-images.githubusercontent.com/10504365/192807716-6a4fcbc1-9dc8-4d3b-
 I would first recommend follow the instructions in the [documentation](https://www.safeql.dev/guide/getting-started.html).
 
 ### Prerequisites
-Make sure you have [ESLint](https://eslint.org/) installed in your project and that it's [configured](https://typescript-eslint.io/docs/#quickstart) to work with TypeScript.
-<details>
-  <summary>Prerequisites for Windows</summary>
 
-  - Python should be installed
-  - Visual C++ build tools workload for Visual Studio 2022
-
-  You can use **Chocolatey** Package Manager ([See Installation / Setup](https://docs.chocolatey.org/en-us/choco/setup/))
-  ```bash
-  choco install python visualstudio2022-workload-vctools -y
-  ```
-</details>
+1. Set up ESLint following [the `typescript-eslint` Getting Started docs](https://typescript-eslint.io/getting-started), to enable TypeScript language support in ESLint
+2. Install [the `node-gyp` prerequisites for your operating system](https://github.com/nodejs/node-gyp#on-unix)
 
 ```bash
 npm install --save-dev @ts-safeql/eslint-plugin libpg-query
