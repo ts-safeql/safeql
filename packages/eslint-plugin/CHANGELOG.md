@@ -1,5 +1,11 @@
 # @ts-safeql/eslint-plugin
 
+## 3.4.2
+
+### Patch Changes
+
+- b095993: Move @typescript-eslint/utils from deps to peer deps
+
 ## 3.4.1
 
 ### Patch Changes
