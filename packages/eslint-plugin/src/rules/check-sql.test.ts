@@ -131,6 +131,10 @@ const runMigrations1 = <TTypes extends Record<string, unknown>>(sql: Sql<TTypes>
     CREATE TABLE test_insert_array_union_literals (
       colname TEXT[] NOT NULL
     );
+
+    CREATE TABLE test_nullable_boolean (
+      colname BOOLEAN
+    );
 `);
 
 RuleTester.describe("check-sql", () => {
@@ -553,6 +557,15 @@ RuleTester.describe("check-sql", () => {
         name: "select jsonb column",
         options: withConnection(connections.withTag),
         code: `sql<{ jsonb_col: any }>\`SELECT jsonb_col FROM test_jsonb\``,
+      },
+      {
+        filename,
+        name: "select nullable boolean column",
+        options: withConnection(connections.withTag),
+        code: `
+          type Result = { colname: boolean | null };
+          sql<Result>\`SELECT colname FROM test_nullable_boolean\`
+        `,
       },
     ],
     invalid: [
