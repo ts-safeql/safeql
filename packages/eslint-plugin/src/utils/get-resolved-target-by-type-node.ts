@@ -209,11 +209,30 @@ function getTypePropertiesFromTypeReference(params: {
   }
 
   if (type.isUnion()) {
+    const types = type.types.map((type) =>
+      getTypePropertiesFromTypeReference({ type, typeNode, parser, checker, reservedTypes }),
+    );
+
+    // Check for the specific case of [false, true, null]
+    const isBooleanUnionWithNull =
+      types.length === 3 &&
+      types.some((t) => t.value === "false") &&
+      types.some((t) => t.value === "true") &&
+      types.some((t) => t.value === "null");
+
+    if (isBooleanUnionWithNull) {
+      return {
+        kind: "union",
+        value: [
+          { kind: "type", value: "boolean" },
+          { kind: "type", value: "null" },
+        ],
+      };
+    }
+
     return {
       kind: "union",
-      value: type.types.map((type) =>
-        getTypePropertiesFromTypeReference({ type, typeNode, parser, checker, reservedTypes }),
-      ),
+      value: types,
     };
   }
 
