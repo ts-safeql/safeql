@@ -1,5 +1,11 @@
 # @ts-safeql/eslint-plugin
 
+## 3.4.3
+
+### Patch Changes
+
+- 07c746a: fixed an issue when trying to infer a union which contains boolean inside a type reference
+
 ## 3.4.2
 
 ### Patch Changes
