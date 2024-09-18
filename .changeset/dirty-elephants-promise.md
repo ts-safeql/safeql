@@ -2,4 +2,4 @@
 "@ts-safeql/generate": patch
 ---
 
-Set IS NOT NULL and IS NULL as boolean instead of boolean | null
+Infer IS (NOT) NULL as `boolean` instead of `boolean | null`
