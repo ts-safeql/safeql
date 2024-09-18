@@ -30,6 +30,8 @@ const cases: {
   { query: `SELECT 10 + 2`, expected: ["?column?"] },
   { query: `SELECT CASE WHEN true THEN 1 ELSE 0 END`, expected: ["case"] },
   { query: `SELECT tbl.col FROM tbl WHERE tbl.col IS NOT NULL`, expected: ["tbl.col"] },
+  { query: `SELECT tbl.col IS NOT NULL AS is_col_not_null`, expected: ["is_col_not_null"] },
+  { query: `SELECT tbl.col IS NULL AS is_col_null`, expected: ["is_col_null"] },
   { query: `SELECT coalesce(tbl.col, 0) FROM tbl`, expected: ["coalesce"] },
   { query: `SELECT ARRAY[1, 2, 3]`, expected: ["array"] },
   { query: `SELECT ARRAY[1, 2, 3]::int[]`, expected: ["array"] },
