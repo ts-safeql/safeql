@@ -1,13 +1,13 @@
 import { InternalError, normalizeIndent } from "@ts-safeql/shared";
 import { generateTestDatabaseName, setupTestDatabase } from "@ts-safeql/test-utils";
 import assert from "assert";
-import { flow, identity, pipe } from "fp-ts/lib/function";
-import * as O from "fp-ts/lib/Option";
 import * as TE from "fp-ts/lib/TaskEither";
+import * as O from "fp-ts/lib/Option";
+import { flow, identity, pipe } from "fp-ts/lib/function";
 import { parseQuery } from "libpg-query";
+import { beforeAll, afterAll, test } from "vitest";
 import { Sql } from "postgres";
-import { afterAll, beforeAll, test } from "vitest";
-import { createGenerator, GenerateParams, ResolvedTargetEntry } from "./generate";
+import { GenerateParams, ResolvedTargetEntry, createGenerator } from "./generate";
 
 type SQL = Sql<Record<string, unknown>>;
 
@@ -61,9 +61,9 @@ function runMigrations(sql: SQL) {
       id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
       nullable_col TEXT
     );
-
+    
     CREATE TYPE overriden_enum AS ENUM ('foo', 'bar');
-
+    
     CREATE TABLE test_overriden_enum (
       col overriden_enum NOT NULL,
       nullable_col overriden_enum
@@ -147,7 +147,7 @@ let dropFn!: () => Promise<number>;
 beforeAll(async () => {
   const testDatabase = await setupTestDatabase({
     databaseName: generateTestDatabaseName(),
-    postgresUrl: "safeql://safeql:safeql@localhost:5432/safeql",
+    postgresUrl: "postgres://postgres:postgres@localhost:5432/postgres",
   });
 
   dropFn = testDatabase.drop;
