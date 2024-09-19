@@ -1,5 +1,14 @@
 # @ts-safeql/generate
 
+## 3.4.4
+
+### Patch Changes
+
+- 541eb83: Infer IS (NOT) NULL as `boolean` instead of `boolean | null`
+  - @ts-safeql/shared@3.4.4
+  - @ts-safeql/sql-ast@3.4.4
+  - @ts-safeql/test-utils@0.0.27
+
 ## 3.4.3
 
 ### Patch Changes
