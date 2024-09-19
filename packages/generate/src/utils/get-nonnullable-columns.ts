@@ -83,6 +83,10 @@ function isColumnNonNullable(
     return false;
   }
 
+  if (val.NullTest) {
+    return true;
+  }
+
   if (val.BoolExpr?.boolop === LibPgQueryAST.BoolExprType.NOT_EXPR) {
     return true;
   }
@@ -193,6 +197,10 @@ function isColumnNonNullable(
 function getNodeName(node: LibPgQueryAST.Node | undefined): string {
   if (node?.ColumnRef !== undefined) {
     return concatStringNodes(node.ColumnRef.fields);
+  }
+
+  if (node?.NullTest) {
+    return getNodeName(node.NullTest.arg);
   }
 
   if (node?.A_Const?.boolval !== undefined) {
