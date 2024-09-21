@@ -137,8 +137,7 @@ function isColumnNonNullable(
 
   if (val.CaseExpr) {
     for (const when of val.CaseExpr.args) {
-      if (!isColumnNonNullable(when.CaseWhen?.result, root)
-      ) {
+      if (!isColumnNonNullable(when.CaseWhen?.result, root)) {
         return false;
       }
     }
