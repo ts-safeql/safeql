@@ -129,6 +129,10 @@ function isColumnNonNullable(
     }
   }
 
+  if (val.A_Expr?.kind === LibPgQueryAST.AExprKind.AEXPR_LIKE) {
+    return true;
+  }
+
   if (val.A_Expr?.kind === LibPgQueryAST.AExprKind.AEXPR_OP) {
     return (
       isColumnNonNullable(val.A_Expr.lexpr, root) && isColumnNonNullable(val.A_Expr.rexpr, root)
