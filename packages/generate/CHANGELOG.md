@@ -1,5 +1,15 @@
 # @ts-safeql/generate
 
+## 3.4.5
+
+### Patch Changes
+
+- 9517548: Make LIKE and NOT LIKE expressions non-nullable
+- bdc6b39: Fix nullability for CASE WHEN with equality expression
+  - @ts-safeql/shared@3.4.5
+  - @ts-safeql/sql-ast@3.4.5
+  - @ts-safeql/test-utils@0.0.28
+
 ## 3.4.4
 
 ### Patch Changes
