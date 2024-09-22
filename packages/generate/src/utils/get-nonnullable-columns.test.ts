@@ -29,6 +29,7 @@ const cases: {
   { query: `SELECT 10 - 2`, expected: ["?column?"] },
   { query: `SELECT 10 + 2`, expected: ["?column?"] },
   { query: `SELECT CASE WHEN true THEN 1 ELSE 0 END`, expected: ["case"] },
+  { query: `SELECT CASE WHEN 1 = 1 THEN 1 ELSE 0 END`, expected: ["case"] },
   { query: `SELECT tbl.col FROM tbl WHERE tbl.col IS NOT NULL`, expected: ["tbl.col"] },
   {
     query: `SELECT tbl.col IS NOT NULL AS is_col_not_null FROM tbl`,
