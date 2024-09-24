@@ -313,6 +313,20 @@ test("select count(1) should be non-nullable", async () => {
   });
 });
 
+test("select count(1) as col should be non-nullable", async () => {
+  await testQuery({
+    query: `SELECT count(1) as col`,
+    expected: [["col", { kind: "type", value: "string" }]],
+  });
+});
+
+test("select count(1)::int as col should be non-nullable", async () => {
+  await testQuery({
+    query: `SELECT count(1)::int as col`,
+    expected: [["col", { kind: "type", value: "number" }]],
+  });
+});
+
 test("select sum", async () => {
   await testQuery({
     query: `SELECT sum(id) from caregiver`,

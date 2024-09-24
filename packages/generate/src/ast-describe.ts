@@ -306,7 +306,7 @@ function getDescribedTypeCast({
   }
 
   const type = context.toTypeScriptType({ name: typeName });
-  const innerDescribed = getDescribedNode({ alias: undefined, node: node.arg, context }).at(0);
+  const innerDescribed = getDescribedNode({ alias, node: node.arg, context }).at(0);
   const nullable = fmap(innerDescribed, (x) => isDescribedColumnNullable(x.type)) ?? true;
 
   switch (true) {
@@ -395,12 +395,16 @@ function getDescribedFuncCallByPgFn({
     return [];
   });
 
+  if (functionName === undefined) {
+    return [{ name, type: context.toTypeScriptType({ name: "unknown" }) }];
+  }
+
   const pgFnValue =
     args.length === 0
-      ? context.pgFns.get(name)
-      : context.pgFns.get(`${name}(${args.join(", ")})`) ??
-        context.pgFns.get(`${name}(any)`) ??
-        context.pgFns.get(`${name}(unknown)`);
+      ? context.pgFns.get(functionName)
+      : context.pgFns.get(`${functionName}(${args.join(", ")})`) ??
+        context.pgFns.get(`${functionName}(any)`) ??
+        context.pgFns.get(`${functionName}(unknown)`);
 
   const type = resolveType({
     context: context,
