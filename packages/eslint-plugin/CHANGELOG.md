@@ -1,5 +1,11 @@
 # @ts-safeql/eslint-plugin
 
+## 3.4.7
+
+### Patch Changes
+
+- 10a2bb4: fix: correct non nullable column consideration
+
 ## 3.4.6
 
 ## 3.4.5
