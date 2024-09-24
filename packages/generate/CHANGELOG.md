@@ -1,5 +1,14 @@
 # @ts-safeql/generate
 
+## 3.4.7
+
+### Patch Changes
+
+- 10a2bb4: fix: correct non nullable column consideration
+  - @ts-safeql/shared@3.4.7
+  - @ts-safeql/sql-ast@3.4.7
+  - @ts-safeql/test-utils@0.0.30
+
 ## 3.4.6
 
 ### Patch Changes
