@@ -1,5 +1,14 @@
 # @ts-safeql/generate
 
+## 3.4.6
+
+### Patch Changes
+
+- fae01df: fixed an issue where type could be inferred as unknown and nullable when using aliases in some cases
+  - @ts-safeql/shared@3.4.6
+  - @ts-safeql/sql-ast@3.4.6
+  - @ts-safeql/test-utils@0.0.29
+
 ## 3.4.5
 
 ### Patch Changes
