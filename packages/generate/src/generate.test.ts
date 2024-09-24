@@ -313,6 +313,34 @@ test("select count(1) should be non-nullable", async () => {
   });
 });
 
+test("select count(1) as col should be non-nullable", async () => {
+  await testQuery({
+    query: `SELECT count(1) as col`,
+    expected: [["col", { kind: "type", value: "string" }]],
+  });
+});
+
+test("select count(1)::int as col should be non-nullable", async () => {
+  await testQuery({
+    query: `SELECT count(1)::int as col`,
+    expected: [["col", { kind: "type", value: "number" }]],
+  });
+});
+
+test("SELECT id FROM caregiver tbl WHERE tbl.id IS NOT NULL", async () => {
+  await testQuery({
+    query: `SELECT id FROM caregiver tbl WHERE tbl.id IS NOT NULL`,
+    expected: [["id", { kind: "type", value: "number" }]],
+  });
+});
+
+test("SELECT tbl.id FROM caregiver tbl WHERE tbl.id IS NOT NULL", async () => {
+  await testQuery({
+    query: `SELECT tbl.id FROM caregiver tbl WHERE tbl.id IS NOT NULL`,
+    expected: [["id", { kind: "type", value: "number" }]],
+  });
+});
+
 test("select sum", async () => {
   await testQuery({
     query: `SELECT sum(id) from caregiver`,
