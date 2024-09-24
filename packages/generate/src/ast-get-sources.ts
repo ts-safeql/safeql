@@ -135,7 +135,9 @@ export function getSources({
 
   function resolveColumn(col: PgColRow): ResolvedColumn {
     const isNullableDueToRelation = checkIsNullableDueToRelation(col);
-    const isNotNullBasedOnAST = nonNullableColumns.has(col.colName);
+    const isNotNullBasedOnAST =
+      nonNullableColumns.has(col.colName) ||
+      nonNullableColumns.has(`${col.tableName}.${col.colName}`);
     const isNotNullInTable = col.colNotNull;
 
     const isNonNullable = isNotNullBasedOnAST || (isNotNullInTable && !isNullableDueToRelation);
@@ -152,6 +154,24 @@ export function getSources({
     source: SelectSource;
   };
 
+  function resolveRangeVarSchema(node: LibPgQueryAST.RangeVar): string {
+    if (node.schemaname !== undefined) {
+      return node.schemaname;
+    }
+
+    if (pgColsBySchemaAndTableName.get("public")?.has(node.relname)) {
+      return "public";
+    }
+
+    for (const [schemaName, cols] of pgColsBySchemaAndTableName) {
+      if (cols.has(node.relname)) {
+        return schemaName;
+      }
+    }
+
+    return "public";
+  }
+
   function getColumnSources(nodes: LibPgQueryAST.Node[]): {
     columns: ColumnWithSource[];
     sources: [string, SelectSource][];
@@ -163,7 +183,7 @@ export function getSources({
       if (node.RangeVar !== undefined) {
         const source: SelectSource = {
           kind: "table",
-          schemaName: node.RangeVar.schemaname ?? "public",
+          schemaName: resolveRangeVarSchema(node.RangeVar),
           original: node.RangeVar.relname,
           name: node.RangeVar.alias?.aliasname ?? node.RangeVar.relname,
           alias: node.RangeVar.alias?.aliasname,

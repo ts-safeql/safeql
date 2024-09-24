@@ -341,6 +341,13 @@ test("SELECT tbl.id FROM caregiver tbl WHERE tbl.id IS NOT NULL", async () => {
   });
 });
 
+test("select psa.pid from pg_stat_activity psa where psa.pid IS NOT NULL", async () => {
+  await testQuery({
+    query: `select psa.pid from pg_stat_activity psa where psa.pid IS NOT NULL`,
+    expected: [["pid", { kind: "type", value: "number" }]],
+  });
+});
+
 test("select sum", async () => {
   await testQuery({
     query: `SELECT sum(id) from caregiver`,
