@@ -272,7 +272,13 @@ function getNonNullableColumnsInSelectStmt(
     ...(stmt.rarg?.targetList ?? []),
   ];
 
+  const targetNames = new Set<string>();
+
   for (const target of targetList) {
+    if (target.ResTarget) {
+      targetNames.add(getTargetName(target.ResTarget));
+    }
+
     if (target.ResTarget && isColumnNonNullable(target.ResTarget.val, root)) {
       nonNullableColumns.add(getTargetName(target.ResTarget));
     }
@@ -280,8 +286,20 @@ function getNonNullableColumnsInSelectStmt(
 
   if (stmt.whereClause) {
     if (stmt.whereClause.NullTest?.nulltesttype === LibPgQueryAST.NullTestType.IS_NOT_NULL) {
-      const whereClauseName = concatStringNodes(stmt.whereClause.NullTest.arg?.ColumnRef?.fields);
-      nonNullableColumns.add(whereClauseName);
+      const colRef = stmt.whereClause.NullTest.arg?.ColumnRef;
+      const whereClauseName = concatStringNodes(colRef?.fields);
+
+      switch (true) {
+        case targetNames.has(whereClauseName):
+          nonNullableColumns.add(whereClauseName);
+          break;
+        case targetNames.has(colRef?.fields?.at(-1)?.String?.sval ?? ""):
+          nonNullableColumns.add(colRef?.fields?.at(-1)?.String?.sval ?? "");
+          break;
+        default:
+          nonNullableColumns.add(whereClauseName);
+          break;
+      }
     }
 
     if (stmt.whereClause.BoolExpr?.boolop === LibPgQueryAST.BoolExprType.AND_EXPR) {

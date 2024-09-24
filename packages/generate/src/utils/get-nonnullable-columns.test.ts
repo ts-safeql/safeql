@@ -74,6 +74,8 @@ const cases: {
   { query: `SELECT GREATEST(1, NULL, 3)`, expected: [] },
   { query: `SELECT LEAST(1, NULL, 3)`, expected: [] },
   { query: `SELECT a, b FROM tbl WHERE b IS NOT NULL OR a IS NOT NULL`, expected: [] },
+  { query: `SELECT col FROM mytable tbl WHERE psa.col IS NOT NULL`, expected: ["col"] },
+  { query: `SELECT tbl.col FROM tbl WHERE tbl.col IS NOT NULL`, expected: ["tbl.col"] },
 ];
 
 export const getNonNullableColumnsTE = flow(
