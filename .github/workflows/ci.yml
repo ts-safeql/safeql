@@ -20,7 +20,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        node-version: ["18", "20"]
+        node-version: ["20"]
       fail-fast: false
     services:
       postgres:
