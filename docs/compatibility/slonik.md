@@ -22,8 +22,8 @@ export default tseslint.config(
     // ... (read more about configuration in the API docs)
     targets: [
       {
-        // This will lint syntax that matches "sql.type`...`" or "sql.unsafe`...`"
-        tag: "sql.+(type(*)|unsafe)",
+        // This will lint syntax that matches "sql.typeAlias()`...`", "sql.type()`...`" or "sql.unsafe`...`"
+        tag: "sql.+(type\\(*\\)|typeAlias\\(*\\)|unsafe)",
         // this will tell SafeQL to not suggest type annotations
         // since we will be using our Zod schemas in slonik
         skipTypeAnnotations: true,
