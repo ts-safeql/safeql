@@ -1245,6 +1245,37 @@ test("select union select", async () => {
   });
 });
 
+test("join inside join without an alias", async () => {
+  await testQuery({
+    query: `
+      SELECT cc.caregiver_id
+      FROM caregiver c
+      LEFT JOIN (
+        caregiver_certification cc
+        INNER JOIN caregiver_phonenumber cp
+        ON cp.caregiver_id = cc.caregiver_id
+      ) ON cc.caregiver_id = c.id;
+    `,
+    expected: [["caregiver_id", { kind: "type", value: "number" }]],
+  });
+});
+
+test("join inside join without an alias (duplicate columns)", async () => {
+  await testQuery({
+    query: `
+      SELECT *
+      FROM caregiver c
+      LEFT JOIN (
+        caregiver_certification cc
+        INNER JOIN caregiver_phonenumber cp
+        ON cp.caregiver_id = cc.caregiver_id
+      ) ON cc.caregiver_id = c.id;
+    `,
+    expectedError:
+      "Duplicate columns: caregiver_certification.caregiver_id, caregiver_phonenumber.caregiver_id",
+  });
+});
+
 test("should distinguish between schema", async () => {
   await testQuery({
     query: `SELECT name FROM table1`,
