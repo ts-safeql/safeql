@@ -26,6 +26,14 @@ export function getRelationsWithJoins(parsed: LibPgQueryAST.ParseResult): Relati
   return results;
 }
 
+function recursiveGetJoinName(joinExpr: LibPgQueryAST.JoinExpr): string | undefined {
+  if (joinExpr.rarg?.JoinExpr !== undefined) {
+    return recursiveGetJoinName(joinExpr.rarg.JoinExpr);
+  }
+
+  return joinExpr.rarg?.RangeVar?.relname ?? joinExpr.rarg?.RangeSubselect?.alias?.aliasname;
+}
+
 function recursiveTraverseJoins(
   joins: Join[],
   joinExpr: LibPgQueryAST.JoinExpr,
@@ -33,8 +41,7 @@ function recursiveTraverseJoins(
   relName: string;
   joins: Join[];
 } {
-  const joinName =
-    joinExpr.rarg?.RangeVar?.relname ?? joinExpr.rarg?.RangeSubselect?.alias?.aliasname;
+  const joinName = recursiveGetJoinName(joinExpr);
   const aliasName = joinExpr.rarg?.RangeVar?.alias?.aliasname;
 
   if (joinName === undefined) {
