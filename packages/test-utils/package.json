@@ -1,6 +1,6 @@
 {
   "name": "@ts-safeql/test-utils",
-  "version": "0.0.30",
+  "version": "0.0.31",
   "license": "MIT",
   "repository": "https://github.com/ts-safeql/safeql/tree/master/packages/eslint-plugin",
   "files": [
@@ -35,7 +35,7 @@
     "unbuild": "^2.0.0"
   },
   "dependencies": {
-    "@ts-safeql/shared": "workspace:3.4.7",
+    "@ts-safeql/shared": "workspace:3.4.8",
     "nanoid": "^4.0.2",
     "pg-connection-string": "^2.5.0",
     "postgres": "^3.3.4"
