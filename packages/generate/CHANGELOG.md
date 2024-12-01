@@ -1,5 +1,14 @@
 # @ts-safeql/generate
 
+## 3.4.8
+
+### Patch Changes
+
+- 50b4b12: Fixed an issue when selecting from nested join expressions
+  - @ts-safeql/shared@3.4.8
+  - @ts-safeql/sql-ast@3.4.8
+  - @ts-safeql/test-utils@0.0.31
+
 ## 3.4.7
 
 ### Patch Changes
