@@ -39,7 +39,25 @@ export function mapTemplateLiteralToQueryText(
 
     const pgTypeValue = pgType.right;
 
-    $queryText += pgTypeValue === null ? `$${++$idx}` : `$${++$idx}::${pgTypeValue}`;
+    if (pgTypeValue === null) {
+      $queryText += `$${++$idx}`;
+      continue;
+    }
+
+    if (pgTypeValue.kind === "cast") {
+      $queryText += `$${++$idx}::${pgTypeValue.cast}`;
+      continue;
+    }
+
+    if (pgTypeValue.kind === "one-of") {
+      if ($queryText.endsWith(" = ")) {
+        $queryText = $queryText.slice(0, -3) + " IN ";
+        $queryText += `(${pgTypeValue.types.map((t) => `'${t}'`).join(", ")})`;
+      } else {
+        $queryText += `ANY(ARRAY[${pgTypeValue.types.map((t) => `'${t}'`).join(", ")}])`;
+      }
+      continue;
+    }
   }
 
   return E.right($queryText);
@@ -97,8 +115,14 @@ const tsFlagToPgTypeMap: Record<number, string> = {
   [ts.TypeFlags.BigIntLiteral]: "bigint",
 };
 
-function getPgTypeFromTsTypeUnion(params: { types: ts.Type[] }) {
+function getPgTypeFromTsTypeUnion(params: { types: ts.Type[] }): E.Either<string, PgTypeStrategy> {
   const types = params.types.filter((t) => t.flags !== ts.TypeFlags.Null);
+  const isStringLiterals = types.every((t) => t.flags === ts.TypeFlags.StringLiteral);
+
+  if (isStringLiterals) {
+    return E.right({ kind: "one-of", types: types.map((t) => (t as ts.StringLiteralType).value) });
+  }
+
   const isUnionOfTheSameType = types.every((t) => t.flags === types[0].flags);
   const pgType = tsFlagToPgTypeMap[types[0].flags];
 
@@ -106,15 +130,17 @@ function getPgTypeFromTsTypeUnion(params: { types: ts.Type[] }) {
     return E.left(createMixedTypesInUnionErrorMessage(types.map((t) => t.flags)));
   }
 
-  return E.right(pgType);
+  return E.right({ kind: "cast", cast: pgType });
 }
+
+type PgTypeStrategy = { kind: "cast"; cast: string } | { kind: "one-of"; types: string[] };
 
 function getPgTypeFromTsType(params: {
   checker: TypeChecker;
   node: TSESTreeToTSNode<TSESTree.Expression>;
   type: ts.Type;
   options: RuleOptionConnection;
-}): E.Either<string, string | null> {
+}): E.Either<string, PgTypeStrategy | null> {
   const { checker, node, type, options } = params;
 
   // Utility function to get PostgreSQL type from flags
@@ -137,7 +163,7 @@ function getPgTypeFromTsType(params: {
       );
     }
 
-    return E.right(whenTrueType);
+    return E.right({ kind: "cast", cast: whenTrueType });
   }
 
   // Check for identifier
@@ -154,7 +180,7 @@ function getPgTypeFromTsType(params: {
       return elementTypeUnion
         ? pipe(
             getPgTypeFromTsTypeUnion({ types: elementTypeUnion }),
-            E.map((pgType) => `${pgType}[]`),
+            E.map((pgType) => ({ kind: "cast", cast: `${pgType}[]` })),
           )
         : E.left("Invalid array union type");
     }
@@ -162,12 +188,12 @@ function getPgTypeFromTsType(params: {
 
   // Check for known SyntaxKind mappings
   if (node.kind in tsKindToPgTypeMap) {
-    return E.right(tsKindToPgTypeMap[node.kind]);
+    return E.right({ kind: "cast", cast: tsKindToPgTypeMap[node.kind] });
   }
 
   // Check for known type flags
   if (type.flags in tsFlagToPgTypeMap) {
-    return E.right(tsFlagToPgTypeMap[type.flags]);
+    return E.right({ kind: "cast", cast: tsFlagToPgTypeMap[type.flags] });
   }
 
   // Handle null type
@@ -179,7 +205,7 @@ function getPgTypeFromTsType(params: {
   if (TSUtils.isTsUnionType(type)) {
     const matchingType = type.types.find((t) => t.flags in tsFlagToPgTypeMap);
     return matchingType
-      ? E.right(tsFlagToPgTypeMap[matchingType.flags])
+      ? E.right({ kind: "cast", cast: tsFlagToPgTypeMap[matchingType.flags] })
       : E.left("Unsupported union type");
   }
 
@@ -190,7 +216,7 @@ function getPgTypeFromTsType(params: {
   const singularPgType = tsTypeToPgTypeMap[singularType];
 
   if (singularPgType) {
-    return E.right(isArray ? `${singularPgType}[]` : singularPgType);
+    return E.right({ kind: "cast", cast: isArray ? `${singularPgType}[]` : singularPgType });
   }
 
   if (checker.isArrayType(type)) {
@@ -199,7 +225,7 @@ function getPgTypeFromTsType(params: {
       elementType?.isUnion() &&
       elementType.types.every((t) => t.flags === elementType.types[0].flags)
     ) {
-      return E.right(`${getPgTypeFromFlags(elementType.types[0].flags)}[]`);
+      return E.right({ kind: "cast", cast: `${getPgTypeFromFlags(elementType.types[0].flags)}[]` });
     }
   }
 
@@ -214,7 +240,7 @@ function getPgTypeFromTsType(params: {
 
   if (override) {
     const [pgType] = override;
-    return E.right(isArray ? `${pgType}[]` : pgType);
+    return E.right({ kind: "cast", cast: isArray ? `${pgType}[]` : pgType });
   }
 
   // Fallback for unsupported types

@@ -567,6 +567,19 @@ RuleTester.describe("check-sql", () => {
           sql<Result>\`SELECT colname FROM test_nullable_boolean\`
         `,
       },
+      {
+        filename,
+        name: "select where enum column equals to one of the string literals",
+        options: withConnection(connections.withTag),
+        code: `
+          function run(cert: "HHA" | "RN" | "LPN" | "CNA" | "PCA" | "OTHER") {
+            sql\`select id from caregiver WHERE certification = \${cert}\`
+            sql\`select id from caregiver WHERE certification = \${"HHA"}\`
+            sql\`select id from caregiver WHERE certification = 'HHA'
+            sql\`select id from caregiver WHERE certification = ANY(${["HHA"]})
+          }
+        `,
+      }
     ],
     invalid: [
       {
