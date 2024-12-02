@@ -1303,3 +1303,16 @@ test("should distinguish between schema", async () => {
     ],
   });
 });
+
+test("select with duplicate columns and alias", async () => {
+  await testQuery({
+    query: `
+      SELECT
+        caregiver.id as x,
+        caregiver_certification.caregiver_id as x
+      FROM caregiver
+        JOIN caregiver_certification ON caregiver.id = caregiver_certification.caregiver_id
+    `,
+    expectedError: `Duplicate columns: caregiver.id (alias: x), caregiver_certification.caregiver_id (alias: x)`,
+  });
+});

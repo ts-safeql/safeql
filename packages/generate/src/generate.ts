@@ -218,15 +218,28 @@ async function generate(
     );
 
     if (duplicateCols.length > 0) {
-      const dupes = duplicateCols.map((col) => ({
-        table: pgColsByTableOidCache.get(col.table)!.find((c) => c.colName === col.name)!.tableName,
-        column: col.name,
-      }));
+      const dupes = duplicateCols.map((col) => {
+        const tableCols = pgColsByTableOidCache.get(col.table);
+        const tableCol =
+          col.number !== 0
+            ? tableCols?.at(col.number - 1)
+            : tableCols?.find((c) => c.colName === col.name);
+
+        return {
+          table: tableCol?.tableName,
+          column: col.name,
+          originalColumn: tableCol?.colName,
+        };
+      });
 
       return either.left(
         DuplicateColumnsError.of({
           queryText: query,
-          columns: dupes.map((x) => `${x.table}.${x.column}`),
+          columns: dupes.map((x) => {
+            return x.column !== x.originalColumn
+              ? `${x.table}.${x.originalColumn} (alias: ${x.column})`
+              : `${x.table}.${x.column}`;
+          }),
         }),
       );
     }
