@@ -1,5 +1,14 @@
 # @ts-safeql/generate
 
+## 3.4.9
+
+### Patch Changes
+
+- 20ba38b: fixed an issue when trying to select with duplicate columns and alias
+  - @ts-safeql/shared@3.4.9
+  - @ts-safeql/sql-ast@3.4.9
+  - @ts-safeql/test-utils@0.0.32
+
 ## 3.4.8
 
 ### Patch Changes
