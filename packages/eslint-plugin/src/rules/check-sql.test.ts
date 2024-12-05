@@ -3,13 +3,14 @@ import {
   setupTestDatabase,
   typeColumnTsTypeEntries,
 } from "@ts-safeql/test-utils";
-import { RuleTester } from "@typescript-eslint/rule-tester";
+import { InvalidTestCase, RuleTester } from "@typescript-eslint/rule-tester";
 
 import { afterAll, beforeAll, describe, it } from "vitest";
 import path from "path";
 import { Sql } from "postgres";
 import rules from ".";
 import { RuleOptionConnection, RuleOptions } from "./RuleOptions";
+import { normalizeIndent } from "@ts-safeql/shared";
 
 const tsconfigRootDir = path.resolve(__dirname, "../../");
 const project = "tsconfig.json";
@@ -567,6 +568,18 @@ RuleTester.describe("check-sql", () => {
           sql<Result>\`SELECT colname FROM test_nullable_boolean\`
         `,
       },
+      {
+        filename,
+        name: "select where enum column equals to one of the string literals",
+        options: withConnection(connections.withTag),
+        code: `
+          function run(cert: "HHA" | "RN" | "LPN" | "CNA" | "PCA" | "OTHER") {
+            sql\`select from caregiver WHERE certification = \${cert}\`
+            sql\`select from caregiver WHERE certification = \${"HHA"}\`
+            sql\`select from caregiver WHERE certification = 'HHA'\`
+          }
+        `,
+      },
     ],
     invalid: [
       {
@@ -621,9 +634,9 @@ RuleTester.describe("check-sql", () => {
               error: "Duplicate columns: caregiver.id, agency.id",
             },
             line: 1,
-            column: 30,
+            column: 31,
             endLine: 1,
-            endColumn: 36,
+            endColumn: 37,
           },
         ],
       },
@@ -821,6 +834,91 @@ RuleTester.describe("check-sql", () => {
           },
         ],
       },
+    ],
+  });
+
+  ruleTester.run("position", rules["check-sql"], {
+    valid: [
+      {
+        filename,
+        name: "control",
+        options: withConnection(connections.base),
+        code: `
+          function run(cert1: "HHA" | "RN", cert2: "LPN" | "CNA") {
+            return sql<{ id: number }[]>\`
+              select id
+              from caregiver
+              where true 
+                and certification = \${cert1}
+                and caregiver.id = 1
+                and certification = \${cert2}
+                and caregiver.id = 1
+            \`
+          }
+        `,
+      },
+    ],
+    invalid: [
+      invalidPositionTestCase({
+        code: "sql`select idd from caregiver`",
+        error: 'column "idd" does not exist',
+        line: 1,
+        columns: [12, 15],
+      }),
+      invalidPositionTestCase({
+        code: normalizeIndent`
+          sql\`
+            select
+              id
+            from
+              caregiverr
+          \`
+        `,
+        error: 'relation "caregiverr" does not exist',
+        line: 5,
+        columns: [5, 15],
+      }),
+      invalidPositionTestCase({
+        code: normalizeIndent`
+          function run(expr1: "HHA" | "RN", expr2: "LPN" | "CNN") {
+            sql\`
+              select id
+              from
+                caregiver
+              where true
+                and certification = \${expr1}
+                and caregiver.id = 1
+                and certification = \${expr2}
+                and caregiver.id = 1
+            \`
+          }
+        `,
+        error: 'invalid input value for enum certification: "CNN"',
+        line: 9,
+        columns: [27, 35],
+      }),
+      invalidPositionTestCase({
+        code: normalizeIndent`
+          function run(cert1: "HHA" | "RNA") {
+            return sql\`select id from caregiver where certification = \${cert1}\`
+          }
+        `,
+        error: 'invalid input value for enum certification: "RNA"',
+        line: 2,
+        columns: [61, 69],
+      }),
+      invalidPositionTestCase({
+        code: "sql`select id, id from caregiver`",
+        error: `Duplicate columns: caregiver.id, caregiver.id`,
+        line: 1,
+        columns: [12, 14],
+      }),
+      invalidPositionTestCase({
+        code: "sql`select id sele, certification sele from caregiver`",
+        error: `Duplicate columns: caregiver.id (alias: sele), caregiver.certification (alias: sele)`,
+        line: 1,
+        columns: [15, 19],
+      }),
     ],
   });
 
@@ -1847,4 +1945,30 @@ RuleTester.describe("check-sql", () => {
       },
     ],
   });
+
+  function invalidPositionTestCase(params: {
+    only?: boolean;
+    line: number;
+    columns: [number, number];
+    error: string;
+    code: string;
+  }): InvalidTestCase<keyof (typeof rules)["check-sql"]["meta"]["messages"], RuleOptions> {
+    return {
+      filename,
+      name: `${params.line}:[${params.columns[0]}:${params.columns[1]}] - ${params.error}`,
+      only: params.only,
+      options: withConnection(connections.withTag),
+      code: params.code,
+      errors: [
+        {
+          messageId: "invalidQuery",
+          data: { error: params.error },
+          line: params.line,
+          endLine: params.line,
+          column: params.columns[0],
+          endColumn: params.columns[1],
+        },
+      ],
+    };
+  }
 });

@@ -8,6 +8,7 @@ import {
   IdentiferCase,
   isPostgresError,
   PostgresError,
+  QuerySourceMapEntry,
   toCase,
 } from "@ts-safeql/shared";
 import * as LibPgQueryAST from "@ts-safeql/sql-ast";
@@ -37,7 +38,7 @@ export type GenerateResult = {
   output: Extract<ResolvedTarget, { kind: "object" }> | null;
   unknownColumns: string[];
   stmt: postgres.Statement;
-  query: string;
+  query: { text: string; sourcemaps: QuerySourceMapEntry[] };
 };
 export type GenerateError = DuplicateColumnsError | PostgresError;
 
@@ -50,7 +51,7 @@ type Overrides = {
 
 export interface GenerateParams {
   sql: Sql;
-  query: string;
+  query: { text: string; sourcemaps: QuerySourceMapEntry[] };
   pgParsed: LibPgQueryAST.ParseResult;
   cacheMetadata?: boolean;
   cacheKey: CacheKey;
@@ -207,7 +208,7 @@ async function generate(
   });
 
   try {
-    const result = await sql.unsafe(query, [], { prepare: true }).describe();
+    const result = await sql.unsafe(query.text, [], { prepare: true }).describe();
 
     if (result.columns === undefined || result.columns === null || result.columns.length === 0) {
       return either.right({ output: null, unknownColumns: [], stmt: result, query: query });
@@ -232,9 +233,16 @@ async function generate(
         };
       });
 
+      const dupePosition = (() => {
+        const match = query.text.search(new RegExp(`\\b${duplicateCols[0].name}\\b`));
+        return (match > -1 ? match : query.text.search(/SELECT/i)) + 1;
+      })();
+
       return either.left(
         DuplicateColumnsError.of({
-          queryText: query,
+          queryText: query.text,
+          sourcemaps: query.sourcemaps,
+          position: dupePosition,
           columns: dupes.map((x) => {
             return x.column !== x.originalColumn
               ? `${x.table}.${x.originalColumn} (alias: ${x.column})`
@@ -299,7 +307,8 @@ async function generate(
     if (isPostgresError(e)) {
       return either.left(
         PostgresError.of({
-          queryText: query,
+          queryText: query.text,
+          sourcemaps: query.sourcemaps,
           message: e.message,
           line: e.line,
           position: e.position,

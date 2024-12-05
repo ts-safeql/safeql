@@ -183,7 +183,7 @@ const testQuery = async (params: {
       generateTE({
         sql,
         pgParsed,
-        query,
+        query: { text: query, sourcemaps: [] },
         cacheKey,
         fieldTransform: undefined,
         overrides: {

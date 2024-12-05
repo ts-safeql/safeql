@@ -169,14 +169,28 @@ export class DuplicateColumnsError extends Error {
   _tag = "DuplicateColumnsError" as const;
   columns: string[];
   queryText: string;
+  position: number;
+  sourcemaps: QuerySourceMapEntry[];
 
-  constructor(params: { columns: string[]; queryText: string }) {
+  constructor(params: {
+    columns: string[];
+    queryText: string;
+    position: number;
+    sourcemaps: QuerySourceMapEntry[];
+  }) {
     super(`Duplicate columns: ${params.columns.join(", ")}`);
     this.columns = params.columns;
     this.queryText = params.queryText;
+    this.position = params.position;
+    this.sourcemaps = params.sourcemaps;
   }
 
-  static of(params: { columns: string[]; queryText: string }) {
+  static of(params: {
+    columns: string[];
+    queryText: string;
+    position: number;
+    sourcemaps: QuerySourceMapEntry[];
+  }) {
     return new DuplicateColumnsError(params);
   }
 
@@ -186,8 +200,16 @@ export class DuplicateColumnsError extends Error {
       message: this.message,
       columns: this.columns,
       queryText: this.queryText,
+      position: this.position,
+      sourcemaps: this.sourcemaps,
     };
   }
+}
+
+export interface QuerySourceMapEntry {
+  original: { start: number; end: number; text: string };
+  generated: { start: number; end: number; text: string };
+  offset: number;
 }
 
 export class PostgresError extends Error {
@@ -196,27 +218,42 @@ export class PostgresError extends Error {
   queryText: string;
   message: string;
   line: string;
-  position: string;
+  position: number;
+  sourcemaps: QuerySourceMapEntry[];
 
-  constructor(params: { queryText: string; message: string; line: string; position: string }) {
+  constructor(params: {
+    queryText: string;
+    message: string;
+    line: string;
+    position: number | string;
+    sourcemaps: QuerySourceMapEntry[];
+  }) {
     super(params.message);
     this.queryText = params.queryText;
     this.message = params.message;
     this.line = params.line;
-    this.position = params.position;
+    this.position = Number(params.position);
+    this.sourcemaps = params.sourcemaps;
   }
 
-  static of(params: { queryText: string; message: string; line: string; position: string }) {
+  static of(params: {
+    queryText: string;
+    message: string;
+    line: string;
+    position: number | string;
+    sourcemaps: QuerySourceMapEntry[];
+  }) {
     return new PostgresError(params);
   }
 
-  static to(query: string, error: unknown) {
+  static to(query: string, error: unknown, sourcemaps: QuerySourceMapEntry[]) {
     if (isPostgresError(error)) {
       return PostgresError.of({
         queryText: query,
         message: error.message,
         line: error.line,
         position: error.position,
+        sourcemaps,
       });
     }
 
@@ -224,7 +261,8 @@ export class PostgresError extends Error {
       queryText: query,
       message: `${error}`,
       line: "1",
-      position: "1",
+      position: isPgParserError(error) ? error.cursorPosition : 0,
+      sourcemaps: sourcemaps,
     });
   }
 
@@ -235,6 +273,7 @@ export class PostgresError extends Error {
       message: this.message,
       line: this.line,
       position: this.position,
+      sourcemaps: this.sourcemaps,
     };
   }
 }
@@ -249,4 +288,8 @@ export function isPostgresError(e: unknown): e is postgres.PostgresError {
   }
 
   return false;
+}
+
+function isPgParserError(error: unknown): error is Error & { cursorPosition: number } {
+  return error instanceof Error && "cursorPosition" in error;
 }

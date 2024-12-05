@@ -6,21 +6,22 @@ import {
   InvalidMigrationsPathError,
   InvalidQueryError,
   PostgresError,
+  QuerySourceMapEntry,
   fmap,
 } from "@ts-safeql/shared";
 import { TSESTree } from "@typescript-eslint/utils";
+import { SourceCode } from "@typescript-eslint/utils/ts-eslint";
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { Sql } from "postgres";
 import { match } from "ts-pattern";
 import { z } from "zod";
-import { ESTreeUtils } from "../utils";
 import { E, TE, pipe } from "../utils/fp-ts";
 import { mapConnectionOptionsToString, parseConnection } from "../utils/pg.utils";
+import { WorkerError } from "../workers/check-sql.worker";
 import { RuleContext } from "./check-sql.rule";
 import { RuleOptionConnection, zConnectionMigration } from "./RuleOptions";
-import { WorkerError } from "../workers/check-sql.worker";
 
 type TypeReplacerString = string;
 type TypeReplacerFromTo = [string, string];
@@ -133,14 +134,16 @@ export function reportDuplicateColumns(params: {
 }) {
   const { tag, context, error } = params;
 
+  const location = getQueryErrorPosition({
+    tag: tag,
+    error: error,
+    sourceCode: context.sourceCode,
+  });
+
   return context.report({
     node: tag,
     messageId: "invalidQuery",
-    loc: ESTreeUtils.getSourceLocationFromStringPosition({
-      loc: tag.quasi.loc,
-      position: error.queryText.search(error.columns[0]) + 1,
-      value: error.queryText,
-    }),
+    loc: location.sourceLocation,
     data: {
       error: error.message,
     },
@@ -154,14 +157,16 @@ export function reportPostgresError(params: {
 }) {
   const { context, tag, error } = params;
 
+  const location = getQueryErrorPosition({
+    tag: tag,
+    error: error,
+    sourceCode: context.sourceCode,
+  });
+
   return context.report({
     node: tag,
     messageId: "invalidQuery",
-    loc: ESTreeUtils.getSourceLocationFromStringPosition({
-      loc: tag.quasi.loc,
-      position: parseInt(error.position, 10),
-      value: error.queryText,
-    }),
+    loc: location.sourceLocation,
     data: {
       error: error.message,
     },
@@ -479,4 +484,59 @@ function isNullableResolvedTarget(target: ResolvedTarget): boolean {
     case "object":
       return false;
   }
+}
+
+interface GetWordRangeInPositionParams {
+  error: {
+    position: number;
+    sourcemaps: QuerySourceMapEntry[];
+  };
+  tag: TSESTree.TaggedTemplateExpression;
+  sourceCode: Readonly<SourceCode>;
+}
+
+function getQueryErrorPosition(params: GetWordRangeInPositionParams) {
+  const range: [number, number] = [params.error.position, params.error.position + 1];
+
+  for (const entry of params.error.sourcemaps) {
+    const generatedLength = Math.max(0, entry.generated.end - entry.generated.start);
+    const originalLength = Math.max(0, entry.original.end - entry.original.start);
+    const adjustment = originalLength - generatedLength;
+
+    if (range[0] >= entry.generated.start && range[1] <= entry.generated.end) {
+      range[0] = entry.original.start + entry.offset;
+      range[1] = entry.original.start + entry.offset + 1;
+      continue;
+    }
+
+    if (params.error.position >= entry.generated.start) {
+      range[0] += adjustment;
+    }
+
+    if (params.error.position >= entry.generated.end) {
+      range[1] += adjustment;
+    }
+  }
+
+  const start = params.sourceCode.getLocFromIndex(params.tag.quasi.range[0] + range[0]);
+  const startLineText = params.sourceCode.getLines()[start.line - 1];
+  const remainingLineText = startLineText.substring(start.column);
+  const remainingWordLength = (remainingLineText.match(/^[\w.{}'$"]+/)?.at(0)?.length ?? 1) - 1;
+
+  const end = params.sourceCode.getLocFromIndex(params.tag.quasi.range[0] + range[1]);
+
+  const sourceLocation: TSESTree.SourceLocation = {
+    start: start,
+    end: {
+      line: end.line,
+      column: end.column + remainingWordLength,
+    },
+  };
+
+  return {
+    range,
+    sourceLocation: sourceLocation,
+    remainingLineText: remainingLineText,
+    remainingWordLength: remainingWordLength,
+  };
 }
