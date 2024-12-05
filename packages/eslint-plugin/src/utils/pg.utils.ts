@@ -64,10 +64,15 @@ export function createDatabase(sql: Sql, database: string) {
 }
 
 export function dropDatabase(sql: Sql, database: string) {
-  return TE.tryCatch(
-    () => sql.unsafe(`DROP DATABASE IF EXISTS ${database}`),
-    DatabaseInitializationError.to,
-  );
+  return TE.tryCatch(async () => {
+    const [{ withForce }] = await sql.unsafe(`
+        SELECT (string_to_array(version(), ' '))[2]::numeric >= 13 AS "withForce"
+      `);
+
+    return withForce
+      ? sql.unsafe(`DROP DATABASE IF EXISTS ${database} WITH (FORCE)`)
+      : sql.unsafe(`DROP DATABASE IF EXISTS ${database}`);
+  }, DatabaseInitializationError.to);
 }
 
 function isDefined<T>(value: T | null | undefined): value is T {

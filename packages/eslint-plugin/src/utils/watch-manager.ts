@@ -49,7 +49,6 @@ export function createWatchManager() {
       },
     });
 
-    console.log("migrationPath", migrationPath);
     watcher.add(migrationPath);
   };
 

@@ -9,6 +9,7 @@ import {
   InternalError,
   InvalidMigrationError,
   InvalidMigrationsPathError,
+  QuerySourceMapEntry,
 } from "@ts-safeql/shared";
 import * as LibPgQueryAST from "@ts-safeql/sql-ast";
 import path from "path";
@@ -30,7 +31,7 @@ import { ConnectionTarget, RuleOptionConnection } from "../rules/RuleOptions";
 export interface CheckSQLWorkerParams {
   connection: RuleOptionConnection;
   target: ConnectionTarget;
-  query: string;
+  query: { text: string; sourcemaps: QuerySourceMapEntry[] };
   projectDir: string;
   pgParsed: LibPgQueryAST.ParseResult;
 }

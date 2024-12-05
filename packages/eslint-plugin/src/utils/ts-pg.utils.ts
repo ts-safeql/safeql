@@ -3,9 +3,10 @@ import {
   doesMatchPattern,
   InvalidQueryError,
   normalizeIndent,
+  QuerySourceMapEntry,
 } from "@ts-safeql/shared";
 import { TSESTreeToTSNode } from "@typescript-eslint/typescript-estree";
-import { ParserServices, TSESTree } from "@typescript-eslint/utils";
+import { ParserServices, TSESLint, TSESTree } from "@typescript-eslint/utils";
 import ts, { TypeChecker } from "typescript";
 import { RuleOptionConnection } from "../rules/RuleOptions";
 import { E, pipe } from "./fp-ts";
@@ -16,18 +17,21 @@ export function mapTemplateLiteralToQueryText(
   parser: ParserServices,
   checker: ts.TypeChecker,
   options: RuleOptionConnection,
+  sourceCode: Readonly<TSESLint.SourceCode>,
 ) {
   let $idx = 0;
   let $queryText = "";
+  const sourcemaps: QuerySourceMapEntry[] = [];
 
-  for (const $quasi of quasi.quasis) {
+  for (const [quasiIdx, $quasi] of quasi.quasis.entries()) {
     $queryText += $quasi.value.raw;
 
     if ($quasi.tail) {
       break;
     }
 
-    const expression = quasi.expressions[$idx];
+    const position = $queryText.length;
+    const expression = quasi.expressions[quasiIdx];
 
     const pgType = pipe(mapExpressionToTsTypeString({ expression, parser, checker }), (params) =>
       getPgTypeFromTsType({ ...params, checker, options }),
@@ -40,27 +44,94 @@ export function mapTemplateLiteralToQueryText(
     const pgTypeValue = pgType.right;
 
     if (pgTypeValue === null) {
-      $queryText += `$${++$idx}`;
+      const placeholder = `$${++$idx}`;
+      $queryText += placeholder;
+
+      sourcemaps.push({
+        original: {
+          text: sourceCode.text.slice(expression.range[0] - 2, expression.range[1] + 1),
+          start: expression.range[0] - quasi.range[0] - 2,
+          end: expression.range[1] - quasi.range[0] + 1,
+        },
+        generated: {
+          text: placeholder,
+          start: position,
+          end: position + placeholder.length,
+        },
+        offset: 0,
+      });
+
       continue;
     }
 
-    if (pgTypeValue.kind === "cast") {
-      $queryText += `$${++$idx}::${pgTypeValue.cast}`;
+    if (pgTypeValue.kind === "literal") {
+      const placeholder = pgTypeValue.value;
+      $queryText += placeholder;
+
+      sourcemaps.push({
+        original: {
+          start: expression.range[0] - quasi.range[0] - 2,
+          end: expression.range[1] - quasi.range[0] + 1,
+          text: sourceCode.text.slice(expression.range[0] - 2, expression.range[1] + 1),
+        },
+        generated: {
+          start: position,
+          end: position + placeholder.length,
+          text: placeholder,
+        },
+        offset: 0,
+      });
+
       continue;
     }
 
-    if (pgTypeValue.kind === "one-of") {
-      if ($queryText.endsWith(" = ")) {
-        $queryText = $queryText.slice(0, -3) + " IN ";
-        $queryText += `(${pgTypeValue.types.map((t) => `'${t}'`).join(", ")})`;
-      } else {
-        $queryText += `ANY(ARRAY[${pgTypeValue.types.map((t) => `'${t}'`).join(", ")}])`;
-      }
+    if (pgTypeValue.kind === "one-of" && $queryText.trimEnd().endsWith("=")) {
+      const textFromEquals = $queryText.slice($queryText.lastIndexOf("="));
+      const placeholder = `IN (${pgTypeValue.types.map((t) => `'${t}'`).join(", ")})`;
+      const expressionText = sourceCode.text.slice(
+        expression.range[0] - 2,
+        expression.range[1] + 1,
+      );
+
+      $queryText = $queryText.replace(/(=)\s*$/, "");
+      $queryText += placeholder;
+
+      sourcemaps.push({
+        original: {
+          start: expression.range[0] - quasi.range[0] - 2 - textFromEquals.length,
+          end: expression.range[1] - quasi.range[0] + 2 - textFromEquals.length,
+          text: `${textFromEquals}${expressionText}`,
+        },
+        generated: {
+          start: position - textFromEquals.length + 1,
+          end: position + placeholder.length - textFromEquals.length,
+          text: placeholder,
+        },
+        offset: textFromEquals.length,
+      });
+
       continue;
     }
+
+    const placeholder = `$${++$idx}::${pgTypeValue.cast}`;
+    $queryText += placeholder;
+
+    sourcemaps.push({
+      original: {
+        start: expression.range[0] - quasi.range[0] - 2,
+        end: expression.range[1] - quasi.range[0],
+        text: sourceCode.text.slice(expression.range[0] - 2, expression.range[1] + 1),
+      },
+      generated: {
+        start: position,
+        end: position + placeholder.length,
+        text: placeholder,
+      },
+      offset: 0,
+    });
   }
 
-  return E.right($queryText);
+  return E.right({ text: $queryText, sourcemaps });
 }
 
 function mapExpressionToTsTypeString(params: {
@@ -86,7 +157,6 @@ const tsTypeToPgTypeMap: Record<string, string> = {
 };
 
 const tsKindToPgTypeMap: Record<number, string> = {
-  [ts.SyntaxKind.StringLiteral]: "text",
   [ts.SyntaxKind.NumericLiteral]: "int",
   [ts.SyntaxKind.TrueKeyword]: "boolean",
   [ts.SyntaxKind.FalseKeyword]: "boolean",
@@ -120,7 +190,11 @@ function getPgTypeFromTsTypeUnion(params: { types: ts.Type[] }): E.Either<string
   const isStringLiterals = types.every((t) => t.flags === ts.TypeFlags.StringLiteral);
 
   if (isStringLiterals) {
-    return E.right({ kind: "one-of", types: types.map((t) => (t as ts.StringLiteralType).value) });
+    return E.right({
+      kind: "one-of",
+      types: types.map((t) => (t as ts.StringLiteralType).value),
+      cast: "text",
+    });
   }
 
   const isUnionOfTheSameType = types.every((t) => t.flags === types[0].flags);
@@ -133,7 +207,10 @@ function getPgTypeFromTsTypeUnion(params: { types: ts.Type[] }): E.Either<string
   return E.right({ kind: "cast", cast: pgType });
 }
 
-type PgTypeStrategy = { kind: "cast"; cast: string } | { kind: "one-of"; types: string[] };
+type PgTypeStrategy =
+  | { kind: "cast"; cast: string }
+  | { kind: "literal"; value: string; cast: string }
+  | { kind: "one-of"; types: string[]; cast: string };
 
 function getPgTypeFromTsType(params: {
   checker: TypeChecker;
@@ -180,10 +257,14 @@ function getPgTypeFromTsType(params: {
       return elementTypeUnion
         ? pipe(
             getPgTypeFromTsTypeUnion({ types: elementTypeUnion }),
-            E.map((pgType) => ({ kind: "cast", cast: `${pgType}[]` })),
+            E.map((pgType) => ({ kind: "cast", cast: `${pgType.cast}[]` })),
           )
         : E.left("Invalid array union type");
     }
+  }
+
+  if (node.kind === ts.SyntaxKind.StringLiteral) {
+    return E.right({ kind: "literal", value: `'${node.text}'`, cast: "text" });
   }
 
   // Check for known SyntaxKind mappings

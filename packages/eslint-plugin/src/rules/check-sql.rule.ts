@@ -1,5 +1,11 @@
 import { ResolvedTarget } from "@ts-safeql/generate";
-import { InvalidConfigError, PostgresError, doesMatchPattern, fmap } from "@ts-safeql/shared";
+import {
+  InvalidConfigError,
+  PostgresError,
+  QuerySourceMapEntry,
+  doesMatchPattern,
+  fmap,
+} from "@ts-safeql/shared";
 import {
   ESLintUtils,
   ParserServices,
@@ -119,11 +125,11 @@ function checkConnection(params: {
   return match(params.target).exhaustive();
 }
 
-const pgParseQueryE = (query: string) => {
+const pgParseQueryE = (query: string, sourcemaps: QuerySourceMapEntry[]) => {
   return pipe(
     E.tryCatch(
       () => parser.parseQuerySync(query),
-      (error) => PostgresError.to(query, error),
+      (error) => PostgresError.to(query, error, sourcemaps),
     ),
   );
 };
@@ -162,9 +168,15 @@ function reportCheck(params: {
         : E.right(parser.program.getTypeChecker());
     }),
     E.bindW("query", ({ parser, checker }) =>
-      mapTemplateLiteralToQueryText(tag.quasi, parser, checker, params.connection),
+      mapTemplateLiteralToQueryText(
+        tag.quasi,
+        parser,
+        checker,
+        params.connection,
+        params.context.sourceCode,
+      ),
     ),
-    E.bindW("pgParsed", ({ query }) => pgParseQueryE(query)),
+    E.bindW("pgParsed", ({ query }) => pgParseQueryE(query.text, query.sourcemaps)),
     E.bindW("result", ({ query, pgParsed }) => {
       return generateSyncE({ query, pgParsed, connection, target, projectDir });
     }),
