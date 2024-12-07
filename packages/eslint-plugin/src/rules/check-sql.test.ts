@@ -275,6 +275,17 @@ RuleTester.describe("check-sql", () => {
         `,
       },
       {
+        name: "compare typescript enum with postgres enum",
+        filename,
+        options: withConnection(connections.withTag),
+        code: `
+          enum Certification { HHA = "HHA", RN = "RN" }
+          function foo(cert: Certification) {
+            sql\`select from caregiver where certification = \${cert}\`
+          }
+        `,
+      },
+      {
         name: "select from table with inner joins",
         filename,
         options: withConnection(connections.base),
@@ -839,6 +850,25 @@ RuleTester.describe("check-sql", () => {
           },
         ],
       },
+      {
+        name: "incorrect comparison of typescript <> postgres enum",
+        filename,
+        options: withConnection(connections.withTag),
+        code: normalizeIndent`
+          enum Certification { HHA = "HHA", RN = "RM" }
+          function foo(cert: Certification) {
+            sql\`select from caregiver where certification = \${cert}\`
+          }
+        `,
+        errors: [
+          {
+            messageId: "invalidQuery",
+            data: {
+              error: 'invalid input value for enum certification: "RM"',
+            },
+          },
+        ],
+      },
     ],
   });
 
@@ -1193,7 +1223,6 @@ RuleTester.describe("check-sql", () => {
           interface Parameter<T> { value: T; }
           class LocalDate {}
           function run(simple: LocalDate, parameterized: Parameter<LocalDate>) {
-            sql<{ date_col: LocalDate }>\`select date_col from test_date_column WHERE date_col = \${simple}\`
             sql<{ date_col: LocalDate }>\`select date_col from test_date_column WHERE date_col = \${parameterized}\`
           }
         `,

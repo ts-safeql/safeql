@@ -227,9 +227,6 @@ function getPgTypeFromTsType(params: {
 }): E.Either<string, PgTypeStrategy | null> {
   const { checker, node, type, options } = params;
 
-  // Utility function to get PostgreSQL type from flags
-  const getPgTypeFromFlags = (flags: ts.TypeFlags) => tsFlagToPgTypeMap[flags];
-
   // Check for conditional expression
   if (node.kind === ts.SyntaxKind.ConditionalExpression) {
     const whenTrueType = getPgTypeFromFlags(checker.getTypeAtLocation(node.whenTrue).flags);
@@ -268,6 +265,19 @@ function getPgTypeFromTsType(params: {
           )
         : E.left("Invalid array union type");
     }
+
+    if (
+      checker.isArrayType(type) &&
+      TSUtils.isTsTypeReference(type) &&
+      type.typeArguments?.length === 1
+    ) {
+      const typeArgument = type.typeArguments?.[0];
+
+      return pipe(
+        checkType({ checker, type: typeArgument, options }),
+        E.map((pgType): PgTypeStrategy => ({ kind: "cast", cast: `${pgType.cast}[]` })),
+      );
+    }
   }
 
   if (node.kind === ts.SyntaxKind.StringLiteral) {
@@ -297,6 +307,20 @@ function getPgTypeFromTsType(params: {
       : E.left("Unsupported union type");
   }
 
+  return checkType({ checker, type, options });
+}
+
+function getPgTypeFromFlags(flags: ts.TypeFlags) {
+  return tsFlagToPgTypeMap[flags];
+}
+
+function checkType(params: {
+  checker: TypeChecker;
+  type: ts.Type;
+  options: RuleOptionConnection;
+}): E.Either<string, PgTypeStrategy> {
+  const { checker, type, options } = params;
+
   // Handle array types
   const typeStr = checker.typeToString(type);
   const singularType = typeStr.replace(/\[\]$/, "");
@@ -314,6 +338,20 @@ function getPgTypeFromTsType(params: {
       elementType.types.every((t) => t.flags === elementType.types[0].flags)
     ) {
       return E.right({ kind: "cast", cast: `${getPgTypeFromFlags(elementType.types[0].flags)}[]` });
+    }
+  }
+
+  const enumType = TSUtils.getEnumKind(type);
+
+  if (enumType) {
+    switch (enumType.kind) {
+      case "Const":
+      case "Numeric":
+        return E.right({ kind: "cast", cast: "int" });
+      case "String":
+        return E.right({ kind: "one-of", types: enumType.values, cast: "text" });
+      case "Heterogeneous":
+        return E.left("Heterogeneous enums are not supported");
     }
   }
 
