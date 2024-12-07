@@ -11,6 +11,7 @@ import ts, { TypeChecker } from "typescript";
 import { RuleOptionConnection } from "../rules/RuleOptions";
 import { E, pipe } from "./fp-ts";
 import { TSUtils } from "./ts.utils";
+import { isLastQueryContextOneOf } from "./query-context";
 
 export function mapTemplateLiteralToQueryText(
   quasi: TSESTree.TemplateLiteral,
@@ -85,9 +86,15 @@ export function mapTemplateLiteralToQueryText(
       continue;
     }
 
-    if (pgTypeValue.kind === "one-of" && $queryText.trimEnd().endsWith("=")) {
+    const escapePgValue = (text: string) => text.replace(/'/g, "''");
+
+    if (
+      pgTypeValue.kind === "one-of" &&
+      $queryText.trimEnd().endsWith("=") &&
+      isLastQueryContextOneOf($queryText, ["SELECT", "ON", "WHERE", "WHEN", "HAVING", "RETURNING"])
+    ) {
       const textFromEquals = $queryText.slice($queryText.lastIndexOf("="));
-      const placeholder = `IN (${pgTypeValue.types.map((t) => `'${t}'`).join(", ")})`;
+      const placeholder = `IN (${pgTypeValue.types.map((t) => `'${escapePgValue(t)}'`).join(", ")})`;
       const expressionText = sourceCode.text.slice(
         expression.range[0] - 2,
         expression.range[1] + 1,
