@@ -1,5 +1,11 @@
 # @ts-safeql/eslint-plugin
 
+## 3.5.1
+
+### Patch Changes
+
+- f4c9106: fixed an issue where typescript enums weren't processed properly in some cases
+
 ## 3.5.0
 
 ### Minor Changes
