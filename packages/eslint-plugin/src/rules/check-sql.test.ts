@@ -5,12 +5,12 @@ import {
 } from "@ts-safeql/test-utils";
 import { InvalidTestCase, RuleTester } from "@typescript-eslint/rule-tester";
 
-import { afterAll, beforeAll, describe, it } from "vitest";
+import { normalizeIndent } from "@ts-safeql/shared";
 import path from "path";
 import { Sql } from "postgres";
+import { afterAll, beforeAll, describe, it } from "vitest";
 import rules from ".";
 import { RuleOptionConnection, RuleOptions } from "./RuleOptions";
-import { normalizeIndent } from "@ts-safeql/shared";
 
 const tsconfigRootDir = path.resolve(__dirname, "../../");
 const project = "tsconfig.json";
@@ -55,6 +55,11 @@ const runMigrations1 = <TTypes extends Record<string, unknown>>(sql: Sql<TTypes>
         id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
         caregiver_id INT NOT NULL REFERENCES caregiver(id),
         agency_id INT NOT NULL REFERENCES agency(id)
+    );
+
+    CREATE TABLE certification_metadata (
+        id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+        certification certification NOT NULL
     );
 
     CREATE TABLE test_date_column (
@@ -867,6 +872,79 @@ RuleTester.describe("check-sql", () => {
     ],
   });
 
+  ruleTester.run("one-of transformation", rules["check-sql"], {
+    valid: [
+      {
+        filename,
+        name: "control",
+        options: withConnection(connections.withTag),
+        code: normalizeIndent`
+          function union(cert: "HHA" | "RN", cert2: "LPN" | "CNA") {
+            return sql\`SELECT FROM caregiver WHERE certification = \${cert}\`
+          }
+        `,
+      },
+      {
+        filename,
+        name: "control",
+        options: withConnection(connections.withTag),
+        code: normalizeIndent`
+          function union(cert: "HHA" | "RN", cert2: "LPN" | "CNA") {
+            return sql\`UPDATE caregiver SET certification = \${cert}::certification WHERE id = 1\`
+          }
+        `,
+      },
+      {
+        filename,
+        name: "join context",
+        options: withConnection(connections.withTag),
+        code: normalizeIndent`
+          function joinTest(cert: "HHA" | "RN") {
+            return sql\`SELECT FROM caregiver c JOIN certification_metadata ct ON c.certification = \${cert}\`
+          }
+        `,
+      },
+      {
+        filename,
+        name: "case context",
+        options: withConnection(connections.withTag),
+        code: normalizeIndent`
+          function caseTest(cert: "HHA" | "RN") {
+            return sql<{ is_certified: number }>\`
+              SELECT CASE WHEN certification = \${cert} THEN 1 ELSE 0 END AS is_certified
+              FROM caregiver
+            \`
+          }
+        `,
+      },
+      {
+        filename,
+        name: "having context",
+        options: withConnection(connections.withTag),
+        code: normalizeIndent`
+          function havingTest(cert: "HHA" | "RN") {
+            return sql\`SELECT FROM caregiver GROUP BY certification HAVING certification = \${cert}\`
+          }
+        `,
+      },
+      {
+        filename,
+        name: "returning context",
+        options: withConnection(connections.withTag),
+        code: normalizeIndent`
+          function returningTest(cert: "HHA" | "RN") {
+            return sql<{ one_of: boolean | null }>\`
+              UPDATE caregiver
+              SET id = DEFAULT
+              WHERE FALSE
+              RETURNING certification = \${cert} AS one_of\`
+          }
+        `,
+      },
+    ],
+    invalid: [],
+  });
+
   ruleTester.run("position", rules["check-sql"], {
     valid: [
       {
@@ -936,6 +1014,16 @@ RuleTester.describe("check-sql", () => {
         error: 'invalid input value for enum certification: "RNA"',
         line: 2,
         columns: [61, 69],
+      }),
+      invalidPositionTestCase({
+        code: normalizeIndent`
+          function run(cert: "HHA" | "RN'") {
+            return sql\`select id from caregiver where certification = \${cert}\`
+          }
+        `,
+        error: `invalid input value for enum certification: "RN'"`,
+        line: 2,
+        columns: [61, 68],
       }),
       invalidPositionTestCase({
         code: "sql`select id, id from caregiver`",
