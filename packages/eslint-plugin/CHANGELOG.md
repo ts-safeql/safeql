@@ -1,5 +1,12 @@
 # @ts-safeql/eslint-plugin
 
+## 3.5.1
+
+### Patch Changes
+
+- 2e2f58d: fixed an issue where safeql would fail when comparing enum with string literals
+- f4c9106: fixed an issue where typescript enums weren't processed properly in some cases
+
 ## 3.5.0
 
 ### Minor Changes
