@@ -125,6 +125,8 @@ describe("getQueryContext", () => {
     expect(getQueryContext(query)).toMatchInlineSnapshot(`
       [
         "SELECT",
+        "WHEN",
+        "WHEN",
         "FROM",
       ]
     `);
