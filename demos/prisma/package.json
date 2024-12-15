@@ -17,7 +17,7 @@
     "@typescript-eslint/eslint-plugin": "^7.8.0",
     "@typescript-eslint/parser": "^7.8.0",
     "conditional-type-checks": "1.0.6",
-    "eslint": "^8.57.0",
+    "eslint": "^9.0.0",
     "tsx": "^4.9.1",
     "typescript": "^5.4.5",
     "zx": "^8.0.2"
