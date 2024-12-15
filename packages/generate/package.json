@@ -37,7 +37,7 @@
     "tsx": "^4.9.1",
     "typescript": "^5.4.5",
     "unbuild": "^2.0.0",
-    "vitest": "^1.6.0"
+    "vitest": "^2.0.0"
   },
   "dependencies": {
     "@ts-safeql/shared": "workspace:3.5.1",
