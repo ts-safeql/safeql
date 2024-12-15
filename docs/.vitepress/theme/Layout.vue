@@ -1,11 +1,15 @@
 <script setup>
 import DefaultTheme from "vitepress/theme";
+import Comments from './components/Comments.vue'
 </script>
 
 <template>
   <DefaultTheme.Layout>
     <template #home-hero-image>
       <video autoplay loop muted src="/video.mp4" class="video" />
+    </template>
+    <template #doc-after>
+      <Comments />
     </template>
   </DefaultTheme.Layout>
 </template>
