@@ -64,7 +64,7 @@
     "ts-pattern": "^4.2.2",
     "tsx": "^4.9.1",
     "zod": "^3.21.4",
-    "zod-to-json-schema": "3.20.1"
+    "zod-to-json-schema": "3.24.1"
   },
   "peerDependencies": {
     "@typescript-eslint/utils": ">=7.8.0",
