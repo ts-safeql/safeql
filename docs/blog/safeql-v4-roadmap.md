@@ -22,7 +22,7 @@ head:
       content: https://safeql.dev/blog/safeql-v4-roadmap
   - - meta
     - property: og:description
-      content: Vite 6 Release Announcement
+      content: SafeQL v4 Roadmap
   - - meta
     - name: twitter:card
       content: summary_large_image
