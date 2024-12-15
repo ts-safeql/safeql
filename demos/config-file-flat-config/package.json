@@ -10,7 +10,7 @@
     "lint!": "eslint src --fix"
   },
   "devDependencies": {
-    "@types/node": "^18.15.11",
+    "@types/node": "^22.0.0",
     "@eslint/js": "^8.56.0",
     "@types/eslint": "^8.56.10",
     "eslint": "^8.57.0",

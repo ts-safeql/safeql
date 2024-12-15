@@ -18,7 +18,7 @@
   "dependencies": {
     "@ts-safeql-demos/shared": "workspace:*",
     "@ts-safeql/eslint-plugin": "workspace:*",
-    "@types/node": "^18.15.11",
+    "@types/node": "^22.0.0",
     "postgres": "^3.3.4"
   }
 }

@@ -20,7 +20,7 @@
   "dependencies": {
     "@ts-safeql-demos/shared": "workspace:*",
     "@ts-safeql/eslint-plugin": "workspace:*",
-    "@types/node": "^18.15.11",
+    "@types/node": "^22.0.0",
     "@vercel/postgres": "0.1.3",
     "pg": "^8.10.0"
   }
