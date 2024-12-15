@@ -24,7 +24,7 @@
   "dependencies": {
     "@ts-safeql/sql-tag": "workspace:*",
     "pg": "^8.4.0",
-    "reflect-metadata": "^0.1.13",
+    "reflect-metadata": "^0.2.0",
     "typeorm": "0.3.17"
   }
 }
