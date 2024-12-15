@@ -23,7 +23,7 @@
     "zx": "^8.0.2"
   },
   "dependencies": {
-    "@prisma/client": "5.13.0",
-    "prisma": "5.13.0"
+    "@prisma/client": "6.0.1",
+    "prisma": "6.0.1"
   }
 }
