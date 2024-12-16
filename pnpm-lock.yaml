@@ -538,8 +538,8 @@ importers:
         specifier: ^0.9.0
         version: 0.9.0
       ts-pattern:
-        specifier: ^4.2.2
-        version: 4.3.0
+        specifier: ^5.0.0
+        version: 5.6.0
       tsx:
         specifier: ^4.9.1
         version: 4.11.0
@@ -4072,8 +4072,8 @@ packages:
       '@swc/wasm':
         optional: true
 
-  ts-pattern@4.3.0:
-    resolution: {integrity: sha512-pefrkcd4lmIVR0LA49Imjf9DYLK8vtWhqBPA3Ya1ir8xCW0O2yjL9dsCVvI7pCodLC5q7smNpEtDR2yVulQxOg==}
+  ts-pattern@5.6.0:
+    resolution: {integrity: sha512-SL8u60X5+LoEy9tmQHWCdPc2hhb2pKI6I1tU5Jue3v8+iRqZdcT3mWPwKKJy1fMfky6uha82c8ByHAE8PMhKHw==}
 
   tslib@2.6.2:
     resolution: {integrity: sha512-AEYxH93jGFPn/a2iVAwW87VuUIkR1FVUKB77NwMF7nBTDkDrrT/Hpt/IrCJ0QXhW27jTBDcf5ZY7w6RiqTMw2Q==}
@@ -8099,7 +8099,7 @@ snapshots:
       v8-compile-cache-lib: 3.0.1
       yn: 3.1.1
 
-  ts-pattern@4.3.0: {}
+  ts-pattern@5.6.0: {}
 
   tslib@2.6.2: {}
 
