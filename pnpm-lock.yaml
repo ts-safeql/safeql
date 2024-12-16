@@ -545,10 +545,10 @@ importers:
         version: 4.11.0
       zod:
         specifier: ^3.21.4
-        version: 3.23.8
+        version: 3.24.1
       zod-to-json-schema:
         specifier: 3.20.1
-        version: 3.20.1(zod@3.23.8)
+        version: 3.20.1(zod@3.24.1)
     devDependencies:
       '@ts-safeql/generate':
         specifier: workspace:*
@@ -4535,8 +4535,8 @@ packages:
     peerDependencies:
       zod: ^3.20.0
 
-  zod@3.23.8:
-    resolution: {integrity: sha512-XBx9AXhXktjUqnepgTiE5flcKIYWi/rme0Eaj+5Y0lftuGBq+jyRu/md4WnuxqgP1ubdpNCsYEYPxrzVHD8d6g==}
+  zod@3.24.1:
+    resolution: {integrity: sha512-muH7gBL9sI1nciMZV67X5fTKKBLtwpZ5VBp1vsOQzj1MhrBZ4wlVCm3gedKZWLp0Oyel8sIGfeiz54Su+OVT+A==}
 
   zx@8.1.2:
     resolution: {integrity: sha512-zkCiXKh8D/eo6r58OmJvO5mc2NthcSRvysb3fuS6VQlHPbEPBcxduRwM3m6ZfHj+7cLHcrahCnuO2TDAbW+6xw==}
@@ -8650,11 +8650,11 @@ snapshots:
 
   yocto-queue@1.0.0: {}
 
-  zod-to-json-schema@3.20.1(zod@3.23.8):
+  zod-to-json-schema@3.20.1(zod@3.24.1):
     dependencies:
-      zod: 3.23.8
+      zod: 3.24.1
 
-  zod@3.23.8: {}
+  zod@3.24.1: {}
 
   zx@8.1.2:
     optionalDependencies:
