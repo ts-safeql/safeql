@@ -536,7 +536,7 @@ importers:
         version: 3.4.4
       synckit:
         specifier: ^0.9.0
-        version: 0.9.0
+        version: 0.9.2
       ts-pattern:
         specifier: ^4.2.2
         version: 4.3.0
@@ -3997,8 +3997,8 @@ packages:
     engines: {node: '>=14.0.0'}
     hasBin: true
 
-  synckit@0.9.0:
-    resolution: {integrity: sha512-7RnqIMq572L8PeEzKeBINYEJDDxpcH8JEgLwUqBd3TkofhFRbkq4QLR0u+36avGAhCRbk2nnmjcW9SE531hPDg==}
+  synckit@0.9.2:
+    resolution: {integrity: sha512-vrozgXDQwYO72vHjUb/HnFbQx1exDjoKzqx23aXEg2a9VIg2TSFZ8FmeZpTjUCFMYw7mpX4BE2SFu8wI7asYsw==}
     engines: {node: ^14.18.0 || >=16.0.0}
 
   tabbable@6.2.0:
@@ -4077,6 +4077,9 @@ packages:
 
   tslib@2.6.2:
     resolution: {integrity: sha512-AEYxH93jGFPn/a2iVAwW87VuUIkR1FVUKB77NwMF7nBTDkDrrT/Hpt/IrCJ0QXhW27jTBDcf5ZY7w6RiqTMw2Q==}
+
+  tslib@2.8.1:
+    resolution: {integrity: sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==}
 
   tsx@4.11.0:
     resolution: {integrity: sha512-vzGGELOgAupsNVssAmZjbUDfdm/pWP4R+Kg8TVdsonxbXk0bEpE1qh0yV6/QxUVXaVlNemgcPajGdJJ82n3stg==}
@@ -8029,10 +8032,10 @@ snapshots:
       csso: 5.0.5
       picocolors: 1.0.1
 
-  synckit@0.9.0:
+  synckit@0.9.2:
     dependencies:
       '@pkgr/core': 0.1.1
-      tslib: 2.6.2
+      tslib: 2.8.1
 
   tabbable@6.2.0: {}
 
@@ -8102,6 +8105,8 @@ snapshots:
   ts-pattern@4.3.0: {}
 
   tslib@2.6.2: {}
+
+  tslib@2.8.1: {}
 
   tsx@4.11.0:
     dependencies:
