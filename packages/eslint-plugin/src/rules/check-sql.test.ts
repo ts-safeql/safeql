@@ -2073,7 +2073,7 @@ RuleTester.describe("check-sql", () => {
     return {
       filename,
       name: `${params.line}:[${params.columns[0]}:${params.columns[1]}] - ${params.error}`,
-      only: params.only,
+      only: params.only ?? false,
       options: withConnection(connections.withTag),
       code: params.code,
       errors: [
