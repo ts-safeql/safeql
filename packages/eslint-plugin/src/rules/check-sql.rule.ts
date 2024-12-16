@@ -487,8 +487,6 @@ export default createRule({
     fixable: "code",
     docs: {
       description: "Ensure that sql queries have type annotations",
-      recommended: "recommended",
-      requiresTypeChecking: true,
     },
     messages: messages,
     type: "problem",
