@@ -12,7 +12,7 @@
   "devDependencies": {
     "vitepress": "1.1.4",
     "vitepress-plugin-tabs": "^0.5.0",
-    "vue": "3.4.26"
+    "vue": "3.5.13"
   },
   "dependencies": {
     "@vercel/analytics": "^1.2.2"
