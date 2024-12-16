@@ -28,15 +28,15 @@
   },
   "devDependencies": {
     "@types/node": "^18.15.11",
-    "@typescript-eslint/eslint-plugin": "^7.8.0",
-    "@typescript-eslint/parser": "^7.8.0",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
     "eslint": "^8.57.0",
     "typescript": "^5.4.5",
     "unbuild": "^2.0.0",
     "vitest": "^1.6.0"
   },
   "dependencies": {
-    "@typescript-eslint/utils": "^7.8.0",
+    "@typescript-eslint/utils": "^8.0.0",
     "minimatch": "^9.0.0",
     "postgres": "^3.3.4"
   }

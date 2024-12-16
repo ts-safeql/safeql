@@ -14,8 +14,8 @@
   "devDependencies": {
     "@ts-safeql/eslint-plugin": "workspace:*",
     "@types/node": "^18.15.11",
-    "@typescript-eslint/eslint-plugin": "^7.8.0",
-    "@typescript-eslint/parser": "^7.8.0",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
     "conditional-type-checks": "1.0.6",
     "eslint": "^8.57.0",
     "tsx": "^4.9.1",
