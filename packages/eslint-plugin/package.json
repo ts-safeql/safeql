@@ -49,7 +49,7 @@
     "@typescript-eslint/eslint-plugin": "^7.8.0",
     "@typescript-eslint/parser": "^7.8.0",
     "@typescript-eslint/rule-tester": "^7.8.0",
-    "eslint": "^8.57.0",
+    "eslint": "^9.0.0",
     "libpg-query": "^16.2.0",
     "typescript": "^5.4.5",
     "unbuild": "^2.0.0",
