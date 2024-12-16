@@ -45,7 +45,7 @@
     "@ts-safeql/shared": "workspace:*",
     "@ts-safeql/sql-ast": "workspace:*",
     "@ts-safeql/test-utils": "workspace:*",
-    "@types/node": "^20.12.8",
+    "@types/node": "^22.0.0",
     "@typescript-eslint/eslint-plugin": "^7.8.0",
     "@typescript-eslint/parser": "^7.8.0",
     "@typescript-eslint/rule-tester": "^7.8.0",
