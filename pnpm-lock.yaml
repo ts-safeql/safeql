@@ -34,7 +34,7 @@ importers:
         version: 18.19.33
       postgres:
         specifier: ^3.3.4
-        version: 3.4.4
+        version: 3.4.5
     devDependencies:
       '@typescript-eslint/eslint-plugin':
         specifier: ^7.8.0
@@ -59,7 +59,7 @@ importers:
         version: link:../../packages/eslint-plugin
       postgres:
         specifier: ^3.3.4
-        version: 3.4.4
+        version: 3.4.5
     devDependencies:
       '@eslint/js':
         specifier: ^8.56.0
@@ -93,7 +93,7 @@ importers:
         version: link:../../packages/eslint-plugin
       postgres:
         specifier: ^3.3.4
-        version: 3.4.4
+        version: 3.4.5
     devDependencies:
       '@typescript-eslint/eslint-plugin':
         specifier: ^7.8.0
@@ -121,7 +121,7 @@ importers:
         version: 18.19.33
       postgres:
         specifier: ^3.3.4
-        version: 3.4.4
+        version: 3.4.5
     devDependencies:
       '@typescript-eslint/eslint-plugin':
         specifier: ^7.8.0
@@ -149,7 +149,7 @@ importers:
         version: 18.19.33
       postgres:
         specifier: ^3.3.4
-        version: 3.4.4
+        version: 3.4.5
     devDependencies:
       '@typescript-eslint/eslint-plugin':
         specifier: ^7.8.0
@@ -174,7 +174,7 @@ importers:
         version: link:../../packages/eslint-plugin
       postgres:
         specifier: ^3.3.4
-        version: 3.4.4
+        version: 3.4.5
     devDependencies:
       '@eslint/js':
         specifier: ^8.56.0
@@ -208,7 +208,7 @@ importers:
         version: 18.19.33
       postgres:
         specifier: ^3.3.4
-        version: 3.4.4
+        version: 3.4.5
     devDependencies:
       '@typescript-eslint/eslint-plugin':
         specifier: ^7.8.0
@@ -236,7 +236,7 @@ importers:
         version: link:../../packages/eslint-plugin
       postgres:
         specifier: ^3.3.4
-        version: 3.4.4
+        version: 3.4.5
     devDependencies:
       '@typescript-eslint/eslint-plugin':
         specifier: ^7.8.0
@@ -261,7 +261,7 @@ importers:
         version: link:../../packages/eslint-plugin
       postgres:
         specifier: ^3.3.4
-        version: 3.4.4
+        version: 3.4.5
     devDependencies:
       '@types/node':
         specifier: ^20.10.6
@@ -295,7 +295,7 @@ importers:
         version: link:../../packages/eslint-plugin
       postgres:
         specifier: ^3.3.4
-        version: 3.4.4
+        version: 3.4.5
     devDependencies:
       '@types/node':
         specifier: ^20.12.7
@@ -329,7 +329,7 @@ importers:
         version: 18.19.33
       postgres:
         specifier: ^3.3.4
-        version: 3.4.4
+        version: 3.4.5
     devDependencies:
       '@typescript-eslint/eslint-plugin':
         specifier: ^7.8.0
@@ -391,7 +391,7 @@ importers:
         version: 18.19.33
       postgres:
         specifier: ^3.3.4
-        version: 3.4.4
+        version: 3.4.5
     devDependencies:
       typescript:
         specifier: ^5.4.5
@@ -533,7 +533,7 @@ importers:
         version: 2.5.0
       postgres:
         specifier: ^3.3.4
-        version: 3.4.4
+        version: 3.4.5
       synckit:
         specifier: ^0.9.0
         version: 0.9.0
@@ -609,7 +609,7 @@ importers:
         version: 2.5.0
       postgres:
         specifier: ^3.3.4
-        version: 3.4.4
+        version: 3.4.5
     devDependencies:
       '@types/node':
         specifier: ^18.15.11
@@ -649,7 +649,7 @@ importers:
         version: 9.0.4
       postgres:
         specifier: ^3.3.4
-        version: 3.4.4
+        version: 3.4.5
     devDependencies:
       '@types/node':
         specifier: ^18.15.11
@@ -710,7 +710,7 @@ importers:
         version: 2.5.0
       postgres:
         specifier: ^3.3.4
-        version: 3.4.4
+        version: 3.4.5
     devDependencies:
       '@types/node':
         specifier: ^18.15.11
@@ -3607,8 +3607,8 @@ packages:
   postgres-range@1.1.4:
     resolution: {integrity: sha512-i/hbxIE9803Alj/6ytL7UHQxRvZkI9O4Sy+J3HGc4F4oo/2eQAjTSNJ0bfxyse3bH0nuVesCk+3IRLaMtG3H6w==}
 
-  postgres@3.4.4:
-    resolution: {integrity: sha512-IbyN+9KslkqcXa8AO9fxpk97PA4pzewvpi2B3Dwy9u4zpV32QicaEdgmF3eSQUzdRk7ttDHQejNgAEr4XoeH4A==}
+  postgres@3.4.5:
+    resolution: {integrity: sha512-cDWgoah1Gez9rN3H4165peY9qfpEo+SA61oQv65O3cRUE1pOEoJWwddwcqKE8XZYjbblOJlYDlLV4h67HrEVDg==}
     engines: {node: '>=12'}
 
   preact@10.22.0:
@@ -7636,7 +7636,7 @@ snapshots:
 
   postgres-range@1.1.4: {}
 
-  postgres@3.4.4: {}
+  postgres@3.4.5: {}
 
   preact@10.22.0: {}
 
