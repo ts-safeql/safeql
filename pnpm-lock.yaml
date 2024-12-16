@@ -530,7 +530,7 @@ importers:
         version: 2.16.6
       pg-connection-string:
         specifier: 2.5.0
-        version: 2.5.0
+        version: 2.7.0
       postgres:
         specifier: ^3.3.4
         version: 3.4.4
@@ -606,7 +606,7 @@ importers:
         version: 2.16.6
       pg-connection-string:
         specifier: ^2.5.0
-        version: 2.5.0
+        version: 2.7.0
       postgres:
         specifier: ^3.3.4
         version: 3.4.4
@@ -707,7 +707,7 @@ importers:
         version: 5.0.9
       pg-connection-string:
         specifier: ^2.5.0
-        version: 2.5.0
+        version: 2.7.0
       postgres:
         specifier: ^3.3.4
         version: 3.4.4
@@ -3329,11 +3329,11 @@ packages:
   pg-cloudflare@1.1.1:
     resolution: {integrity: sha512-xWPagP/4B6BgFO+EKz3JONXv3YDgvkbVrGw2mTo3D6tVDQRh1e7cqVGvyR3BE+eQgAvx1XhW/iEASj4/jCWl3Q==}
 
-  pg-connection-string@2.5.0:
-    resolution: {integrity: sha512-r5o/V/ORTA6TmUnyWZR9nCj1klXCO2CEKNRlVuJptZe85QuhFayC7WeMic7ndayT5IRIR0S0xFxFi2ousartlQ==}
-
   pg-connection-string@2.6.4:
     resolution: {integrity: sha512-v+Z7W/0EO707aNMaAEfiGnGL9sxxumwLl2fJvCQtMn9Fxsg+lPpPkdcyBSv/KFgpGdYkMfn+EI1Or2EHjpgLCA==}
+
+  pg-connection-string@2.7.0:
+    resolution: {integrity: sha512-PI2W9mv53rXJQEOb8xNR8lH7Hr+EKa6oJa38zsK0S/ky2er16ios1wLKhZyxzD7jUReiWokc9WK5nxSnC7W1TA==}
 
   pg-int8@1.0.1:
     resolution: {integrity: sha512-WCtabS6t3c8SkpDBUlb1kjOs7l66xsGdKpIPZsg4wR+B3+u9UAum2odSsF9tnvxg80h4ZxLWMy4pRjOsFIqQpw==}
@@ -7385,9 +7385,9 @@ snapshots:
   pg-cloudflare@1.1.1:
     optional: true
 
-  pg-connection-string@2.5.0: {}
-
   pg-connection-string@2.6.4: {}
+
+  pg-connection-string@2.7.0: {}
 
   pg-int8@1.0.1: {}
 
