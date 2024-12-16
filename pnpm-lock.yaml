@@ -527,7 +527,7 @@ importers:
         version: 3.6.0
       fp-ts:
         specifier: ^2.16.5
-        version: 2.16.6
+        version: 2.16.9
       pg-connection-string:
         specifier: 2.5.0
         version: 2.5.0
@@ -603,7 +603,7 @@ importers:
         version: link:../test-utils
       fp-ts:
         specifier: ^2.13.1
-        version: 2.16.6
+        version: 2.16.9
       pg-connection-string:
         specifier: ^2.5.0
         version: 2.5.0
@@ -2485,8 +2485,8 @@ packages:
     resolution: {integrity: sha512-TMKDUnIte6bfb5nWv7V/caI169OHgvwjb7V4WkeUvbQQdjr5rWKqHFiKWb/fcOwB+CzBT+qbWjvj+DVwRskpIg==}
     engines: {node: '>=14'}
 
-  fp-ts@2.16.6:
-    resolution: {integrity: sha512-v7w209VPj4L6pPn/ftFRJu31Oa8QagwcVw7BZmLCUWU4AQoc954rX9ogSIahDf67Pg+GjPbkW/Kn9XWnlWJG0g==}
+  fp-ts@2.16.9:
+    resolution: {integrity: sha512-+I2+FnVB+tVaxcYyQkHUq7ZdKScaBlX53A41mxQtpIccsfyv8PzdzP7fzp2AY832T4aoK6UZ5WRX/ebGd8uZuQ==}
 
   fraction.js@4.3.7:
     resolution: {integrity: sha512-ZsDfxO51wGAXREY55a7la9LScWpwv9RxIrYABrlvOFBlH/ShPnrtsXeuUIfXKKOVicNxQ+o8JTbJvjS4M89yew==}
@@ -6552,7 +6552,7 @@ snapshots:
       cross-spawn: 7.0.3
       signal-exit: 4.1.0
 
-  fp-ts@2.16.6: {}
+  fp-ts@2.16.9: {}
 
   fraction.js@4.3.7: {}
 
