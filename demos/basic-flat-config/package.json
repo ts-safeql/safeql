@@ -10,16 +10,16 @@
     "lint!": "eslint src --fix"
   },
   "devDependencies": {
-    "@types/node": "^18.15.11",
-    "@eslint/js": "^8.56.0",
-    "@types/eslint": "^8.56.10",
-    "eslint": "^8.57.0",
-    "tsx": "^4.9.1",
-    "typescript": "^5.4.5",
-    "typescript-eslint": "^7.8.0"
+    "@eslint/js": "^8.57.1",
+    "@types/eslint": "^8.56.12",
+    "@types/node": "^18.19.68",
+    "eslint": "^8.57.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^7.18.0"
   },
   "dependencies": {
     "@ts-safeql/eslint-plugin": "workspace:*",
-    "postgres": "^3.3.4"
+    "postgres": "^3.4.5"
   }
 }
