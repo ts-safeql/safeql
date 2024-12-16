@@ -56,7 +56,7 @@
     "vitest": "^1.6.0"
   },
   "dependencies": {
-    "chokidar": "^3.6.0",
+    "chokidar": "^4.0.0",
     "fp-ts": "^2.16.5",
     "pg-connection-string": "2.5.0",
     "postgres": "^3.3.4",
