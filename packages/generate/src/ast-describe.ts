@@ -498,9 +498,9 @@ function getDescribedFuncCallByPgFn({
   const pgFnValue =
     args.length === 0
       ? context.pgFns.get(functionName)
-      : context.pgFns.get(`${functionName}(${args.join(", ")})`) ??
+      : (context.pgFns.get(`${functionName}(${args.join(", ")})`) ??
         context.pgFns.get(`${functionName}(any)`) ??
-        context.pgFns.get(`${functionName}(unknown)`);
+        context.pgFns.get(`${functionName}(unknown)`));
 
   const type = resolveType({
     context: context,

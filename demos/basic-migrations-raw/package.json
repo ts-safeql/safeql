@@ -8,14 +8,14 @@
     "lint!": "eslint src --fix"
   },
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^7.8.0",
-    "@typescript-eslint/parser": "^7.8.0",
-    "eslint": "^8.57.0",
-    "typescript": "^5.4.5"
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "eslint": "^8.57.1",
+    "typescript": "^5.7.2"
   },
   "dependencies": {
     "@ts-safeql-demos/shared": "workspace:*",
     "@ts-safeql/eslint-plugin": "workspace:*",
-    "postgres": "^3.3.4"
+    "postgres": "^3.4.5"
   }
 }

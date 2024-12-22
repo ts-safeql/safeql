@@ -26,18 +26,18 @@
     "clean": "rm -rf lib"
   },
   "devDependencies": {
-    "@types/node": "^18.15.11",
-    "@typescript-eslint/eslint-plugin": "^7.8.0",
-    "@typescript-eslint/parser": "^7.8.0",
-    "@typescript-eslint/utils": "^7.8.0",
-    "eslint": "^8.57.0",
-    "typescript": "^5.4.5",
+    "@types/node": "^18.19.68",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "@typescript-eslint/utils": "^7.18.0",
+    "eslint": "^8.57.1",
+    "typescript": "^5.7.2",
     "unbuild": "^2.0.0"
   },
   "dependencies": {
-    "@ts-safeql/shared": "workspace:3.5.1",
-    "nanoid": "^5.0.0",
-    "pg-connection-string": "^2.5.0",
-    "postgres": "^3.3.4"
+    "@ts-safeql/shared": "workspace:*",
+    "nanoid": "^5.0.9",
+    "pg-connection-string": "^2.7.0",
+    "postgres": "^3.4.5"
   }
 }
