@@ -257,7 +257,7 @@ export interface Node {
 
 export interface Integer {
   /** machine integer */
-  ival: number;
+  ival?: number;
 }
 
 export interface Float {
