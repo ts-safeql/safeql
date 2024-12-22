@@ -14,6 +14,10 @@ export default defineConfig({
     },
   },
   themeConfig: {
+    nav: [
+      { text: "Guide", link: "/guide/getting-started" },
+      { text: "Blog", link: "/blog" },
+    ],
     search: {
       provider: "local",
     },
@@ -34,7 +38,7 @@ export default defineConfig({
         text: "Compatibility",
         items: [
           { text: "Prisma", link: "/compatibility/prisma" },
-          { text: "Postgres.js", link: "/compatibility/postgres.js" },
+          { text: "Postgres.js", link: "/compatibility/postgres.js.html" },
           { text: "@vercel/postgres", link: "/compatibility/vercel" },
           { text: "slonik", link: "/compatibility/slonik" },
           { text: "node-postgres (pg)", link: "/compatibility/node-postgres" },
