@@ -28,6 +28,7 @@ type Sql = postgres.Sql<JSToPostgresTypeMap>;
 
 export type ResolvedTarget =
   | { kind: "type"; value: string }
+  | { kind: "literal"; value: string; base: ResolvedTarget }
   | { kind: "union"; value: ResolvedTarget[] }
   | { kind: "array"; value: ResolvedTarget; syntax?: "array-type" | "type-reference" }
   | { kind: "object"; value: ResolvedTargetEntry[] };
@@ -366,6 +367,8 @@ function isNullableResolvedTarget(target: ResolvedTarget): boolean {
       return isNullableResolvedTarget(target.value);
     case "object":
       return target.value.some(([, value]) => isNullableResolvedTarget(value));
+    case "literal":
+      return false;
   }
 }
 

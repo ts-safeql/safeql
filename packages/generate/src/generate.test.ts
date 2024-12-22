@@ -1,12 +1,12 @@
 import { InternalError, normalizeIndent } from "@ts-safeql/shared";
 import { generateTestDatabaseName, setupTestDatabase } from "@ts-safeql/test-utils";
 import assert from "assert";
-import * as TE from "fp-ts/lib/TaskEither";
 import * as O from "fp-ts/lib/Option";
+import * as TE from "fp-ts/lib/TaskEither";
 import { flow, identity, pipe } from "fp-ts/lib/function";
 import { parseQuery } from "libpg-query";
-import { beforeAll, afterAll, test } from "vitest";
 import { Sql } from "postgres";
+import { afterAll, beforeAll, test } from "vitest";
 import { GenerateParams, ResolvedTargetEntry, createGenerator } from "./generate";
 
 type SQL = Sql<Record<string, unknown>>;
@@ -220,7 +220,7 @@ const testQuery = async (params: {
 test("(init generate cache)", async () => {
   await testQuery({
     query: `SELECT 1 as x`,
-    expected: [["x", { kind: "type", value: "number" }]],
+    expected: [["x", { kind: "literal", value: "1", base: { kind: "type", value: "number" } }]],
   });
 });
 
@@ -286,6 +286,15 @@ test("select all_types", async () => {
   });
 });
 
+test("select 0", async () => {
+  await testQuery({
+    query: `SELECT 0`,
+    expected: [
+      ["?column?", { kind: "literal", value: "0", base: { kind: "type", value: "number" } }],
+    ],
+  });
+});
+
 test("camel case field transform", async () => {
   await testQuery({
     options: { fieldTransform: "camel" },
@@ -302,7 +311,9 @@ test("select true", async () => {
   await testQuery({
     options: { fieldTransform: "camel" },
     query: `SELECT true`,
-    expected: [["bool", { kind: "type", value: "boolean" }]],
+    expected: [
+      ["bool", { kind: "literal", value: "true", base: { kind: "type", value: "boolean" } }],
+    ],
   });
 });
 
@@ -394,7 +405,7 @@ test("select column as camelCase", async () => {
 test("select non-table column", async () =>
   await testQuery({
     query: `SELECT 1 as count`,
-    expected: [["count", { kind: "type", value: "number" }]],
+    expected: [["count", { kind: "literal", value: "1", base: { kind: "type", value: "number" } }]],
   }));
 
 test("select with an inner join", async () => {
@@ -719,7 +730,12 @@ test("select jsonb_build_object(const, const)", async () => {
     expected: [
       [
         "jsonb_build_object",
-        { kind: "object", value: [["key", { kind: "type", value: "string" }]] },
+        {
+          kind: "object",
+          value: [
+            ["key", { kind: "literal", value: "'value'", base: { kind: "type", value: "string" } }],
+          ],
+        },
       ],
     ],
   });
@@ -734,7 +750,18 @@ test("select jsonb_build_object(deeply nested)", async () => {
         {
           kind: "object",
           value: [
-            ["deeply", { kind: "object", value: [["nested", { kind: "type", value: "string" }]] }],
+            [
+              "deeply",
+              {
+                kind: "object",
+                value: [
+                  [
+                    "nested",
+                    { kind: "literal", value: "'object'", base: { kind: "type", value: "string" } },
+                  ],
+                ],
+              },
+            ],
           ],
         },
       ],
@@ -777,7 +804,22 @@ test("select jsonb_build_object(const, array[int,int,int])", async () => {
         "json_build_object",
         {
           kind: "object",
-          value: [["id", { kind: "array", value: { kind: "type", value: "number" } }]],
+          value: [
+            [
+              "id",
+              {
+                kind: "array",
+                value: {
+                  kind: "union",
+                  value: [
+                    { kind: "literal", value: "1", base: { kind: "type", value: "number" } },
+                    { kind: "literal", value: "2", base: { kind: "type", value: "number" } },
+                    { kind: "literal", value: "3", base: { kind: "type", value: "number" } },
+                  ],
+                },
+              },
+            ],
+          ],
         },
       ],
     ],
@@ -800,7 +842,7 @@ test("select jsonb_build_object(const, array[int,null])", async () => {
                 value: {
                   kind: "union",
                   value: [
-                    { kind: "type", value: "number" },
+                    { kind: "literal", value: "1", base: { kind: "type", value: "number" } },
                     { kind: "type", value: "null" },
                   ],
                 },
@@ -964,7 +1006,12 @@ test("select jsonb_agg(jsonb_build_object(const, const))", async () => {
               kind: "array",
               value: {
                 kind: "object",
-                value: [["key", { kind: "type", value: "string" }]],
+                value: [
+                  [
+                    "key",
+                    { kind: "literal", value: "'value'", base: { kind: "type", value: "string" } },
+                  ],
+                ],
               },
             },
             { kind: "type", value: "null" },
@@ -1228,20 +1275,74 @@ test("select tbl with left join of self tbl", async () => {
   });
 });
 
-test("select union select", async () => {
+test("select union select #1", async () => {
   await testQuery({
     query: `SELECT 1 UNION SELECT 2`,
-    expected: [["?column?", { kind: "type", value: "number" }]],
+    expected: [
+      [
+        "?column?",
+        {
+          kind: "union",
+          value: [
+            { kind: "literal", value: "1", base: { kind: "type", value: "number" } },
+            { kind: "literal", value: "2", base: { kind: "type", value: "number" } },
+          ],
+        },
+      ],
+    ],
   });
+});
 
+test("select union select #2", async () => {
   await testQuery({
     query: `SELECT 1 as a UNION SELECT 2 as b`,
-    expected: [["a", { kind: "type", value: "number" }]],
+    expected: [
+      [
+        "a",
+        {
+          kind: "union",
+          value: [
+            { kind: "literal", value: "1", base: { kind: "type", value: "number" } },
+            { kind: "literal", value: "2", base: { kind: "type", value: "number" } },
+          ],
+        },
+      ],
+    ],
   });
+});
 
+test("select union select #3", async () => {
   await testQuery({
     query: `SELECT 'Hello' UNION SELECT 7;`,
     expectedError: 'invalid input syntax for type integer: "Hello"',
+  });
+});
+
+test("select union select #3", async () => {
+  await testQuery({
+    query: `SELECT 1 as a, 'b' as b UNION SELECT 2 as x, null as y`,
+    expected: [
+      [
+        "a",
+        {
+          kind: "union",
+          value: [
+            { kind: "literal", value: "1", base: { kind: "type", value: "number" } },
+            { kind: "literal", value: "2", base: { kind: "type", value: "number" } },
+          ],
+        },
+      ],
+      [
+        "b",
+        {
+          kind: "union",
+          value: [
+            { kind: "literal", value: "'b'", base: { kind: "type", value: "string" } },
+            { kind: "type", value: "null" },
+          ],
+        },
+      ],
+    ],
   });
 });
 
@@ -1314,5 +1415,88 @@ test("select with duplicate columns and alias", async () => {
         JOIN caregiver_certification ON caregiver.id = caregiver_certification.caregiver_id
     `,
     expectedError: `Duplicate columns: caregiver.id (alias: x), caregiver_certification.caregiver_id (alias: x)`,
+  });
+});
+
+test("select case when expr with returned string literals", async () => {
+  await testQuery({
+    query: `
+      SELECT
+        CASE
+          WHEN id = 1 THEN 'one'
+          WHEN id = 2 THEN 'two'
+          ELSE 'other'
+        END as name
+      FROM caregiver
+    `,
+    expected: [
+      [
+        "name",
+        {
+          kind: "union",
+          value: [
+            { kind: "literal", value: "'one'", base: { kind: "type", value: "string" } },
+            { kind: "literal", value: "'two'", base: { kind: "type", value: "string" } },
+            { kind: "literal", value: "'other'", base: { kind: "type", value: "string" } },
+          ],
+        },
+      ],
+    ],
+  });
+
+  await testQuery({
+    query: `
+      SELECT
+        CASE
+          WHEN id = 1 THEN 'one'
+          WHEN id = 2 THEN 'two'
+          ELSE NULL
+        END as name
+      FROM caregiver
+      WHERE id = 1
+    `,
+    expected: [
+      [
+        "name",
+        {
+          kind: "union",
+          value: [
+            { kind: "literal", value: "'one'", base: { kind: "type", value: "string" } },
+            { kind: "literal", value: "'two'", base: { kind: "type", value: "string" } },
+            { kind: "type", value: "null" },
+          ],
+        },
+      ],
+    ],
+  });
+
+  await testQuery({
+    query: `
+      SELECT
+        CASE
+          WHEN id = 1 THEN 'one'
+          WHEN id = 2 THEN 'two'
+        END as name
+      FROM caregiver
+      WHERE id = 1
+    `,
+    expected: [
+      [
+        "name",
+        {
+          kind: "union",
+          value: [
+            { kind: "literal", value: "'one'", base: { kind: "type", value: "string" } },
+            { kind: "literal", value: "'two'", base: { kind: "type", value: "string" } },
+            { kind: "type", value: "null" },
+          ],
+        },
+      ],
+    ],
+  });
+
+  await testQuery({
+    query: `SELECT CASE WHEN 1 = 1 THEN true ELSE false END`,
+    expected: [["case", { kind: "type", value: "boolean" }]],
   });
 });

@@ -88,6 +88,14 @@ const zBaseSchema = z.object({
    * Mark the property as optional when the value is nullable.
    */
   nullAsOptional: z.boolean().optional(),
+
+  /**
+   * Specifies whether to infer literals and their types.
+   * Can be a boolean or an array of specific types to infer.
+   *
+   * By default, it will infer all literals.
+   */
+  inferLiterals: z.union([z.boolean(), z.enum(["number", "string", "boolean"]).array()]).optional(),
 });
 
 export const zConnectionMigration = z.object({
@@ -143,3 +151,6 @@ export type Options = z.infer<typeof Options>;
 
 export const RuleOptions = z.array(Options).min(1).max(1);
 export type RuleOptions = z.infer<typeof RuleOptions>;
+
+export type InferLiteralsOption = NonNullable<z.infer<typeof zBaseSchema>["inferLiterals"]>;
+export const defaultInferLiteralOptions: InferLiteralsOption = ["string"];

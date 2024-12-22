@@ -368,6 +368,27 @@ support type annotations. Usage:
 True by default. If set to false, the connection will be closed after the query is executed. This
 is not recommended, and should only be used if you're sure that the connection should be closed.
 
+### `connections.inferLiterals` (Optional)
+
+Controls how SafeQL infer literals in your queries. By default, SafeQL will infer all of the string literals.
+
+You can control this behavior by setting the `inferLiterals` option:
+
+- `true` - infer all literals
+- `false` - don't infer any literals
+- `["string", ...]` - infer only the specified literals
+
+For example:
+
+```json
+{
+  "connections": {
+    // ...
+    "inferLiterals": true // [!code focus]
+  }
+}
+```
+
 ### `connections.overrides.types` (Optional)
 
 ::: info

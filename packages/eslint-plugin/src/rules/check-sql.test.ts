@@ -1778,7 +1778,7 @@ RuleTester.describe("check-sql", () => {
         filename,
         name: "strict: select text should be non-nullable",
         options: withConnection(connections.withTag),
-        code: "sql<{ x: string }>`select '1' as x`",
+        code: "sql<{ x: '1' }>`select '1' as x`",
       },
       {
         filename,
@@ -1840,19 +1840,19 @@ RuleTester.describe("check-sql", () => {
         filename,
         name: "json/b: select jsonb_build_object(const, const)",
         options: withConnection(connections.withTag),
-        code: `sql<{ jsonb_build_object: { key: string } }>\`SELECT jsonb_build_object('key', 'value')\``,
+        code: `sql<{ jsonb_build_object: { key: 'value' } }>\`SELECT jsonb_build_object('key', 'value')\``,
       },
       {
         filename,
         name: "json/b: select jsonb_build_object(deeply nested)",
         options: withConnection(connections.withTag),
-        code: `sql<{ jsonb_build_object: { deeply: { nested: string } } }>\`SELECT jsonb_build_object('deeply', jsonb_build_object('nested', 'object'))\``,
+        code: `sql<{ jsonb_build_object: { deeply: { nested: 'object' } } }>\`SELECT jsonb_build_object('deeply', jsonb_build_object('nested', 'object'))\``,
       },
       {
         filename,
         name: "json/b: select jsonb_build_object(key with space, const)",
         options: withConnection(connections.withTag),
-        code: `sql<{ jsonb_build_object: { 'hello world': string } }>\`SELECT jsonb_build_object('hello world', 'value')\``,
+        code: `sql<{ jsonb_build_object: { 'hello world': 'value' } }>\`SELECT jsonb_build_object('hello world', 'value')\``,
       },
       {
         filename,
@@ -1935,7 +1935,7 @@ RuleTester.describe("check-sql", () => {
         filename,
         options: withConnection(connections.withTag),
         code: "sql`SELECT jsonb_build_object('key', 'value')`",
-        output: `sql<{ jsonb_build_object: { key: string } }>\`SELECT jsonb_build_object('key', 'value')\``,
+        output: `sql<{ jsonb_build_object: { key: 'value' } }>\`SELECT jsonb_build_object('key', 'value')\``,
         errors: [{ messageId: "missingTypeAnnotations" }],
       },
       {
@@ -1943,7 +1943,7 @@ RuleTester.describe("check-sql", () => {
         filename,
         options: withConnection(connections.withTag),
         code: "sql`SELECT jsonb_build_object('A b C', 'value') as col`",
-        output: `sql<{ col: { 'A b C': string } }>\`SELECT jsonb_build_object('A b C', 'value') as col\``,
+        output: `sql<{ col: { 'A b C': 'value' } }>\`SELECT jsonb_build_object('A b C', 'value') as col\``,
         errors: [{ messageId: "missingTypeAnnotations" }],
       },
       {
@@ -1951,7 +1951,7 @@ RuleTester.describe("check-sql", () => {
         filename,
         options: withConnection(connections.withTag),
         code: "sql`SELECT jsonb_build_object('deeply', jsonb_build_object('nested', 'object'))`",
-        output: `sql<{ jsonb_build_object: { deeply: { nested: string } } }>\`SELECT jsonb_build_object('deeply', jsonb_build_object('nested', 'object'))\``,
+        output: `sql<{ jsonb_build_object: { deeply: { nested: 'object' } } }>\`SELECT jsonb_build_object('deeply', jsonb_build_object('nested', 'object'))\``,
         errors: [{ messageId: "missingTypeAnnotations" }],
       },
       {
@@ -1999,7 +1999,7 @@ RuleTester.describe("check-sql", () => {
         filename,
         options: withConnection(connections.withTag),
         code: "sql`SELECT jsonb_agg(jsonb_build_object('key', 'value'))`",
-        output: `sql<{ jsonb_agg: { key: string }[] | null }>\`SELECT jsonb_agg(jsonb_build_object('key', 'value'))\``,
+        output: `sql<{ jsonb_agg: { key: 'value' }[] | null }>\`SELECT jsonb_agg(jsonb_build_object('key', 'value'))\``,
         errors: [{ messageId: "missingTypeAnnotations" }],
       },
       {

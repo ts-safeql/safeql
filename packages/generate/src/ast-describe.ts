@@ -38,7 +38,8 @@ export type ASTDescribedColumnType =
   | { kind: "union"; value: ASTDescribedColumnType[] }
   | { kind: "array"; value: ASTDescribedColumnType }
   | { kind: "object"; value: [string, ASTDescribedColumnType][] }
-  | { kind: "type"; value: string };
+  | { kind: "type"; value: string }
+  | { kind: "literal"; value: string; base: ASTDescribedColumnType };
 
 export function getASTDescription(params: ASTDescriptionOptions): Map<string, ASTDescribedColumn> {
   const select = params.parsed.stmts[0]?.stmt?.SelectStmt;
@@ -115,17 +116,43 @@ export function getASTDescription(params: ASTDescriptionOptions): Map<string, AS
     },
   };
 
-  const targetList = [
-    ...(select.targetList ?? []),
-    ...(select.larg?.targetList ?? []),
-    ...(select.rarg?.targetList ?? []),
-  ];
+  const targetLists = [select.targetList, select.larg?.targetList, select.rarg?.targetList].filter(
+    (x): x is LibPgQueryAST.Node[] => x !== undefined,
+  );
 
-  const result = targetList
-    .map((node) => getDescribedNode({ alias: undefined, node, context }))
-    .flat();
+  const resolvedColumnsList: ASTDescribedColumn[][] = [];
 
-  return new Map(result.map((x) => [x.name, x]));
+  for (const [targetListIdx, targetList] of targetLists.entries()) {
+    resolvedColumnsList[targetListIdx] = targetList
+      .map((target) => {
+        return getDescribedNode({
+          alias: undefined,
+          node: target,
+          context,
+        });
+      })
+      .flat();
+  }
+
+  const columnsLength = resolvedColumnsList.reduce((acc, x) => Math.max(acc, x.length), 0);
+  const final: Map<string, ASTDescribedColumn> = new Map();
+
+  for (let i = 0; i < columnsLength; i++) {
+    const result = mergeColumns(
+      resolvedColumnsList.map(
+        (x) => x[i] ?? { name: "?column?", type: context.toTypeScriptType({ name: "null" }) },
+      ),
+    );
+    final.set(result.name, result);
+  }
+
+  return final;
+}
+
+function mergeColumns(columns: ASTDescribedColumn[]): ASTDescribedColumn {
+  const name = columns[0].name;
+  const type = mergeDescribedColumnTypes(columns.map((x) => x.type));
+  return { name, type };
 }
 
 function getDescribedNode(params: {
@@ -171,7 +198,54 @@ function getDescribedNode(params: {
     return getDescribedBoolExpr({ alias: alias, node: node.BoolExpr, context });
   }
 
+  if (node.CaseExpr !== undefined) {
+    return getDescribedCaseExpr({ alias: alias, node: node.CaseExpr, context });
+  }
+
   return [];
+}
+
+function getDescribedCaseExpr({
+  alias,
+  node,
+  context,
+}: GetDescribedParamsOf<LibPgQueryAST.CaseExpr>): ASTDescribedColumn[] {
+  const results: ASTDescribedColumn[][] = [];
+
+  for (const arg of node.args) {
+    if (arg.CaseWhen?.result !== undefined) {
+      results.push(getDescribedNode({ alias: undefined, node: arg.CaseWhen.result, context }));
+    }
+  }
+
+  results.push(
+    node.defresult !== undefined
+      ? getDescribedNode({ alias: undefined, node: node.defresult, context })
+      : [{ name: "?column?", type: context.toTypeScriptType({ name: "null" }) }],
+  );
+
+  const types = results.flat().map((x) => x.type);
+  const literalsOnly = types.some((x) => x.kind !== "literal" && x.value !== "null");
+  const value = mergeDescribedColumnTypes(literalsOnly ? types.map(getBaseType) : types);
+
+  return [
+    {
+      name: alias ?? "case",
+      type: value,
+    },
+  ];
+}
+
+function getBaseType(type: ASTDescribedColumnType): ASTDescribedColumnType {
+  switch (type.kind) {
+    case "object":
+    case "union":
+    case "array":
+    case "type":
+      return type;
+    case "literal":
+      return type.base;
+  }
 }
 
 function getDescribedBoolExpr({
@@ -250,7 +324,7 @@ function getDescribedArrayExpr({
   context,
   node,
 }: GetDescribedParamsOf<LibPgQueryAST.AArrayExpr>): ASTDescribedColumn[] {
-  const types = dedupDescribedColumnTypes(
+  const types = mergeDescribedColumnTypes(
     node.elements
       .flatMap((node) => getDescribedNode({ alias: undefined, node, context }))
       .map((x) => x.type),
@@ -261,25 +335,30 @@ function getDescribedArrayExpr({
       name: alias ?? "?column?",
       type: {
         kind: "array",
-        value: isSingleCell(types) ? types[0] : { kind: "union", value: types },
+        value: types,
       },
     },
   ];
 }
 
-function dedupDescribedColumnTypes(types: ASTDescribedColumnType[]): ASTDescribedColumnType[] {
+function mergeDescribedColumnTypes(types: ASTDescribedColumnType[]): ASTDescribedColumnType {
   const result: ASTDescribedColumnType[] = [];
+  const seenSymbols = new Set<string>();
 
-  for (const type of types) {
+  function processType(type: ASTDescribedColumnType): void {
     switch (type.kind) {
       case "union":
-        result.push(...dedupDescribedColumnTypes(type.value));
+        type.value.forEach((subtype) => processType(subtype));
         break;
+
       case "type":
-        if (!result.some((x) => x.kind === "type" && x.value === type.value)) {
+      case "literal":
+        if (!seenSymbols.has(type.value)) {
+          seenSymbols.add(type.value);
           result.push(type);
         }
         break;
+
       case "object":
       case "array":
         result.push(type);
@@ -287,7 +366,24 @@ function dedupDescribedColumnTypes(types: ASTDescribedColumnType[]): ASTDescribe
     }
   }
 
-  return result;
+  for (const t of types) {
+    processType(t);
+  }
+
+  if (!seenSymbols.has("boolean") && seenSymbols.has("true") && seenSymbols.has("false")) {
+    seenSymbols.add("boolean");
+    result.push({ kind: "type", value: "boolean" });
+  }
+
+  if (seenSymbols.has("boolean") && (seenSymbols.has("true") || seenSymbols.has("false"))) {
+    const filtered = result.filter(
+      (t) => !(t.kind === "literal" && (t.value === "true" || t.value === "false")),
+    );
+
+    return isSingleCell(filtered) ? filtered[0] : { kind: "union", value: filtered };
+  }
+
+  return isSingleCell(result) ? result[0] : { kind: "union", value: result };
 }
 
 function getDescribedTypeCast({
@@ -650,17 +746,33 @@ function getDescribedAConst({
   const type = ((): ASTDescribedColumnType => {
     switch (true) {
       case node.boolval !== undefined:
-        return context.toTypeScriptType({ name: "boolean" });
+        return {
+          kind: "literal",
+          value: node.boolval.boolval ? "true" : "false",
+          base: context.toTypeScriptType({ name: "boolean" }),
+        };
       case node.bsval !== undefined:
         return context.toTypeScriptType({ name: "bytea" });
       case node.fval !== undefined:
-        return context.toTypeScriptType({ name: "float8" });
+        return {
+          kind: "literal",
+          value: node.fval.toString(),
+          base: context.toTypeScriptType({ name: "float8" }),
+        };
       case node.isnull !== undefined:
         return context.toTypeScriptType({ name: "null" });
       case node.ival !== undefined:
-        return context.toTypeScriptType({ name: "int4" });
+        return {
+          kind: "literal",
+          value: (node.ival.ival ?? 0).toString(),
+          base: context.toTypeScriptType({ name: "int4" }),
+        };
       case node.sval !== undefined:
-        return context.toTypeScriptType({ name: "text" });
+        return {
+          kind: "literal",
+          value: `'${node.sval.sval}'`,
+          base: context.toTypeScriptType({ name: "text" }),
+        };
       default:
         return context.toTypeScriptType({ name: "unknown" });
     }
@@ -678,6 +790,7 @@ function asNonNullableType(type: ASTDescribedColumnType): ASTDescribedColumnType
   switch (type.kind) {
     case "object":
     case "array":
+    case "literal":
       return type;
     case "union": {
       const filtered = type.value.filter(
@@ -708,7 +821,7 @@ function resolveType(params: {
   nullable: boolean;
   context: ASTDescriptionContext;
 }): ASTDescribedColumnType {
-  if (params.nullable) {
+  if (params.nullable && params.type.value !== "null") {
     return {
       kind: "union",
       value: [params.type, params.context.toTypeScriptType({ name: "null" })],
