@@ -290,7 +290,7 @@ test("select 0", async () => {
   await testQuery({
     query: `SELECT 0`,
     expected: [
-      ["literal", { kind: "literal", value: "0", base: { kind: "type", value: "number" } }],
+      ["?column?", { kind: "literal", value: "0", base: { kind: "type", value: "number" } }],
     ],
   });
 });
