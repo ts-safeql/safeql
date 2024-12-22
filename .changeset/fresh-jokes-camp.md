@@ -3,7 +3,7 @@
 "@ts-safeql/generate": minor
 ---
 
-Added support for literal inference. SafeQL will know infer string literals from your queries:
+Added support for literal inference. SafeQL will now be able to infer string literals from your queries:
 
 ```ts
 // Before:
