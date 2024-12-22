@@ -29,10 +29,12 @@ import { WorkerError, WorkerResult } from "../workers/check-sql.worker";
 import {
   Config,
   ConnectionTarget,
+  InferLiteralsOption,
   RuleOptionConnection,
   RuleOptions,
   TagTarget,
   WrapperTarget,
+  defaultInferLiteralOptions,
 } from "./RuleOptions";
 import { getConfigFromFileWithContext } from "./check-sql.config";
 import {
@@ -229,6 +231,7 @@ function reportCheck(params: {
               nullAsOptional: nullAsOptional ?? false,
               nullAsUndefined: nullAsUndefined ?? false,
               transform: target.transform,
+              inferLiterals: connection.inferLiterals ?? defaultInferLiteralOptions,
             }),
           });
         }
@@ -259,6 +262,7 @@ function reportCheck(params: {
           reservedTypes: reservedTypes,
           nullAsOptional: nullAsOptional,
           nullAsUndefined: nullAsUndefined,
+          inferLiterals: connection.inferLiterals ?? defaultInferLiteralOptions,
         });
 
         if (typeAnnotationState === "INVALID") {
@@ -277,6 +281,7 @@ function reportCheck(params: {
                 target: expected,
                 nullAsOptional: false,
                 nullAsUndefined: false,
+                inferLiterals: params.connection.inferLiterals ?? defaultInferLiteralOptions,
               }),
             ),
             actual: fmap(result.output, (output) =>
@@ -285,6 +290,7 @@ function reportCheck(params: {
                 nullAsOptional: connection.nullAsOptional ?? false,
                 nullAsUndefined: connection.nullAsUndefined ?? false,
                 transform: target.transform,
+                inferLiterals: connection.inferLiterals ?? defaultInferLiteralOptions,
               }),
             ),
           });
@@ -309,10 +315,7 @@ function checkConnectionByTagExpression(params: {
 }) {
   const { context, tag, projectDir, connection, target } = params;
 
-  const tagAsText = context
-    .getSourceCode()
-    .getText(tag.tag)
-    .replace(/^this\./, "");
+  const tagAsText = context.sourceCode.getText(tag.tag).replace(/^this\./, "");
 
   if (doesMatchPattern({ pattern: target.tag, text: tagAsText })) {
     return reportCheck({
@@ -382,6 +385,7 @@ type GetTypeAnnotationStateParams = {
   reservedTypes: Set<string>;
   nullAsOptional: boolean;
   nullAsUndefined: boolean;
+  inferLiterals: InferLiteralsOption;
 };
 
 function getTypeAnnotationState({
@@ -393,6 +397,7 @@ function getTypeAnnotationState({
   reservedTypes,
   nullAsOptional,
   nullAsUndefined,
+  inferLiterals,
 }: GetTypeAnnotationStateParams) {
   if (typeParameter.params.length !== 1) {
     return "INVALID" as const;
@@ -412,6 +417,7 @@ function getTypeAnnotationState({
     generated,
     nullAsOptional,
     nullAsUndefined,
+    inferLiterals,
     transform,
   });
 }
@@ -421,6 +427,7 @@ function getResolvedTargetsEquality(params: {
   generated: ResolvedTarget | null;
   nullAsOptional: boolean;
   nullAsUndefined: boolean;
+  inferLiterals: InferLiteralsOption;
   transform?: TypeTransformer;
 }) {
   if (params.expected === null && params.generated === null) {
@@ -443,12 +450,14 @@ function getResolvedTargetsEquality(params: {
     target: params.expected,
     nullAsOptional: false,
     nullAsUndefined: false,
+    inferLiterals: params.inferLiterals,
   });
 
   let generatedString = getResolvedTargetComparableString({
     target: params.generated,
     nullAsOptional: params.nullAsOptional,
     nullAsUndefined: params.nullAsUndefined,
+    inferLiterals: params.inferLiterals,
   });
 
   if (expectedString === null || generatedString === null) {

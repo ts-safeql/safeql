@@ -21,7 +21,8 @@ import { E, TE, pipe } from "../utils/fp-ts";
 import { mapConnectionOptionsToString, parseConnection } from "../utils/pg.utils";
 import { WorkerError } from "../workers/check-sql.worker";
 import { RuleContext } from "./check-sql.rule";
-import { RuleOptionConnection, zConnectionMigration } from "./RuleOptions";
+import { InferLiteralsOption, RuleOptionConnection, zConnectionMigration } from "./RuleOptions";
+import { isOneOf } from "../utils/estree.utils";
 
 type TypeReplacerString = string;
 type TypeReplacerFromTo = [string, string];
@@ -71,11 +72,13 @@ export function getFinalResolvedTargetString(params: {
   transform?: TypeTransformer;
   nullAsUndefined: boolean;
   nullAsOptional: boolean;
+  inferLiterals: InferLiteralsOption;
 }) {
   const asString = getResolvedTargetString({
     target: params.target,
     nullAsOptional: params.nullAsOptional,
     nullAsUndefined: params.nullAsUndefined,
+    inferLiterals: params.inferLiterals,
   });
 
   return fmap(params.transform, (transform) => transformTypes(asString, transform)) ?? asString;
@@ -375,28 +378,54 @@ function runSingleMigrationFile(sql: Sql, filePath: string) {
   );
 }
 
+function shouldInferLiteral(base: ResolvedTarget, inferLiterals: InferLiteralsOption) {
+  if (base.kind !== "type") return true;
+  if (inferLiterals === true) return true;
+  if (Array.isArray(inferLiterals) && isOneOf(base.value, inferLiterals)) return true;
+
+  return false;
+}
+
+function unique<T>(array: T[]): T[] {
+  return Array.from(new Set(array));
+}
+
 export function getResolvedTargetComparableString(params: {
   target: ResolvedTarget;
   nullAsOptional: boolean;
   nullAsUndefined: boolean;
+  inferLiterals: InferLiteralsOption;
 }): string {
   const { target, nullAsUndefined, nullAsOptional } = params;
   const nullType = nullAsUndefined ? "undefined" : "null";
 
   switch (target.kind) {
+    case "literal": {
+      const value = shouldInferLiteral(target.base, params.inferLiterals)
+        ? target.value
+        : getResolvedTargetComparableString({
+            target: target.base,
+            nullAsOptional: params.nullAsOptional,
+            nullAsUndefined: params.nullAsUndefined,
+            inferLiterals: params.inferLiterals,
+          });
+
+      return value === "null" ? nullType : value;
+    }
     case "type":
-      return (target.value === "null" ? nullType : target.value).replace(/"/g, "'");
+      return target.value === "null" ? nullType : target.value.replace(/"/g, "'");
 
     case "union":
-      return target.value
-        .map((target) => getResolvedTargetComparableString({ ...params, target }))
-        .sort()
-        .join(" | ");
+      return unique(
+        target.value
+          .map((target) => getResolvedTargetComparableString({ ...params, target }))
+          .sort(),
+      ).join(" | ");
 
     case "array": {
       let arrayString = getResolvedTargetComparableString({ ...params, target: target.value });
 
-      if (target.value.kind === "union") {
+      if (target.value.kind === "union" && arrayString.includes("|")) {
         arrayString = `(${arrayString})`;
       }
 
@@ -428,22 +457,38 @@ export function getResolvedTargetString(params: {
   target: ResolvedTarget;
   nullAsUndefined: boolean;
   nullAsOptional: boolean;
+  inferLiterals: InferLiteralsOption;
 }): string {
   const { target, nullAsUndefined, nullAsOptional } = params;
   const nullType = nullAsUndefined ? "undefined" : "null";
 
   switch (target.kind) {
+    case "literal": {
+      const value = shouldInferLiteral(target.base, params.inferLiterals)
+        ? target.value
+        : getResolvedTargetString({
+            target: target.base,
+            nullAsOptional: params.nullAsOptional,
+            nullAsUndefined: params.nullAsUndefined,
+            inferLiterals: params.inferLiterals,
+          });
+
+      return value === "null" ? nullType : value;
+    }
+
     case "type":
       return target.value === "null" ? nullType : target.value;
 
     case "union":
-      return target.value
-        .map((target) => getResolvedTargetString({ ...params, target }))
-        .join(" | ");
+      return unique(
+        target.value.map((target) => getResolvedTargetString({ ...params, target })),
+      ).join(" | ");
 
     case "array": {
       const arrayString = getResolvedTargetString({ ...params, target: target.value });
-      return target.value.kind === "union" ? `(${arrayString})[]` : `${arrayString}[]`;
+      return target.value.kind === "union" && arrayString.includes("|")
+        ? `(${arrayString})[]`
+        : `${arrayString}[]`;
     }
 
     case "object": {
@@ -475,6 +520,7 @@ export function getResolvedTargetString(params: {
 function isNullableResolvedTarget(target: ResolvedTarget): boolean {
   switch (target.kind) {
     case "type":
+    case "literal":
       return ["any", "null"].includes(target.value) === false;
 
     case "union":
