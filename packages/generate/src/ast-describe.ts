@@ -202,7 +202,47 @@ function getDescribedNode(params: {
     return getDescribedCaseExpr({ alias: alias, node: node.CaseExpr, context });
   }
 
+  if (node.NullTest !== undefined) {
+    return getDescribedNullTest({ alias: alias, node: node.NullTest, context });
+  }
+
+  if (node.A_Expr !== undefined) {
+    return getDescribedAExpr({ alias: alias, node: node.A_Expr, context });
+  }
+
   return [];
+}
+
+function getDescribedAExpr({
+  alias,
+  context,
+}: GetDescribedParamsOf<LibPgQueryAST.AExpr>): ASTDescribedColumn[] {
+  return [
+    {
+      name: alias ?? "?column?",
+      type: resolveType({
+        context: context,
+        nullable: false,
+        type: context.toTypeScriptType({ name: "boolean" }),
+      }),
+    },
+  ];
+}
+
+function getDescribedNullTest({
+  alias,
+  context,
+}: GetDescribedParamsOf<LibPgQueryAST.NullTest>): ASTDescribedColumn[] {
+  return [
+    {
+      name: alias ?? "?column?",
+      type: resolveType({
+        context: context,
+        nullable: false,
+        type: context.toTypeScriptType({ name: "boolean" }),
+      }),
+    },
+  ];
 }
 
 function getDescribedCaseExpr({

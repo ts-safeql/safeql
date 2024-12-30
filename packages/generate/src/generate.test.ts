@@ -1500,3 +1500,46 @@ test("select case when expr with returned string literals", async () => {
     expected: [["case", { kind: "type", value: "boolean" }]],
   });
 });
+
+test("select case when expr is not null else is not null", async () => {
+  await testQuery({
+    query: `
+      SELECT
+        CASE WHEN TRUE
+          THEN caregiver.id IS NOT NULL
+          ELSE caregiver.id IS NOT NULL
+        END
+      FROM caregiver`,
+    expected: [["case", { kind: "type", value: "boolean" }]],
+  });
+});
+
+test("select case when with jsonb_build_object", async () => {
+  await testQuery({
+    query: `
+      SELECT
+        CASE
+          WHEN caregiver.id IS NOT NULL THEN (
+            jsonb_build_object(
+              'is_test',
+              caregiver.first_name NOT LIKE '%test%'
+            )
+          )
+          ELSE NULL
+        END AS col
+      FROM
+        caregiver`,
+    expected: [
+      [
+        "col",
+        {
+          kind: "union",
+          value: [
+            { kind: "object", value: [["is_test", { kind: "type", value: "boolean" }]] },
+            { kind: "type", value: "null" },
+          ],
+        },
+      ],
+    ],
+  });
+});

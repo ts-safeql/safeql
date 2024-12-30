@@ -1277,6 +1277,27 @@ RuleTester.describe("check-sql", () => {
         }),
         code: "sql<{ phone_number: PhoneNumber }>`select phone_number from caregiver_phone`",
       },
+      {
+        name: 'select case when then jsonb with not like with type reference',
+        filename,
+        options: withConnection(connections.withTag, {
+          targets: [{ tag: "sql", transform: "{type}[]" }],
+        }),
+        code: `
+          type Meta = { is_test: boolean; };
+          type Caregiver = { meta: Meta | null };
+
+          await sql<Caregiver[]>\`
+            SELECT
+              CASE WHEN caregiver.id IS NOT NULL
+                THEN jsonb_build_object('is_test', caregiver.middle_name NOT LIKE '%test%')
+                ELSE NULL
+              END AS meta
+            FROM
+              caregiver
+          \`;
+        `,
+      },
     ],
     invalid: [
       {
