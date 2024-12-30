@@ -1278,7 +1278,7 @@ RuleTester.describe("check-sql", () => {
         code: "sql<{ phone_number: PhoneNumber }>`select phone_number from caregiver_phone`",
       },
       {
-        name: 'select case when then jsonb with not like with type reference',
+        name: "select case when then jsonb with not like with type reference",
         filename,
         options: withConnection(connections.withTag, {
           targets: [{ tag: "sql", transform: "{type}[]" }],
