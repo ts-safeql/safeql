@@ -1,5 +1,11 @@
 # @ts-safeql/eslint-plugin
 
+## 3.6.1
+
+### Patch Changes
+
+- e583c77: fixed an issue when dealing with AExpr and NullTest nodes
+
 ## 3.6.0
 
 ### Minor Changes

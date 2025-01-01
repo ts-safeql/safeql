@@ -1,5 +1,14 @@
 # @ts-safeql/generate
 
+## 3.6.1
+
+### Patch Changes
+
+- e583c77: fixed an issue when dealing with AExpr and NullTest nodes
+  - @ts-safeql/shared@3.6.1
+  - @ts-safeql/sql-ast@3.6.1
+  - @ts-safeql/test-utils@0.0.36
+
 ## 3.6.0
 
 ### Minor Changes
