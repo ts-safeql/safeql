@@ -1805,7 +1805,7 @@ RuleTester.describe("check-sql", () => {
         filename,
         name: "strict: select boolean should be non-nullable",
         options: withConnection(connections.withTag),
-        code: "sql<{ bool: boolean }>`select true`",
+        code: "sql<{ '?column?': boolean }>`select true`",
       },
       {
         filename,

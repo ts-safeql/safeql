@@ -312,7 +312,7 @@ test("select true", async () => {
     options: { fieldTransform: "camel" },
     query: `SELECT true`,
     expected: [
-      ["bool", { kind: "literal", value: "true", base: { kind: "type", value: "boolean" } }],
+      ["?column?", { kind: "literal", value: "true", base: { kind: "type", value: "boolean" } }],
     ],
   });
 });
