@@ -223,7 +223,7 @@ function getDescribedAExpr({
     return [];
   }
   
-  const xxx = (node: LibPgQueryAST.Node) => {
+  const getValueAndNullable = (node: LibPgQueryAST.Node) => {
     const column = getDescribedNode({ alias: undefined, node, context }).at(0);
 
     if (column === undefined) return null;
@@ -254,8 +254,8 @@ function getDescribedAExpr({
     return null;
   }
 
-  const lnode = xxx(node.lexpr)
-  const rnode = xxx(node.rexpr)
+  const lnode = getValueAndNullable(node.lexpr)
+  const rnode = getValueAndNullable(node.rexpr)
 
   if (lnode === null || rnode === null || lnode.value !== rnode.value) {
     return [];
