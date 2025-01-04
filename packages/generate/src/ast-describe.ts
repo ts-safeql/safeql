@@ -276,7 +276,7 @@ function getDescribedAExpr({
     "~~*": { string: "boolean", number: "boolean" },
   }
 
-  const operator = concatStringNodes(node.name).replace(/^\!/, "");
+  const operator = concatStringNodes(node.name).replace(/^!/, "");
   const resolved = typeMap[operator]?.[lnode.value] ?? null;
 
   if (resolved === null) {
