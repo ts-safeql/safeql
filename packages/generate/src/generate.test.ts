@@ -1514,6 +1514,18 @@ test("select case when expr is not null else is not null", async () => {
   });
 });
 
+test("select arithmetic operations", async () => {
+  await testQuery({
+    query: `SELECT count(1) + count(1)`,
+    expected: [["?column?", { kind: "type", value: "string" }]],
+  });
+
+  await testQuery({
+    query: `SELECT count(1) + 1`,
+    expected: [["?column?", { kind: "type", value: "string" }]],
+  });
+});
+
 test("select case when with jsonb_build_object", async () => {
   await testQuery({
     query: `

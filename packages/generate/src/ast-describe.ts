@@ -6,6 +6,7 @@ import {
   isColumnTableStarRef,
   isColumnUnknownRef,
   isSingleCell,
+  isTuple,
 } from "./ast-decribe.utils";
 import { ResolvedColumn, SourcesResolver, getSources } from "./ast-get-sources";
 import { PgColRow, PgEnumsMaps, PgTypesMap } from "./generate";
@@ -215,15 +216,82 @@ function getDescribedNode(params: {
 
 function getDescribedAExpr({
   alias,
+  node,
   context,
 }: GetDescribedParamsOf<LibPgQueryAST.AExpr>): ASTDescribedColumn[] {
+  if (node.lexpr === undefined || node.rexpr === undefined) {
+    return [];
+  }
+  
+  const xxx = (node: LibPgQueryAST.Node) => {
+    const column = getDescribedNode({ alias: undefined, node, context }).at(0);
+
+    if (column === undefined) return null;
+    
+    if (column.type.kind === "type") {
+      return { value: column.type.value, nullable: false };
+    }
+
+    if (column.type.kind === "literal" && column.type.base.kind === "type") {
+      return { value: column.type.base.value, nullable: false };
+    }
+    
+    if (column.type.kind === "union" && isTuple(column.type.value)) {
+      let nullable = false;
+      let value: string | undefined = undefined;
+
+      for (const type of column.type.value) {
+        if (type.kind !== "type") return null;
+        if (type.value === "null") nullable = true;
+        if (type.value !== "null") value = type.value;
+      }
+
+      if (value === undefined) return null;
+
+      return { value, nullable };
+    }
+
+    return null;
+  }
+
+  const lnode = xxx(node.lexpr)
+  const rnode = xxx(node.rexpr)
+
+  if (lnode === null || rnode === null || lnode.value !== rnode.value) {
+    return [];
+  }
+
+  const typeMap: Record<string, Record<string, string>> = {
+    "+": { string: "text", number: "int4" },
+    "-": { string: "int4", number: "int4" },
+    "*": { string: "int4", number: "int4" },
+    "/": { string: "int4", number: "int4" },
+    "=": { string: "boolean", number: "boolean" },
+    "<>": { string: "boolean", number: "boolean" },
+    "<": { string: "boolean", number: "boolean" },
+    "<=": { string: "boolean", number: "boolean" },
+    ">": { string: "boolean", number: "boolean" },
+    ">=": { string: "boolean", number: "boolean" },
+    "~~": { string: "boolean", number: "boolean" },
+    "~~*": { string: "boolean", number: "boolean" },
+  }
+
+  const operator = concatStringNodes(node.name).replace(/^\!/, "");
+  const resolved = typeMap[operator]?.[lnode.value] ?? null;
+
+  if (resolved === null) {
+    return [];
+  }
+
+  const name = alias ?? "?column?";
+
   return [
     {
-      name: alias ?? "?column?",
+      name: name,
       type: resolveType({
         context: context,
-        nullable: false,
-        type: context.toTypeScriptType({ name: "boolean" }),
+        nullable: !context.nonNullableColumns.has(name) && (lnode.nullable || rnode.nullable),
+        type: context.toTypeScriptType({ name: resolved }),
       }),
     },
   ];
