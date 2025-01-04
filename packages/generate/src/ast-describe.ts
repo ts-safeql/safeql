@@ -222,12 +222,12 @@ function getDescribedAExpr({
   if (node.lexpr === undefined || node.rexpr === undefined) {
     return [];
   }
-  
+
   const getValueAndNullable = (node: LibPgQueryAST.Node) => {
     const column = getDescribedNode({ alias: undefined, node, context }).at(0);
 
     if (column === undefined) return null;
-    
+
     if (column.type.kind === "type") {
       return { value: column.type.value, nullable: false };
     }
@@ -235,7 +235,7 @@ function getDescribedAExpr({
     if (column.type.kind === "literal" && column.type.base.kind === "type") {
       return { value: column.type.base.value, nullable: false };
     }
-    
+
     if (column.type.kind === "union" && isTuple(column.type.value)) {
       let nullable = false;
       let value: string | undefined = undefined;
@@ -252,10 +252,10 @@ function getDescribedAExpr({
     }
 
     return null;
-  }
+  };
 
-  const lnode = getValueAndNullable(node.lexpr)
-  const rnode = getValueAndNullable(node.rexpr)
+  const lnode = getValueAndNullable(node.lexpr);
+  const rnode = getValueAndNullable(node.rexpr);
 
   if (lnode === null || rnode === null || lnode.value !== rnode.value) {
     return [];
@@ -274,7 +274,7 @@ function getDescribedAExpr({
     ">=": { string: "boolean", number: "boolean" },
     "~~": { string: "boolean", number: "boolean" },
     "~~*": { string: "boolean", number: "boolean" },
-  }
+  };
 
   const operator = concatStringNodes(node.name).replace(/^!/, "");
   const resolved = typeMap[operator]?.[lnode.value] ?? null;
