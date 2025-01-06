@@ -268,12 +268,12 @@ async function generate(
       pgFns: functionsMap,
     });
 
-    const columns = result.columns.map((col): ColumnAnalysisResult => {
+    const columns = result.columns.map((col, position): ColumnAnalysisResult => {
       const introspected = pgColsByTableOidCache
         .get(col.table)
         ?.find((x) => x.colNum === col.number);
 
-      const astDescribed = astQueryDescription.get(col.name);
+      const astDescribed = astQueryDescription.get(position);
 
       return {
         described: col,
