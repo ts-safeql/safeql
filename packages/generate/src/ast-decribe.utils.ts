@@ -28,6 +28,6 @@ export function isSingleCell<T>(arr: T[]): arr is [T] {
   return arr.length === 1;
 }
 
-function isTuple<T>(arr: T[]): arr is [T, T] {
+export function isTuple<T>(arr: T[]): arr is [T, T] {
   return arr.length === 2;
 }

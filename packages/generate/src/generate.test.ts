@@ -220,7 +220,9 @@ const testQuery = async (params: {
 test("(init generate cache)", async () => {
   await testQuery({
     query: `SELECT 1 as x`,
-    expected: [["x", { kind: "literal", value: "1", base: { kind: "type", value: "number" } }]],
+    expected: [
+      ["x", { kind: "literal", value: "1", base: { kind: "type", value: "number", type: "int4" } }],
+    ],
   });
 });
 
@@ -228,9 +230,9 @@ test("select columns", async () => {
   await testQuery({
     query: `SELECT id, first_name, last_name from caregiver LIMIT 1`,
     expected: [
-      ["id", { kind: "type", value: "number" }],
-      ["first_name", { kind: "type", value: "string" }],
-      ["last_name", { kind: "type", value: "string" }],
+      ["id", { kind: "type", value: "number", type: "int4" }],
+      ["first_name", { kind: "type", value: "string", type: "text" }],
+      ["last_name", { kind: "type", value: "string", type: "text" }],
     ],
   });
 });
@@ -239,49 +241,55 @@ test("select all_types", async () => {
   await testQuery({
     query: `SELECT * FROM all_types`,
     expected: [
-      ["id", { kind: "type", value: "number" }],
-      ["text_column", { kind: "type", value: "string" }],
-      ["varchar_column", { kind: "type", value: "string" }],
-      ["char_column", { kind: "type", value: "string" }],
-      ["int_column", { kind: "type", value: "number" }],
-      ["smallint_column", { kind: "type", value: "number" }],
-      ["bigint_column", { kind: "type", value: "string" }],
-      ["decimal_column", { kind: "type", value: "string" }],
-      ["numeric_column", { kind: "type", value: "string" }],
-      ["real_column", { kind: "type", value: "number" }],
-      ["double_column", { kind: "type", value: "number" }],
-      ["serial_column", { kind: "type", value: "number" }],
-      ["bigserial_column", { kind: "type", value: "string" }],
-      ["boolean_column", { kind: "type", value: "boolean" }],
-      ["date_column", { kind: "type", value: "Date" }],
-      ["time_column", { kind: "type", value: "string" }],
-      ["time_with_timezone_column", { kind: "type", value: "string" }],
-      ["timestamp_column", { kind: "type", value: "Date" }],
-      ["timestamp_with_timezone_column", { kind: "type", value: "Date" }],
-      ["interval_column", { kind: "type", value: "string" }],
-      ["uuid_column", { kind: "type", value: "string" }],
-      ["json_column", { kind: "type", value: "any" }],
-      ["jsonb_column", { kind: "type", value: "any" }],
-      ["array_text_column", { kind: "array", value: { kind: "type", value: "string" } }],
-      ["array_int_column", { kind: "array", value: { kind: "type", value: "number" } }],
-      ["bytea_column", { kind: "type", value: "any" }],
-      ["inet_column", { kind: "type", value: "string" }],
-      ["cidr_column", { kind: "type", value: "string" }],
-      ["macaddr_column", { kind: "type", value: "string" }],
-      ["macaddr8_column", { kind: "type", value: "string" }],
-      ["tsvector_column", { kind: "type", value: "unknown" }],
-      ["tsquery_column", { kind: "type", value: "unknown" }],
-      ["xml_column", { kind: "type", value: "unknown" }],
-      ["point_column", { kind: "type", value: "unknown" }],
-      ["line_column", { kind: "type", value: "unknown" }],
-      ["lseg_column", { kind: "type", value: "unknown" }],
-      ["box_column", { kind: "type", value: "unknown" }],
-      ["path_column", { kind: "type", value: "unknown" }],
-      ["polygon_column", { kind: "type", value: "unknown" }],
-      ["circle_column", { kind: "type", value: "unknown" }],
-      ["money_column", { kind: "type", value: "number" }],
-      ["bit_column", { kind: "type", value: "boolean" }],
-      ["bit_varying_column", { kind: "type", value: "unknown" }],
+      ["id", { kind: "type", value: "number", type: "int4" }],
+      ["text_column", { kind: "type", value: "string", type: "text" }],
+      ["varchar_column", { kind: "type", value: "string", type: "varchar" }],
+      ["char_column", { kind: "type", value: "string", type: "bpchar" }],
+      ["int_column", { kind: "type", value: "number", type: "int4" }],
+      ["smallint_column", { kind: "type", value: "number", type: "int2" }],
+      ["bigint_column", { kind: "type", value: "string", type: "int8" }],
+      ["decimal_column", { kind: "type", value: "string", type: "numeric" }],
+      ["numeric_column", { kind: "type", value: "string", type: "numeric" }],
+      ["real_column", { kind: "type", value: "number", type: "float4" }],
+      ["double_column", { kind: "type", value: "number", type: "float8" }],
+      ["serial_column", { kind: "type", value: "number", type: "int4" }],
+      ["bigserial_column", { kind: "type", value: "string", type: "int8" }],
+      ["boolean_column", { kind: "type", value: "boolean", type: "bool" }],
+      ["date_column", { kind: "type", value: "Date", type: "date" }],
+      ["time_column", { kind: "type", value: "string", type: "time" }],
+      ["time_with_timezone_column", { kind: "type", value: "string", type: "timetz" }],
+      ["timestamp_column", { kind: "type", value: "Date", type: "timestamp" }],
+      ["timestamp_with_timezone_column", { kind: "type", value: "Date", type: "timestamptz" }],
+      ["interval_column", { kind: "type", value: "string", type: "interval" }],
+      ["uuid_column", { kind: "type", value: "string", type: "uuid" }],
+      ["json_column", { kind: "type", value: "any", type: "json" }],
+      ["jsonb_column", { kind: "type", value: "any", type: "jsonb" }],
+      [
+        "array_text_column",
+        { kind: "array", value: { kind: "type", value: "string", type: "_text" } },
+      ],
+      [
+        "array_int_column",
+        { kind: "array", value: { kind: "type", value: "number", type: "_int4" } },
+      ],
+      ["bytea_column", { kind: "type", value: "any", type: "bytea" }],
+      ["inet_column", { kind: "type", value: "string", type: "inet" }],
+      ["cidr_column", { kind: "type", value: "string", type: "cidr" }],
+      ["macaddr_column", { kind: "type", value: "string", type: "macaddr" }],
+      ["macaddr8_column", { kind: "type", value: "string", type: "macaddr8" }],
+      ["tsvector_column", { kind: "type", value: "unknown", type: "tsvector" }],
+      ["tsquery_column", { kind: "type", value: "unknown", type: "tsquery" }],
+      ["xml_column", { kind: "type", value: "unknown", type: "xml" }],
+      ["point_column", { kind: "type", value: "unknown", type: "point" }],
+      ["line_column", { kind: "type", value: "unknown", type: "line" }],
+      ["lseg_column", { kind: "type", value: "unknown", type: "lseg" }],
+      ["box_column", { kind: "type", value: "unknown", type: "box" }],
+      ["path_column", { kind: "type", value: "unknown", type: "path" }],
+      ["polygon_column", { kind: "type", value: "unknown", type: "polygon" }],
+      ["circle_column", { kind: "type", value: "unknown", type: "circle" }],
+      ["money_column", { kind: "type", value: "number", type: "money" }],
+      ["bit_column", { kind: "type", value: "boolean", type: "bit" }],
+      ["bit_varying_column", { kind: "type", value: "unknown", type: "varbit" }],
     ],
   });
 });
@@ -290,7 +298,10 @@ test("select 0", async () => {
   await testQuery({
     query: `SELECT 0`,
     expected: [
-      ["?column?", { kind: "literal", value: "0", base: { kind: "type", value: "number" } }],
+      [
+        "?column?",
+        { kind: "literal", value: "0", base: { kind: "type", value: "number", type: "int4" } },
+      ],
     ],
   });
 });
@@ -300,9 +311,9 @@ test("camel case field transform", async () => {
     options: { fieldTransform: "camel" },
     query: `SELECT id, first_name, last_name from caregiver LIMIT 1`,
     expected: [
-      ["id", { kind: "type", value: "number" }],
-      ["firstName", { kind: "type", value: "string" }],
-      ["lastName", { kind: "type", value: "string" }],
+      ["id", { kind: "type", value: "number", type: "int4" }],
+      ["firstName", { kind: "type", value: "string", type: "text" }],
+      ["lastName", { kind: "type", value: "string", type: "text" }],
     ],
   });
 });
@@ -312,7 +323,10 @@ test("select true", async () => {
     options: { fieldTransform: "camel" },
     query: `SELECT true`,
     expected: [
-      ["?column?", { kind: "literal", value: "true", base: { kind: "type", value: "boolean" } }],
+      [
+        "?column?",
+        { kind: "literal", value: "true", base: { kind: "type", value: "boolean", type: "bool" } },
+      ],
     ],
   });
 });
@@ -320,42 +334,42 @@ test("select true", async () => {
 test("select count(1) should be non-nullable", async () => {
   await testQuery({
     query: `SELECT count(1)`,
-    expected: [["count", { kind: "type", value: "string" }]],
+    expected: [["count", { kind: "type", value: "string", type: "int8" }]],
   });
 });
 
 test("select count(1) as col should be non-nullable", async () => {
   await testQuery({
     query: `SELECT count(1) as col`,
-    expected: [["col", { kind: "type", value: "string" }]],
+    expected: [["col", { kind: "type", value: "string", type: "int8" }]],
   });
 });
 
 test("select count(1)::int as col should be non-nullable", async () => {
   await testQuery({
     query: `SELECT count(1)::int as col`,
-    expected: [["col", { kind: "type", value: "number" }]],
+    expected: [["col", { kind: "type", value: "number", type: "int4" }]],
   });
 });
 
 test("SELECT id FROM caregiver tbl WHERE tbl.id IS NOT NULL", async () => {
   await testQuery({
     query: `SELECT id FROM caregiver tbl WHERE tbl.id IS NOT NULL`,
-    expected: [["id", { kind: "type", value: "number" }]],
+    expected: [["id", { kind: "type", value: "number", type: "int4" }]],
   });
 });
 
 test("SELECT tbl.id FROM caregiver tbl WHERE tbl.id IS NOT NULL", async () => {
   await testQuery({
     query: `SELECT tbl.id FROM caregiver tbl WHERE tbl.id IS NOT NULL`,
-    expected: [["id", { kind: "type", value: "number" }]],
+    expected: [["id", { kind: "type", value: "number", type: "int4" }]],
   });
 });
 
 test("select psa.pid from pg_stat_activity psa where psa.pid IS NOT NULL", async () => {
   await testQuery({
     query: `select psa.pid from pg_stat_activity psa where psa.pid IS NOT NULL`,
-    expected: [["pid", { kind: "type", value: "number" }]],
+    expected: [["pid", { kind: "type", value: "number", type: "int4" }]],
   });
 });
 
@@ -368,8 +382,8 @@ test("select sum", async () => {
         {
           kind: "union",
           value: [
-            { kind: "type", value: "string" },
-            { kind: "type", value: "null" },
+            { kind: "type", value: "string", type: "int8" },
+            { kind: "type", value: "null", type: "null" },
           ],
         },
       ],
@@ -386,8 +400,8 @@ test("select sum(col)::int should still be number | null", async () => {
         {
           kind: "union",
           value: [
-            { kind: "type", value: "number" },
-            { kind: "type", value: "null" },
+            { kind: "type", value: "number", type: "int4" },
+            { kind: "type", value: "null", type: "null" },
           ],
         },
       ],
@@ -398,14 +412,19 @@ test("select sum(col)::int should still be number | null", async () => {
 test("select column as camelCase", async () => {
   await testQuery({
     query: `SELECT first_name as "firstName" from caregiver LIMIT 1`,
-    expected: [["firstName", { kind: "type", value: "string" }]],
+    expected: [["firstName", { kind: "type", value: "string", type: "text" }]],
   });
 });
 
 test("select non-table column", async () =>
   await testQuery({
     query: `SELECT 1 as count`,
-    expected: [["count", { kind: "literal", value: "1", base: { kind: "type", value: "number" } }]],
+    expected: [
+      [
+        "count",
+        { kind: "literal", value: "1", base: { kind: "type", value: "number", type: "int4" } },
+      ],
+    ],
   }));
 
 test("select with an inner join", async () => {
@@ -418,8 +437,8 @@ test("select with an inner join", async () => {
             JOIN caregiver_agency ON caregiver.id = caregiver_agency.caregiver_id
     `,
     expected: [
-      ["caregiver_id", { kind: "type", value: "number" }],
-      ["assoc_id", { kind: "type", value: "number" }],
+      ["caregiver_id", { kind: "type", value: "number", type: "int4" }],
+      ["assoc_id", { kind: "type", value: "number", type: "int4" }],
     ],
   });
 });
@@ -431,14 +450,14 @@ test("select with an inner join without table reference", async () => {
         FROM caregiver
             JOIN caregiver_agency ON caregiver.id = caregiver_agency.caregiver_id
     `,
-    expected: [["agency_id", { kind: "type", value: "number" }]],
+    expected: [["agency_id", { kind: "type", value: "number", type: "int4" }]],
   });
 });
 
 test("select exists(subselect)", async () => {
   await testQuery({
     query: `SELECT EXISTS(SELECT 1 FROM caregiver)`,
-    expected: [["exists", { kind: "type", value: "boolean" }]],
+    expected: [["exists", { kind: "type", value: "boolean", type: "bool" }]],
   });
 });
 
@@ -446,14 +465,14 @@ test("select overriden enum", async () => {
   await testQuery({
     query: `SELECT * FROM test_overriden_enum`,
     expected: [
-      ["col", { kind: "type", value: "OverridenEnum" }],
+      ["col", { kind: "type", value: "OverridenEnum", type: "overriden_enum" }],
       [
         "nullable_col",
         {
           kind: "union",
           value: [
-            { kind: "type", value: "OverridenEnum" },
-            { kind: "type", value: "null" },
+            { kind: "type", value: "OverridenEnum", type: "overriden_enum" },
+            { kind: "type", value: "null", type: "null" },
           ],
         },
       ],
@@ -465,14 +484,14 @@ test("select overriden domain", async () => {
   await testQuery({
     query: `SELECT * FROM test_overriden_domain`,
     expected: [
-      ["col", { kind: "type", value: "OverridenDomain" }],
+      ["col", { kind: "type", value: "OverridenDomain", type: "overriden_domain" }],
       [
         "nullable_col",
         {
           kind: "union",
           value: [
-            { kind: "type", value: "OverridenDomain" },
-            { kind: "type", value: "null" },
+            { kind: "type", value: "OverridenDomain", type: "overriden_domain" },
+            { kind: "type", value: "null", type: "null" },
           ],
         },
       ],
@@ -483,7 +502,7 @@ test("select overriden domain", async () => {
 test("select now()", async () => {
   await testQuery({
     query: `SELECT now()`,
-    expected: [["now", { kind: "type", value: "Date" }]],
+    expected: [["now", { kind: "type", value: "Date", type: "timestamptz" }]],
   });
 });
 
@@ -497,14 +516,14 @@ test("select with left join should return all cols from left join as nullable", 
             LEFT JOIN caregiver_agency ON caregiver.id = caregiver_agency.caregiver_id
     `,
     expected: [
-      ["caregiver_id", { kind: "type", value: "number" }],
+      ["caregiver_id", { kind: "type", value: "number", type: "int4" }],
       [
         "assoc_id",
         {
           kind: "union",
           value: [
-            { kind: "type", value: "number" },
-            { kind: "type", value: "null" },
+            { kind: "type", value: "number", type: "int4" },
+            { kind: "type", value: "null", type: "null" },
           ],
         },
       ],
@@ -527,12 +546,12 @@ test("select with right join should return all cols from the other table as null
         {
           kind: "union",
           value: [
-            { kind: "type", value: "number" },
-            { kind: "type", value: "null" },
+            { kind: "type", value: "number", type: "int4" },
+            { kind: "type", value: "null", type: "null" },
           ],
         },
       ],
-      ["assoc_id", { kind: "type", value: "number" }],
+      ["assoc_id", { kind: "type", value: "number", type: "int4" }],
     ],
   });
 });
@@ -552,8 +571,8 @@ test("select with full join should return all cols as nullable", async () => {
         {
           kind: "union",
           value: [
-            { kind: "type", value: "number" },
-            { kind: "type", value: "null" },
+            { kind: "type", value: "number", type: "int4" },
+            { kind: "type", value: "null", type: "null" },
           ],
         },
       ],
@@ -562,8 +581,8 @@ test("select with full join should return all cols as nullable", async () => {
         {
           kind: "union",
           value: [
-            { kind: "type", value: "number" },
-            { kind: "type", value: "null" },
+            { kind: "type", value: "number", type: "int4" },
+            { kind: "type", value: "null", type: "null" },
           ],
         },
       ],
@@ -587,7 +606,7 @@ test("select with duplicate columns should throw duplicate columns error", async
 test("insert into table with returning", async () => {
   await testQuery({
     query: `INSERT INTO caregiver (first_name, last_name) VALUES (null, null) RETURNING id`,
-    expected: [["id", { kind: "type", value: "number" }]],
+    expected: [["id", { kind: "type", value: "number", type: "int4" }]],
     unknownColumns: ["id"],
   });
 });
@@ -609,7 +628,7 @@ test("select with incorrect operation", async () => {
 test("select where int column = any(array)", async () => {
   await testQuery({
     query: `SELECT id FROM caregiver WHERE id = ANY($1::int[])`,
-    expected: [["id", { kind: "type", value: "number" }]],
+    expected: [["id", { kind: "type", value: "number", type: "int4" }]],
   });
 });
 
@@ -624,19 +643,25 @@ test("select date columns", async () => {
   await testQuery({
     query: `SELECT * FROM test_date_column`,
     expected: [
-      ["date_col", { kind: "type", value: "Date" }],
-      ["date_array", { kind: "array", value: { kind: "type", value: "Date" } }],
-      ["instant_arr", { kind: "array", value: { kind: "type", value: "Date" } }],
-      ["time_arr", { kind: "array", value: { kind: "type", value: "string" } }],
-      ["timetz_arr", { kind: "array", value: { kind: "type", value: "string" } }],
-      ["local_date_time_arr", { kind: "array", value: { kind: "type", value: "Date" } }],
+      ["date_col", { kind: "type", value: "Date", type: "date" }],
+      ["date_array", { kind: "array", value: { kind: "type", value: "Date", type: "_date" } }],
+      [
+        "instant_arr",
+        { kind: "array", value: { kind: "type", value: "Date", type: "_timestamptz" } },
+      ],
+      ["time_arr", { kind: "array", value: { kind: "type", value: "string", type: "_time" } }],
+      ["timetz_arr", { kind: "array", value: { kind: "type", value: "string", type: "_timetz" } }],
+      [
+        "local_date_time_arr",
+        { kind: "array", value: { kind: "type", value: "Date", type: "_timestamp" } },
+      ],
       [
         "nullable_date_arr",
         {
           kind: "union",
           value: [
-            { kind: "array", value: { kind: "type", value: "Date" } },
-            { kind: "type", value: "null" },
+            { kind: "array", value: { kind: "type", value: "Date", type: "_date" } },
+            { kind: "type", value: "null", type: "null" },
           ],
         },
       ],
@@ -653,12 +678,12 @@ test("select enum", async () => {
         {
           kind: "union",
           value: [
-            { kind: "type", value: "'HHA'" },
-            { kind: "type", value: "'RN'" },
-            { kind: "type", value: "'LPN'" },
-            { kind: "type", value: "'CNA'" },
-            { kind: "type", value: "'PCA'" },
-            { kind: "type", value: "'OTHER'" },
+            { kind: "type", value: "'HHA'", type: "certification" },
+            { kind: "type", value: "'RN'", type: "certification" },
+            { kind: "type", value: "'LPN'", type: "certification" },
+            { kind: "type", value: "'CNA'", type: "certification" },
+            { kind: "type", value: "'PCA'", type: "certification" },
+            { kind: "type", value: "'OTHER'", type: "certification" },
           ],
         },
       ],
@@ -669,7 +694,7 @@ test("select enum", async () => {
 test("select domain type", async () => {
   await testQuery({
     query: `SELECT phone_number from caregiver_phonenumber`,
-    expected: [["phone_number", { kind: "type", value: "string" }]],
+    expected: [["phone_number", { kind: "type", value: "string", type: "phone_number" }]],
   });
 });
 
@@ -678,7 +703,7 @@ test("select from subselect with an alias", async () => {
     query: `
       SELECT subselect.id FROM (SELECT * FROM caregiver) AS subselect
     `,
-    expected: [["id", { kind: "type", value: "number" }]],
+    expected: [["id", { kind: "type", value: "number", type: "int4" }]],
   });
 });
 
@@ -696,8 +721,8 @@ test("select from subselect with a join", async () => {
         {
           kind: "union",
           value: [
-            { kind: "type", value: "string" },
-            { kind: "type", value: "null" },
+            { kind: "type", value: "string", type: "text" },
+            { kind: "type", value: "null", type: "null" },
           ],
         },
       ],
@@ -710,7 +735,7 @@ test("select nullable column with nullabilty check", async () => {
     query: `
     SELECT nullable_col FROM test_nullability WHERE nullable_col IS NOT NULL
     `,
-    expected: [["nullable_col", { kind: "type", value: "string" }]],
+    expected: [["nullable_col", { kind: "type", value: "string", type: "text" }]],
   });
 });
 
@@ -733,7 +758,14 @@ test("select jsonb_build_object(const, const)", async () => {
         {
           kind: "object",
           value: [
-            ["key", { kind: "literal", value: "'value'", base: { kind: "type", value: "string" } }],
+            [
+              "key",
+              {
+                kind: "literal",
+                value: "'value'",
+                base: { kind: "type", value: "string", type: "text" },
+              },
+            ],
           ],
         },
       ],
@@ -757,7 +789,11 @@ test("select jsonb_build_object(deeply nested)", async () => {
                 value: [
                   [
                     "nested",
-                    { kind: "literal", value: "'object'", base: { kind: "type", value: "string" } },
+                    {
+                      kind: "literal",
+                      value: "'object'",
+                      base: { kind: "type", value: "string", type: "text" },
+                    },
                   ],
                 ],
               },
@@ -773,7 +809,10 @@ test("select jsonb_build_object(const, columnref)", async () => {
   await testQuery({
     query: `SELECT json_build_object('id', agency.id) FROM agency`,
     expected: [
-      ["json_build_object", { kind: "object", value: [["id", { kind: "type", value: "number" }]] }],
+      [
+        "json_build_object",
+        { kind: "object", value: [["id", { kind: "type", value: "number", type: "int4" }]] },
+      ],
     ],
   });
 });
@@ -782,7 +821,10 @@ test("select jsonb_build_object(const, columnref::text)", async () => {
   await testQuery({
     query: `SELECT json_build_object('id', agency.id::text) FROM agency`,
     expected: [
-      ["json_build_object", { kind: "object", value: [["id", { kind: "type", value: "string" }]] }],
+      [
+        "json_build_object",
+        { kind: "object", value: [["id", { kind: "type", value: "string", type: "text" }]] },
+      ],
     ],
   });
 });
@@ -791,7 +833,10 @@ test("select jsonb_build_object(const, const::text::int)", async () => {
   await testQuery({
     query: `SELECT json_build_object('id', 1::text::int)`,
     expected: [
-      ["json_build_object", { kind: "object", value: [["id", { kind: "type", value: "number" }]] }],
+      [
+        "json_build_object",
+        { kind: "object", value: [["id", { kind: "type", value: "number", type: "int4" }]] },
+      ],
     ],
   });
 });
@@ -812,9 +857,21 @@ test("select jsonb_build_object(const, array[int,int,int])", async () => {
                 value: {
                   kind: "union",
                   value: [
-                    { kind: "literal", value: "1", base: { kind: "type", value: "number" } },
-                    { kind: "literal", value: "2", base: { kind: "type", value: "number" } },
-                    { kind: "literal", value: "3", base: { kind: "type", value: "number" } },
+                    {
+                      kind: "literal",
+                      value: "1",
+                      base: { kind: "type", value: "number", type: "int4" },
+                    },
+                    {
+                      kind: "literal",
+                      value: "2",
+                      base: { kind: "type", value: "number", type: "int4" },
+                    },
+                    {
+                      kind: "literal",
+                      value: "3",
+                      base: { kind: "type", value: "number", type: "int4" },
+                    },
                   ],
                 },
               },
@@ -842,8 +899,12 @@ test("select jsonb_build_object(const, array[int,null])", async () => {
                 value: {
                   kind: "union",
                   value: [
-                    { kind: "literal", value: "1", base: { kind: "type", value: "number" } },
-                    { kind: "type", value: "null" },
+                    {
+                      kind: "literal",
+                      value: "1",
+                      base: { kind: "type", value: "number", type: "int4" },
+                    },
+                    { kind: "type", value: "null", type: "null" },
                   ],
                 },
               },
@@ -864,8 +925,8 @@ test("select array_agg(col order by col)", async () => {
         {
           kind: "union",
           value: [
-            { kind: "array", value: { kind: "type", value: "number" } },
-            { kind: "type", value: "null" },
+            { kind: "array", value: { kind: "type", value: "number", type: "int4" } },
+            { kind: "type", value: "null", type: "null" },
           ],
         },
       ],
@@ -887,12 +948,12 @@ test("select jsonb_agg(tbl)", async () => {
               value: {
                 kind: "object",
                 value: [
-                  ["id", { kind: "type", value: "number" }],
-                  ["name", { kind: "type", value: "string" }],
+                  ["id", { kind: "type", value: "number", type: "int4" }],
+                  ["name", { kind: "type", value: "string", type: "text" }],
                 ],
               },
             },
-            { kind: "type", value: "null" },
+            { kind: "type", value: "null", type: "null" },
           ],
         },
       ],
@@ -911,8 +972,8 @@ test("select coalesce(jsonb_agg(tbl), '[]'::jsonb)", async () => {
           value: {
             kind: "object",
             value: [
-              ["id", { kind: "type", value: "number" }],
-              ["name", { kind: "type", value: "string" }],
+              ["id", { kind: "type", value: "number", type: "int4" }],
+              ["name", { kind: "type", value: "string", type: "text" }],
             ],
           },
         },
@@ -935,12 +996,12 @@ test("select json_agg(tbl) as colname", async () => {
               value: {
                 kind: "object",
                 value: [
-                  ["id", { kind: "type", value: "number" }],
-                  ["name", { kind: "type", value: "string" }],
+                  ["id", { kind: "type", value: "number", type: "int4" }],
+                  ["name", { kind: "type", value: "string", type: "text" }],
                 ],
               },
             },
-            { kind: "type", value: "null" },
+            { kind: "type", value: "null", type: "null" },
           ],
         },
       ],
@@ -962,12 +1023,12 @@ test("select jsonb_agg(alias) from tbl alias", async () => {
               value: {
                 kind: "object",
                 value: [
-                  ["id", { kind: "type", value: "number" }],
-                  ["name", { kind: "type", value: "string" }],
+                  ["id", { kind: "type", value: "number", type: "int4" }],
+                  ["name", { kind: "type", value: "string", type: "text" }],
                 ],
               },
             },
-            { kind: "type", value: "null" },
+            { kind: "type", value: "null", type: "null" },
           ],
         },
       ],
@@ -984,8 +1045,8 @@ test("select jsonb_agg(aliasname.col)", async () => {
         {
           kind: "union",
           value: [
-            { kind: "array", value: { kind: "type", value: "number" } },
-            { kind: "type", value: "null" },
+            { kind: "array", value: { kind: "type", value: "number", type: "int4" } },
+            { kind: "type", value: "null", type: "null" },
           ],
         },
       ],
@@ -1009,12 +1070,16 @@ test("select jsonb_agg(jsonb_build_object(const, const))", async () => {
                 value: [
                   [
                     "key",
-                    { kind: "literal", value: "'value'", base: { kind: "type", value: "string" } },
+                    {
+                      kind: "literal",
+                      value: "'value'",
+                      base: { kind: "type", value: "string", type: "text" },
+                    },
                   ],
                 ],
               },
             },
-            { kind: "type", value: "null" },
+            { kind: "type", value: "null", type: "null" },
           ],
         },
       ],
@@ -1033,9 +1098,12 @@ test("select jsonb_agg(jsonb_build_object(const, tbl.col))", async () => {
           value: [
             {
               kind: "array",
-              value: { kind: "object", value: [["id", { kind: "type", value: "number" }]] },
+              value: {
+                kind: "object",
+                value: [["id", { kind: "type", value: "number", type: "int4" }]],
+              },
             },
-            { kind: "type", value: "null" },
+            { kind: "type", value: "null", type: "null" },
           ],
         },
       ],
@@ -1054,9 +1122,12 @@ test("select jsonb_agg(jsonb_build_object(const, col)) from tbl", async () => {
           value: [
             {
               kind: "array",
-              value: { kind: "object", value: [["id", { kind: "type", value: "number" }]] },
+              value: {
+                kind: "object",
+                value: [["id", { kind: "type", value: "number", type: "int4" }]],
+              },
             },
-            { kind: "type", value: "null" },
+            { kind: "type", value: "null", type: "null" },
           ],
         },
       ],
@@ -1082,12 +1153,12 @@ test("select jsonb_agg all use cases", async () => {
               value: {
                 kind: "object",
                 value: [
-                  ["id", { kind: "type", value: "number" }],
-                  ["name", { kind: "type", value: "string" }],
+                  ["id", { kind: "type", value: "number", type: "int4" }],
+                  ["name", { kind: "type", value: "string", type: "text" }],
                 ],
               },
             },
-            { kind: "type", value: "null" },
+            { kind: "type", value: "null", type: "null" },
           ],
         },
       ],
@@ -1110,7 +1181,7 @@ test("select jsonb_agg all use cases", async () => {
     GROUP BY agency.id
     `,
     expected: [
-      ["id", { kind: "type", value: "number" }],
+      ["id", { kind: "type", value: "number", type: "int4" }],
       [
         "jsonb_tbl",
         {
@@ -1121,13 +1192,13 @@ test("select jsonb_agg all use cases", async () => {
               value: {
                 kind: "object",
                 value: [
-                  ["id", { kind: "type", value: "number" }],
-                  ["first_name", { kind: "type", value: "string" }],
-                  ["last_name", { kind: "type", value: "string" }],
+                  ["id", { kind: "type", value: "number", type: "int4" }],
+                  ["first_name", { kind: "type", value: "string", type: "text" }],
+                  ["last_name", { kind: "type", value: "string", type: "text" }],
                 ],
               },
             },
-            { kind: "type", value: "null" },
+            { kind: "type", value: "null", type: "null" },
           ],
         },
       ],
@@ -1141,13 +1212,13 @@ test("select jsonb_agg all use cases", async () => {
               value: {
                 kind: "object",
                 value: [
-                  ["id", { kind: "type", value: "number" }],
-                  ["first_name", { kind: "type", value: "string" }],
-                  ["last_name", { kind: "type", value: "string" }],
+                  ["id", { kind: "type", value: "number", type: "int4" }],
+                  ["first_name", { kind: "type", value: "string", type: "text" }],
+                  ["last_name", { kind: "type", value: "string", type: "text" }],
                 ],
               },
             },
-            { kind: "type", value: "null" },
+            { kind: "type", value: "null", type: "null" },
           ],
         },
       ],
@@ -1156,8 +1227,8 @@ test("select jsonb_agg all use cases", async () => {
         {
           kind: "union",
           value: [
-            { kind: "array", value: { kind: "type", value: "number" } },
-            { kind: "type", value: "null" },
+            { kind: "array", value: { kind: "type", value: "number", type: "int4" } },
+            { kind: "type", value: "null", type: "null" },
           ],
         },
       ],
@@ -1168,9 +1239,12 @@ test("select jsonb_agg all use cases", async () => {
           value: [
             {
               kind: "array",
-              value: { kind: "object", value: [["firstName", { kind: "type", value: "string" }]] },
+              value: {
+                kind: "object",
+                value: [["firstName", { kind: "type", value: "string", type: "text" }]],
+              },
             },
-            { kind: "type", value: "null" },
+            { kind: "type", value: "null", type: "null" },
           ],
         },
       ],
@@ -1192,21 +1266,21 @@ test("select jsonb_agg(tbl) from (subselect) tbl", async () => {
               value: {
                 kind: "object",
                 value: [
-                  ["id", { kind: "type", value: "number" }],
+                  ["id", { kind: "type", value: "number", type: "int4" }],
                   [
                     "nullable_col",
                     {
                       kind: "union",
                       value: [
-                        { kind: "type", value: "string" },
-                        { kind: "type", value: "null" },
+                        { kind: "type", value: "string", type: "text" },
+                        { kind: "type", value: "null", type: "null" },
                       ],
                     },
                   ],
                 ],
               },
             },
-            { kind: "type", value: "null" },
+            { kind: "type", value: "null", type: "null" },
           ],
         },
       ],
@@ -1228,21 +1302,21 @@ test("select jsonb_agg(table with nullable column)", async () => {
               value: {
                 kind: "object",
                 value: [
-                  ["id", { kind: "type", value: "number" }],
+                  ["id", { kind: "type", value: "number", type: "int4" }],
                   [
                     "nullable_col",
                     {
                       kind: "union",
                       value: [
-                        { kind: "type", value: "string" },
-                        { kind: "type", value: "null" },
+                        { kind: "type", value: "string", type: "text" },
+                        { kind: "type", value: "null", type: "null" },
                       ],
                     },
                   ],
                 ],
               },
             },
-            { kind: "type", value: "null" },
+            { kind: "type", value: "null", type: "null" },
           ],
         },
       ],
@@ -1260,14 +1334,14 @@ test("select tbl with left join of self tbl", async () => {
         LEFT JOIN caregiver self ON caregiver.id = self.id
     `,
     expected: [
-      ["caregiver_id", { kind: "type", value: "number" }],
+      ["caregiver_id", { kind: "type", value: "number", type: "int4" }],
       [
         "self_id",
         {
           kind: "union",
           value: [
-            { kind: "type", value: "number" },
-            { kind: "type", value: "null" },
+            { kind: "type", value: "number", type: "int4" },
+            { kind: "type", value: "null", type: "null" },
           ],
         },
       ],
@@ -1284,8 +1358,8 @@ test("select union select #1", async () => {
         {
           kind: "union",
           value: [
-            { kind: "literal", value: "1", base: { kind: "type", value: "number" } },
-            { kind: "literal", value: "2", base: { kind: "type", value: "number" } },
+            { kind: "literal", value: "1", base: { kind: "type", value: "number", type: "int4" } },
+            { kind: "literal", value: "2", base: { kind: "type", value: "number", type: "int4" } },
           ],
         },
       ],
@@ -1302,8 +1376,8 @@ test("select union select #2", async () => {
         {
           kind: "union",
           value: [
-            { kind: "literal", value: "1", base: { kind: "type", value: "number" } },
-            { kind: "literal", value: "2", base: { kind: "type", value: "number" } },
+            { kind: "literal", value: "1", base: { kind: "type", value: "number", type: "int4" } },
+            { kind: "literal", value: "2", base: { kind: "type", value: "number", type: "int4" } },
           ],
         },
       ],
@@ -1327,8 +1401,8 @@ test("select union select #3", async () => {
         {
           kind: "union",
           value: [
-            { kind: "literal", value: "1", base: { kind: "type", value: "number" } },
-            { kind: "literal", value: "2", base: { kind: "type", value: "number" } },
+            { kind: "literal", value: "1", base: { kind: "type", value: "number", type: "int4" } },
+            { kind: "literal", value: "2", base: { kind: "type", value: "number", type: "int4" } },
           ],
         },
       ],
@@ -1337,8 +1411,12 @@ test("select union select #3", async () => {
         {
           kind: "union",
           value: [
-            { kind: "literal", value: "'b'", base: { kind: "type", value: "string" } },
-            { kind: "type", value: "null" },
+            {
+              kind: "literal",
+              value: "'b'",
+              base: { kind: "type", value: "string", type: "text" },
+            },
+            { kind: "type", value: "null", type: "null" },
           ],
         },
       ],
@@ -1357,7 +1435,7 @@ test("join inside join without an alias", async () => {
         ON cp.caregiver_id = cc.caregiver_id
       ) ON cc.caregiver_id = c.id;
     `,
-    expected: [["caregiver_id", { kind: "type", value: "number" }]],
+    expected: [["caregiver_id", { kind: "type", value: "number", type: "int4" }]],
   });
 });
 
@@ -1380,12 +1458,12 @@ test("join inside join without an alias (duplicate columns)", async () => {
 test("should distinguish between schema", async () => {
   await testQuery({
     query: `SELECT name FROM table1`,
-    expected: [["name", { kind: "type", value: "number" }]],
+    expected: [["name", { kind: "type", value: "number", type: "int4" }]],
   });
 
   await testQuery({
     query: `SELECT name FROM schema1.table1`,
-    expected: [["name", { kind: "type", value: "string" }]],
+    expected: [["name", { kind: "type", value: "string", type: "text" }]],
   });
 
   await testQuery({
@@ -1396,8 +1474,8 @@ test("should distinguish between schema", async () => {
         {
           kind: "union",
           value: [
-            { kind: "type", value: "string" },
-            { kind: "type", value: "null" },
+            { kind: "type", value: "string", type: "text" },
+            { kind: "type", value: "null", type: "null" },
           ],
         },
       ],
@@ -1435,9 +1513,21 @@ test("select case when expr with returned string literals", async () => {
         {
           kind: "union",
           value: [
-            { kind: "literal", value: "'one'", base: { kind: "type", value: "string" } },
-            { kind: "literal", value: "'two'", base: { kind: "type", value: "string" } },
-            { kind: "literal", value: "'other'", base: { kind: "type", value: "string" } },
+            {
+              kind: "literal",
+              value: "'one'",
+              base: { kind: "type", value: "string", type: "text" },
+            },
+            {
+              kind: "literal",
+              value: "'two'",
+              base: { kind: "type", value: "string", type: "text" },
+            },
+            {
+              kind: "literal",
+              value: "'other'",
+              base: { kind: "type", value: "string", type: "text" },
+            },
           ],
         },
       ],
@@ -1461,9 +1551,17 @@ test("select case when expr with returned string literals", async () => {
         {
           kind: "union",
           value: [
-            { kind: "literal", value: "'one'", base: { kind: "type", value: "string" } },
-            { kind: "literal", value: "'two'", base: { kind: "type", value: "string" } },
-            { kind: "type", value: "null" },
+            {
+              kind: "literal",
+              value: "'one'",
+              base: { kind: "type", value: "string", type: "text" },
+            },
+            {
+              kind: "literal",
+              value: "'two'",
+              base: { kind: "type", value: "string", type: "text" },
+            },
+            { kind: "type", value: "null", type: "null" },
           ],
         },
       ],
@@ -1486,9 +1584,17 @@ test("select case when expr with returned string literals", async () => {
         {
           kind: "union",
           value: [
-            { kind: "literal", value: "'one'", base: { kind: "type", value: "string" } },
-            { kind: "literal", value: "'two'", base: { kind: "type", value: "string" } },
-            { kind: "type", value: "null" },
+            {
+              kind: "literal",
+              value: "'one'",
+              base: { kind: "type", value: "string", type: "text" },
+            },
+            {
+              kind: "literal",
+              value: "'two'",
+              base: { kind: "type", value: "string", type: "text" },
+            },
+            { kind: "type", value: "null", type: "null" },
           ],
         },
       ],
@@ -1497,7 +1603,7 @@ test("select case when expr with returned string literals", async () => {
 
   await testQuery({
     query: `SELECT CASE WHEN 1 = 1 THEN true ELSE false END`,
-    expected: [["case", { kind: "type", value: "boolean" }]],
+    expected: [["case", { kind: "type", value: "boolean", type: "bool" }]],
   });
 });
 
@@ -1510,7 +1616,21 @@ test("select case when expr is not null else is not null", async () => {
           ELSE caregiver.id IS NOT NULL
         END
       FROM caregiver`,
-    expected: [["case", { kind: "type", value: "boolean" }]],
+    expected: [["case", { kind: "type", value: "boolean", type: "bool" }]],
+  });
+});
+
+test("select count(1) + count(1)", async () => {
+  await testQuery({
+    query: `SELECT count(1) + count(1)`,
+    expected: [["?column?", { kind: "type", value: "string", type: "int8" }]],
+  });
+});
+
+test("select count(1) + 1", async () => {
+  await testQuery({
+    query: `SELECT count(1) + 1`,
+    expected: [["?column?", { kind: "type", value: "string", type: "int8" }]],
   });
 });
 
@@ -1535,11 +1655,350 @@ test("select case when with jsonb_build_object", async () => {
         {
           kind: "union",
           value: [
-            { kind: "object", value: [["is_test", { kind: "type", value: "boolean" }]] },
-            { kind: "type", value: "null" },
+            {
+              kind: "object",
+              value: [["is_test", { kind: "type", value: "boolean", type: "bool" }]],
+            },
+            { kind: "type", value: "null", type: "null" },
           ],
         },
       ],
     ],
+  });
+});
+
+test("1 + 2 => number", async () => {
+  await testQuery({
+    query: `SELECT 1 + 2`,
+    expected: [["?column?", { kind: "type", value: "number", type: "int4" }]],
+  });
+});
+
+test("1 - 2 => number", async () => {
+  await testQuery({
+    query: `SELECT 1 - 2`,
+    expected: [["?column?", { kind: "type", value: "number", type: "int4" }]],
+  });
+});
+
+test("2 * 3 => number", async () => {
+  await testQuery({
+    query: `SELECT 2 * 3`,
+    expected: [["?column?", { kind: "type", value: "number", type: "int4" }]],
+  });
+});
+
+test("4 / 2 => number", async () => {
+  await testQuery({
+    query: `SELECT 4 / 2`,
+    expected: [["?column?", { kind: "type", value: "number", type: "int4" }]],
+  });
+});
+
+test("5 % 2 => number", async () => {
+  await testQuery({
+    query: `SELECT 5 % 2`,
+    expected: [["?column?", { kind: "type", value: "number", type: "int4" }]],
+  });
+});
+
+test("count(1) + count(1) => string", async () => {
+  await testQuery({
+    query: `SELECT count(1) + count(1)`,
+    expected: [["?column?", { kind: "type", value: "string", type: "int8" }]],
+  });
+});
+
+test("1 = 1 => boolean", async () => {
+  await testQuery({
+    query: `SELECT 1 = 1`,
+    expected: [["?column?", { kind: "type", value: "boolean", type: "bool" }]],
+  });
+});
+
+test("1 != 2 => boolean", async () => {
+  await testQuery({
+    query: `SELECT 1 != 2`,
+    expected: [["?column?", { kind: "type", value: "boolean", type: "bool" }]],
+  });
+});
+
+test("1 <> 2 => boolean", async () => {
+  await testQuery({
+    query: `SELECT 1 <> 2`,
+    expected: [["?column?", { kind: "type", value: "boolean", type: "bool" }]],
+  });
+});
+
+test("1 < 2 => boolean", async () => {
+  await testQuery({
+    query: `SELECT 1 < 2`,
+    expected: [["?column?", { kind: "type", value: "boolean", type: "bool" }]],
+  });
+});
+
+test("1 <= 2 => boolean", async () => {
+  await testQuery({
+    query: `SELECT 1 <= 2`,
+    expected: [["?column?", { kind: "type", value: "boolean", type: "bool" }]],
+  });
+});
+
+test("1 > 2 => boolean", async () => {
+  await testQuery({
+    query: `SELECT 1 > 2`,
+    expected: [["?column?", { kind: "type", value: "boolean", type: "bool" }]],
+  });
+});
+
+test("1 >= 2 => boolean", async () => {
+  await testQuery({
+    query: `SELECT 1 >= 2`,
+    expected: [["?column?", { kind: "type", value: "boolean", type: "bool" }]],
+  });
+});
+
+test("'foo' || 'bar' => string", async () => {
+  await testQuery({
+    query: `SELECT 'foo' || 'bar'`,
+    expected: [["?column?", { kind: "type", value: "string", type: "text" }]],
+  });
+});
+
+test("'foo' LIKE 'f%' => boolean", async () => {
+  await testQuery({
+    query: `SELECT 'foo' LIKE 'f%'`,
+    expected: [["?column?", { kind: "type", value: "boolean", type: "bool" }]],
+  });
+});
+
+test("'foo' NOT LIKE 'f%' => boolean", async () => {
+  await testQuery({
+    query: `SELECT 'foo' NOT LIKE 'f%'`,
+    expected: [["?column?", { kind: "type", value: "boolean", type: "bool" }]],
+  });
+});
+
+test("'foo' ILIKE 'F%' => boolean", async () => {
+  await testQuery({
+    query: `SELECT 'foo' ILIKE 'F%'`,
+    expected: [["?column?", { kind: "type", value: "boolean", type: "bool" }]],
+  });
+});
+
+test("'foo' NOT ILIKE 'F%' => boolean", async () => {
+  await testQuery({
+    query: `SELECT 'foo' NOT ILIKE 'F%'`,
+    expected: [["?column?", { kind: "type", value: "boolean", type: "bool" }]],
+  });
+});
+
+test("'foo' SIMILAR TO 'f.*' => boolean", async () => {
+  await testQuery({
+    query: `SELECT 'foo' SIMILAR TO 'f.*'`,
+    expected: [["?column?", { kind: "type", value: "boolean", type: "bool" }]],
+  });
+});
+
+test("'foo' NOT SIMILAR TO 'f.*' => boolean", async () => {
+  await testQuery({
+    query: `SELECT 'foo' NOT SIMILAR TO 'f.*'`,
+    expected: [["?column?", { kind: "type", value: "boolean", type: "bool" }]],
+  });
+});
+
+test("'foo' IS DISTINCT FROM 'bar' => boolean", async () => {
+  await testQuery({
+    query: `SELECT 'foo' IS DISTINCT FROM 'bar'`,
+    expected: [["?column?", { kind: "type", value: "boolean", type: "bool" }]],
+  });
+});
+
+test("'foo' IS NOT DISTINCT FROM 'bar' => boolean", async () => {
+  await testQuery({
+    query: `SELECT 'foo' IS NOT DISTINCT FROM 'bar'`,
+    expected: [["?column?", { kind: "type", value: "boolean", type: "bool" }]],
+  });
+});
+
+test("true AND false => boolean", async () => {
+  await testQuery({
+    query: `SELECT true AND false`,
+    expected: [["?column?", { kind: "type", value: "boolean", type: "bool" }]],
+  });
+});
+
+test("true OR false => boolean", async () => {
+  await testQuery({
+    query: `SELECT true OR false`,
+    expected: [["?column?", { kind: "type", value: "boolean", type: "bool" }]],
+  });
+});
+
+test("5 & 3 => number", async () => {
+  await testQuery({
+    query: `SELECT 5 & 3`,
+    expected: [["?column?", { kind: "type", value: "number", type: "int4" }]],
+  });
+});
+
+test("5 | 3 => number", async () => {
+  await testQuery({
+    query: `SELECT 5 | 3`,
+    expected: [["?column?", { kind: "type", value: "number", type: "int4" }]],
+  });
+});
+
+test("5 # 3 => number (bitwise XOR)", async () => {
+  await testQuery({
+    query: `SELECT 5 # 3`,
+    expected: [["?column?", { kind: "type", value: "number", type: "int4" }]],
+  });
+});
+
+test("1 << 2 => number (bitwise shift left)", async () => {
+  await testQuery({
+    query: `SELECT 1 << 2`,
+    expected: [["?column?", { kind: "type", value: "number", type: "int4" }]],
+  });
+});
+
+test("4 >> 1 => number (bitwise shift right)", async () => {
+  await testQuery({
+    query: `SELECT 4 >> 1`,
+    expected: [["?column?", { kind: "type", value: "number", type: "int4" }]],
+  });
+});
+
+test("~int => number", async () => {
+  await testQuery({
+    query: `SELECT ~5`,
+    expected: [["?column?", { kind: "type", value: "number", type: "int4" }]],
+  });
+});
+
+test("1 + 2 => number", async () => {
+  await testQuery({
+    query: `SELECT 1 + 2`,
+    expected: [["?column?", { kind: "type", value: "number", type: "int4" }]],
+  });
+});
+
+test("1 - 2 => number", async () => {
+  await testQuery({
+    query: `SELECT 1 - 2`,
+    expected: [["?column?", { kind: "type", value: "number", type: "int4" }]],
+  });
+});
+
+test("2 * 3 => number", async () => {
+  await testQuery({
+    query: `SELECT 2 * 3`,
+    expected: [["?column?", { kind: "type", value: "number", type: "int4" }]],
+  });
+});
+
+test("4 / 2 => number", async () => {
+  await testQuery({
+    query: `SELECT 4 / 2`,
+    expected: [["?column?", { kind: "type", value: "number", type: "int4" }]],
+  });
+});
+
+test("5 % 2 => number", async () => {
+  await testQuery({
+    query: `SELECT 5 % 2`,
+    expected: [["?column?", { kind: "type", value: "number", type: "int4" }]],
+  });
+});
+
+test("ARRAY[1, 2, 3] && ARRAY[3, 4, 5] => boolean", async () => {
+  await testQuery({
+    query: `SELECT ARRAY[1, 2, 3] && ARRAY[3, 4, 5]`,
+    expected: [["?column?", { kind: "type", value: "boolean", type: "bool" }]],
+  });
+});
+
+test("ARRAY[1, 2, 3] @> ARRAY[2, 3] => boolean", async () => {
+  await testQuery({
+    query: `SELECT ARRAY[1, 2, 3] @> ARRAY[2, 3]`,
+    expected: [["?column?", { kind: "type", value: "boolean", type: "bool" }]],
+  });
+});
+
+test("ARRAY[2, 3] <@ ARRAY[1, 2, 3] => boolean", async () => {
+  await testQuery({
+    query: `SELECT ARRAY[2, 3] <@ ARRAY[1, 2, 3]`,
+    expected: [["?column?", { kind: "type", value: "boolean", type: "bool" }]],
+  });
+});
+
+test("ARRAY[1, 2] || ARRAY[3, 4] => array", async () => {
+  await testQuery({
+    query: `SELECT ARRAY[1, 2] || ARRAY[3, 4]`,
+    expected: [["?column?", { kind: "type", value: "array", type: "array" }]],
+  });
+});
+
+test("'{\"key\": \"value\"}'::jsonb ? 'key' => boolean", async () => {
+  await testQuery({
+    query: `SELECT '{"key": "value"}'::jsonb ? 'key'`,
+    expected: [["?column?", { kind: "type", value: "boolean", type: "bool" }]],
+  });
+});
+
+test("'{\"a\": 1, \"b\": 2}'::jsonb ?| array['a', 'c'] => boolean", async () => {
+  await testQuery({
+    query: `SELECT '{"a": 1, "b": 2}'::jsonb ?| array['a', 'c']`,
+    expected: [["?column?", { kind: "type", value: "boolean", type: "bool" }]],
+  });
+});
+
+test("'{\"a\": 1, \"b\": 2}'::jsonb ?& array['a', 'b'] => boolean", async () => {
+  await testQuery({
+    query: `SELECT '{"a": 1, "b": 2}'::jsonb ?& array['a', 'b']`,
+    expected: [["?column?", { kind: "type", value: "boolean", type: "bool" }]],
+  });
+});
+
+test("'{\"a\": {\"b\": 1}}'::jsonb -> 'a' => jsonb", async () => {
+  await testQuery({
+    query: `SELECT '{"a": {"b": 1}}'::jsonb -> 'a'`,
+    expected: [["?column?", { kind: "type", type: "jsonb", value: "any" }]],
+  });
+});
+
+test("'{\"a\": {\"b\": 1}}'::jsonb ->> 'a' => string", async () => {
+  await testQuery({
+    query: `SELECT '{"a": {"b": 1}}'::jsonb ->> 'a'`,
+    expected: [["?column?", { kind: "type", value: "string", type: "text" }]],
+  });
+});
+
+test("'{\"a\": 1, \"b\": 2}'::jsonb #- '{a}' => jsonb", async () => {
+  await testQuery({
+    query: `SELECT '{"a": 1, "b": 2}'::jsonb #- '{a}'`,
+    expected: [["?column?", { kind: "type", value: "any", type: "jsonb" }]],
+  });
+});
+
+test("|/ 16 => number", async () => {
+  await testQuery({
+    query: `SELECT |/ 16`,
+    expected: [["?column?", { kind: "type", value: "number", type: "int4" }]],
+  });
+});
+
+test("||/ 27 => number", async () => {
+  await testQuery({
+    query: `SELECT ||/ 27`,
+    expected: [["?column?", { kind: "type", value: "number", type: "int4" }]],
+  });
+});
+
+test("2 ^ 3 => number", async () => {
+  await testQuery({
+    query: `SELECT 2 ^ 3`,
+    expected: [["?column?", { kind: "type", value: "number", type: "float8" }]],
   });
 });

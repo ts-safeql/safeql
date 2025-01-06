@@ -1290,7 +1290,7 @@ RuleTester.describe("check-sql", () => {
           await sql<Caregiver[]>\`
             SELECT
               CASE WHEN caregiver.id IS NOT NULL
-                THEN jsonb_build_object('is_test', caregiver.middle_name NOT LIKE '%test%')
+                THEN jsonb_build_object('is_test', caregiver.first_name LIKE '%test%')
                 ELSE NULL
               END AS meta
             FROM
