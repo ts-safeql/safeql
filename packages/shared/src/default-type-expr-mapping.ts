@@ -100,7 +100,6 @@ export const defaultTypeExprMapping: Record<string, string> = (() => {
     "range -|- range": "bool", // adjacency
   };
 
-  // 9) JSONB / array containment, JSON key operators
   const jsonMap: Record<string, string> = {
     // Contains
     "jsonb @> jsonb": "bool",
