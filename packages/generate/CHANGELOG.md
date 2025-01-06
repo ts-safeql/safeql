@@ -1,5 +1,14 @@
 # @ts-safeql/generate
 
+## 3.6.2
+
+### Patch Changes
+
+- 226d29e: fixed an issue where the inferred typed was incorrect when dealing with arithmetic operations
+  - @ts-safeql/shared@3.6.2
+  - @ts-safeql/sql-ast@3.6.2
+  - @ts-safeql/test-utils@0.0.37
+
 ## 3.6.1
 
 ### Patch Changes
