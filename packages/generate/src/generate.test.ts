@@ -324,7 +324,7 @@ test("select true", async () => {
     query: `SELECT true`,
     expected: [
       [
-        "bool",
+        "?column?",
         { kind: "literal", value: "true", base: { kind: "type", value: "boolean", type: "bool" } },
       ],
     ],

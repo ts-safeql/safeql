@@ -42,7 +42,7 @@ export type ASTDescribedColumnType =
   | { kind: "type"; value: string; type: string }
   | { kind: "literal"; value: string; base: ASTDescribedColumnType };
 
-export function getASTDescription(params: ASTDescriptionOptions): Map<string, ASTDescribedColumn> {
+export function getASTDescription(params: ASTDescriptionOptions): Map<number, ASTDescribedColumn> {
   const select = params.parsed.stmts[0]?.stmt?.SelectStmt;
 
   if (select === undefined) {
@@ -156,7 +156,7 @@ export function getASTDescription(params: ASTDescriptionOptions): Map<string, AS
   }
 
   const columnsLength = resolvedColumnsList.reduce((acc, x) => Math.max(acc, x.length), 0);
-  const final: Map<string, ASTDescribedColumn> = new Map();
+  const final: Map<number, ASTDescribedColumn> = new Map();
 
   for (let i = 0; i < columnsLength; i++) {
     const result = mergeColumns(
@@ -164,7 +164,7 @@ export function getASTDescription(params: ASTDescriptionOptions): Map<string, AS
         (x) => x[i] ?? { name: "?column?", type: context.toTypeScriptType({ name: "null" }) },
       ),
     );
-    final.set(result.name, result);
+    final.set(i, result);
   }
 
   return final;
@@ -911,7 +911,7 @@ function getDescribedAConst({
 
   return [
     {
-      name: alias ?? (node.boolval !== undefined ? "bool" : "?column?"),
+      name: alias ?? "?column?",
       type: resolveType({ context, nullable: node.isnull === true, type }),
     },
   ];
