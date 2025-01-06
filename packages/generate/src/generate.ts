@@ -27,7 +27,7 @@ type JSToPostgresTypeMap = Record<string, unknown>;
 type Sql = postgres.Sql<JSToPostgresTypeMap>;
 
 export type ResolvedTarget =
-  | { kind: "type"; value: string }
+  | { kind: "type"; value: string; type: string }
   | { kind: "literal"; value: string; base: ResolvedTarget }
   | { kind: "union"; value: ResolvedTarget[] }
   | { kind: "array"; value: ResolvedTarget; syntax?: "array-type" | "type-reference" }
@@ -65,7 +65,7 @@ export interface GenerateParams {
 
 type TypesMap = Map<string, { override: boolean; value: string }>;
 
-type FunctionsMap = Map<string, string>;
+type FunctionsMap = Map<string, { ts: string; pg: string }>;
 
 type Cache = {
   base: Map<
@@ -141,7 +141,7 @@ async function generate(
     map: cache.overrides.types,
     key: JSON.stringify(params.overrides?.types),
     value: () => {
-      const map: TypesMap = new Map();
+      const map: TypesMap = new Map([["array", { override: false, value: "array" }]]);
 
       for (const [key, value] of defaultTypesMap.entries()) {
         map.set(key, { override: false, value });
@@ -200,7 +200,7 @@ async function generate(
 
           const key = tsArgs.length === 0 ? functionName : `${functionName}(${tsArgs.join(", ")})`;
 
-          map.set(key, tsReturnType);
+          map.set(key, { ts: tsReturnType, pg: signature.returnType });
         }
       }
 
@@ -382,7 +382,7 @@ function buildInterfacePropertyValue(params: {
   return [
     params.key,
     isNullable
-      ? { kind: "union", value: [params.value, { kind: "type", value: "null" }] }
+      ? { kind: "union", value: [params.value, { kind: "type", value: "null", type: "null" }] }
       : params.value,
   ];
 }
@@ -455,7 +455,7 @@ function getResolvedTargetEntry(params: {
     params.context.pgEnums.get(pgTypeOid),
     ({ values }): ResolvedTarget => ({
       kind: "union",
-      value: values.map((x): ResolvedTarget => ({ kind: "type", value: `'${x}'` })),
+      value: values.map((x): ResolvedTarget => ({ kind: "type", value: `'${x}'`, type: "text" })),
     }),
   );
 
@@ -475,7 +475,10 @@ function getResolvedTargetEntry(params: {
 
     const override = params.context.overrides.types.get(pgType.name);
 
-    return fmap(override, ({ value }): ResolvedTarget => ({ kind: "type", value }));
+    return fmap(
+      override,
+      ({ value }): ResolvedTarget => ({ kind: "type", value, type: pgType.name }),
+    );
   })();
 
   const value = valueAsOverride ?? valueAsEnum ?? valueAsType;
@@ -510,7 +513,7 @@ function getTsTypeFromPgTypeOid(params: {
   const pgType = params.pgTypes.get(params.pgTypeOid);
 
   if (pgType === undefined) {
-    return { kind: "type", value: "unknown" };
+    return { kind: "type", value: "unknown", type: "unknown" };
   }
 
   return getTsTypeFromPgType({ pgTypeName: pgType.name });
@@ -519,7 +522,7 @@ function getTsTypeFromPgTypeOid(params: {
 function getTsTypeFromPgType(params: { pgTypeName: ColType | `_${ColType}` }): ResolvedTarget {
   const { isArray, pgType } = parsePgType(params.pgTypeName);
   const tsType = defaultTypesMap.get(pgType) ?? "any";
-  const property: ResolvedTarget = { kind: "type", value: tsType };
+  const property: ResolvedTarget = { kind: "type", value: tsType, type: pgType };
 
   return isArray ? { kind: "array", value: property } : property;
 }

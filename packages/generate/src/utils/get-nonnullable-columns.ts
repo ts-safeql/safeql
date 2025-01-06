@@ -64,6 +64,7 @@ const nonNullFunctions: Set<string> = new Set([
   "pg_relation_size",
   "pg_total_relation_size",
   "timeofday",
+  "similar_to_escape",
 ]);
 
 function concatStringNodes(nodes: LibPgQueryAST.Node[] | undefined): string {
@@ -127,6 +128,10 @@ function isColumnNonNullable(
       default:
         assertNever(val.SubLink.subLinkType);
     }
+  }
+
+  if (val.A_Expr?.kind === LibPgQueryAST.AExprKind.AEXPR_SIMILAR) {
+    return true;
   }
 
   if (val.A_Expr?.kind === LibPgQueryAST.AExprKind.AEXPR_LIKE) {
