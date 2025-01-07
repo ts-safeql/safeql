@@ -1,6 +1,6 @@
 {
   "name": "@ts-safeql/test-utils",
-  "version": "0.0.37",
+  "version": "0.0.38",
   "license": "MIT",
   "repository": "https://github.com/ts-safeql/safeql/tree/master/packages/eslint-plugin",
   "files": [
