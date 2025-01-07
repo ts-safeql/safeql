@@ -1,5 +1,14 @@
 # @ts-safeql/generate
 
+## 3.6.3
+
+### Patch Changes
+
+- af2f38e: fixed an issue when dealing with column reference alias inside a subselect
+  - @ts-safeql/shared@3.6.3
+  - @ts-safeql/sql-ast@3.6.3
+  - @ts-safeql/test-utils@0.0.38
+
 ## 3.6.2
 
 ### Patch Changes
