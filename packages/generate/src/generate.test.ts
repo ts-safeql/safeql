@@ -694,7 +694,9 @@ test("select enum", async () => {
 test("select domain type", async () => {
   await testQuery({
     query: `SELECT phone_number from caregiver_phonenumber`,
-    expected: [["phone_number", { kind: "type", value: "string", type: "phone_number" }]],
+    expected: [
+      ["phone_number", { kind: "type", value: "string", type: "phone_number", base: "text" }],
+    ],
   });
 });
 
@@ -1667,6 +1669,35 @@ test("select case when with jsonb_build_object", async () => {
   });
 });
 
+test("select case when with jsonb_build_object and left join", async () => {
+  await testQuery({
+    query: `
+      SELECT
+        CASE WHEN caregiver.id IS NOT NULL
+        THEN jsonb_build_object('is_test', phonenumber.phone_number NOT LIKE '%212718%')
+        ELSE NULL
+      END AS col
+      FROM caregiver
+        JOIN caregiver_phonenumber phonenumber ON caregiver.id = phonenumber.caregiver_id
+    `,
+    expected: [
+      [
+        "col",
+        {
+          kind: "union",
+          value: [
+            {
+              kind: "object",
+              value: [["is_test", { kind: "type", type: "bool", value: "boolean" }]],
+            },
+            { kind: "type", type: "null", value: "null" },
+          ],
+        },
+      ],
+    ],
+  });
+});
+
 test("1 + 2 => number", async () => {
   await testQuery({
     query: `SELECT 1 + 2`,
@@ -2000,5 +2031,38 @@ test("2 ^ 3 => number", async () => {
   await testQuery({
     query: `SELECT 2 ^ 3`,
     expected: [["?column?", { kind: "type", value: "number", type: "float8" }]],
+  });
+});
+
+test("select alias from subselect", async () => {
+  await testQuery({
+    query: `
+      SELECT x.*
+      FROM (
+        SELECT caregiver.id IS NOT NULL AS test
+        FROM caregiver
+      ) x
+    `,
+    expected: [["test", { kind: "type", type: "int4", value: "number" }]],
+  });
+});
+
+test("select cols from function range", async () => {
+  await testQuery({
+    query: `
+      SELECT
+        a.id,
+        t.metadata IS NOT NULL AS "exists"
+      FROM
+        UNNEST(ARRAY[1, 2]) AS a(id)
+        LEFT JOIN (
+          VALUES (1, 'foo'), (2, null)
+        ) AS t(id, metadata) ON t.id = a.id;
+    `,
+    expected: [
+      ["id", { kind: "type", type: "bool", value: "boolean" }],
+      ["exists", { kind: "type", type: "bool", value: "boolean" }],
+    ],
+    unknownColumns: ["exists"], // TODO: `ast-get-source` needs to be refactored to handle this case
   });
 });

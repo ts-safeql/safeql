@@ -39,7 +39,7 @@ export type ASTDescribedColumnType =
   | { kind: "union"; value: ASTDescribedColumnType[] }
   | { kind: "array"; value: ASTDescribedColumnType }
   | { kind: "object"; value: [string, ASTDescribedColumnType][] }
-  | { kind: "type"; value: string; type: string }
+  | { kind: "type"; value: string; type: string; base?: string }
   | { kind: "literal"; value: string; base: ASTDescribedColumnType };
 
 export function getASTDescription(params: ASTDescriptionOptions): Map<number, ASTDescribedColumn> {
@@ -132,6 +132,10 @@ export function getASTDescription(params: ASTDescriptionOptions): Map<number, AS
         value: value,
         type: params.pgTypes.get(p.oid)?.name ?? "unknown",
       };
+
+      if (p.baseOid !== null) {
+        type.base = params.pgTypes.get(p.baseOid)?.name;
+      }
 
       return isArray ? { kind: "array", value: type } : type;
     },
@@ -264,7 +268,7 @@ function getDescribedAExpr({
     }
 
     if (column.type.kind === "type") {
-      return { value: column.type.type, nullable: false };
+      return { value: column.type.base ?? column.type.type, nullable: false };
     }
 
     if (column.type.kind === "literal" && column.type.base.kind === "type") {
