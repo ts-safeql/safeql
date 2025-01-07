@@ -27,7 +27,7 @@ type JSToPostgresTypeMap = Record<string, unknown>;
 type Sql = postgres.Sql<JSToPostgresTypeMap>;
 
 export type ResolvedTarget =
-  | { kind: "type"; value: string; type: string }
+  | { kind: "type"; value: string; type: string; base?: string }
   | { kind: "literal"; value: string; base: ResolvedTarget }
   | { kind: "union"; value: ResolvedTarget[] }
   | { kind: "array"; value: ResolvedTarget; syntax?: "array-type" | "type-reference" }
@@ -444,7 +444,7 @@ function getResolvedTargetEntry(params: {
 }): ResolvedTargetEntry {
   if (params.col.astDescribed !== undefined) {
     return [
-      toCase(params.col.astDescribed.name, params.context.fieldTransform),
+      toCase(params.col.described.name, params.context.fieldTransform),
       params.col.astDescribed.type,
     ];
   }
