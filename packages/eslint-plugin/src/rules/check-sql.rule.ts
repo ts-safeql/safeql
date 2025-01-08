@@ -214,7 +214,10 @@ function reportCheck(params: {
             { _tag: "DatabaseInitializationError" },
             { _tag: "InternalError" },
             (error) => {
-              fatalError = error;
+              if (params.connection.keepAlive === true) {
+                fatalError = error;
+              }
+
               return reportBaseError({ context, error, tag });
             },
           )
