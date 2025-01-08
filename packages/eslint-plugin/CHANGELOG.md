@@ -1,5 +1,11 @@
 # @ts-safeql/eslint-plugin
 
+## 3.6.5
+
+### Patch Changes
+
+- b5f7c18: Fail SafeQL gracefully on fatal error
+
 ## 3.6.4
 
 ### Patch Changes
