@@ -232,19 +232,33 @@ function getPgTypeFromTsType(params: {
     const whenTrueType = getPgTypeFromFlags(checker.getTypeAtLocation(node.whenTrue).flags);
     const whenFalseType = getPgTypeFromFlags(checker.getTypeAtLocation(node.whenFalse).flags);
 
-    if (!whenTrueType || !whenFalseType) {
+    if (whenTrueType === undefined || whenFalseType === undefined) {
       return E.left(
         `Unsupported conditional expression flags (true = ${whenTrueType}, false = ${whenFalseType})`,
       );
     }
 
-    if (whenTrueType !== whenFalseType) {
+    if (whenTrueType === null && whenFalseType === null) {
+      return E.right(null);
+    }
+
+    const bothNonNullable = whenTrueType !== null && whenFalseType !== null;
+
+    if (bothNonNullable && whenTrueType !== whenFalseType) {
       return E.left(
         `Conditional expression must have the same type (true = ${whenTrueType}, false = ${whenFalseType})`,
       );
     }
 
-    return E.right({ kind: "cast", cast: whenTrueType });
+    if (whenTrueType !== null) {
+      return E.right({ kind: "cast", cast: whenTrueType });
+    }
+
+    if (whenFalseType !== null) {
+      return E.right({ kind: "cast", cast: whenFalseType });
+    }
+
+    return E.right(null);
   }
 
   // Check for identifier
@@ -310,7 +324,11 @@ function getPgTypeFromTsType(params: {
   return checkType({ checker, type, options });
 }
 
-function getPgTypeFromFlags(flags: ts.TypeFlags) {
+function getPgTypeFromFlags(flags: ts.TypeFlags): string | null | undefined {
+  if (flags === ts.TypeFlags.Null) {
+    return null;
+  }
+
   return tsFlagToPgTypeMap[flags];
 }
 
@@ -337,7 +355,10 @@ function checkType(params: {
       elementType?.isUnion() &&
       elementType.types.every((t) => t.flags === elementType.types[0].flags)
     ) {
-      return E.right({ kind: "cast", cast: `${getPgTypeFromFlags(elementType.types[0].flags)}[]` });
+      return E.right({
+        kind: "cast",
+        cast: `${getPgTypeFromFlags(elementType.types[0].flags)}[]`,
+      });
     }
   }
 
