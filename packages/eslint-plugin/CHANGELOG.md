@@ -1,5 +1,11 @@
 # @ts-safeql/eslint-plugin
 
+## 3.6.4
+
+### Patch Changes
+
+- 2017404: allow to pass conditional expression which involves null such as `condition ? col : null`
+
 ## 3.6.3
 
 ## 3.6.2
