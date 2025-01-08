@@ -364,6 +364,18 @@ RuleTester.describe("check-sql", () => {
         `,
       },
       {
+        name: "select statement with conditional expression of ? x : null",
+        filename,
+        options: withConnection(connections.base),
+        code: `
+          function run(flag: boolean) {
+            const result = conn.query<{ col: string | null }>(sql\`
+              select \${flag ? 'value' : null } as col
+            \`);
+          }
+        `,
+      },
+      {
         name: "select statement with type reference",
         filename,
         options: withConnection(connections.base),
