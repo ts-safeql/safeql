@@ -101,6 +101,7 @@ export function reportBaseError(params: {
   context: RuleContext;
   tag: TSESTree.TaggedTemplateExpression;
   error: WorkerError;
+  hint?: string;
 }) {
   const { context, tag, error } = params;
 
@@ -108,7 +109,9 @@ export function reportBaseError(params: {
     node: tag,
     messageId: "error",
     data: {
-      error: error.message,
+      error: [error.message, fmap(params.hint, (hint) => `Hint: ${hint}`)]
+        .filter(Boolean)
+        .join("\n"),
     },
   });
 }

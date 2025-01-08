@@ -21,6 +21,7 @@ import { zodToJsonSchema } from "zod-to-json-schema";
 import { ESTreeUtils } from "../utils";
 import { E, J, flow, pipe } from "../utils/fp-ts";
 import { getResolvedTargetByTypeNode } from "../utils/get-resolved-target-by-type-node";
+import { isInEditorEnv } from "../utils/is-in-editor";
 import { memoize } from "../utils/memoize";
 import { locateNearestPackageJsonDir } from "../utils/node.utils";
 import { mapTemplateLiteralToQueryText } from "../utils/ts-pg.utils";
@@ -143,6 +144,8 @@ const generateSyncE = flow(
   E.mapLeft((error) => error as unknown as WorkerError),
 );
 
+let fatalError: WorkerError | undefined;
+
 function reportCheck(params: {
   context: RuleContext;
   tag: TSESTree.TaggedTemplateExpression;
@@ -153,6 +156,14 @@ function reportCheck(params: {
   baseNode: TSESTree.BaseNode;
 }) {
   const { context, tag, connection, target, projectDir, typeParameter, baseNode } = params;
+
+  if (fatalError !== undefined) {
+    const hint = isInEditorEnv()
+      ? "If you think this is a bug, please open an issue. If not, please try to fix the error and restart ESLint."
+      : "If you think this is a bug, please open an issue.";
+
+    return reportBaseError({ context, error: fatalError, tag, hint });
+  }
 
   const nullAsOptional = connection.nullAsOptional ?? false;
   const nullAsUndefined = connection.nullAsUndefined ?? false;
@@ -203,6 +214,10 @@ function reportCheck(params: {
             { _tag: "DatabaseInitializationError" },
             { _tag: "InternalError" },
             (error) => {
+              if (params.connection.keepAlive === true) {
+                fatalError = error;
+              }
+
               return reportBaseError({ context, error, tag });
             },
           )
