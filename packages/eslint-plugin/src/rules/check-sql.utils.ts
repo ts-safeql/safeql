@@ -109,7 +109,9 @@ export function reportBaseError(params: {
     node: tag,
     messageId: "error",
     data: {
-      error: [error.message, fmap(params.hint, (hint) => `Hint: ${hint}`)].join("\n"),
+      error: [error.message, fmap(params.hint, (hint) => `Hint: ${hint}`)]
+        .filter(Boolean)
+        .join("\n"),
     },
   });
 }
