@@ -1,5 +1,14 @@
 # @ts-safeql/generate
 
+## 3.6.6
+
+### Patch Changes
+
+- 42326c2: fixed an issue when the wrong type was returned in some cases when using CTEs
+  - @ts-safeql/shared@3.6.6
+  - @ts-safeql/sql-ast@3.6.6
+  - @ts-safeql/test-utils@0.0.41
+
 ## 3.6.5
 
 ### Patch Changes
