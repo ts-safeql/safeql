@@ -2066,3 +2066,65 @@ test("select cols from function range", async () => {
     unknownColumns: ["exists"], // TODO: `ast-get-source` needs to be refactored to handle this case
   });
 });
+
+test("select from cte with coalesce", async () => {
+  await testQuery({
+    query: `
+      WITH t AS (select * from caregiver)
+      SELECT coalesce(t.id) FROM t
+    `,
+    expected: [["coalesce", { kind: "type", type: "int4", value: "number" }]],
+  });
+});
+
+test("multiple with statements that depend on each other", async () => {
+  await testQuery({
+    query: `
+      WITH
+        a AS (SELECT id from caregiver),
+        b AS (SELECT a.* FROM a)
+      SELECT * FROM b
+    `,
+    expected: [["id", { kind: "type", type: "int4", value: "number" }]],
+    unknownColumns: ["id"],
+  });
+});
+
+test("multiple subselects that depend on each other", async () => {
+  await testQuery({
+    query: `
+      SELECT * FROM (
+        SELECT * FROM (
+          SELECT id FROM caregiver
+        ) a
+      ) b
+    `,
+    expected: [["id", { kind: "type", type: "int4", value: "number" }]],
+  });
+});
+
+test("with select from inner join and left join", async () => {
+  await testQuery({
+    query: `
+      WITH x AS (SELECT * FROM caregiver)
+      SELECT x.id, agency.name, coalesce(agency.name, 'Unknown')
+      FROM X
+        INNER JOIN caregiver_agency ON x.id = caregiver_agency.caregiver_id
+        LEFT JOIN agency ON caregiver_agency.agency_id = agency.id
+    `,
+    expected: [
+      ["id", { kind: "type", type: "int4", value: "number" }],
+      [
+        "name",
+        {
+          kind: "union",
+          value: [
+            { kind: "type", type: "text", value: "string" },
+            { kind: "type", type: "null", value: "null" },
+          ],
+        },
+      ],
+      ["coalesce", { kind: "type", type: "text", value: "string" }],
+    ],
+  });
+});

@@ -439,7 +439,7 @@ function getDescribedCoalesceExpr({
     .at(0);
 
   if (type === undefined) {
-    return [unknownCoalesce];
+    return [];
   }
 
   return [
@@ -794,7 +794,7 @@ function getDescribedColumnRef({
     return getDescribedColumnByResolvedColumns({
       alias: alias,
       context: context,
-      resolved: context.resolver.getAllResolvedColumns(),
+      resolved: context.resolver.getAllResolvedColumns().map((x) => x.column),
     });
   }
 
@@ -822,15 +822,16 @@ function getDescribedColumnRef({
   }
 
   if (isColumnTableColumnRef(node.fields)) {
+    const resolved = context.resolver.getColumnsByTargetField({
+      kind: "column",
+      table: node.fields[0].String.sval,
+      column: node.fields[1].String.sval,
+    });
+
     return getDescribedColumnByResolvedColumns({
       alias: alias,
       context: context,
-      resolved:
-        context.resolver.getColumnsByTargetField({
-          kind: "column",
-          table: node.fields[0].String.sval,
-          column: node.fields[1].String.sval,
-        }) ?? [],
+      resolved: resolved ?? [],
     });
   }
 
