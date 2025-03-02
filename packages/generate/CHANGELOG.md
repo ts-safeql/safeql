@@ -1,5 +1,13 @@
 # @ts-safeql/generate
 
+## 3.6.7
+
+### Patch Changes
+
+- @ts-safeql/shared@3.6.7
+- @ts-safeql/sql-ast@3.6.7
+- @ts-safeql/test-utils@0.0.42
+
 ## 3.6.6
 
 ### Patch Changes
