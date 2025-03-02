@@ -1,5 +1,12 @@
 # @ts-safeql/eslint-plugin
 
+## 3.6.7
+
+### Patch Changes
+
+- 095297e: fixed an issue when dealing with non-column-references inside ctes
+- 095297e: fixed an issue when comparing against an enum value
+
 ## 3.6.6
 
 ## 3.6.5
