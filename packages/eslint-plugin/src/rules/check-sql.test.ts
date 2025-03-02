@@ -292,7 +292,7 @@ RuleTester.describe("check-sql", () => {
         code: `
           enum Certification { HHA = "HHA", RN = "RN" }
           function foo() {
-            sql\`select from caregiver where certification = \${cert.HHA}\`
+            sql\`select from caregiver where certification = \${Certification.HHA}\`
           }
         `,
       },

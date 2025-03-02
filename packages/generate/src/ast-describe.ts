@@ -163,7 +163,6 @@ export function getASTDescription(
         }
 
         return described;
-
       })
       .flat();
   }

@@ -38,12 +38,6 @@ export const TSUtils = {
   isTsObjectType(type: ts.Type): type is ts.ObjectType {
     return type.flags === ts.TypeFlags.Object;
   },
-  isLiteralType(type: ts.Type): type is ts.LiteralType {
-    return (
-      (type.flags & ts.TypeFlags.StringLiteral) !== 0 ||
-      (type.flags & ts.TypeFlags.NumberLiteral) !== 0
-    );
-  },
   getEnumKind(type: ts.Type): EnumKind | undefined {
     const symbol = type.getSymbol();
     if (!symbol || !(symbol.flags & ts.SymbolFlags.Enum)) {

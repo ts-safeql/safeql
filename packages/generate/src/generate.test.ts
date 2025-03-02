@@ -2174,6 +2174,6 @@ test("select colref and const from left joined using col", async () => {
         },
       ],
     ],
-    unknownColumns: ["value"] // TODO: `ast-get-source` needs to be refactored to handle this case
+    unknownColumns: ["value"], // TODO: `ast-get-source` needs to be refactored to handle this case
   });
 });

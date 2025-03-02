@@ -362,8 +362,12 @@ function checkType(params: {
     }
   }
 
-  if (TSUtils.isLiteralType(type)) {
-    return E.right({ kind: "literal", value: `'${(type as ts.LiteralType).value}'`, cast: "text" });
+  if (type.isStringLiteral()) {
+    return E.right({ kind: "literal", value: `'${type.value}'`, cast: "text" });
+  }
+
+  if (type.isNumberLiteral()) {
+    return E.right({ kind: "literal", value: `${type.value}`, cast: "int" });
   }
 
   const enumType = TSUtils.getEnumKind(type);
