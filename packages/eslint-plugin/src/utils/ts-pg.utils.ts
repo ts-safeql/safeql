@@ -194,7 +194,7 @@ const tsFlagToPgTypeMap: Record<number, string> = {
 
 function getPgTypeFromTsTypeUnion(params: { types: ts.Type[] }): E.Either<string, PgTypeStrategy> {
   const types = params.types.filter((t) => t.flags !== ts.TypeFlags.Null);
-  const isStringLiterals = types.every((t) => t.flags === ts.TypeFlags.StringLiteral);
+  const isStringLiterals = types.every((t) => t.flags & ts.TypeFlags.StringLiteral);
 
   if (isStringLiterals) {
     return E.right({
@@ -360,6 +360,14 @@ function checkType(params: {
         cast: `${getPgTypeFromFlags(elementType.types[0].flags)}[]`,
       });
     }
+  }
+
+  if (type.isStringLiteral()) {
+    return E.right({ kind: "literal", value: `'${type.value}'`, cast: "text" });
+  }
+
+  if (type.isNumberLiteral()) {
+    return E.right({ kind: "literal", value: `${type.value}`, cast: "int" });
   }
 
   const enumType = TSUtils.getEnumKind(type);

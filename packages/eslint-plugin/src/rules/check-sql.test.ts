@@ -286,6 +286,17 @@ RuleTester.describe("check-sql", () => {
         `,
       },
       {
+        name: "compare typescript enum property with postgres enum",
+        filename,
+        options: withConnection(connections.withTag),
+        code: `
+          enum Certification { HHA = "HHA", RN = "RN" }
+          function foo() {
+            sql\`select from caregiver where certification = \${Certification.HHA}\`
+          }
+        `,
+      },
+      {
         name: "select from table with inner joins",
         filename,
         options: withConnection(connections.base),

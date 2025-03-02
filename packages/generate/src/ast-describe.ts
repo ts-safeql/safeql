@@ -42,7 +42,9 @@ export type ASTDescribedColumnType =
   | { kind: "type"; value: string; type: string; base?: string }
   | { kind: "literal"; value: string; base: ASTDescribedColumnType };
 
-export function getASTDescription(params: ASTDescriptionOptions): Map<number, ASTDescribedColumn> {
+export function getASTDescription(
+  params: ASTDescriptionOptions,
+): Map<number, ASTDescribedColumn | undefined> {
   const select = params.parsed.stmts[0]?.stmt?.SelectStmt;
 
   if (select === undefined) {
@@ -145,38 +147,47 @@ export function getASTDescription(params: ASTDescriptionOptions): Map<number, AS
     (x): x is LibPgQueryAST.Node[] => x !== undefined,
   );
 
-  const resolvedColumnsList: ASTDescribedColumn[][] = [];
+  const resolvedColumnsList: (ASTDescribedColumn | undefined)[][] = [];
 
   for (const [targetListIdx, targetList] of targetLists.entries()) {
     resolvedColumnsList[targetListIdx] = targetList
       .map((target) => {
-        return getDescribedNode({
+        const described = getDescribedNode({
           alias: undefined,
           node: target,
           context,
         });
+
+        if (described.length === 0) {
+          return [undefined];
+        }
+
+        return described;
       })
       .flat();
   }
 
   const columnsLength = resolvedColumnsList.reduce((acc, x) => Math.max(acc, x.length), 0);
-  const final: Map<number, ASTDescribedColumn> = new Map();
+  const final: Map<number, ASTDescribedColumn | undefined> = new Map();
 
   for (let i = 0; i < columnsLength; i++) {
-    const result = mergeColumns(
-      resolvedColumnsList.map(
-        (x) => x[i] ?? { name: "?column?", type: context.toTypeScriptType({ name: "null" }) },
-      ),
-    );
+    const result = mergeColumns(resolvedColumnsList.map((x) => x[i]));
     final.set(i, result);
   }
 
   return final;
 }
 
-function mergeColumns(columns: ASTDescribedColumn[]): ASTDescribedColumn {
-  const name = columns[0].name;
-  const type = mergeDescribedColumnTypes(columns.map((x) => x.type));
+function mergeColumns(columns: (ASTDescribedColumn | undefined)[]): ASTDescribedColumn | undefined {
+  const definedColumns = columns.filter((x) => x !== undefined);
+
+  if (definedColumns.length === 0) {
+    return undefined;
+  }
+
+  const name = definedColumns[0].name;
+  const type = mergeDescribedColumnTypes(definedColumns.map((x) => x.type));
+
   return { name, type };
 }
 

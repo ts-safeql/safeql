@@ -43,7 +43,7 @@ export function getSources({
   const ctes = getColumnCTEs(select.withClause?.ctes ?? []);
   const sources: Map<string, SelectSource> = new Map([
     ...(prevSources?.entries() ?? []),
-    ...getColumnSources(select.fromClause ?? []).entries(),
+    ...getColumnSources(select).entries(),
   ]);
 
   function getSourceColumns(source: SelectSource) {
@@ -253,13 +253,13 @@ export function getSources({
     return sources;
   }
 
-  function getColumnSources(nodes: LibPgQueryAST.Node[]): Map<string, SelectSource> {
-    return new Map(
-      nodes
-        .map(getNodeColumnAndSources)
-        .flat()
-        .map((x) => [x.name, x]),
-    );
+  function getColumnSources(nodes: LibPgQueryAST.SelectStmt): Map<string, SelectSource> {
+    const fromClause = (nodes.fromClause ?? [])
+      .map(getNodeColumnAndSources)
+      .flat()
+      .map((x) => [x.name, x] as const);
+
+    return new Map(fromClause);
   }
 
   return {
