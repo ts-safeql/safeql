@@ -122,6 +122,11 @@ function runMigrations(sql: SQL) {
       bit_varying_column BIT VARYING(5) NOT NULL
     );
 
+    CREATE TABLE employee (
+      id INT NOT NULL,
+      data JSONB NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS table1 (
       id SERIAL PRIMARY KEY,
       name INTEGER NOT NULL
@@ -187,6 +192,9 @@ const testQuery = async (params: {
         cacheKey,
         fieldTransform: undefined,
         overrides: {
+          columns: {
+            "employee.data": "Data[]",
+          },
           types: {
             overriden_enum: "OverridenEnum",
             overriden_domain: "OverridenDomain",
@@ -2060,10 +2068,19 @@ test("select cols from function range", async () => {
         ) AS t(id, metadata) ON t.id = a.id;
     `,
     expected: [
-      ["id", { kind: "type", type: "bool", value: "boolean" }],
+      [
+        "id",
+        {
+          kind: "union",
+          value: [
+            { kind: "type", type: "int4", value: "number" },
+            { kind: "type", type: "null", value: "null" },
+          ],
+        },
+      ],
       ["exists", { kind: "type", type: "bool", value: "boolean" }],
     ],
-    unknownColumns: ["exists"], // TODO: `ast-get-source` needs to be refactored to handle this case
+    unknownColumns: ["id"], // TODO: `ast-get-source` needs to be refactored to handle this case
   });
 });
 
@@ -2126,5 +2143,37 @@ test("with select from inner join and left join", async () => {
       ],
       ["coalesce", { kind: "type", type: "text", value: "string" }],
     ],
+  });
+});
+
+test("select colref and const from left joined using col", async () => {
+  await testQuery({
+    query: `
+      WITH cte AS (SELECT e.id AS id, 'value' AS value FROM employee AS e)
+      SELECT cte.value, data
+      FROM employee AS e
+        LEFT JOIN cte USING (id);
+    `,
+    expected: [
+      [
+        "value",
+        {
+          kind: "union",
+          value: [
+            { kind: "type", value: "string", type: "text" },
+            { kind: "type", value: "null", type: "null" },
+          ],
+        },
+      ],
+      [
+        "data",
+        {
+          kind: "type",
+          type: "jsonb",
+          value: "Data[]",
+        },
+      ],
+    ],
+    unknownColumns: ["value"] // TODO: `ast-get-source` needs to be refactored to handle this case
   });
 });
