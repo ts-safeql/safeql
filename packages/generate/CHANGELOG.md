@@ -1,5 +1,14 @@
 # @ts-safeql/generate
 
+## 3.6.8
+
+### Patch Changes
+
+- 988ef3a: fixed an issue where query was incorrectly inferred when dealing with nested expressions
+  - @ts-safeql/shared@3.6.8
+  - @ts-safeql/sql-ast@3.6.8
+  - @ts-safeql/test-utils@0.0.43
+
 ## 3.6.7
 
 ### Patch Changes
