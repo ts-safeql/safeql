@@ -50,7 +50,7 @@ export function getSources({
     switch (source.kind) {
       case "cte":
       case "subselect":
-        return source.sources.getAllResolvedColumns();
+        return [];
       case "table":
         return source.columns.map((column) => ({ column, source }));
     }

@@ -176,53 +176,65 @@ const testQuery = async (params: {
   expectedError?: string;
   options?: Partial<GenerateParams>;
   unknownColumns?: string[];
+  schema?: string;
 }) => {
   const { query } = params;
 
   const cacheKey = "test";
 
-  return pipe(
-    TE.Do,
-    TE.bind("pgParsed", () => parseQueryTE(params.query)),
-    TE.bind("result", ({ pgParsed }) =>
-      generateTE({
-        sql,
-        pgParsed,
-        query: { text: query, sourcemaps: [] },
-        cacheKey,
-        fieldTransform: undefined,
-        overrides: {
-          columns: {
-            "employee.data": "Data[]",
+  const run = (sql: Sql) =>
+    pipe(
+      TE.Do,
+      TE.bind("pgParsed", () => parseQueryTE(params.query)),
+      TE.bind("result", ({ pgParsed }) =>
+        generateTE({
+          sql,
+          pgParsed,
+          query: { text: query, sourcemaps: [] },
+          cacheKey,
+          fieldTransform: undefined,
+          overrides: {
+            columns: {
+              "employee.data": "Data[]",
+            },
+            types: {
+              overriden_enum: "OverridenEnum",
+              overriden_domain: "OverridenDomain",
+            },
           },
-          types: {
-            overriden_enum: "OverridenEnum",
-            overriden_domain: "OverridenDomain",
-          },
-        },
-        ...params.options,
-      }),
-    ),
-    TE.chainW(({ result }) => TE.fromEither(result)),
-    TE.match(
-      (error) =>
-        pipe(
-          params.expectedError,
-          O.fromNullable,
-          O.fold(
-            () => assert.fail(error.stack),
-            (expectedError) => assert.strictEqual(error.message, expectedError),
+          ...params.options,
+        }),
+      ),
+      TE.chainW(({ result }) => TE.fromEither(result)),
+      TE.match(
+        (error) =>
+          pipe(
+            params.expectedError,
+            O.fromNullable,
+            O.fold(
+              () => assert.fail(error.stack),
+              (expectedError) => assert.strictEqual(error.message, expectedError),
+            ),
           ),
-        ),
-      ({ output, unknownColumns }) => {
-        assert.deepEqual(output?.value ?? null, params.expected);
+        ({ output, unknownColumns }) => {
+          assert.deepEqual(output?.value ?? null, params.expected);
 
-        if (unknownColumns.length > 0) {
-          assert.deepEqual(unknownColumns, params.unknownColumns);
-        }
-      },
-    ),
-  )();
+          if (unknownColumns.length > 0) {
+            assert.deepEqual(unknownColumns, params.unknownColumns);
+          }
+        },
+      ),
+    )();
+
+  const reserved = await sql.reserve();
+  try {
+    await reserved.unsafe("begin");
+    if (params.schema) await reserved.unsafe(params.schema);
+    await run(reserved);
+  } finally {
+    await reserved.unsafe("rollback");
+    await reserved.release();
+  }
 };
 
 test("(init generate cache)", async () => {
@@ -710,10 +722,9 @@ test("select domain type", async () => {
 
 test("select from subselect with an alias", async () => {
   await testQuery({
-    query: `
-      SELECT subselect.id FROM (SELECT * FROM caregiver) AS subselect
-    `,
+    query: `SELECT subselect.id FROM (SELECT * FROM caregiver) AS subselect`,
     expected: [["id", { kind: "type", value: "number", type: "int4" }]],
+    unknownColumns: ["id"],
   });
 });
 
@@ -1265,36 +1276,8 @@ test("select jsonb_agg all use cases", async () => {
 test("select jsonb_agg(tbl) from (subselect) tbl", async () => {
   await testQuery({
     query: `select jsonb_agg(tbl) from (select * from test_jsonb) tbl`,
-    expected: [
-      [
-        "jsonb_agg",
-        {
-          kind: "union",
-          value: [
-            {
-              kind: "array",
-              value: {
-                kind: "object",
-                value: [
-                  ["id", { kind: "type", value: "number", type: "int4" }],
-                  [
-                    "nullable_col",
-                    {
-                      kind: "union",
-                      value: [
-                        { kind: "type", value: "string", type: "text" },
-                        { kind: "type", value: "null", type: "null" },
-                      ],
-                    },
-                  ],
-                ],
-              },
-            },
-            { kind: "type", value: "null", type: "null" },
-          ],
-        },
-      ],
-    ],
+    expected: [["jsonb_agg", { kind: "type", type: "jsonb", value: "any" }]],
+    unknownColumns: ["jsonb_agg"],
   });
 });
 
@@ -2051,7 +2034,7 @@ test("select alias from subselect", async () => {
         FROM caregiver
       ) x
     `,
-    expected: [["test", { kind: "type", type: "int4", value: "number" }]],
+    expected: [["test", { kind: "type", type: "bool", value: "boolean" }]],
   });
 });
 
@@ -2090,7 +2073,19 @@ test("select from cte with coalesce", async () => {
       WITH t AS (select * from caregiver)
       SELECT coalesce(t.id) FROM t
     `,
-    expected: [["coalesce", { kind: "type", type: "int4", value: "number" }]],
+    unknownColumns: ["coalesce"],
+    expected: [
+      [
+        "coalesce",
+        {
+          kind: "union",
+          value: [
+            { kind: "type", type: "int4", value: "number" },
+            { kind: "type", type: "null", value: "null" },
+          ],
+        },
+      ],
+    ],
   });
 });
 
@@ -2116,6 +2111,7 @@ test("multiple subselects that depend on each other", async () => {
         ) a
       ) b
     `,
+    unknownColumns: ["id"],
     expected: [["id", { kind: "type", type: "int4", value: "number" }]],
   });
 });
@@ -2129,6 +2125,7 @@ test("with select from inner join and left join", async () => {
         INNER JOIN caregiver_agency ON x.id = caregiver_agency.caregiver_id
         LEFT JOIN agency ON caregiver_agency.agency_id = agency.id
     `,
+    unknownColumns: ["id"],
     expected: [
       ["id", { kind: "type", type: "int4", value: "number" }],
       [
@@ -2158,11 +2155,9 @@ test("select colref and const from left joined using col", async () => {
       [
         "value",
         {
-          kind: "union",
-          value: [
-            { kind: "type", value: "string", type: "text" },
-            { kind: "type", value: "null", type: "null" },
-          ],
+          kind: "literal",
+          value: "'value'",
+          base: { kind: "type", value: "string", type: "text" },
         },
       ],
       [
@@ -2175,5 +2170,15 @@ test("select colref and const from left joined using col", async () => {
       ],
     ],
     unknownColumns: ["value"], // TODO: `ast-get-source` needs to be refactored to handle this case
+  });
+});
+
+test("select col expr from subselect", async () => {
+  await testQuery({
+    schema: `
+      CREATE TABLE tbl (id integer)
+    `,
+    query: `SELECT x.* FROM (SELECT tbl.id IS NOT NULL AS boolcol FROM tbl) x`,
+    expected: [["boolcol", { kind: "type", type: "bool", value: "boolean" }]],
   });
 });

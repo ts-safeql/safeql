@@ -17,7 +17,10 @@ export function mapConnectionOptionsToString(connectionOptions: ConnectionOption
 }
 
 export async function setupTestDatabase(params: { databaseName: string; postgresUrl: string }) {
-  const connection = { ...parseConnection(params.postgresUrl), database: params.databaseName };
+  const connection = {
+    ...parseConnection(params.postgresUrl),
+    database: params.databaseName,
+  };
   const drop = () => dropDatabase(connection);
   const sql = postgres(connection);
 

@@ -704,13 +704,8 @@ function getDescribedJsonAggFunCall({
 }: GetDescribedParamsOf<LibPgQueryAST.FuncCall>): ASTDescribedColumn[] {
   const name = alias ?? concatStringNodes(node.funcname);
 
-  const unknownDescribedColumn: ASTDescribedColumn = {
-    name: name,
-    type: context.toTypeScriptType({ name: "unknown" }),
-  };
-
   if (node.args === undefined || !isSingleCell(node.args)) {
-    return [unknownDescribedColumn];
+    return [];
   }
 
   const argNode = node.args[0];
@@ -718,7 +713,7 @@ function getDescribedJsonAggFunCall({
   const cellType = getDescribedNode({ alias: undefined, node: argNode, context });
 
   if (cellType.length === 0) {
-    return [unknownDescribedColumn];
+    return [];
   }
 
   const isSourceRef =
@@ -795,11 +790,58 @@ function getDescribedJsonBuildObjectFunCall({
   ];
 }
 
+function getColumnRefOrigins({
+  alias,
+  context,
+  node,
+}: GetDescribedParamsOf<LibPgQueryAST.ColumnRef>): LibPgQueryAST.Node[] | undefined {
+  if (isColumnTableStarRef(node.fields)) {
+    const source = node.fields[0].String.sval;
+    return (
+      // lookup in cte
+      context.select.withClause?.ctes.find((cte) => cte.CommonTableExpr?.ctename === source)
+        ?.CommonTableExpr?.ctequery?.SelectStmt?.targetList ??
+      // lookup in subselect
+      context.select.fromClause
+        ?.map((from) => from.RangeSubselect)
+        .find((subselect) => subselect?.alias?.aliasname === source)?.subquery?.SelectStmt
+        ?.targetList
+    );
+  }
+
+  if (isColumnTableColumnRef(node.fields)) {
+    const source = node.fields[0].String.sval;
+    const column = node.fields[1].String.sval;
+    const origin =
+      // lookup in cte
+      context.select.withClause?.ctes
+        .find((cte) => cte.CommonTableExpr?.ctename === source)
+        ?.CommonTableExpr?.ctequery?.SelectStmt?.targetList?.map((x) => x.ResTarget)
+        .find((x) => x?.name === column)?.val ??
+      // lookup in subselect
+      context.select.fromClause
+        ?.map((from) => from.RangeSubselect)
+        .find((subselect) => subselect?.alias?.aliasname === source)
+        ?.subquery?.SelectStmt?.targetList?.map((x) => x.ResTarget)
+        .find((x) => x?.name === column)?.val;
+
+    if (!origin) return undefined;
+
+    return [origin];
+  }
+}
+
 function getDescribedColumnRef({
   alias,
   context,
   node,
 }: GetDescribedParamsOf<LibPgQueryAST.ColumnRef>): ASTDescribedColumn[] {
+  const origins = getColumnRefOrigins({ alias, context, node })
+    ?.map((origin) => getDescribedNode({ alias, node: origin, context }))
+    .flat();
+
+  if (origins) return origins;
+
   // select *
   if (isColumnStarRef(node.fields)) {
     return getDescribedColumnByResolvedColumns({
