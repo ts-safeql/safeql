@@ -71,32 +71,42 @@ export function getSources({
     const source = sources.get(p.table);
 
     if (source === undefined) {
-      for (const source of sources.values()) {
-        switch (source.kind) {
-          case "table":
-          case "cte":
-            return null;
-          case "subselect":
-            return (
-              source.sources.getAllResolvedColumns().find((x) => {
-                return x.column.column.colName === p.column;
-              })?.column ?? null
-            );
-        }
-      }
-
       return null;
     }
 
     const resolved = getSourceColumns(source).find((x) => x.column.column.colName === p.column);
-
     return resolved?.column ?? null;
+  }
+
+  function getNestedResolvedColumnByName(columnName: string): { column: ResolvedColumn; source: SelectSource } | undefined {
+    for (const source of sources.values()) {
+      for (const sourceColumn of getSourceColumns(source)) {
+        if (sourceColumn.column.column.colName === columnName) {
+          return sourceColumn;
+        }
+      }
+    }
+    return undefined;
   }
 
   function getColumnsByTargetField(field: TargetField): ResolvedColumn[] | null {
     switch (field.kind) {
       case "column": {
-        return fmap(getColumnByTableAndColumnName(field), (x) => [x]);
+        const result = getColumnByTableAndColumnName(field);
+        if (result !== null) {
+          return [result];
+        }
+
+        for (const source of sources.values()) {
+          if (source.kind === "subselect") {
+            const column = source.sources
+              .getNestedResolvedColumnByName(field.column)?.column;
+
+            if (column) return [column];
+          }
+        }
+
+        return null;
       }
       case "unknown": {
         const source = sources.get(field.field);
@@ -105,10 +115,9 @@ export function getSources({
           return getSourceColumns(source).map((x) => x.column);
         }
 
-        for (const { column } of getAllResolvedColumns()) {
-          if (column.column.colName === field.field) {
-            return [column];
-          }
+        const foundColumn = getNestedResolvedColumnByName(field.field)?.column;
+        if (foundColumn) {
+          return [foundColumn];
         }
 
         for (const source of sources.values()) {
@@ -291,6 +300,7 @@ export function getSources({
     getResolvedColumnsInTable: getResolvedColumnsInTable,
     getAllResolvedColumns: getAllResolvedColumns,
     getColumnsByTargetField: getColumnsByTargetField,
+    getNestedResolvedColumnByName: getNestedResolvedColumnByName,
     sources: sources,
   };
 }
