@@ -78,7 +78,9 @@ export function getSources({
     return resolved?.column ?? null;
   }
 
-  function getNestedResolvedColumnByName(columnName: string): { column: ResolvedColumn; source: SelectSource } | undefined {
+  function getNestedResolvedColumnByName(
+    columnName: string,
+  ): { column: ResolvedColumn; source: SelectSource } | undefined {
     for (const source of sources.values()) {
       for (const sourceColumn of getSourceColumns(source)) {
         if (sourceColumn.column.column.colName === columnName) {
@@ -99,8 +101,7 @@ export function getSources({
 
         for (const source of sources.values()) {
           if (source.kind === "subselect") {
-            const column = source.sources
-              .getNestedResolvedColumnByName(field.column)?.column;
+            const column = source.sources.getNestedResolvedColumnByName(field.column)?.column;
 
             if (column) return [column];
           }
