@@ -202,6 +202,7 @@ const testQuery = async (params: {
               overriden_domain: "OverridenDomain",
             },
           },
+          cacheMetadata: params.schema === undefined,
           ...params.options,
         }),
       ),
@@ -2180,5 +2181,55 @@ test("select col expr from subselect", async () => {
     `,
     query: `SELECT x.* FROM (SELECT tbl.id IS NOT NULL AS boolcol FROM tbl) x`,
     expected: [["boolcol", { kind: "type", type: "bool", value: "boolean" }]],
+  });
+});
+
+test("select nullable case when as tbl.col from subselect", async () => {
+  await testQuery({
+    schema: `CREATE TABLE my_table (value TEXT NOT NULL)`,
+    query: `
+      SELECT sub.value
+      FROM (
+        SELECT CASE WHEN (1 = 1) THEN my_table.value ELSE NULL END AS value FROM my_table
+      ) AS sub;
+    `,
+    expected: [
+      [
+        "value",
+        {
+          kind: "union",
+          value: [
+            { kind: "type", type: "text", value: "string" },
+            { kind: "type", type: "null", value: "null" },
+          ],
+        },
+      ],
+    ],
+  });
+});
+
+test("select case when as tbl.col from subselect", async () => {
+  await testQuery({
+    schema: `CREATE TABLE my_table (value TEXT NOT NULL, another_value TEXT NOT NULL)`,
+    query: `
+      SELECT sub.value
+      FROM (
+        SELECT CASE WHEN (1 = 1) THEN my_table.value ELSE my_table.another_value END AS value FROM my_table
+      ) AS sub;
+    `,
+    expected: [["value", { kind: "type", type: "text", value: "string" }]],
+  });
+});
+
+test("select case when as col from subselect", async () => {
+  await testQuery({
+    schema: `CREATE TABLE my_table (value TEXT NOT NULL, another_value TEXT NOT NULL)`,
+    query: `
+      SELECT value
+      FROM (
+        SELECT CASE WHEN (1 = 1) THEN my_table.value ELSE my_table.another_value END AS value FROM my_table
+      ) AS sub;
+    `,
+    expected: [["value", { kind: "type", type: "text", value: "string" }]],
   });
 });

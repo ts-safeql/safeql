@@ -71,6 +71,20 @@ export function getSources({
     const source = sources.get(p.table);
 
     if (source === undefined) {
+      for (const source of sources.values()) {
+        switch (source.kind) {
+          case "table":
+          case "cte":
+            return null;
+          case "subselect":
+            return (
+              source.sources.getAllResolvedColumns().find((x) => {
+                return x.column.column.colName === p.column;
+              })?.column ?? null
+            );
+        }
+      }
+
       return null;
     }
 
@@ -94,6 +108,16 @@ export function getSources({
         for (const { column } of getAllResolvedColumns()) {
           if (column.column.colName === field.field) {
             return [column];
+          }
+        }
+
+        for (const source of sources.values()) {
+          switch (source.kind) {
+            case "table":
+            case "cte":
+              return null;
+            case "subselect":
+              return source.sources.getColumnsByTargetField(field);
           }
         }
 

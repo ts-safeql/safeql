@@ -791,7 +791,6 @@ function getDescribedJsonBuildObjectFunCall({
 }
 
 function getColumnRefOrigins({
-  alias,
   context,
   node,
 }: GetDescribedParamsOf<LibPgQueryAST.ColumnRef>): LibPgQueryAST.Node[] | undefined {
