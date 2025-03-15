@@ -1,5 +1,14 @@
 # @ts-safeql/generate
 
+## 3.6.9
+
+### Patch Changes
+
+- 6866b19: improve column resolution in subselects
+  - @ts-safeql/shared@3.6.9
+  - @ts-safeql/sql-ast@3.6.9
+  - @ts-safeql/test-utils@0.0.44
+
 ## 3.6.8
 
 ### Patch Changes
