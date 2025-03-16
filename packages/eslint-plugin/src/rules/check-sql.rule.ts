@@ -20,7 +20,10 @@ import ts from "typescript";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { ESTreeUtils } from "../utils";
 import { E, J, flow, pipe } from "../utils/fp-ts";
-import { getResolvedTargetByTypeNode } from "../utils/get-resolved-target-by-type-node";
+import {
+  ExpectedResolvedTarget,
+  getResolvedTargetByTypeNode,
+} from "../utils/get-resolved-target-by-type-node";
 import { isInEditorEnv } from "../utils/is-in-editor";
 import { memoize } from "../utils/memoize";
 import { locateNearestPackageJsonDir } from "../utils/node.utils";
@@ -438,7 +441,7 @@ function getTypeAnnotationState({
 }
 
 function getResolvedTargetsEquality(params: {
-  expected: ResolvedTarget | null;
+  expected: ExpectedResolvedTarget | null;
   generated: ResolvedTarget | null;
   nullAsOptional: boolean;
   nullAsUndefined: boolean;

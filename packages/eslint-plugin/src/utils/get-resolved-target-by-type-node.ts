@@ -1,4 +1,3 @@
-import { ResolvedTarget } from "@ts-safeql/generate";
 import { ParserServices, TSESTree } from "@typescript-eslint/utils";
 import ts from "typescript";
 
@@ -9,9 +8,18 @@ type GetResolvedTargetByTypeNodeParams = {
   reservedTypes: Set<string>;
 };
 
+export type ExpectedResolvedTarget =
+  | { kind: "type"; value: string; base?: string }
+  | { kind: "literal"; value: string; base: ExpectedResolvedTarget }
+  | { kind: "union"; value: ExpectedResolvedTarget[] }
+  | { kind: "array"; value: ExpectedResolvedTarget; syntax?: "array-type" | "type-reference" }
+  | { kind: "object"; value: ExpectedResolvedTargetEntry[] };
+
+export type ExpectedResolvedTargetEntry = [string, ExpectedResolvedTarget];
+
 export function getResolvedTargetByTypeNode(
   params: GetResolvedTargetByTypeNodeParams,
-): ResolvedTarget {
+): ExpectedResolvedTarget {
   const asText = params.parser.esTreeNodeToTSNodeMap.get(params.typeNode).getText();
 
   if (params.reservedTypes.has(asText)) {
@@ -154,7 +162,7 @@ function getTypePropertiesFromTypeReference(params: {
   parser: ParserServices;
   typeNode: TSESTree.TSTypeReference;
   reservedTypes: Set<string>;
-}): ResolvedTarget {
+}): ExpectedResolvedTarget {
   const { type, checker, parser, typeNode, reservedTypes } = params;
 
   const typeAsString = checker.typeToString(type);
@@ -281,7 +289,7 @@ function getTypePropertiesFromTypeReference(params: {
   }
 
   if (type.flags === ts.TypeFlags.Object) {
-    const entries = type.getProperties().map((property): [string, ResolvedTarget] => {
+    const entries = type.getProperties().map((property): [string, ExpectedResolvedTarget] => {
       const key = property.escapedName.toString();
 
       const propType = checker.getTypeOfSymbolAtLocation(
