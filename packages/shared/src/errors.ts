@@ -160,6 +160,7 @@ export class InternalError extends Error {
   toJSON() {
     return {
       _tag: this._tag,
+      stack: this.stack,
       message: this.message,
     };
   }

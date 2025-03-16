@@ -1,9 +1,35 @@
-import { assertNever, fmap } from "@ts-safeql/shared";
+import { assertNever } from "@ts-safeql/shared";
 import * as LibPgQueryAST from "@ts-safeql/sql-ast";
 import { PgColRow } from "./generate";
 import { FlattenedRelationWithJoins } from "./utils/get-relations-with-joins";
 
 export type SourcesResolver = ReturnType<typeof getSources>;
+
+export type ResolvedColumn = {
+  column: PgColRow;
+  isNotNull: boolean;
+};
+
+type TableSelectSource = {
+  kind: "table";
+  schemaName: string;
+  name: string;
+  original: string;
+  alias?: string;
+  columns: Map<string, ResolvedColumn>;
+};
+
+type CteSubselectSource = {
+  kind: "cte" | "subselect";
+  name: string;
+  sources: SourcesResolver;
+};
+
+type SelectSource = TableSelectSource | CteSubselectSource;
+
+export type TargetField =
+  | { kind: "unknown"; field: string }
+  | { kind: "column"; table: string; column: string };
 
 type SourcesOptions = {
   select: LibPgQueryAST.SelectStmt;
@@ -13,202 +39,48 @@ type SourcesOptions = {
   relations: FlattenedRelationWithJoins[];
 };
 
-export type ResolvedColumn = {
-  column: PgColRow;
-  isNotNull: boolean;
-};
-
-type SelectSource =
-  | {
-      kind: "table";
-      schemaName: string;
-      name: string;
-      original: string;
-      alias?: string;
-      columns: ResolvedColumn[];
-    }
-  | { kind: "cte" | "subselect"; name: string; sources: SourcesResolver };
-
-type TargetField =
-  | { kind: "unknown"; field: string }
-  | { kind: "column"; table: string; column: string };
-
 export function getSources({
+  select,
+  prevSources,
+  nonNullableColumns,
   pgColsBySchemaAndTableName,
   relations,
-  prevSources,
-  select,
-  nonNullableColumns,
 }: SourcesOptions) {
-  const ctes = getColumnCTEs(select.withClause?.ctes ?? []);
-  const sources: Map<string, SelectSource> = new Map([
-    ...(prevSources?.entries() ?? []),
-    ...getColumnSources(select).entries(),
-  ]);
+  const relationsByAlias = new Map<string, FlattenedRelationWithJoins>();
+  const relationsByRelName = new Map<string, FlattenedRelationWithJoins[]>();
 
-  function getSourceColumns(source: SelectSource) {
-    switch (source.kind) {
-      case "cte":
-      case "subselect":
-        return [];
-      case "table":
-        return source.columns.map((column) => ({ column, source }));
+  for (const rel of relations) {
+    const key = rel.alias ?? rel.joinRelName;
+
+    if (key) {
+      relationsByAlias.set(key, rel);
+    }
+
+    if (!relationsByRelName.has(rel.relName)) {
+      relationsByRelName.set(rel.relName, []);
+    }
+
+    relationsByRelName.get(rel.relName)!.push(rel);
+  }
+
+  const tableToSchema = new Map<string, string>();
+
+  const publicCols = pgColsBySchemaAndTableName.get("public");
+
+  if (publicCols) {
+    for (const tableName of publicCols.keys()) {
+      tableToSchema.set(tableName, "public");
     }
   }
 
-  function getAllResolvedColumns(): { column: ResolvedColumn; source: SelectSource }[] {
-    return [...sources.values()].map(getSourceColumns).flat();
-  }
+  for (const [schemaName, cols] of pgColsBySchemaAndTableName) {
+    if (schemaName === "public") break;
 
-  function getResolvedColumnsInTable(sourceName: string): ResolvedColumn[] {
-    return fmap(sources.get(sourceName), getSourceColumns)?.map((x) => x.column) ?? [];
-  }
-
-  function getColumnByTableAndColumnName(p: {
-    table: string;
-    column: string;
-  }): ResolvedColumn | null {
-    const source = sources.get(p.table);
-
-    if (source === undefined) {
-      return null;
-    }
-
-    const resolved = getSourceColumns(source).find((x) => x.column.column.colName === p.column);
-    return resolved?.column ?? null;
-  }
-
-  function getNestedResolvedColumnByName(
-    columnName: string,
-  ): { column: ResolvedColumn; source: SelectSource } | undefined {
-    for (const source of sources.values()) {
-      for (const sourceColumn of getSourceColumns(source)) {
-        if (sourceColumn.column.column.colName === columnName) {
-          return sourceColumn;
-        }
+    for (const tableName of cols.keys()) {
+      if (!tableToSchema.has(tableName)) {
+        tableToSchema.set(tableName, schemaName);
       }
     }
-    return undefined;
-  }
-
-  function getColumnsByTargetField(field: TargetField): ResolvedColumn[] | null {
-    switch (field.kind) {
-      case "column": {
-        const result = getColumnByTableAndColumnName(field);
-        if (result !== null) {
-          return [result];
-        }
-
-        for (const source of sources.values()) {
-          if (source.kind === "subselect") {
-            const column = source.sources.getNestedResolvedColumnByName(field.column)?.column;
-
-            if (column) return [column];
-          }
-        }
-
-        return null;
-      }
-      case "unknown": {
-        const source = sources.get(field.field);
-
-        if (source !== undefined) {
-          return getSourceColumns(source).map((x) => x.column);
-        }
-
-        const foundColumn = getNestedResolvedColumnByName(field.field)?.column;
-        if (foundColumn) {
-          return [foundColumn];
-        }
-
-        for (const source of sources.values()) {
-          switch (source.kind) {
-            case "table":
-            case "cte":
-              return null;
-            case "subselect":
-              return source.sources.getColumnsByTargetField(field);
-          }
-        }
-
-        return null;
-      }
-    }
-  }
-
-  function checkIsNullableDueToRelation(tableName: string): boolean {
-    const findByJoin = relations.find((x) => (x.alias ?? x.joinRelName) === tableName);
-
-    if (findByJoin !== undefined) {
-      switch (findByJoin.joinType) {
-        case LibPgQueryAST.JoinType.JOIN_LEFT:
-        case LibPgQueryAST.JoinType.JOIN_FULL:
-          return true;
-        case LibPgQueryAST.JoinType.JOIN_TYPE_UNDEFINED:
-        case LibPgQueryAST.JoinType.JOIN_INNER:
-        case LibPgQueryAST.JoinType.JOIN_RIGHT:
-        case LibPgQueryAST.JoinType.JOIN_SEMI:
-        case LibPgQueryAST.JoinType.JOIN_ANTI:
-        case LibPgQueryAST.JoinType.JOIN_UNIQUE_OUTER:
-        case LibPgQueryAST.JoinType.JOIN_UNIQUE_INNER:
-        case LibPgQueryAST.JoinType.UNRECOGNIZED:
-          return false;
-        default:
-          assertNever(findByJoin.joinType);
-      }
-    }
-
-    const findByRel = relations.filter((x) => x.relName === tableName);
-
-    for (const rel of findByRel) {
-      switch (rel.joinType) {
-        case LibPgQueryAST.JoinType.JOIN_RIGHT:
-        case LibPgQueryAST.JoinType.JOIN_FULL:
-          return true;
-        case LibPgQueryAST.JoinType.JOIN_TYPE_UNDEFINED:
-        case LibPgQueryAST.JoinType.JOIN_INNER:
-        case LibPgQueryAST.JoinType.JOIN_LEFT:
-        case LibPgQueryAST.JoinType.JOIN_SEMI:
-        case LibPgQueryAST.JoinType.JOIN_ANTI:
-        case LibPgQueryAST.JoinType.JOIN_UNIQUE_OUTER:
-        case LibPgQueryAST.JoinType.JOIN_UNIQUE_INNER:
-        case LibPgQueryAST.JoinType.UNRECOGNIZED:
-          return false;
-        default:
-          assertNever(rel.joinType);
-      }
-    }
-
-    return false;
-  }
-
-  function resolveColumn(col: PgColRow, tableName: string): ResolvedColumn {
-    const isNullableDueToRelation = checkIsNullableDueToRelation(tableName);
-    const isNotNullBasedOnAST =
-      nonNullableColumns.has(col.colName) || nonNullableColumns.has(`${tableName}.${col.colName}`);
-    const isNotNullInTable = col.colNotNull;
-
-    const isNonNullable = isNotNullBasedOnAST || (isNotNullInTable && !isNullableDueToRelation);
-
-    return { column: col, isNotNull: isNonNullable };
-  }
-
-  function resolveRangeVarSchema(node: LibPgQueryAST.RangeVar): string {
-    if (node.schemaname !== undefined) {
-      return node.schemaname;
-    }
-
-    if (pgColsBySchemaAndTableName.get("public")?.has(node.relname)) {
-      return "public";
-    }
-
-    for (const [schemaName, cols] of pgColsBySchemaAndTableName) {
-      if (cols.has(node.relname)) {
-        return schemaName;
-      }
-    }
-
-    return "public";
   }
 
   function getColumnCTEs(ctes: LibPgQueryAST.Node[]): Map<string, SourcesResolver> {
@@ -232,76 +104,343 @@ export function getSources({
     return map;
   }
 
+  const ctes = getColumnCTEs(select.withClause?.ctes ?? []);
+
+  function resolveRangeVarSchema(node: LibPgQueryAST.RangeVar): string {
+    switch (true) {
+      case node.schemaname !== undefined:
+        return node.schemaname;
+
+      case pgColsBySchemaAndTableName.get("public")?.has(node.relname):
+        return "public";
+
+      default:
+        for (const [schemaName, cols] of pgColsBySchemaAndTableName) {
+          if (cols.has(node.relname)) {
+            return schemaName;
+          }
+        }
+
+        return "public";
+    }
+  }
+
   function getNodeColumnAndSources(node: LibPgQueryAST.Node): SelectSource[] {
     if (node.RangeVar !== undefined) {
-      const cte = ctes.get(node.RangeVar.relname);
+      const cteResolver = ctes.get(node.RangeVar.relname);
 
-      if (cte !== undefined) {
-        return [{ kind: "cte", name: node.RangeVar.relname, sources: cte }];
+      if (cteResolver !== undefined) {
+        return [{ kind: "cte", name: node.RangeVar.relname, sources: cteResolver }];
       }
 
       const schemaName = resolveRangeVarSchema(node.RangeVar);
       const realTableName = node.RangeVar.relname;
       const tableName = node.RangeVar.alias?.aliasname ?? realTableName;
-      const tableColumns = pgColsBySchemaAndTableName.get(schemaName)?.get(realTableName) ?? [];
+      const tableColsArray = pgColsBySchemaAndTableName.get(schemaName)?.get(realTableName) ?? [];
 
-      return [
-        {
-          kind: "table",
-          schemaName: schemaName,
-          original: realTableName,
-          name: node.RangeVar.alias?.aliasname ?? node.RangeVar.relname,
-          alias: node.RangeVar.alias?.aliasname,
-          columns: tableColumns.map((col) => resolveColumn(col, tableName)),
-        },
-      ];
+      const tableSource: TableSelectSource = {
+        kind: "table",
+        schemaName,
+        original: realTableName,
+        name: tableName,
+        alias: node.RangeVar.alias?.aliasname,
+        columns: new Map(),
+      };
+
+      for (const col of tableColsArray) {
+        tableSource.columns.set(col.colName, resolveColumn(col, tableSource));
+      }
+
+      return [tableSource];
     }
 
-    const sources: SelectSource[] = [];
+    const sourcesArr: SelectSource[] = [];
 
     if (node.JoinExpr?.larg !== undefined) {
-      sources.push(...getNodeColumnAndSources(node.JoinExpr.larg));
+      sourcesArr.push(...getNodeColumnAndSources(node.JoinExpr.larg));
     }
 
     if (node.JoinExpr?.rarg !== undefined) {
-      sources.push(...getNodeColumnAndSources(node.JoinExpr.rarg));
+      sourcesArr.push(...getNodeColumnAndSources(node.JoinExpr.rarg));
     }
 
     if (node.RangeSubselect?.subquery?.SelectStmt?.fromClause !== undefined) {
-      sources.push({
+      const combinedPrevSources = new Map([
+        ...(prevSources?.entries() ?? []),
+        ...sourcesArr.map((x) => [x.name, x] as const),
+      ]);
+
+      sourcesArr.push({
         kind: "subselect",
         name: node.RangeSubselect.alias?.aliasname ?? "subselect",
         sources: getSources({
           nonNullableColumns,
           pgColsBySchemaAndTableName,
           relations,
-          prevSources: new Map([
-            ...(prevSources?.entries() ?? []),
-            ...sources.map((x) => [x.name, x] as const),
-          ]),
+          prevSources: combinedPrevSources,
           select: node.RangeSubselect.subquery.SelectStmt,
         }),
       });
     }
 
-    return sources;
+    return sourcesArr;
   }
 
-  function getColumnSources(nodes: LibPgQueryAST.SelectStmt): Map<string, SelectSource> {
-    const fromClause = (nodes.fromClause ?? [])
-      .map(getNodeColumnAndSources)
-      .flat()
-      .map((x) => [x.name, x] as const);
+  function getColumnSources(stmt: LibPgQueryAST.SelectStmt): Map<string, SelectSource> {
+    const fromClauseSources: [string, SelectSource][] = [];
 
-    return new Map(fromClause);
+    for (const node of stmt.fromClause ?? []) {
+      const nodes = getNodeColumnAndSources(node);
+
+      for (const nodeSource of nodes) {
+        fromClauseSources.push([nodeSource.name, nodeSource]);
+      }
+    }
+
+    return new Map(fromClauseSources);
+  }
+
+  const sources: Map<string, SelectSource> = new Map([
+    ...(prevSources?.entries() ?? []),
+    ...getColumnSources(select).entries(),
+  ]);
+
+  const cachedColumnsMap = new WeakMap<
+    SelectSource,
+    { column: ResolvedColumn; source: SelectSource }[]
+  >();
+
+  function getSourceColumns(
+    source: SelectSource,
+  ): { column: ResolvedColumn; source: SelectSource }[] {
+    if (cachedColumnsMap.has(source)) {
+      return cachedColumnsMap.get(source)!;
+    }
+
+    let result: { column: ResolvedColumn; source: SelectSource }[] = [];
+
+    switch (source.kind) {
+      case "table":
+        result = Array.from(source.columns.values()).map((col) => ({
+          column: col,
+          source,
+        }));
+        break;
+
+      case "cte":
+      case "subselect":
+        result = [];
+        break;
+    }
+
+    cachedColumnsMap.set(source, result);
+    return result;
+  }
+
+  function getAllResolvedColumns(): { column: ResolvedColumn; source: SelectSource }[] {
+    const all: { column: ResolvedColumn; source: SelectSource }[] = [];
+
+    for (const source of sources.values()) {
+      all.push(...getSourceColumns(source));
+    }
+
+    return all;
+  }
+
+  const allResolved = getAllResolvedColumns();
+
+  const columnIndex = new Map<string, { column: ResolvedColumn; source: SelectSource }>();
+  const unknownColumnIndex = new Map<string, { column: ResolvedColumn; source: SelectSource }[]>();
+
+  for (const entry of allResolved) {
+    const key = `${entry.source.name}.${entry.column.column.colName}`;
+    columnIndex.set(key, entry);
+
+    const unknownKey = entry.column.column.colName;
+
+    if (!unknownColumnIndex.has(unknownKey)) {
+      unknownColumnIndex.set(unknownKey, []);
+    }
+
+    unknownColumnIndex.get(unknownKey)!.push(entry);
+  }
+
+  function getColumnByTableAndColumnName(p: {
+    table: string;
+    column: string;
+  }): ResolvedColumn | null {
+    const source = sources.get(p.table);
+
+    if (!source) return null;
+
+    switch (source.kind) {
+      case "table":
+        return source.columns.get(p.column) || null;
+      default:
+        return null;
+    }
+  }
+
+  function getResolvedColumnsInTable(sourceName: string): ResolvedColumn[] {
+    const source = sources.get(sourceName);
+
+    if (!source) return [];
+
+    return getSourceColumns(source).map((x) => x.column);
+  }
+
+  function getNestedResolvedTargetField(field: TargetField): ResolvedColumn | null {
+    switch (field.kind) {
+      case "column": {
+        const key = `${field.table}.${field.column}`;
+
+        if (columnIndex.has(key)) {
+          return columnIndex.get(key)?.column ?? null;
+        }
+
+        break;
+      }
+      case "unknown": {
+        if (unknownColumnIndex.has(field.field)) {
+          const candidates = unknownColumnIndex.get(field.field)!;
+          if (candidates.length > 0) return candidates[0]?.column ?? null;
+        }
+        break;
+      }
+    }
+
+    for (const source of sources.values()) {
+      switch (source.kind) {
+        case "cte":
+        case "subselect": {
+          const nested = source.sources.getNestedResolvedTargetField(field);
+          if (nested) return nested;
+          break;
+        }
+        case "table": {
+          const key = field.kind === "column" ? field.column : field.field;
+          const column = source.columns.get(key);
+          if (column) return column;
+          break;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  function getColumnsByTargetField(field: TargetField): ResolvedColumn[] | null {
+    switch (field.kind) {
+      case "column": {
+        const result = getColumnByTableAndColumnName(field);
+
+        if (result !== null) {
+          return [result];
+        }
+
+        for (const source of sources.values()) {
+          switch (source.kind) {
+            case "subselect": {
+              const column = source.sources.getNestedResolvedTargetField(field);
+              if (column) return [column];
+              break;
+            }
+            default:
+              break;
+          }
+        }
+        return null;
+      }
+      case "unknown": {
+        const source = sources.get(field.field);
+
+        if (source !== undefined) {
+          return getSourceColumns(source).map((x) => x.column);
+        }
+
+        const foundColumn = getNestedResolvedTargetField(field);
+
+        if (foundColumn) {
+          return [foundColumn];
+        }
+
+        for (const source of sources.values()) {
+          switch (source.kind) {
+            case "subselect": {
+              return source.sources.getColumnsByTargetField(field);
+            }
+
+            default:
+              break;
+          }
+        }
+
+        return null;
+      }
+    }
+  }
+
+  function checkIsNullableDueToRelation(key: string): boolean {
+    const rel = relationsByAlias.get(key);
+    if (rel !== undefined) {
+      switch (rel.joinType) {
+        case LibPgQueryAST.JoinType.JOIN_LEFT:
+        case LibPgQueryAST.JoinType.JOIN_FULL:
+          return true;
+        case LibPgQueryAST.JoinType.JOIN_TYPE_UNDEFINED:
+        case LibPgQueryAST.JoinType.JOIN_INNER:
+        case LibPgQueryAST.JoinType.JOIN_RIGHT:
+        case LibPgQueryAST.JoinType.JOIN_SEMI:
+        case LibPgQueryAST.JoinType.JOIN_ANTI:
+        case LibPgQueryAST.JoinType.JOIN_UNIQUE_OUTER:
+        case LibPgQueryAST.JoinType.JOIN_UNIQUE_INNER:
+        case LibPgQueryAST.JoinType.UNRECOGNIZED:
+          return false;
+        default:
+          return assertNever(rel.joinType);
+      }
+    }
+
+    for (const relation of relationsByRelName.get(key) ?? []) {
+      switch (relation.joinType) {
+        case LibPgQueryAST.JoinType.JOIN_RIGHT:
+        case LibPgQueryAST.JoinType.JOIN_FULL:
+          return true;
+        case LibPgQueryAST.JoinType.JOIN_TYPE_UNDEFINED:
+        case LibPgQueryAST.JoinType.JOIN_INNER:
+        case LibPgQueryAST.JoinType.JOIN_LEFT:
+        case LibPgQueryAST.JoinType.JOIN_SEMI:
+        case LibPgQueryAST.JoinType.JOIN_ANTI:
+        case LibPgQueryAST.JoinType.JOIN_UNIQUE_OUTER:
+        case LibPgQueryAST.JoinType.JOIN_UNIQUE_INNER:
+        case LibPgQueryAST.JoinType.UNRECOGNIZED:
+          return false;
+        default:
+          return assertNever(relation.joinType);
+      }
+    }
+
+    return false;
+  }
+
+  function resolveColumn(col: PgColRow, source: TableSelectSource): ResolvedColumn {
+    const keyForNullability = source.alias ? source.alias : source.original;
+    const isNullableDueToRelation = checkIsNullableDueToRelation(keyForNullability);
+    const isNotNullBasedOnAST =
+      nonNullableColumns.has(col.colName) ||
+      nonNullableColumns.has(`${source.name}.${col.colName}`);
+    const isNotNullInTable = col.colNotNull;
+    const isNonNullable = isNotNullBasedOnAST || (isNotNullInTable && !isNullableDueToRelation);
+
+    return { column: col, isNotNull: isNonNullable };
   }
 
   return {
-    getNodeColumnAndSources: getNodeColumnAndSources,
-    getResolvedColumnsInTable: getResolvedColumnsInTable,
-    getAllResolvedColumns: getAllResolvedColumns,
-    getColumnsByTargetField: getColumnsByTargetField,
-    getNestedResolvedColumnByName: getNestedResolvedColumnByName,
-    sources: sources,
+    getNodeColumnAndSources,
+    getResolvedColumnsInTable,
+    getAllResolvedColumns,
+    getColumnsByTargetField,
+    getNestedResolvedTargetField,
+    sources,
   };
 }

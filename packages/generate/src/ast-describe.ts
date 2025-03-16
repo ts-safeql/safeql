@@ -874,7 +874,7 @@ function getDescribedColumnRef({
   }
 
   if (isColumnTableColumnRef(node.fields)) {
-    const resolved = context.resolver.getColumnsByTargetField({
+    const resolved = context.resolver.getNestedResolvedTargetField({
       kind: "column",
       table: node.fields[0].String.sval,
       column: node.fields[1].String.sval,
@@ -883,7 +883,7 @@ function getDescribedColumnRef({
     return getDescribedColumnByResolvedColumns({
       alias: alias,
       context: context,
-      resolved: resolved ?? [],
+      resolved: fmap(resolved, (x) => [x]) ?? [],
     });
   }
 
