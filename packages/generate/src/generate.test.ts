@@ -2086,19 +2086,7 @@ test("select from cte with coalesce", async () => {
       WITH t AS (select * from caregiver)
       SELECT coalesce(t.id) FROM t
     `,
-    unknownColumns: ["coalesce"],
-    expected: [
-      [
-        "coalesce",
-        {
-          kind: "union",
-          value: [
-            { kind: "type", type: "int4", value: "number" },
-            { kind: "type", type: "null", value: "null" },
-          ],
-        },
-      ],
-    ],
+    expected: [["coalesce", { kind: "type", type: "int4", value: "number" }]],
   });
 });
 
@@ -2243,5 +2231,48 @@ test("select case when as col from subselect", async () => {
       ) AS sub;
     `,
     expected: [["value", { kind: "type", type: "text", value: "string" }]],
+  });
+});
+
+test("select col.tbl from cte with array agg and col filter", async () => {
+  await testQuery({
+    schema: `CREATE TABLE my_table (col INTEGER NOT NULL);`,
+    query: `
+      WITH x as (
+        SELECT
+          array_agg(DISTINCT my_table.col) AS col1,
+          array_agg(DISTINCT my_table.col) FILTER (WHERE my_table.col > 10) AS col2
+        FROM my_table
+      )
+      SELECT
+        x.col1,
+        x.col2
+      FROM x
+    `,
+    expected: [
+      [
+        "col1",
+        {
+          kind: "union",
+          value: [
+            {
+              kind: "array",
+              value: { kind: "type", type: "int4", value: "number" },
+            },
+            { kind: "type", type: "null", value: "null" },
+          ],
+        },
+      ],
+      [
+        "col2",
+        {
+          kind: "union",
+          value: [
+            { kind: "array", value: { kind: "type", type: "int4", value: "number" } },
+            { kind: "type", type: "null", value: "null" },
+          ],
+        },
+      ],
+    ],
   });
 });
