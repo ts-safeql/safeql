@@ -1,5 +1,11 @@
 # @ts-safeql/eslint-plugin
 
+## 3.6.10
+
+### Patch Changes
+
+- faf639b: add support for basic js class inference
+
 ## 3.6.9
 
 ## 3.6.8
