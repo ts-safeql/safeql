@@ -469,6 +469,28 @@ function getResolvedTargetEntry(params: {
       params.col.introspected?.colTypeOid ?? params.col.described.type,
     );
 
+    if (!pgType) return undefined;
+
+    if (params.context.overrides?.columns) {
+      const override = params.context.overrides.columns
+        .get(params.col.introspected?.tableName ?? "")
+        ?.get(params.col.described.name);
+
+      return fmap(
+        override,
+        (value): ResolvedTarget => ({ kind: "type", value, type: pgType.name }),
+      );
+    }
+
+    if (params.context.overrides?.types) {
+      const override = params.context.overrides.types.get(pgType.name);
+
+      return fmap(
+        override,
+        ({ value }): ResolvedTarget => ({ kind: "type", value, type: pgType.name }),
+      );
+    }
+
     if (params.context.overrides?.types === undefined || pgType === undefined) {
       return undefined;
     }
