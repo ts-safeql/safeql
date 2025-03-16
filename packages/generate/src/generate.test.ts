@@ -202,7 +202,7 @@ const testQuery = async (params: {
               overriden_domain: "OverridenDomain",
             },
           },
-          cacheMetadata: params.schema === undefined,
+          cacheMetadata: params.schema === undefined && params.options?.overrides === undefined,
           ...params.options,
         }),
       ),
@@ -636,6 +636,18 @@ test("insert into table without returning", async () => {
   await testQuery({
     query: `INSERT INTO caregiver (first_name, last_name) VALUES (null, null)`,
     expected: null,
+  });
+});
+
+test("insert into returning overriden column", async () => {
+  await testQuery({
+    schema: `
+      CREATE TABLE test_tbl (test_col TEXT NOT NULL);
+    `,
+    options: { overrides: { columns: { "test_tbl.test_col": "Overriden" } } },
+    query: `INSERT INTO test_tbl (test_col) VALUES ('abc') RETURNING *`,
+    expected: [["test_col", { kind: "type", value: "Overriden", type: "text" }]],
+    unknownColumns: ["test_col"],
   });
 });
 
