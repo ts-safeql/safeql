@@ -1,5 +1,14 @@
 # @ts-safeql/generate
 
+## 3.6.10
+
+### Patch Changes
+
+- 6dac381: when using `returning`, take into consideration overriden columns
+  - @ts-safeql/shared@3.6.10
+  - @ts-safeql/sql-ast@3.6.10
+  - @ts-safeql/test-utils@0.0.45
+
 ## 3.6.9
 
 ### Patch Changes
