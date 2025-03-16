@@ -37,7 +37,8 @@ const runMigrations1 = <TTypes extends Record<string, unknown>>(sql: Sql<TTypes>
         first_name TEXT NOT NULL,
         middle_name TEXT,
         last_name TEXT NOT NULL,
-        certification certification NOT NULL
+        certification certification NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL
     );
 
     CREATE TABLE caregiver_phone (
@@ -259,7 +260,7 @@ RuleTester.describe("check-sql", () => {
         filename,
         options: withConnection(connections.base),
         code: `
-          const result = conn.query<{ id: number; first_name: string; middle_name: string | null; last_name: string; certification: 'HHA' | 'RN' | 'LPN' | 'CNA' | 'PCA' | 'OTHER' }>(sql\`
+          const result = conn.query<{ id: number; first_name: string; middle_name: string | null; last_name: string; certification: 'HHA' | 'RN' | 'LPN' | 'CNA' | 'PCA' | 'OTHER'; created_at: Date }>(sql\`
               select * from caregiver
           \`);
           `,
@@ -2089,7 +2090,7 @@ RuleTester.describe("check-sql", () => {
           \`
         `,
         output: `
-          sql<{ id: number; jsonb_tbl: { id: number; first_name: string; middle_name: string | null; last_name: string; certification: 'HHA' | 'RN' | 'LPN' | 'CNA' | 'PCA' | 'OTHER' }[] | null; jsonb_tbl_star: { id: number; first_name: string; middle_name: string | null; last_name: string; certification: 'HHA' | 'RN' | 'LPN' | 'CNA' | 'PCA' | 'OTHER' }[] | null; jsonb_tbl_col: number[] | null; jsonb_object: { firstName: string }[] | null }>\`
+          sql<{ id: number; jsonb_tbl: { id: number; first_name: string; middle_name: string | null; last_name: string; certification: 'HHA' | 'RN' | 'LPN' | 'CNA' | 'PCA' | 'OTHER'; created_at: Date }[] | null; jsonb_tbl_star: { id: number; first_name: string; middle_name: string | null; last_name: string; certification: 'HHA' | 'RN' | 'LPN' | 'CNA' | 'PCA' | 'OTHER'; created_at: Date }[] | null; jsonb_tbl_col: number[] | null; jsonb_object: { firstName: string }[] | null }>\`
             SELECT
               agency.id,
               jsonb_agg(c) as jsonb_tbl,
@@ -2132,4 +2133,128 @@ RuleTester.describe("check-sql", () => {
       ],
     };
   }
+
+  ruleTester.run("local classes", rules["check-sql"], {
+    valid: [
+      {
+        filename,
+        name: "using class",
+        options: withConnection(connections.withTag),
+        code: `
+          class Caregiver {
+            id: number;
+            first_name: string;
+            last_name: string;
+            created_at: Date;
+
+            constructor(
+              id: number,
+              first_name: string,
+              last_name: string,
+              created_at: Date,
+            ) {
+              this.id = id;
+              this.first_name = first_name;
+              this.last_name = last_name;
+              this.created_at = created_at;
+            }
+          }
+          
+          sql<Caregiver>\`SELECT id, first_name, last_name, created_at FROM caregiver\`;
+        `,
+      },
+      {
+        filename,
+        name: "using class",
+        options: withConnection(connections.withTag),
+        code: `
+          class Caregiver {
+            constructor(
+              private id: number,
+              private first_name: string,
+              private last_name: string,
+              private created_at: Date,
+            ) {}
+          }
+          
+          sql<Caregiver>\`SELECT id, first_name, last_name, created_at FROM caregiver\`;
+        `,
+      },
+      {
+        filename,
+        name: "using class",
+        options: withConnection(connections.withTag),
+        code: `
+          class Caregiver {
+            id!: number;
+            first_name!: string;
+            last_name!: string;
+            created_at!: Date;
+          }
+          
+          sql<Caregiver>\`SELECT id, first_name, last_name, created_at FROM caregiver\`;
+        `,
+      },
+      {
+        filename,
+        name: "using class",
+        options: withConnection(connections.withTag),
+        code: `
+          class Entity {
+            id!: number;
+            created_at!: Date;
+          }
+            
+          class Caregiver extends Entity {
+            first_name!: string;
+            last_name!: string;
+          }
+          
+          sql<Caregiver>\`SELECT id, first_name, last_name, created_at FROM caregiver\`;
+        `,
+      },
+    ],
+    invalid: [
+      {
+        filename,
+        name: "local class with incorrect properties",
+        options: withConnection(connections.withTag),
+        code: `
+          class Entity {
+            id!: number;
+            created_at!: Date;
+          }
+            
+          class Caregiver extends Entity {
+            first_name!: string;
+            last_name!: string;
+          }
+          
+          sql<Caregiver>\`SELECT id, first_name, last_name FROM caregiver\`;
+        `,
+        output: `
+          class Entity {
+            id!: number;
+            created_at!: Date;
+          }
+            
+          class Caregiver extends Entity {
+            first_name!: string;
+            last_name!: string;
+          }
+          
+          sql<{ id: number; first_name: string; last_name: string }>\`SELECT id, first_name, last_name FROM caregiver\`;
+        `,
+        errors: [
+          {
+            messageId: "incorrectTypeAnnotations",
+            data: {
+              expected: "{ first_name: string; last_name: string; id: number; created_at: Date }",
+              actual: "{ id: number; first_name: string; last_name: string }",
+            },
+          },
+        ],
+      },
+    ],
+  });
 });

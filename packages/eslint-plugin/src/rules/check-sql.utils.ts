@@ -17,12 +17,13 @@ import path from "path";
 import { Sql } from "postgres";
 import { match } from "ts-pattern";
 import { z } from "zod";
+import { isOneOf } from "../utils/estree.utils";
 import { E, TE, pipe } from "../utils/fp-ts";
+import { ExpectedResolvedTarget } from "../utils/get-resolved-target-by-type-node";
 import { mapConnectionOptionsToString, parseConnection } from "../utils/pg.utils";
 import { WorkerError } from "../workers/check-sql.worker";
 import { RuleContext } from "./check-sql.rule";
 import { InferLiteralsOption, RuleOptionConnection, zConnectionMigration } from "./RuleOptions";
-import { isOneOf } from "../utils/estree.utils";
 
 type TypeReplacerString = string;
 type TypeReplacerFromTo = [string, string];
@@ -381,7 +382,10 @@ function runSingleMigrationFile(sql: Sql, filePath: string) {
   );
 }
 
-function shouldInferLiteral(base: ResolvedTarget, inferLiterals: InferLiteralsOption) {
+function shouldInferLiteral(
+  base: ExpectedResolvedTarget | ResolvedTarget,
+  inferLiterals: InferLiteralsOption,
+) {
   if (base.kind !== "type") return true;
   if (inferLiterals === true) return true;
   if (Array.isArray(inferLiterals) && isOneOf(base.value, inferLiterals)) return true;
@@ -394,7 +398,7 @@ function unique<T>(array: T[]): T[] {
 }
 
 export function getResolvedTargetComparableString(params: {
-  target: ResolvedTarget;
+  target: ExpectedResolvedTarget | ResolvedTarget;
   nullAsOptional: boolean;
   nullAsUndefined: boolean;
   inferLiterals: InferLiteralsOption;
@@ -457,7 +461,7 @@ export function getResolvedTargetComparableString(params: {
 }
 
 export function getResolvedTargetString(params: {
-  target: ResolvedTarget;
+  target: ExpectedResolvedTarget | ResolvedTarget;
   nullAsUndefined: boolean;
   nullAsOptional: boolean;
   inferLiterals: InferLiteralsOption;
@@ -520,7 +524,7 @@ export function getResolvedTargetString(params: {
   }
 }
 
-function isNullableResolvedTarget(target: ResolvedTarget): boolean {
+function isNullableResolvedTarget(target: ExpectedResolvedTarget | ResolvedTarget): boolean {
   switch (target.kind) {
     case "type":
     case "literal":

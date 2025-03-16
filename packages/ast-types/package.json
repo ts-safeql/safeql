@@ -23,6 +23,7 @@
     "dev": "unbuild --stub",
     "lint": "eslint src",
     "lint!": "eslint src --fix",
+    "typecheck": "tsc -b",
     "clean": "rm -rf lib"
   },
   "devDependencies": {
