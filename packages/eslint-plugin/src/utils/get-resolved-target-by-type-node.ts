@@ -285,6 +285,34 @@ function getTypePropertiesFromTypeReference(params: {
   }
 
   if (type.symbol.valueDeclaration !== undefined) {
+    const declaration = type.symbol.valueDeclaration;
+    const sourceFile = declaration.getSourceFile();
+    const filePath = sourceFile.fileName;
+
+    if (!filePath.includes("node_modules")) {
+      const entries = type.getProperties().map((property): [string, ExpectedResolvedTarget] => {
+        const key = property.escapedName.toString();
+
+        const propType = checker.getTypeOfSymbolAtLocation(
+          property,
+          parser.esTreeNodeToTSNodeMap.get(typeNode),
+        );
+
+        return [
+          key,
+          getTypePropertiesFromTypeReference({
+            type: propType,
+            typeNode,
+            parser,
+            checker,
+            reservedTypes,
+          }),
+        ];
+      });
+
+      return { kind: "object", value: entries };
+    }
+
     return { kind: "type", value: type.symbol.name };
   }
 
