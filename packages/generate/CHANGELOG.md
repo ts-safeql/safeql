@@ -1,5 +1,17 @@
 # @ts-safeql/generate
 
+## 3.6.11
+
+### Patch Changes
+
+- e3629fa: improved A_Expr inference
+- f44a45a: improved sql inference with nested context
+- Updated dependencies [e3629fa]
+- Updated dependencies [f44a45a]
+  - @ts-safeql/shared@3.6.11
+  - @ts-safeql/test-utils@0.0.46
+  - @ts-safeql/sql-ast@3.6.11
+
 ## 3.6.10
 
 ### Patch Changes
