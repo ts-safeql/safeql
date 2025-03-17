@@ -75,7 +75,7 @@ export function assertNever(caseType: never): never {
 
 export async function getOrSetFromMapWithEnabled<T>(params: {
   shouldCache: boolean;
-  map: Map<string, T>;
+  map: Map<string, NoInfer<T>>;
   key: string;
   value: () => T | Promise<T>;
 }) {

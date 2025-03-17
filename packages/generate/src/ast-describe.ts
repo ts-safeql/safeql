@@ -1,4 +1,4 @@
-import { defaultTypeExprMapping, fmap, normalizeIndent } from "@ts-safeql/shared";
+import { fmap, normalizeIndent } from "@ts-safeql/shared";
 import * as LibPgQueryAST from "@ts-safeql/sql-ast";
 import {
   isColumnStarRef,
@@ -16,6 +16,7 @@ type ASTDescriptionOptions = {
   parsed: LibPgQueryAST.ParseResult;
   relations: FlattenedRelationWithJoins[];
   typesMap: Map<string, { override: boolean; value: string }>;
+  typeExprMap: Map<string, Map<string, Map<string, string>>>;
   overridenColumnTypesMap: Map<string, Map<string, string>>;
   nonNullableColumns: Set<string>;
   pgColsBySchemaAndTableName: Map<string, Map<string, PgColRow[]>>;
@@ -274,61 +275,119 @@ function getDescribedAExpr({
 
     if (column === undefined) return null;
 
-    if (column.type.kind === "array") {
-      return { value: "array", nullable: false };
-    }
+    const getFromType = (
+      type: ASTDescribedColumnType,
+    ): { value: string; array: boolean; nullable: boolean } | null => {
+      switch (true) {
+        case type.kind === "type":
+          return { value: type.base ?? type.type, array: false, nullable: false };
 
-    if (column.type.kind === "type") {
-      return { value: column.type.base ?? column.type.type, nullable: false };
-    }
+        case type.kind === "literal" && type.base.kind === "type":
+          return { value: type.base.type, array: false, nullable: false };
 
-    if (column.type.kind === "literal" && column.type.base.kind === "type") {
-      return { value: column.type.base.type, nullable: false };
-    }
+        case type.kind === "union" && type.value.every((x) => x.kind === "literal"): {
+          const resolved = getFromType(type.value[0].base);
 
-    if (column.type.kind === "union" && isTuple(column.type.value)) {
-      let nullable = false;
-      let value: string | undefined = undefined;
+          if (resolved === null) return null;
 
-      for (const type of column.type.value) {
-        if (type.kind !== "type") return null;
-        if (type.value === "null") nullable = true;
-        if (type.value !== "null") value = type.type;
+          return { value: resolved.value, nullable: false, array: false };
+        }
+
+        case type.kind === "union" && isTuple(type.value): {
+          let nullable = false;
+          let value: string | undefined = undefined;
+
+          for (const valueType of type.value) {
+            if (valueType.kind !== "type") return null;
+            if (valueType.value === "null") nullable = true;
+            if (valueType.value !== "null") value = valueType.type;
+          }
+
+          if (value === undefined) return null;
+
+          return { value, nullable, array: false };
+        }
+
+        default:
+          return null;
       }
+    };
 
-      if (value === undefined) return null;
+    if (column.type.kind === "array") {
+      const resolved = getFromType(column.type.value);
 
-      return { value, nullable };
+      if (!resolved) return null;
+
+      return { value: resolved.value, nullable: resolved.nullable, array: true };
     }
 
-    return null;
+    return getFromType(column.type);
   };
 
   const lnode = getResolvedNullableValueOrNull(node.lexpr);
   const rnode = getResolvedNullableValueOrNull(node.rexpr);
+  const operator = concatStringNodes(node.name);
 
   if (lnode === null || rnode === null) {
     return [];
   }
 
-  const operator = concatStringNodes(node.name);
-  const resolved: string | undefined =
-    defaultTypeExprMapping[`${lnode.value} ${operator} ${rnode.value}`];
+  const downcast = () => {
+    const left = lnode.array ? `_${lnode.value}` : lnode.value;
+    const right = rnode.array ? `_${rnode.value}` : rnode.value;
 
-  if (resolved === undefined) {
+    const overrides: Record<string, [string, string, string]> = {
+      "int4 ^ int4": ["float8", "^", "float8"],
+    };
+
+    if (overrides[`${left} ${operator} ${right}`]) {
+      return overrides[`${left} ${operator} ${right}`];
+    }
+
+    const adjust = (value: string) => (value === "varchar" ? "text" : value);
+
+    return [adjust(left), operator, adjust(right)];
+  };
+
+  const getType = (): ASTDescribedColumnType | undefined => {
+    const nullable = !context.nonNullableColumns.has(name) && (lnode.nullable || rnode.nullable);
+    const [dleft, doperator, dright] = downcast();
+
+    const type =
+      context.typeExprMap.get(dleft)?.get(doperator)?.get(dright) ??
+      context.typeExprMap.get("anycompatiblearray")?.get(operator)?.get("anycompatiblearray") ??
+      context.typeExprMap.get("anyarray")?.get(operator)?.get("anyarray") ??
+      context.typeExprMap.get(lnode.value)?.get(operator)?.values().next().value;
+
+    if (type === undefined) {
+      return;
+    }
+
+    if (type === "anycompatiblearray") {
+      return {
+        kind: "array",
+        value: resolveType({
+          context,
+          nullable,
+          type: context.toTypeScriptType({ name: lnode.value }),
+        }),
+      };
+    }
+
+    return resolveType({
+      context,
+      nullable,
+      type: context.toTypeScriptType({ name: type }),
+    });
+  };
+
+  const type = getType();
+
+  if (type === undefined) {
     return [];
   }
 
-  return [
-    {
-      name: name,
-      type: resolveType({
-        context: context,
-        nullable: !context.nonNullableColumns.has(name) && (lnode.nullable || rnode.nullable),
-        type: context.toTypeScriptType({ name: resolved }),
-      }),
-    },
-  ];
+  return [{ name, type }];
 }
 
 function getDescribedNullTest({
@@ -815,14 +874,14 @@ function getColumnRefOrigins({
       // lookup in cte
       context.select.withClause?.ctes
         .find((cte) => cte.CommonTableExpr?.ctename === source)
-        ?.CommonTableExpr?.ctequery?.SelectStmt?.targetList?.map((x) => x.ResTarget)
-        .find((x) => x?.name === column)?.val ??
+        ?.CommonTableExpr?.ctequery?.SelectStmt?.targetList?.find(
+          (x) => x.ResTarget?.name === column,
+        ) ??
       // lookup in subselect
       context.select.fromClause
         ?.map((from) => from.RangeSubselect)
         .find((subselect) => subselect?.alias?.aliasname === source)
-        ?.subquery?.SelectStmt?.targetList?.map((x) => x.ResTarget)
-        .find((x) => x?.name === column)?.val;
+        ?.subquery?.SelectStmt?.targetList?.find((x) => x.ResTarget?.name === column);
 
     if (!origin) return undefined;
 
