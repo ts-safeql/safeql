@@ -220,7 +220,7 @@ const testQuery = async (params: {
         ({ output, unknownColumns }) => {
           assert.deepEqual(output?.value ?? null, params.expected);
 
-          if (unknownColumns.length > 0) {
+          if (unknownColumns.length > 0 || params.unknownColumns) {
             assert.deepEqual(unknownColumns, params.unknownColumns);
           }
         },
@@ -737,7 +737,6 @@ test("select from subselect with an alias", async () => {
   await testQuery({
     query: `SELECT subselect.id FROM (SELECT * FROM caregiver) AS subselect`,
     expected: [["id", { kind: "type", value: "number", type: "int4" }]],
-    unknownColumns: ["id"],
   });
 });
 
@@ -1971,46 +1970,48 @@ test("ARRAY[2, 3] <@ ARRAY[1, 2, 3] => boolean", async () => {
 test("ARRAY[1, 2] || ARRAY[3, 4] => array", async () => {
   await testQuery({
     query: `SELECT ARRAY[1, 2] || ARRAY[3, 4]`,
-    expected: [["?column?", { kind: "type", value: "array", type: "array" }]],
+    expected: [
+      ["?column?", { kind: "array", value: { kind: "type", type: "int4", value: "number" } }],
+    ],
   });
 });
 
-test("'{\"key\": \"value\"}'::jsonb ? 'key' => boolean", async () => {
+test(`'{"key": "value"}'::jsonb ? 'key' => boolean`, async () => {
   await testQuery({
     query: `SELECT '{"key": "value"}'::jsonb ? 'key'`,
     expected: [["?column?", { kind: "type", value: "boolean", type: "bool" }]],
   });
 });
 
-test("'{\"a\": 1, \"b\": 2}'::jsonb ?| array['a', 'c'] => boolean", async () => {
+test(`'{"a": 1, "b": 2}'::jsonb ?| array['a', 'c'] => boolean`, async () => {
   await testQuery({
     query: `SELECT '{"a": 1, "b": 2}'::jsonb ?| array['a', 'c']`,
     expected: [["?column?", { kind: "type", value: "boolean", type: "bool" }]],
   });
 });
 
-test("'{\"a\": 1, \"b\": 2}'::jsonb ?& array['a', 'b'] => boolean", async () => {
+test(`'{"a": 1, "b": 2}'::jsonb ?& array['a', 'b'] => boolean`, async () => {
   await testQuery({
     query: `SELECT '{"a": 1, "b": 2}'::jsonb ?& array['a', 'b']`,
     expected: [["?column?", { kind: "type", value: "boolean", type: "bool" }]],
   });
 });
 
-test("'{\"a\": {\"b\": 1}}'::jsonb -> 'a' => jsonb", async () => {
+test(`'{"a": {"b": 1}}'::jsonb -> 'a' => jsonb`, async () => {
   await testQuery({
     query: `SELECT '{"a": {"b": 1}}'::jsonb -> 'a'`,
     expected: [["?column?", { kind: "type", type: "jsonb", value: "any" }]],
   });
 });
 
-test("'{\"a\": {\"b\": 1}}'::jsonb ->> 'a' => string", async () => {
+test(`'{"a": {"b": 1}}'::jsonb ->> 'a' => string`, async () => {
   await testQuery({
     query: `SELECT '{"a": {"b": 1}}'::jsonb ->> 'a'`,
     expected: [["?column?", { kind: "type", value: "string", type: "text" }]],
   });
 });
 
-test("'{\"a\": 1, \"b\": 2}'::jsonb #- '{a}' => jsonb", async () => {
+test(`'{"a": 1, "b": 2}'::jsonb #- '{a}' => jsonb`, async () => {
   await testQuery({
     query: `SELECT '{"a": 1, "b": 2}'::jsonb #- '{a}'`,
     expected: [["?column?", { kind: "type", value: "any", type: "jsonb" }]],
@@ -2126,7 +2127,6 @@ test("with select from inner join and left join", async () => {
         INNER JOIN caregiver_agency ON x.id = caregiver_agency.caregiver_id
         LEFT JOIN agency ON caregiver_agency.agency_id = agency.id
     `,
-    unknownColumns: ["id"],
     expected: [
       ["id", { kind: "type", type: "int4", value: "number" }],
       [
@@ -2170,7 +2170,6 @@ test("select colref and const from left joined using col", async () => {
         },
       ],
     ],
-    unknownColumns: ["value"], // TODO: `ast-get-source` needs to be refactored to handle this case
   });
 });
 
@@ -2271,6 +2270,22 @@ test("select col.tbl from cte with array agg and col filter", async () => {
             { kind: "array", value: { kind: "type", type: "int4", value: "number" } },
             { kind: "type", type: "null", value: "null" },
           ],
+        },
+      ],
+    ],
+  });
+});
+
+test("varchar not like expr", async () => {
+  await testQuery({
+    schema: `CREATE TABLE tbl (email varchar(80) NOT NULL)`,
+    query: `SELECT jsonb_build_object('key', tbl.email NOT LIKE '%@example.com') AS col FROM tbl`,
+    expected: [
+      [
+        "col",
+        {
+          kind: "object",
+          value: [["key", { kind: "type", type: "bool", value: "boolean" }]],
         },
       ],
     ],

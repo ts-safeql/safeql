@@ -72,11 +72,12 @@ type Cache = {
     CacheKey,
     {
       pgTypes: PgTypesMap;
-      pgCols: PgColRow[];
+      pgCols: postgres.RowList<PgColRow[]>;
       pgEnums: PgEnumsMaps;
       pgColsByTableOidCache: Map<number, PgColRow[]>;
       pgColsBySchemaAndTableName: Map<string, Map<string, PgColRow[]>>;
       pgFnsByName: Map<string, PgFnRow[]>;
+      pgTypeExprMap: Map<string, Map<string, Map<string, string>>>;
     }
   >;
   overrides: {
@@ -128,13 +129,19 @@ async function generate(
 ): Promise<either.Either<GenerateError, GenerateResult>> {
   const { sql, query, cacheKey, cacheMetadata = true } = params;
 
-  const { pgColsByTableOidCache, pgColsBySchemaAndTableName, pgTypes, pgEnums, pgFnsByName } =
-    await getOrSetFromMapWithEnabled({
-      shouldCache: cacheMetadata,
-      map: cache.base,
-      key: cacheKey,
-      value: () => getDatabaseMetadata(sql),
-    });
+  const {
+    pgColsByTableOidCache,
+    pgColsBySchemaAndTableName,
+    pgTypes,
+    pgEnums,
+    pgFnsByName,
+    pgTypeExprMap,
+  } = await getOrSetFromMapWithEnabled({
+    shouldCache: cacheMetadata,
+    map: cache.base,
+    key: cacheKey,
+    value: () => getDatabaseMetadata(sql),
+  });
 
   const typesMap = await getOrSetFromMapWithEnabled({
     shouldCache: cacheMetadata,
@@ -266,6 +273,7 @@ async function generate(
       pgTypes: pgTypes,
       pgEnums: pgEnums,
       pgFns: functionsMap,
+      typeExprMap: pgTypeExprMap,
     });
 
     const columns = result.columns.map((col, position): ColumnAnalysisResult => {
@@ -329,6 +337,7 @@ async function getDatabaseMetadata(sql: Sql) {
   const pgColsByTableOidCache = groupBy(pgCols, "tableOid");
   const pgColsBySchemaAndTableName = groupBy(pgCols, "schemaName", "tableName");
   const pgFnsByName = groupBy(pgFns, "name");
+  const pgTypeExprMap = await getPgTypeExprMap(sql);
 
   return {
     pgTypes,
@@ -337,6 +346,7 @@ async function getDatabaseMetadata(sql: Sql) {
     pgColsByTableOidCache,
     pgColsBySchemaAndTableName,
     pgFnsByName,
+    pgTypeExprMap,
   };
 }
 
@@ -695,4 +705,31 @@ async function getPgFunctions(sql: Sql) {
       .filter((x) => x !== ""),
     returnType: row.returnType,
   }));
+}
+
+async function getPgTypeExprMap(sql: Sql): Promise<Map<string, Map<string, Map<string, string>>>> {
+  const rows = await sql<{ left: string; operator: string; right: string; result: string }[]>`
+      SELECT
+        l.typname as left,
+        o.oprname as operator,
+        r.typname as right,
+        ret.typname AS result
+      FROM pg_operator o
+        JOIN pg_type l ON l.oid = o.oprleft
+        JOIN pg_type r ON r.oid = o.oprright
+        JOIN pg_type ret ON ret.oid = o.oprresult
+      WHERE o.oprleft <> 0 AND o.oprright <> 0
+  `;
+
+  const map = new Map<string, Map<string, Map<string, string>>>();
+
+  for (const row of rows) {
+    const leftMap = map.get(row.left) ?? new Map<string, Map<string, string>>();
+    const rightMap = leftMap.get(row.operator) ?? new Map<string, string>();
+    rightMap.set(row.right, row.result);
+    leftMap.set(row.operator, rightMap);
+    map.set(row.left, leftMap);
+  }
+
+  return map;
 }
