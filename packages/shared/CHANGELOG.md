@@ -1,5 +1,12 @@
 # @ts-safeql/shared
 
+## 3.6.11
+
+### Patch Changes
+
+- e3629fa: improved A_Expr inference
+- f44a45a: improved sql inference with nested context
+
 ## 3.6.10
 
 ## 3.6.9
