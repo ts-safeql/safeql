@@ -1,7 +1,7 @@
 {
   "extends": "../../tsconfig.node.json",
   "compilerOptions": {
-    "noEmit": true,
+    "outDir": "./dist",
     "paths": {
       "@/prisma-client": ["./node_modules/.prisma/client"]
     }

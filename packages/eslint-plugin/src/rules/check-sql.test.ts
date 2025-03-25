@@ -22,8 +22,10 @@ RuleTester.itOnly = it.only;
 RuleTester.afterAll = afterAll;
 
 const ruleTester = new RuleTester({
-  parser: "@typescript-eslint/parser",
-  parserOptions: { project, tsconfigRootDir },
+  languageOptions: {
+    parser: await import("@typescript-eslint/parser"),
+    parserOptions: { project, tsconfigRootDir },
+  },
   settings: {},
 });
 

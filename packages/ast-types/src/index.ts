@@ -1,7 +1,4 @@
-/* eslint-disable @typescript-eslint/no-empty-interface  */
-/* eslint-disable @typescript-eslint/ban-types */
-/* eslint-disable @typescript-eslint/no-namespace */
-
+/* eslint-disable @typescript-eslint/no-empty-object-type */
 // https://raw.githubusercontent.com/pganalyze/libpg_query/f1b475ddcbea7951a7ef825f137abdc54e5a34e4/protobuf/pg_query.proto
 
 export interface ParseResult {

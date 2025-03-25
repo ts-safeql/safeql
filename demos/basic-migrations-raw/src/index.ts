@@ -7,7 +7,6 @@ export function check(client: Db) {
   client.queryOne<{
     id: number;
     post_id: number | null;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     metadata: any | null;
     body: string | null;
   }>(sql`
@@ -17,7 +16,6 @@ export function check(client: Db) {
   client.queryOne<{
     id: number;
     post_id: number | null;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     metadata: any | null;
     body: string | null;
   }>(sql`
