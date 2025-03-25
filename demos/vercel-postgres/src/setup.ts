@@ -1,6 +1,6 @@
 import { execSync } from "child_process";
 import dotenv from "dotenv";
-import { Client } from "pg";
+import pg from "pg";
 
 const DATABASE_NAME = "safeql_vercel";
 
@@ -16,7 +16,7 @@ async function main() {
   // 3. Connect to the database
   console.log("Connecting to database...");
   dotenv.config({ path: ".env.development.local" });
-  const client = new Client({ connectionString: process.env.POSTGRES_URL });
+  const client = new pg.Client({ connectionString: process.env.POSTGRES_URL });
   await client.connect();
 
   // 4. Create tables
