@@ -35,7 +35,7 @@
     "demo": "tsx src/index.ts",
     "build": "unbuild",
     "dev": "unbuild --stub",
-    "test": "vitest --pool=forks",
+    "test": "vitest --pool=forks --hideSkippedTests=true",
     "lint": "eslint src",
     "lint!": "eslint src --fix",
     "typecheck": "tsc -b",
@@ -69,7 +69,7 @@
     "zod-to-json-schema": "3.24.5"
   },
   "peerDependencies": {
-    "@typescript-eslint/utils": ">=7.8.0",
+    "@typescript-eslint/utils": ">=8.0.0",
     "libpg-query": ">=13.2.5"
   }
 }
