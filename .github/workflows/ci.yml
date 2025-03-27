@@ -16,10 +16,11 @@ concurrency:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        task: [build, typecheck, lint, format, test]
+        os: [ubuntu-latest]
+        node-version: ["20"]
       fail-fast: false
     services:
       postgres:
@@ -39,7 +40,7 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: ${{ matrix.node-version }}
           cache: "pnpm"
       - run: pnpm install
       - run: pnpm run setup
@@ -48,4 +49,8 @@ jobs:
           PGPASSWORD: postgres
           PGHOST: localhost
           PGDATABASE: postgres
-      - run: pnpm ${{ matrix.task }}
+      - run: pnpm build
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm format
+      - run: pnpm test
