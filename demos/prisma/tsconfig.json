@@ -3,7 +3,7 @@
   "compilerOptions": {
     "outDir": "./dist",
     "paths": {
-      "@/prisma-client": ["./node_modules/.prisma/client"]
+      "@/prisma-client": ["./generated/client"]
     }
   }
 }
