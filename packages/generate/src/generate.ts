@@ -176,6 +176,7 @@ async function generate(
           throw new Error(`Invalid override column key: ${colPath}. Expected format: table.column`);
         }
 
+        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
         map.has(table)
           ? map.get(table)?.set(column, type)
           : map.set(table, new Map([[column, type]]));

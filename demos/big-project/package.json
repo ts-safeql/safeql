@@ -1,6 +1,7 @@
 {
   "name": "@ts-safeql-demos/big-project",
   "version": "0.0.0",
+  "type": "module",
   "scripts": {
     "build": "tsc",
     "watch": "tsc --watch",
@@ -10,15 +11,15 @@
     "lint!": "eslint src --fix"
   },
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^7.18.0",
-    "@typescript-eslint/parser": "^7.18.0",
-    "eslint": "^8.57.1",
-    "tsx": "^4.19.2",
-    "typescript": "^5.7.2"
+    "@eslint/js": "^9.23.0",
+    "eslint": "^9.23.0",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2",
+    "typescript-eslint": "^8.28.0"
   },
   "dependencies": {
     "@ts-safeql/eslint-plugin": "workspace:*",
-    "@types/node": "^18.19.68",
+    "@types/node": "^22.13.13",
     "postgres": "^3.4.5"
   }
 }

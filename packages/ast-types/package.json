@@ -24,14 +24,14 @@
     "lint": "eslint src",
     "lint!": "eslint src --fix",
     "typecheck": "tsc -b",
-    "clean": "rm -rf lib"
+    "clean": "rm -rf dist"
   },
   "devDependencies": {
-    "@types/node": "^18.19.68",
-    "@typescript-eslint/eslint-plugin": "^7.18.0",
-    "@typescript-eslint/parser": "^7.18.0",
-    "eslint": "^8.57.1",
-    "typescript": "^5.7.2",
-    "unbuild": "^2.0.0"
+    "@types/node": "^22.13.13",
+    "@typescript-eslint/eslint-plugin": "^8.28.0",
+    "@typescript-eslint/parser": "^8.28.0",
+    "eslint": "^9.23.0",
+    "typescript": "^5.8.2",
+    "unbuild": "^3.5.0"
   }
 }

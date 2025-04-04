@@ -8,5 +8,5 @@ export default tseslint.config(
   safeql.configs.connections({
     databaseUrl: "postgres://postgres:postgres@localhost:5432/safeql_basic_flat_config",
     targets: [{ tag: "sql", transform: "{type}[]" }],
-  })
+  }),
 );

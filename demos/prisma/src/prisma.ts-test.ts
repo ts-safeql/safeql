@@ -1,4 +1,4 @@
-import { PrismaClient, PrismaPromise } from "@prisma/client";
+import { PrismaClient, PrismaPromise } from "@/prisma-client";
 import { assert, IsExact } from "conditional-type-checks";
 
 function _test() {

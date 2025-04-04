@@ -35,40 +35,41 @@
     "demo": "tsx src/index.ts",
     "build": "unbuild",
     "dev": "unbuild --stub",
-    "test": "vitest --pool=forks",
+    "test": "vitest --pool=forks --hideSkippedTests=true",
     "lint": "eslint src",
     "lint!": "eslint src --fix",
     "typecheck": "tsc -b",
-    "clean": "rm -rf lib"
+    "clean": "rm -rf dist"
   },
   "devDependencies": {
     "@ts-safeql/generate": "workspace:*",
     "@ts-safeql/shared": "workspace:*",
     "@ts-safeql/sql-ast": "workspace:*",
     "@ts-safeql/test-utils": "workspace:*",
-    "@types/node": "^20.17.10",
-    "@typescript-eslint/eslint-plugin": "^7.18.0",
-    "@typescript-eslint/parser": "^7.18.0",
-    "@typescript-eslint/rule-tester": "^7.18.0",
-    "eslint": "^8.57.1",
+    "@types/node": "^22.13.13",
+    "@typescript-eslint/eslint-plugin": "^8.28.0",
+    "@typescript-eslint/parser": "^8.28.0",
+    "@typescript-eslint/rule-tester": "^8.28.0",
+    "eslint": "^9.23.0",
     "libpg-query": "^16.3.0",
-    "typescript": "^5.7.2",
-    "unbuild": "^2.0.0",
-    "vitest": "^2.1.8"
+    "typescript": "^5.8.2",
+    "unbuild": "^3.5.0",
+    "vitest": "^3.0.9"
   },
   "dependencies": {
-    "chokidar": "^3.6.0",
+    "chokidar": "^4.0.3",
     "fp-ts": "^2.16.9",
-    "pg-connection-string": "2.5.0",
+    "pg-connection-string": "2.7.0",
     "postgres": "^3.4.5",
-    "synckit": "^0.9.2",
-    "ts-pattern": "^4.3.0",
-    "tsx": "^4.19.2",
-    "zod": "^3.24.1",
-    "zod-to-json-schema": "3.20.1"
+    "quansync": "^0.2.10",
+    "synckit": "^0.10.3",
+    "ts-pattern": "^5.6.2",
+    "tsx": "^4.19.3",
+    "zod": "^3.24.2",
+    "zod-to-json-schema": "3.24.5"
   },
   "peerDependencies": {
-    "@typescript-eslint/utils": ">=7.8.0",
+    "@typescript-eslint/utils": ">=8.0.0",
     "libpg-query": ">=13.2.5"
   }
 }

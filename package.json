@@ -2,6 +2,7 @@
   "name": "testsql",
   "description": "Validate and auto-generate TypeScript types from raw SQL queries in PostgreSQL.",
   "version": "0.0.0",
+  "type": "module",
   "private": true,
   "repository": "https://github.com/ts-safeql/safeql",
   "license": "MIT",
@@ -27,10 +28,10 @@
     "node": "20.x"
   },
   "devDependencies": {
-    "@changesets/cli": "^2.27.10",
-    "prettier": "^3.4.2",
-    "turbo": "^1.13.4",
-    "typescript": "^5.7.2"
+    "@changesets/cli": "^2.28.1",
+    "prettier": "^3.5.3",
+    "turbo": "^2.4.4",
+    "typescript": "^5.8.2"
   },
   "packageManager": "pnpm@9.9.0+sha512.60c18acd138bff695d339be6ad13f7e936eea6745660d4cc4a776d5247c540d0edee1a563695c183a66eb917ef88f2b4feb1fc25f32a7adcadc7aaf3438e99c1"
 }
