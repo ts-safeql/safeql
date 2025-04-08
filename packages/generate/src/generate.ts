@@ -481,7 +481,7 @@ function getResolvedTargetEntry(params: {
 
     if (!pgType) return undefined;
 
-    if (params.context.overrides?.columns) {
+    if (params.context.overrides?.columns && params.context.overrides.columns.size > 0) {
       const override = params.context.overrides.columns
         .get(params.col.introspected?.tableName ?? "")
         ?.get(params.col.described.name);
