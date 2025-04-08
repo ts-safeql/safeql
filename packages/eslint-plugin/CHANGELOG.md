@@ -1,5 +1,11 @@
 # @ts-safeql/eslint-plugin
 
+## 3.6.12
+
+### Patch Changes
+
+- a15d97b: fix: Support type overrides in RETURNING clause (@oneofthezombies)
+
 ## 3.6.11
 
 ## 3.6.10

@@ -1,5 +1,7 @@
 # @ts-safeql/shared
 
+## 3.6.12
+
 ## 3.6.11
 
 ### Patch Changes

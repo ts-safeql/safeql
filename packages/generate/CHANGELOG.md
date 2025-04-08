@@ -1,5 +1,14 @@
 # @ts-safeql/generate
 
+## 3.6.12
+
+### Patch Changes
+
+- a15d97b: fix: Support type overrides in RETURNING clause (@oneofthezombies)
+  - @ts-safeql/shared@3.6.12
+  - @ts-safeql/sql-ast@3.6.12
+  - @ts-safeql/test-utils@0.0.47
+
 ## 3.6.11
 
 ### Patch Changes
