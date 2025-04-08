@@ -639,6 +639,33 @@ test("insert into table without returning", async () => {
   });
 });
 
+test("insert into table with overridden type in RETURNING", async () => {
+  await testQuery({
+    options: { overrides: { types: { text: "CustomType" } } },
+    query: `INSERT INTO agency (name) VALUES ('overriden_type_inserted') RETURNING name`,
+    expected: [["name", { kind: "type", value: "CustomType", type: "text" }]],
+    unknownColumns: ["name"],
+  });
+});
+
+test("update row with overridden type in RETURNING", async () => {
+  await testQuery({
+    options: { overrides: { types: { text: "CustomType" } } },
+    query: `UPDATE agency SET name = 'overriden_type_updated' WHERE name = 'overriden_type_inserted' RETURNING name`,
+    expected: [["name", { kind: "type", value: "CustomType", type: "text" }]],
+    unknownColumns: ["name"],
+  });
+});
+
+test("delete row with overridden type in RETURNING", async () => {
+  await testQuery({
+    options: { overrides: { types: { text: "CustomType" } } },
+    query: `DELETE FROM agency WHERE name = 'overriden_type_updated' RETURNING name`,
+    expected: [["name", { kind: "type", value: "CustomType", type: "text" }]],
+    unknownColumns: ["name"],
+  });
+});
+
 test("insert into returning overriden column", async () => {
   await testQuery({
     schema: `
