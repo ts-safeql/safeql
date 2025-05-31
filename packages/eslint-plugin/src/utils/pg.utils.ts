@@ -31,7 +31,7 @@ export function parseConnection(databaseUrl: string): ConnectionOptions {
   }
 
   if (!isDefined(connection.password)) {
-    throw new Error("Could not resolve datbase password");
+    throw new Error("Could not resolve database password");
   }
 
   if (!isDefined(connection.database)) {

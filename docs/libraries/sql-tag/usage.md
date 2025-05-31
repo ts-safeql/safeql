@@ -55,7 +55,7 @@ For cases where you want to enforce a specific type for the values in your SQL q
 ```ts
 import { createTypedSqlTag } from "@ts-safeql/sql-tag";
 
-// Define the possble expressions that can be used in the query
+// Define the possible expressions that can be used in the query
 type Expression = string | number | boolean;
 
 // Create a typed SQL tag
