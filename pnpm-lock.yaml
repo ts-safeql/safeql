@@ -380,13 +380,13 @@ importers:
 
   demos/shared:
     dependencies:
-      '@types/node':
-        specifier: ^22.13.13
-        version: 22.13.13
       postgres:
         specifier: ^3.4.5
         version: 3.4.5
     devDependencies:
+      '@types/node':
+        specifier: ^22.13.13
+        version: 22.13.13
       typescript:
         specifier: ^5.8.2
         version: 5.8.2
