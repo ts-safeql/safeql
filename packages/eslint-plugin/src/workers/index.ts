@@ -13,5 +13,5 @@ function defineWorker<T extends AnyFn<R>, R = unknown>(params: { name: string; t
 }
 
 export const workers = {
-  generateSync: defineWorker<CheckSQLWorkerHandler>({ name: "check-sql", timeout: 1000 * 60 * 5 }),
+  generateSync: defineWorker<CheckSQLWorkerHandler>({ name: "check-sql", timeout: 1000 * 60 * 1 }),
 };
