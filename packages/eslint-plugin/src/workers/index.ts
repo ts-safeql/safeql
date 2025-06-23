@@ -2,7 +2,6 @@ import path from "path";
 import { AnyAsyncFn, createSyncFn } from "synckit";
 import { distDir } from "../dirs";
 import { CheckSQLWorkerHandler } from "./check-sql.worker";
-import { ParseSyncWorkerHandler } from "./parse-sync.worker";
 
 function defineWorker<T extends AnyAsyncFn<R>, R = unknown>(params: {
   name: string;
@@ -16,5 +15,4 @@ function defineWorker<T extends AnyAsyncFn<R>, R = unknown>(params: {
 
 export const workers = {
   generateSync: defineWorker<CheckSQLWorkerHandler>({ name: "check-sql", timeout: 1000 * 60 * 5 }),
-  parseSync: defineWorker<ParseSyncWorkerHandler>({ name: "parse-sync", timeout: 1000 * 5 }),
 };

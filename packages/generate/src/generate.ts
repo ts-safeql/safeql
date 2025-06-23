@@ -22,6 +22,7 @@ import {
   flattenRelationsWithJoinsMap,
   getRelationsWithJoins,
 } from "./utils/get-relations-with-joins";
+import * as parser from "libpg-query";
 
 type JSToPostgresTypeMap = Record<string, unknown>;
 type Sql = postgres.Sql<JSToPostgresTypeMap>;
@@ -53,7 +54,6 @@ type Overrides = {
 export interface GenerateParams {
   sql: Sql;
   query: { text: string; sourcemaps: QuerySourceMapEntry[] };
-  pgParsed: LibPgQueryAST.ParseResult;
   cacheMetadata?: boolean;
   cacheKey: CacheKey;
   fieldTransform: IdentiferCase | undefined;
@@ -260,11 +260,12 @@ async function generate(
       );
     }
 
-    const relationsWithJoins = flattenRelationsWithJoinsMap(getRelationsWithJoins(params.pgParsed));
-    const nonNullableColumnsBasedOnAST = getNonNullableColumns(params.pgParsed);
+    const parsed = await parser.parse(query.text)
+    const relationsWithJoins = flattenRelationsWithJoinsMap(getRelationsWithJoins(parsed));
+    const nonNullableColumnsBasedOnAST = getNonNullableColumns(parsed);
 
     const astQueryDescription = getASTDescription({
-      parsed: params.pgParsed,
+      parsed: parsed,
       relations: relationsWithJoins,
       typesMap: typesMap,
       overridenColumnTypesMap: overridenColumnTypesMap,

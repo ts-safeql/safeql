@@ -4,7 +4,7 @@ import assert from "assert";
 import * as O from "fp-ts/lib/Option";
 import * as TE from "fp-ts/lib/TaskEither";
 import { flow, identity, pipe } from "fp-ts/lib/function";
-import { parseQuery } from "libpg-query";
+import parser from "libpg-query";
 import { Sql } from "postgres";
 import { afterAll, beforeAll, test } from "vitest";
 import { GenerateParams, ResolvedTargetEntry, createGenerator } from "./generate";
@@ -168,7 +168,7 @@ afterAll(async () => {
 
 const { generate } = createGenerator();
 const generateTE = flow(generate, TE.tryCatchK(identity, InternalError.to));
-const parseQueryTE = flow(parseQuery, TE.tryCatchK(identity, InternalError.to));
+const parseQueryTE = flow(parser.parse, TE.tryCatchK(identity, InternalError.to));
 
 const testQuery = async (params: {
   query: string;

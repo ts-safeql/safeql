@@ -51,7 +51,7 @@
     "@typescript-eslint/parser": "^7.18.0",
     "@typescript-eslint/rule-tester": "^7.18.0",
     "eslint": "^8.57.1",
-    "libpg-query": "^16.3.0",
+    "libpg-query": "^17.5.2",
     "typescript": "^5.7.2",
     "unbuild": "^2.0.0",
     "vitest": "^2.1.8"
