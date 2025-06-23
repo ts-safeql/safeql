@@ -6,8 +6,7 @@ layout: doc
 
 ## Prerequisites
 
-1. Set up ESLint following [the `typescript-eslint` Getting Started docs](https://typescript-eslint.io/getting-started), to enable TypeScript language support in ESLint
-2. Install [the `node-gyp` prerequisites for your operating system](https://github.com/nodejs/node-gyp#on-unix)
+Set up ESLint following [the `typescript-eslint` Getting Started docs](https://typescript-eslint.io/getting-started), to enable TypeScript language support in ESLint.
 
 ## Installation
 

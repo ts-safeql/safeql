@@ -116,7 +116,7 @@ const cases: {
 ];
 
 export const getRelationsWithJoinsTE = flow(
-  parser.parseQuery,
+  parser.parse,
   taskEither.tryCatchK(identity, InternalError.to),
   taskEither.map(getRelationsWithJoins),
 );

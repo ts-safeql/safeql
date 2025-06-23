@@ -11,14 +11,9 @@ import {
   InvalidMigrationsPathError,
   QuerySourceMapEntry,
 } from "@ts-safeql/shared";
-import * as LibPgQueryAST from "@ts-safeql/sql-ast";
 import path from "path";
 import { runAsWorker } from "synckit";
 import { match } from "ts-pattern";
-import { createConnectionManager } from "../utils/connection-manager";
-import { J, pipe, TE } from "../utils/fp-ts";
-import { initDatabase } from "../utils/pg.utils";
-import { createWatchManager } from "../utils/watch-manager";
 import {
   ConnectionPayload,
   getConnectionStartegyByRuleOptionConnection,
@@ -27,13 +22,16 @@ import {
   runMigrations,
 } from "../rules/check-sql.utils";
 import { ConnectionTarget, RuleOptionConnection } from "../rules/RuleOptions";
+import { createConnectionManager } from "../utils/connection-manager";
+import { J, pipe, TE } from "../utils/fp-ts";
+import { initDatabase } from "../utils/pg.utils";
+import { createWatchManager } from "../utils/watch-manager";
 
 export interface CheckSQLWorkerParams {
   connection: RuleOptionConnection;
   target: ConnectionTarget;
   query: { text: string; sourcemaps: QuerySourceMapEntry[] };
   projectDir: string;
-  pgParsed: LibPgQueryAST.ParseResult;
 }
 
 export type CheckSQLWorkerHandler = typeof handler;
@@ -120,7 +118,6 @@ function workerHandler(params: CheckSQLWorkerParams): TE.TaskEither<WorkerError,
         sql,
         query: params.query,
         cacheKey: databaseUrl,
-        pgParsed: params.pgParsed,
         overrides: params.connection.overrides,
         fieldTransform: params.target.fieldTransform,
       });

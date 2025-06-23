@@ -4,7 +4,6 @@ import assert from "assert";
 import * as O from "fp-ts/lib/Option";
 import * as TE from "fp-ts/lib/TaskEither";
 import { flow, identity, pipe } from "fp-ts/lib/function";
-import { parseQuery } from "libpg-query";
 import { Sql } from "postgres";
 import { afterAll, beforeAll, test } from "vitest";
 import { GenerateParams, ResolvedTargetEntry, createGenerator } from "./generate";
@@ -168,7 +167,6 @@ afterAll(async () => {
 
 const { generate } = createGenerator();
 const generateTE = flow(generate, TE.tryCatchK(identity, InternalError.to));
-const parseQueryTE = flow(parseQuery, TE.tryCatchK(identity, InternalError.to));
 
 const testQuery = async (params: {
   query: string;
@@ -185,11 +183,9 @@ const testQuery = async (params: {
   const run = (sql: Sql) =>
     pipe(
       TE.Do,
-      TE.bind("pgParsed", () => parseQueryTE(params.query)),
-      TE.bind("result", ({ pgParsed }) =>
+      TE.bind("result", () =>
         generateTE({
           sql,
-          pgParsed,
           query: { text: query, sourcemaps: [] },
           cacheKey,
           fieldTransform: undefined,
@@ -636,6 +632,33 @@ test("insert into table without returning", async () => {
   await testQuery({
     query: `INSERT INTO caregiver (first_name, last_name) VALUES (null, null)`,
     expected: null,
+  });
+});
+
+test("insert into table with overridden type in RETURNING", async () => {
+  await testQuery({
+    options: { overrides: { types: { text: "CustomType" } } },
+    query: `INSERT INTO agency (name) VALUES ('overriden_type_inserted') RETURNING name`,
+    expected: [["name", { kind: "type", value: "CustomType", type: "text" }]],
+    unknownColumns: ["name"],
+  });
+});
+
+test("update row with overridden type in RETURNING", async () => {
+  await testQuery({
+    options: { overrides: { types: { text: "CustomType" } } },
+    query: `UPDATE agency SET name = 'overriden_type_updated' WHERE name = 'overriden_type_inserted' RETURNING name`,
+    expected: [["name", { kind: "type", value: "CustomType", type: "text" }]],
+    unknownColumns: ["name"],
+  });
+});
+
+test("delete row with overridden type in RETURNING", async () => {
+  await testQuery({
+    options: { overrides: { types: { text: "CustomType" } } },
+    query: `DELETE FROM agency WHERE name = 'overriden_type_updated' RETURNING name`,
+    expected: [["name", { kind: "type", value: "CustomType", type: "text" }]],
+    unknownColumns: ["name"],
   });
 });
 

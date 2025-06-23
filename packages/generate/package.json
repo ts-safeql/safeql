@@ -1,6 +1,6 @@
 {
   "name": "@ts-safeql/generate",
-  "version": "3.6.11",
+  "version": "3.6.12",
   "description": "",
   "license": "MIT",
   "repository": "https://github.com/ts-safeql/safeql/tree/master/packages/eslint-plugin",
@@ -34,7 +34,7 @@
     "@typescript-eslint/eslint-plugin": "^8.28.0",
     "@typescript-eslint/parser": "^8.28.0",
     "eslint": "^9.23.0",
-    "libpg-query": "^16.3.0",
+    "libpg-query": "^17.5.2",
     "tsx": "^4.19.3",
     "typescript": "^5.8.2",
     "unbuild": "^3.5.0",
