@@ -5,8 +5,7 @@ export default defineBuildConfig([
     entries: [
       "src/index",
       "src/config",
-      "src/workers/check-sql.worker.ts",
-      "src/workers/parse-sync.worker.ts",
+      "src/workers/check-sql.worker.ts"
     ],
     declaration: true,
     sourcemap: true,
