@@ -261,7 +261,7 @@ async function generate(
       );
     }
 
-    const parsed = await parser.parse(query.text)
+    const parsed = await parser.parse(query.text);
     const relationsWithJoins = flattenRelationsWithJoinsMap(getRelationsWithJoins(parsed));
     const nonNullableColumnsBasedOnAST = getNonNullableColumns(parsed);
 
