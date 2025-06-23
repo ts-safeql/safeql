@@ -1,5 +1,17 @@
 # @ts-safeql/generate
 
+## 4.0.0
+
+### Major Changes
+
+- b6fa80d: BREAKING: SafeQL now requires the latest minore releases of `libpg-query` which use WASM builds instead of native binaries. This change imporves compatibility across different platforms and eliminates native compilation issues.
+
+### Patch Changes
+
+- @ts-safeql/shared@4.0.0
+- @ts-safeql/sql-ast@4.0.0
+- @ts-safeql/test-utils@0.0.48
+
 ## 3.6.12
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # @ts-safeql/eslint-plugin
 
+## 4.0.0
+
+### Major Changes
+
+- b6fa80d: BREAKING: SafeQL now requires the latest minore releases of `libpg-query` which use WASM builds instead of native binaries. This change imporves compatibility across different platforms and eliminates native compilation issues.
+
 ## 3.6.12
 
 ### Patch Changes
