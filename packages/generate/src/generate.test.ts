@@ -691,7 +691,7 @@ test("select where int column = any(array)", async () => {
 test("select with syntax error", async () => {
   await testQuery({
     query: `SELECT id FROM caregiver WHERE`,
-    expectedError: "Internal error: syntax error at end of input",
+    expectedError: "syntax error at end of input",
   });
 });
 
