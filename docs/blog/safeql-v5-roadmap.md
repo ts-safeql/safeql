@@ -1,5 +1,5 @@
 ---
-title: "SafeQL v4 Roadmap"
+title: "SafeQL v5 Roadmap"
 author:
   name: Eliya Cohen
 date: 2024-12-15
@@ -13,28 +13,28 @@ head:
       content: website
   - - meta
     - property: og:title
-      content: SafeQL v4 Roadmap
+      content: SafeQL v5 Roadmap
   - - meta
     - property: og:image
-      content: https://safeql.dev/safeql-v4-roadmap.jpg
+      content: https://safeql.dev/safeql-v5-roadmap.jpg
   - - meta
     - property: og:url
-      content: https://safeql.dev/blog/safeql-v4-roadmap
+      content: https://safeql.dev/blog/safeql-v5-roadmap
   - - meta
     - property: og:description
-      content: SafeQL v4 Roadmap
+      content: SafeQL v5 Roadmap
   - - meta
     - name: twitter:card
       content: summary_large_image
 ---
 
-# SafeQL v4 Roadmap
+# SafeQL v5 Roadmap
 
 _December 15, 2024_
 
-![SafeQL v4 Roadmap](/safeql-v4-roadmap.jpg)
+![SafeQL v5 Roadmap](/safeql-v5-roadmap.jpg)
 
-It's been a while since the last major version, and I'm excited to share the roadmap for SafeQL v4. This release will introduce several breaking changes, but I believe these changes are necessary to keep the library relevant and up to date.
+It's been a while since the last major version, and I'm excited to share the roadmap for SafeQL v5. This release will introduce several breaking changes, but I believe these changes are necessary to keep the library relevant and up to date.
 
 The main goal of this version is to increase the modularity, flexibility, and pluggability of SafeQL. I want to make it easier and more feasible for library authors to deeply integrate with SafeQL. The initial 4.0.0 release won't include new features, but it will lay the foundation for features to come in future minor versions.
 
@@ -48,7 +48,7 @@ When I initially released SafeQL, `connections.targets.[tag, wrapper]` could be 
 
 ## Migrating from ESLint Rule Options to `safeql.config.ts`
 
-Today, you can configure SafeQL either by using a configuration file (`safeql.config.ts`) or by using ESLint’s rule options. In v4, I will deprecate ESLint-based configuration in favor of the configuration file. This change will allow for more complex configurations and will pave the way for new features.
+Today, you can configure SafeQL either by using a configuration file (`safeql.config.ts`) or by using ESLint’s rule options. In v5, I will deprecate ESLint-based configuration in favor of the configuration file. This change will allow for more complex configurations and will pave the way for new features.
 
 ### Why?
 
@@ -119,4 +119,4 @@ export default defineConfig({
 
 ## Closing Thoughts
 
-I'm excited about the upcoming changes in SafeQL v4. I believe they will make the library more flexible and powerful. I'm looking forward to hearing your feedback and suggestions. If you have any ideas or requests for new features, please let me know. I’m always open to new ideas and improvements.
+I'm excited about the upcoming changes in SafeQL v5. I believe they will make the library more flexible and powerful. I'm looking forward to hearing your feedback and suggestions. If you have any ideas or requests for new features, please let me know. I’m always open to new ideas and improvements.

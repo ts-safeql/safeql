@@ -1,11 +1,5 @@
 import { ResolvedTarget } from "@ts-safeql/generate";
-import {
-  InvalidConfigError,
-  PostgresError,
-  QuerySourceMapEntry,
-  doesMatchPattern,
-  fmap,
-} from "@ts-safeql/shared";
+import { InvalidConfigError, doesMatchPattern, fmap } from "@ts-safeql/shared";
 import {
   ESLintUtils,
   ParserServices,
@@ -14,7 +8,6 @@ import {
   TSESTree,
 } from "@typescript-eslint/utils";
 import { JSONSchema4 } from "@typescript-eslint/utils/json-schema";
-import parser from "libpg-query";
 import { match } from "ts-pattern";
 import ts from "typescript";
 import { zodToJsonSchema } from "zod-to-json-schema";
@@ -131,15 +124,6 @@ function checkConnection(params: {
   return match(params.target).exhaustive();
 }
 
-const pgParseQueryE = (query: string, sourcemaps: QuerySourceMapEntry[]) => {
-  return pipe(
-    E.tryCatch(
-      () => parser.parseQuerySync(query),
-      (error) => PostgresError.to(query, error, sourcemaps),
-    ),
-  );
-};
-
 const generateSyncE = flow(
   workers.generateSync,
   E.chain(J.parse),
@@ -192,9 +176,8 @@ function reportCheck(params: {
         params.context.sourceCode,
       ),
     ),
-    E.bindW("pgParsed", ({ query }) => pgParseQueryE(query.text, query.sourcemaps)),
-    E.bindW("result", ({ query, pgParsed }) => {
-      return generateSyncE({ query, pgParsed, connection, target, projectDir });
+    E.bindW("result", ({ query }) => {
+      return generateSyncE({ query, connection, target, projectDir });
     }),
     E.fold(
       (error) => {

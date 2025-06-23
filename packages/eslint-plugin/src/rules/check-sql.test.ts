@@ -6,15 +6,12 @@ import {
 import { InvalidTestCase, RuleTester } from "@typescript-eslint/rule-tester";
 
 import { normalizeIndent } from "@ts-safeql/shared";
+import parser from "@typescript-eslint/parser";
 import path from "path";
 import { Sql } from "postgres";
 import { afterAll, beforeAll, describe, it } from "vitest";
 import rules from ".";
 import { RuleOptionConnection, RuleOptions } from "./RuleOptions";
-
-const tsconfigRootDir = path.resolve(__dirname, "../../");
-const project = "tsconfig.json";
-const filename = path.join(tsconfigRootDir, "src/file.ts");
 
 RuleTester.describe = describe;
 RuleTester.it = it;
@@ -22,8 +19,13 @@ RuleTester.itOnly = it.only;
 RuleTester.afterAll = afterAll;
 
 const ruleTester = new RuleTester({
-  parser: "@typescript-eslint/parser",
-  parserOptions: { project, tsconfigRootDir },
+  languageOptions: {
+    parser: parser,
+    parserOptions: {
+      project: true,
+      tsconfigRootDir: path.resolve(__dirname, "./ts-fixture"),
+    },
+  },
   settings: {},
 });
 
@@ -227,37 +229,31 @@ RuleTester.describe("check-sql", () => {
     valid: [
       {
         name: "select non-table column",
-        filename,
         options: withConnection(connections.base),
         code: "const result = conn.query<{ x: number }>(sql`SELECT 1 as x`);",
       },
       {
         name: "select array_agg(stmt)",
-        filename,
         options: withConnection(connections.withTag),
         code: "sql<{ ids: number[] | null }>`SELECT ARRAY_AGG(id ORDER BY id) AS ids FROM caregiver`",
       },
       {
         name: "select exists(stmt)",
-        filename,
         options: withConnection(connections.withTag),
         code: "sql<{ exists: boolean }>`SELECT EXISTS(select id FROM caregiver)`",
       },
       {
         name: "select not exists(stmt)",
-        filename,
         options: withConnection(connections.withTag),
         code: "sql<{ not_exists: boolean }>`SELECT NOT EXISTS(select id FROM caregiver) as not_exists`",
       },
       {
         name: "select column from table",
-        filename,
         options: withConnection(connections.base),
         code: "const result = conn.query<{ id: number }>(sql`select id from caregiver`);",
       },
       {
         name: "select * from table",
-        filename,
         options: withConnection(connections.base),
         code: `
           const result = conn.query<{ id: number; first_name: string; middle_name: string | null; last_name: string; certification: 'HHA' | 'RN' | 'LPN' | 'CNA' | 'PCA' | 'OTHER'; created_at: Date }>(sql\`
@@ -267,7 +263,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: "select enum from table",
-        filename,
         options: withConnection(connections.base),
         code: `
           const result = conn.query<{ certification: 'HHA' | 'RN' | 'LPN' | 'CNA' | 'PCA' | 'OTHER' }>(sql\`
@@ -277,7 +272,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: "compare typescript enum with postgres enum",
-        filename,
         options: withConnection(connections.withTag),
         code: `
           enum Certification { HHA = "HHA", RN = "RN" }
@@ -288,7 +282,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: "compare typescript enum property with postgres enum",
-        filename,
         options: withConnection(connections.withTag),
         code: `
           enum Certification { HHA = "HHA", RN = "RN" }
@@ -299,7 +292,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: "select from table with inner joins",
-        filename,
         options: withConnection(connections.base),
         code: `
             const result = conn.query<{ caregiver_id: number; agency_id: number }>(sql\`
@@ -314,7 +306,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: "select from table with left join",
-        filename,
         options: withConnection(connections.base),
         code: `
             const result = conn.query<{ caregiver_id: number; agency_id: number | null }>(sql\`
@@ -329,7 +320,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: "select from table where int column equals to ts number arg",
-        filename,
         options: withConnection(connections.base),
         code: `
             function run(id: number) {
@@ -341,7 +331,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: "select from table where int column in an array of ts arg",
-        filename,
         options: withConnection(connections.base),
         code: `
             function run(ids: number[]) {
@@ -353,7 +342,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: "select with expression of (type | null)[]",
-        filename,
         options: withConnection(connections.base),
         code: `
             function run(ids: (number | null)[]) {
@@ -365,7 +353,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: "select statement with conditional expression",
-        filename,
         options: withConnection(connections.base),
         code: `
             function run(flag: boolean) {
@@ -377,7 +364,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: "select statement with conditional expression of ? x : null",
-        filename,
         options: withConnection(connections.base),
         code: `
           function run(flag: boolean) {
@@ -389,7 +375,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: "select statement with type reference",
-        filename,
         options: withConnection(connections.base),
         code: `
             type Agency = { name: string };
@@ -402,7 +387,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: "select statement with interface",
-        filename,
         options: withConnection(connections.base),
         code: `
             interface Agency { name: string }
@@ -414,19 +398,16 @@ RuleTester.describe("check-sql", () => {
         `,
       },
       {
-        filename,
         options: withConnection(connections.base),
         name: "empty select statement should not have type annotation",
         code: `conn.query(sql\`select\`);`,
       },
       {
-        filename,
         options: withConnection(connections.base),
         name: "insert statement without returning should not have type annotation",
         code: `conn.query(sql\`insert into agency (name) values ('test')\`);`,
       },
       {
-        filename,
         options: withConnection(connections.base),
         name: "insert statement with returning should have type annotation",
         code: `conn.query<{ id: number }>(
@@ -434,7 +415,6 @@ RuleTester.describe("check-sql", () => {
         `,
       },
       {
-        filename,
         options: withConnection(connections.base),
         name: "type annotation with a valid type reference",
         code: `
@@ -443,7 +423,6 @@ RuleTester.describe("check-sql", () => {
         `,
       },
       {
-        filename,
         options: withConnection(connections.base),
         name: "type annotation with a valid type reference (different property order)",
         code: `
@@ -452,7 +431,6 @@ RuleTester.describe("check-sql", () => {
         `,
       },
       {
-        filename,
         options: withConnection(connections.base),
         name: "type annotation with a valid type reference (interface)",
         code: `
@@ -461,7 +439,6 @@ RuleTester.describe("check-sql", () => {
         `,
       },
       {
-        filename,
         options: withConnection(connections.base),
         name: "type annotation with a valid intersection",
         code: `
@@ -469,7 +446,6 @@ RuleTester.describe("check-sql", () => {
         `,
       },
       {
-        filename,
         options: withConnection(connections.base),
         name: "type annotation with Pick",
         code: `
@@ -478,7 +454,6 @@ RuleTester.describe("check-sql", () => {
         `,
       },
       {
-        filename,
         options: withConnection(connections.base),
         name: "type annotation with Pick & intersection",
         code: `
@@ -487,7 +462,6 @@ RuleTester.describe("check-sql", () => {
         `,
       },
       {
-        filename,
         options: withConnection(connections.base),
         name: "type annotation with Pick overriden by intersection",
         code: `
@@ -496,7 +470,6 @@ RuleTester.describe("check-sql", () => {
         `,
       },
       {
-        filename,
         options: withConnection(connections.base),
         name: "union string literal from function arg",
         code: `
@@ -507,7 +480,6 @@ RuleTester.describe("check-sql", () => {
         `,
       },
       {
-        filename,
         options: withConnection(connections.base),
         name: "select domain type should return its base type",
         code: `
@@ -515,7 +487,6 @@ RuleTester.describe("check-sql", () => {
         `,
       },
       {
-        filename,
         name: "don't report on incorrect target",
         options: withConnection(connections.base),
         code: `
@@ -524,13 +495,11 @@ RuleTester.describe("check-sql", () => {
         `,
       },
       {
-        filename,
         name: "don't report on incorrect target",
         options: withConnection(connections.base),
         code: "xconn.query(sql`SELECT 1 as x`);",
       },
       {
-        filename,
         name: "proper date columns introspection",
         options: withConnection(connections.base),
         code: `
@@ -546,13 +515,11 @@ RuleTester.describe("check-sql", () => {
         `,
       },
       {
-        filename,
         name: "select with skipTypeAnnotations",
         options: withConnection(connections.withSkipTypeAnnotations),
         code: "const result = conn.query(sql`SELECT id FROM agency`);",
       },
       {
-        filename,
         name: "insert into nullable column a nullable member expression value",
         options: withConnection(connections.withTag),
         code: `
@@ -562,7 +529,6 @@ RuleTester.describe("check-sql", () => {
         `,
       },
       {
-        filename,
         name: "insert into nullable column a nullable value",
         options: withConnection(connections.withTag),
         code: `
@@ -572,13 +538,11 @@ RuleTester.describe("check-sql", () => {
         `,
       },
       {
-        filename,
         name: "insert into nullable column a null value",
         options: withConnection(connections.withTag),
         code: `sql\`INSERT INTO test_nullable_column (nullable_int) VALUES (\${null})\``,
       },
       {
-        filename,
         name: "insert into nullable column a null value",
         options: withConnection(connections.withTag),
         code: `
@@ -588,19 +552,16 @@ RuleTester.describe("check-sql", () => {
         `,
       },
       {
-        filename,
         name: "select interval",
         options: withConnection(connections.withTag),
         code: `sql<{ interval: string; }>\`SELECT INTERVAL '1 day 2 hours 3 minutes 4 seconds'\``,
       },
       {
-        filename,
         name: "select jsonb column",
         options: withConnection(connections.withTag),
         code: `sql<{ jsonb_col: any }>\`SELECT jsonb_col FROM test_jsonb\``,
       },
       {
-        filename,
         name: "select nullable boolean column",
         options: withConnection(connections.withTag),
         code: `
@@ -609,7 +570,6 @@ RuleTester.describe("check-sql", () => {
         `,
       },
       {
-        filename,
         name: "select where enum column equals to one of the string literals",
         options: withConnection(connections.withTag),
         code: `
@@ -623,7 +583,6 @@ RuleTester.describe("check-sql", () => {
     ],
     invalid: [
       {
-        filename,
         options: withConnection(connections.base),
         name: "select computed column without type annotation",
         code: "const result = conn.query(sql`SELECT 1 as x`);",
@@ -633,7 +592,6 @@ RuleTester.describe("check-sql", () => {
         ],
       },
       {
-        filename,
         options: withConnection(connections.base),
         name: "select computed column without type annotation (with Prisma.sql)",
         code: "const result = conn.query(Prisma.sql`SELECT 1 as x`);",
@@ -643,7 +601,6 @@ RuleTester.describe("check-sql", () => {
         ],
       },
       {
-        filename,
         options: withConnection(connections.base),
         name: "select column without type annotation",
         code: "const result = conn.query(sql`select id from caregiver`);",
@@ -653,7 +610,6 @@ RuleTester.describe("check-sql", () => {
         ],
       },
       {
-        filename,
         options: withConnection(connections.base),
         name: "select column with incorrect type annotation",
         code: "const result = conn.query<{ id: string }>(sql`select id from caregiver`);",
@@ -663,7 +619,6 @@ RuleTester.describe("check-sql", () => {
         ],
       },
       {
-        filename,
         options: withConnection(connections.base),
         name: "select duplicate columns",
         code: "const result = conn.query(sql`select * from caregiver, agency`);",
@@ -681,7 +636,6 @@ RuleTester.describe("check-sql", () => {
         ],
       },
       {
-        filename,
         options: withConnection(connections.base),
         name: "select from table where int column equals to ts string arg",
         code: `
@@ -694,7 +648,6 @@ RuleTester.describe("check-sql", () => {
         errors: [{ messageId: "invalidQuery", line: 4, column: 54, endLine: 4, endColumn: 55 }],
       },
       {
-        filename,
         options: withConnection(connections.base),
         name: "select statement with invalid conditional expression",
         code: `
@@ -718,7 +671,6 @@ RuleTester.describe("check-sql", () => {
         ],
       },
       {
-        filename,
         options: withConnection(connections.base),
         name: "select statement with invalid type reference",
         code: `
@@ -752,7 +704,6 @@ RuleTester.describe("check-sql", () => {
         ],
       },
       {
-        filename,
         options: withConnection(connections.base),
         name: "select statement that should not have a type annotation",
         code: `conn.query<{}>(sql\`select\`);`,
@@ -772,7 +723,6 @@ RuleTester.describe("check-sql", () => {
         ],
       },
       {
-        filename,
         options: withConnection(connections.base),
         name: "mixed union literals from function arg",
         code: `
@@ -791,7 +741,6 @@ RuleTester.describe("check-sql", () => {
         ],
       },
       {
-        filename,
         options: withConnection(connections.base),
         name: "mixed union literals from function arg",
         code: `
@@ -811,7 +760,6 @@ RuleTester.describe("check-sql", () => {
         ],
       },
       {
-        filename,
         options: withConnection(connections.base),
         name: "this.[name].[operator](...) should be checked as well",
         code: `
@@ -827,7 +775,6 @@ RuleTester.describe("check-sql", () => {
         errors: [{ messageId: "missingTypeAnnotations" }],
       },
       {
-        filename,
         options: withConnection(connections.withSkipTypeAnnotations),
         name: "invalid select with skipTypeAnnotations",
         code: "const result = conn.query(sql`SELECT idd FROM agency`);",
@@ -840,7 +787,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: "insert into with wrong nullable value",
-        filename,
         options: withConnection(connections.withTag),
         code: `
         function insert(data: { value: string | null }) {
@@ -858,7 +804,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: "insert into with wrong nullable member expression value",
-        filename,
         options: withConnection(connections.withTag),
         code: `
         function insert(data: { value: string | null }) {
@@ -876,7 +821,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: "incorrect comparison of typescript <> postgres enum",
-        filename,
         options: withConnection(connections.withTag),
         code: normalizeIndent`
           enum Certification { HHA = "HHA", RN = "RM" }
@@ -899,7 +843,6 @@ RuleTester.describe("check-sql", () => {
   ruleTester.run("one-of transformation", rules["check-sql"], {
     valid: [
       {
-        filename,
         name: "control",
         options: withConnection(connections.withTag),
         code: normalizeIndent`
@@ -909,7 +852,6 @@ RuleTester.describe("check-sql", () => {
         `,
       },
       {
-        filename,
         name: "control",
         options: withConnection(connections.withTag),
         code: normalizeIndent`
@@ -919,7 +861,6 @@ RuleTester.describe("check-sql", () => {
         `,
       },
       {
-        filename,
         name: "join context",
         options: withConnection(connections.withTag),
         code: normalizeIndent`
@@ -929,7 +870,6 @@ RuleTester.describe("check-sql", () => {
         `,
       },
       {
-        filename,
         name: "case context",
         options: withConnection(connections.withTag),
         code: normalizeIndent`
@@ -942,7 +882,6 @@ RuleTester.describe("check-sql", () => {
         `,
       },
       {
-        filename,
         name: "having context",
         options: withConnection(connections.withTag),
         code: normalizeIndent`
@@ -952,7 +891,6 @@ RuleTester.describe("check-sql", () => {
         `,
       },
       {
-        filename,
         name: "returning context",
         options: withConnection(connections.withTag),
         code: normalizeIndent`
@@ -972,7 +910,6 @@ RuleTester.describe("check-sql", () => {
   ruleTester.run("position", rules["check-sql"], {
     valid: [
       {
-        filename,
         name: "control",
         options: withConnection(connections.base),
         code: `
@@ -1067,7 +1004,6 @@ RuleTester.describe("check-sql", () => {
   ruleTester.run("pg type to ts type check (inline type)", rules["check-sql"], {
     valid: typeColumnTsTypeEntries.map(([colName, colType]) => ({
       name: `select ${colName} from table as ${colType} (using type reference)`,
-      filename,
       options: withConnection(connections.withTag),
       code: `sql<{ ${colName}: ${colType} }>\`select ${colName} from all_types\``,
     })),
@@ -1077,7 +1013,6 @@ RuleTester.describe("check-sql", () => {
   ruleTester.run("pg type to ts type check (type reference)", rules["check-sql"], {
     valid: typeColumnTsTypeEntries.map(([colName, colType]) => ({
       name: `select ${colName} from table as ${colType} (using type reference)`,
-      filename,
       options: withConnection(connections.withTag),
       code: `
           type MyType = { ${colName}: ${colType} };
@@ -1091,7 +1026,6 @@ RuleTester.describe("check-sql", () => {
     valid: [
       {
         name: "transform: {type}[]",
-        filename,
         options: withConnection(connections.base, {
           targets: [{ wrapper: "conn.query", transform: "{type}[]" }],
         }),
@@ -1099,7 +1033,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: "transform: Array<{type}>",
-        filename,
         options: withConnection(connections.base, {
           targets: [{ wrapper: "conn.query", transform: "Array<{type}>" }],
         }),
@@ -1107,7 +1040,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: "transform: ['{type}[]']",
-        filename,
         options: withConnection(connections.base, {
           targets: [{ wrapper: "conn.query", transform: "{type}[]" }],
         }),
@@ -1115,7 +1047,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: "transform: [['middle_name', 'x_middle_name']]",
-        filename,
         options: withConnection(connections.base, {
           targets: [{ wrapper: "conn.query", transform: [["middle_name", "x_middle_name"]] }],
         }),
@@ -1123,7 +1054,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: "transform: ['{type}[]', ['middle_name', 'x_middle_name']]",
-        filename,
         options: withConnection(connections.base, {
           targets: [
             { wrapper: "conn.query", transform: ["{type}[]", ["middle_name", "x_middle_name"]] },
@@ -1133,7 +1063,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: "transform: nested object (knex)",
-        filename,
         options: withConnection(connections.base, {
           targets: [{ tag: "knex.raw", transform: "{ rows: {type}[] }" }],
         }),
@@ -1143,7 +1072,6 @@ RuleTester.describe("check-sql", () => {
     invalid: [
       {
         name: "transform: invalid nested object (knex)",
-        filename,
         options: withConnection(connections.base, {
           targets: [{ tag: "knex.raw", transform: "{ rows: {type}[] }" }],
         }),
@@ -1159,13 +1087,11 @@ RuleTester.describe("check-sql", () => {
     valid: [
       {
         name: "tag as sql",
-        filename,
         options: withConnection(connections.withTag),
         code: "sql<{ id: number }>`select id from caregiver`",
       },
       {
         name: "tag and transform as sql (Postgres.js)",
-        filename,
         options: withConnection(connections.withTag, {
           targets: [{ tag: "sql", transform: "{type}[]" }],
         }),
@@ -1173,7 +1099,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: "sql tag inside a function",
-        filename,
         options: withConnection(connections.withTag),
         code: "const result = conn.query(sql<{ id: number }>`select id from caregiver`);",
       },
@@ -1181,7 +1106,6 @@ RuleTester.describe("check-sql", () => {
     invalid: [
       {
         name: "tag without type annotations",
-        filename,
         options: withConnection(connections.withTag),
         code: "sql`select id from caregiver`",
         output: "sql<{ id: number }>`select id from caregiver`",
@@ -1191,7 +1115,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: "tag without type annotations inside a function",
-        filename,
         options: withConnection(connections.withTag),
         code: "const result = conn.query(sql`select id from caregiver`)",
         output: "const result = conn.query(sql<{ id: number }>`select id from caregiver`)",
@@ -1206,7 +1129,6 @@ RuleTester.describe("check-sql", () => {
     valid: [
       {
         name: 'with { int4: "Integer" }',
-        filename,
         options: withConnection(connections.withTag, {
           overrides: { types: { int4: "Integer" } },
         }),
@@ -1214,7 +1136,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: 'with default mapping for "date"',
-        filename,
         options: withConnection(connections.withTag),
         code: `
           const date = new Date();
@@ -1223,7 +1144,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: 'with { date: "LocalDate" }',
-        filename,
         options: withConnection(connections.withTag, {
           overrides: { types: { date: "LocalDate" } },
         }),
@@ -1235,7 +1155,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: 'with { date: { parameter: "+(Parameter<LocalDate>|LocalDate)", return: "LocalDate" } }',
-        filename,
         options: withConnection(connections.withTag, {
           overrides: {
             types: {
@@ -1253,7 +1172,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: 'with { date: { parameter: { regex: "(LocalDate|Parameter<LocalDate>)" }, return: "LocalDate" } }',
-        filename,
         options: withConnection(connections.withTag, {
           overrides: {
             types: {
@@ -1275,7 +1193,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: 'with custom type { certification: "Certification" }',
-        filename,
         options: withConnection(connections.withTag, {
           overrides: { types: { certification: "Certification" } },
         }),
@@ -1283,7 +1200,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: 'with custom derived type { certification: "Certification" }',
-        filename,
         options: withConnection(connections.withTag, {
           overrides: { types: { certification: "Certification" } },
         }),
@@ -1295,7 +1211,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: 'with custom domain type { phone_number: "PhoneNumber" }',
-        filename,
         options: withConnection(connections.withTag, {
           overrides: { types: { phone_number: "PhoneNumber" } },
         }),
@@ -1303,7 +1218,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: "select case when then jsonb with not like with type reference",
-        filename,
         options: withConnection(connections.withTag, {
           targets: [{ tag: "sql", transform: "{type}[]" }],
         }),
@@ -1326,7 +1240,6 @@ RuleTester.describe("check-sql", () => {
     invalid: [
       {
         name: 'with { int4: "Integer" } while { id: number }',
-        filename,
         options: withConnection(connections.withTag, {
           overrides: { types: { int4: "Integer" } },
         }),
@@ -1338,7 +1251,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: 'comparing a col with `CustomDate` without { date: "CustomDate" }',
-        filename,
         options: withConnection(connections.withTag, {
           overrides: {},
         }),
@@ -1350,7 +1262,6 @@ RuleTester.describe("check-sql", () => {
         errors: [{ messageId: "invalidQuery", line: 4, column: 82, endLine: 4, endColumn: 86 }],
       },
       {
-        filename,
         options: withConnection(connections.withGlobWrapper),
         name: "glob pattern should be checked as well (wrapper glob)",
         code: `
@@ -1374,7 +1285,6 @@ RuleTester.describe("check-sql", () => {
         errors: [{ messageId: "missingTypeAnnotations" }, { messageId: "missingTypeAnnotations" }],
       },
       {
-        filename,
         options: withConnection(connections.withRegexWrapper),
         name: "regex pattern should be checked as well (wrapper regex)",
         code: `
@@ -1400,7 +1310,6 @@ RuleTester.describe("check-sql", () => {
         errors: [{ messageId: "missingTypeAnnotations" }, { messageId: "missingTypeAnnotations" }],
       },
       {
-        filename,
         options: withConnection(connections.withMaxDepthOf(2)),
         name: "regex pattern should be checked as well (wrapper regex)",
         code: `
@@ -1422,7 +1331,6 @@ RuleTester.describe("check-sql", () => {
         ],
       },
       {
-        filename,
         options: withConnection(connections.withGlobTag),
         name: "glob pattern should be checked as well (tag glob)",
         code: `
@@ -1446,7 +1354,6 @@ RuleTester.describe("check-sql", () => {
         errors: [{ messageId: "missingTypeAnnotations" }, { messageId: "missingTypeAnnotations" }],
       },
       {
-        filename,
         options: withConnection(connections.withRegexTag),
         name: "regex pattern should be checked as well (tag regex)",
         code: `
@@ -1470,7 +1377,6 @@ RuleTester.describe("check-sql", () => {
         errors: [{ messageId: "missingTypeAnnotations" }, { messageId: "missingTypeAnnotations" }],
       },
       {
-        filename,
         options: withConnection(connections.withMemberTag),
         name: "[x].sql should be checked as well (as member expression)",
         code: `
@@ -1486,7 +1392,6 @@ RuleTester.describe("check-sql", () => {
         errors: [{ messageId: "missingTypeAnnotations" }],
       },
       {
-        filename,
         options: withConnection(connections.withTag),
         name: "this.[identifier] should be checked as well (as this expression)",
         code: `
@@ -1507,7 +1412,6 @@ RuleTester.describe("check-sql", () => {
   ruleTester.run("connection with overrides.columns", rules["check-sql"], {
     valid: [
       {
-        filename,
         options: withConnection(connections.withTag, {
           overrides: {
             columns: {
@@ -1535,7 +1439,6 @@ RuleTester.describe("check-sql", () => {
         `,
       },
       {
-        filename,
         options: withConnection(connections.withTag, {
           overrides: {
             columns: {
@@ -1566,7 +1469,6 @@ RuleTester.describe("check-sql", () => {
     ],
     invalid: [
       {
-        filename,
         options: withConnection(connections.withTag, {
           overrides: {
             columns: {
@@ -1603,7 +1505,6 @@ RuleTester.describe("check-sql", () => {
         errors: [{ messageId: "missingTypeAnnotations" }],
       },
       {
-        filename,
         options: withConnection(connections.withTag, {
           overrides: {
             columns: {
@@ -1624,7 +1525,6 @@ RuleTester.describe("check-sql", () => {
         ],
       },
       {
-        filename,
         options: withConnection(connections.withTag, {
           overrides: {
             columns: {
@@ -1663,7 +1563,6 @@ RuleTester.describe("check-sql", () => {
     valid: [
       {
         name: "transform to snake case",
-        filename,
         options: withConnection(connections.withTag, {
           targets: [{ tag: "sql", fieldTransform: "snake" }],
         }),
@@ -1671,7 +1570,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: "transform non-table column to camel case",
-        filename,
         options: withConnection(connections.withTag, {
           targets: [{ tag: "sql", fieldTransform: "camel" }],
         }),
@@ -1679,7 +1577,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: "transform table column to camel case",
-        filename,
         options: withConnection(connections.withTag, {
           targets: [{ tag: "sql", fieldTransform: "camel" }],
         }),
@@ -1687,7 +1584,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: "transform non-table column to pascal case",
-        filename,
         options: withConnection(connections.withTag, {
           targets: [{ tag: "sql", fieldTransform: "pascal" }],
         }),
@@ -1695,7 +1591,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: "transform table column to pascal case",
-        filename,
         options: withConnection(connections.withTag, {
           targets: [{ tag: "sql", fieldTransform: "pascal" }],
         }),
@@ -1703,7 +1598,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: "transform non-table column to screaming snake case",
-        filename,
         options: withConnection(connections.withTag, {
           targets: [{ tag: "sql", fieldTransform: "screaming snake" }],
         }),
@@ -1711,7 +1605,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: "transform table column to screaming snake case",
-        filename,
         options: withConnection(connections.withTag, {
           targets: [{ tag: "sql", fieldTransform: "screaming snake" }],
         }),
@@ -1721,7 +1614,6 @@ RuleTester.describe("check-sql", () => {
     invalid: [
       {
         name: "with camelCase while result is snake_case",
-        filename,
         options: withConnection(connections.withTag, {
           targets: [{ tag: "sql", fieldTransform: "camel" }],
         }),
@@ -1738,7 +1630,6 @@ RuleTester.describe("check-sql", () => {
     valid: [
       {
         name: "use undefined instead of null",
-        filename,
         options: withConnection(connections.withTag, {
           nullAsUndefined: true,
         }),
@@ -1746,7 +1637,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: "mark nullable field as optional",
-        filename,
         options: withConnection(connections.withTag, {
           nullAsUndefined: true,
           nullAsOptional: true,
@@ -1757,7 +1647,6 @@ RuleTester.describe("check-sql", () => {
     invalid: [
       {
         name: "without nullAsUndefined while result is undefined",
-        filename,
         options: withConnection(connections.withTag),
         code: "sql<{ middle_name: string | undefined }>`select middle_name from caregiver`",
         output: "sql<{ middle_name: string | null }>`select middle_name from caregiver`",
@@ -1767,7 +1656,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: "with nullAsUndefined while result is null",
-        filename,
         options: withConnection(connections.withTag, {
           nullAsUndefined: true,
         }),
@@ -1779,7 +1667,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: "without nullAsOptional while result is marked as optional",
-        filename,
         options: withConnection(connections.withTag, {
           nullAsUndefined: true,
         }),
@@ -1791,7 +1678,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: "with nullAsOptional while result is marked as required",
-        filename,
         options: withConnection(connections.withTag, {
           nullAsUndefined: true,
           nullAsOptional: true,
@@ -1808,43 +1694,36 @@ RuleTester.describe("check-sql", () => {
   ruleTester.run("strict null check", rules["check-sql"], {
     valid: [
       {
-        filename,
         name: "strict: select * with a const column. const column should be non-nullable",
         options: withConnection(connections.withTag),
         code: "sql<{ id: number; name: string; now: Date }>`select *, now() from agency`",
       },
       {
-        filename,
         name: "strict: select number should be non-nullable",
         options: withConnection(connections.withTag),
         code: "sql<{ x: number }>`select 1 as x`",
       },
       {
-        filename,
         name: "strict: select text should be non-nullable",
         options: withConnection(connections.withTag),
         code: "sql<{ x: '1' }>`select '1' as x`",
       },
       {
-        filename,
         name: "strict: select boolean should be non-nullable",
         options: withConnection(connections.withTag),
         code: "sql<{ '?column?': boolean }>`select true`",
       },
       {
-        filename,
         name: "strict: select count should be non-nullable",
         options: withConnection(connections.withTag),
         code: "sql<{ count: string }>`select count(1)`",
       },
       {
-        filename,
         name: "strict: select interval should be non-nullable",
         options: withConnection(connections.withTag),
         code: "sql<{ interval: string }>`select interval '1 day'`",
       },
       {
-        filename,
         name: "strict: select interval as typecast should be non-nullable",
         options: withConnection(connections.withTag),
         code: "sql<{ interval: string }>`select '1 day'::interval`",
@@ -1853,7 +1732,6 @@ RuleTester.describe("check-sql", () => {
     invalid: [
       {
         name: "strict: select sum can potentially be null",
-        filename,
         options: withConnection(connections.withTag),
         code: "sql`SELECT sum(caregiver.id) FROM caregiver`",
         output: "sql<{ sum: string | null }>`SELECT sum(caregiver.id) FROM caregiver`",
@@ -1861,7 +1739,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: "strict: select sum with type cast can still return null",
-        filename,
         options: withConnection(connections.withTag),
         code: "sql`SELECT sum(1)::int`",
         output: "sql<{ sum: number | null }>`SELECT sum(1)::int`",
@@ -1869,7 +1746,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: "strict: select nullable column with where clause is not null will never be null",
-        filename,
         options: withConnection(connections.withTag),
         code: "sql<{ middle_name: string | null }>`SELECT middle_name FROM caregiver WHERE middle_name IS NOT NULL`",
         output:
@@ -1879,40 +1755,34 @@ RuleTester.describe("check-sql", () => {
     ],
   });
 
-  ruleTester.run("json/b", rules["check-sql"], {
+  ruleTester.run("json(b)", rules["check-sql"], {
     valid: [
       {
-        filename,
         name: "json/b: select jsonb_build_object(const, const)",
         options: withConnection(connections.withTag),
         code: `sql<{ jsonb_build_object: { key: 'value' } }>\`SELECT jsonb_build_object('key', 'value')\``,
       },
       {
-        filename,
         name: "json/b: select jsonb_build_object(deeply nested)",
         options: withConnection(connections.withTag),
         code: `sql<{ jsonb_build_object: { deeply: { nested: 'object' } } }>\`SELECT jsonb_build_object('deeply', jsonb_build_object('nested', 'object'))\``,
       },
       {
-        filename,
         name: "json/b: select jsonb_build_object(key with space, const)",
         options: withConnection(connections.withTag),
         code: `sql<{ jsonb_build_object: { 'hello world': 'value' } }>\`SELECT jsonb_build_object('hello world', 'value')\``,
       },
       {
-        filename,
         name: "json/b: select jsonb_build_object(const, columnref)",
         options: withConnection(connections.withTag),
         code: `sql<{ json_build_object: { id: number } }>\`SELECT json_build_object('id', agency.id) FROM agency\``,
       },
       {
-        filename,
         name: "json/b: select jsonb_build_object(const, [int,int,int])",
         options: withConnection(connections.withTag),
         code: `sql<{ a: { ids: number[] } }>\`SELECT json_build_object('ids', array[1,2,3]) a\``,
       },
       {
-        filename,
         name: "json/b: select json/b_agg with override",
         options: withConnection({
           ...connections.withTag,
@@ -1941,7 +1811,6 @@ RuleTester.describe("check-sql", () => {
         `,
       },
       {
-        filename,
         name: "json/b: select json/b_agg with override",
         options: withConnection(connections.withTag),
         code: `
@@ -1977,7 +1846,6 @@ RuleTester.describe("check-sql", () => {
     invalid: [
       {
         name: "json/b: invalid select jsonb_build_object(const, const)",
-        filename,
         options: withConnection(connections.withTag),
         code: "sql`SELECT jsonb_build_object('key', 'value')`",
         output: `sql<{ jsonb_build_object: { key: 'value' } }>\`SELECT jsonb_build_object('key', 'value')\``,
@@ -1985,7 +1853,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: "json/b: jsonb key with spaces should be wrapped in quotes",
-        filename,
         options: withConnection(connections.withTag),
         code: "sql`SELECT jsonb_build_object('A b C', 'value') as col`",
         output: `sql<{ col: { 'A b C': 'value' } }>\`SELECT jsonb_build_object('A b C', 'value') as col\``,
@@ -1993,7 +1860,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: "json/b: invalid select jsonb_build_object(deeply nested)",
-        filename,
         options: withConnection(connections.withTag),
         code: "sql`SELECT jsonb_build_object('deeply', jsonb_build_object('nested', 'object'))`",
         output: `sql<{ jsonb_build_object: { deeply: { nested: 'object' } } }>\`SELECT jsonb_build_object('deeply', jsonb_build_object('nested', 'object'))\``,
@@ -2001,7 +1867,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: "json/b: invalid select jsonb_build_object(const, columnref)",
-        filename,
         options: withConnection(connections.withTag),
         code: "sql`SELECT json_build_object('id', agency.id) FROM agency`",
         output: `sql<{ json_build_object: { id: number } }>\`SELECT json_build_object('id', agency.id) FROM agency\``,
@@ -2009,7 +1874,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: "json/b: invalid select jsonb_agg(tbl)",
-        filename,
         options: withConnection(connections.withTag),
         code: "sql`SELECT jsonb_agg(agency) FROM agency`",
         output: `sql<{ jsonb_agg: { id: number; name: string }[] | null }>\`SELECT jsonb_agg(agency) FROM agency\``,
@@ -2017,7 +1881,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: "json/b: invalid select json_agg(tbl) as colname",
-        filename,
         options: withConnection(connections.withTag),
         code: "sql`SELECT json_agg(agency) as colname FROM agency`",
         output: `sql<{ colname: { id: number; name: string }[] | null }>\`SELECT json_agg(agency) as colname FROM agency\``,
@@ -2025,7 +1888,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: "json/b: invalid select jsonb_agg(alias) from tbl alias",
-        filename,
         options: withConnection(connections.withTag),
         code: "sql`SELECT jsonb_agg(a) FROM agency a`",
         output: `sql<{ jsonb_agg: { id: number; name: string }[] | null }>\`SELECT jsonb_agg(a) FROM agency a\``,
@@ -2033,7 +1895,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: "json/b: invalid select jsonb_agg(aliasname.col)",
-        filename,
         options: withConnection(connections.withTag),
         code: "sql`SELECT jsonb_agg(a.id) FROM agency a`",
         output: `sql<{ jsonb_agg: number[] | null }>\`SELECT jsonb_agg(a.id) FROM agency a\``,
@@ -2041,7 +1902,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: "json/b: invalid select jsonb_agg(jsonb_build_object(const, const))",
-        filename,
         options: withConnection(connections.withTag),
         code: "sql`SELECT jsonb_agg(jsonb_build_object('key', 'value'))`",
         output: `sql<{ jsonb_agg: { key: 'value' }[] | null }>\`SELECT jsonb_agg(jsonb_build_object('key', 'value'))\``,
@@ -2049,7 +1909,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: "json/b: invalid select jsonb_agg(jsonb_build_object(const, columnref))",
-        filename,
         options: withConnection(connections.withTag),
         code: "sql`SELECT jsonb_agg(json_build_object('id', agency.id)) FROM agency`",
         output: `sql<{ jsonb_agg: { id: number }[] | null }>\`SELECT jsonb_agg(json_build_object('id', agency.id)) FROM agency\``,
@@ -2057,7 +1916,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: "json/b: invalid select jsonb_agg(jsonb_build_object(const, columnref::text))",
-        filename,
         options: withConnection(connections.withTag),
         code: "sql`SELECT jsonb_agg(json_build_object('id', agency.id::text)) FROM agency`",
         output: `sql<{ jsonb_agg: { id: string }[] | null }>\`SELECT jsonb_agg(json_build_object('id', agency.id::text)) FROM agency\``,
@@ -2065,7 +1923,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: "json/b: invalid select jsonb_agg(jsonb_build_object(const, columnref::text::int))",
-        filename,
         options: withConnection(connections.withTag),
         code: "sql`SELECT jsonb_agg(json_build_object('id', agency.id::text::int)) FROM agency`",
         output: `sql<{ jsonb_agg: { id: number }[] | null }>\`SELECT jsonb_agg(json_build_object('id', agency.id::text::int)) FROM agency\``,
@@ -2073,7 +1930,6 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: "json/b: invalid select jsonb_agg all use cases",
-        filename,
         options: withConnection(connections.withTag),
         code: `
           sql\`
@@ -2116,7 +1972,6 @@ RuleTester.describe("check-sql", () => {
     code: string;
   }): InvalidTestCase<keyof (typeof rules)["check-sql"]["meta"]["messages"], RuleOptions> {
     return {
-      filename,
       name: `${params.line}:[${params.columns[0]}:${params.columns[1]}] - ${params.error}`,
       only: params.only ?? false,
       options: withConnection(connections.withTag),
@@ -2137,7 +1992,6 @@ RuleTester.describe("check-sql", () => {
   ruleTester.run("local classes", rules["check-sql"], {
     valid: [
       {
-        filename,
         name: "using class",
         options: withConnection(connections.withTag),
         code: `
@@ -2164,7 +2018,6 @@ RuleTester.describe("check-sql", () => {
         `,
       },
       {
-        filename,
         name: "using class",
         options: withConnection(connections.withTag),
         code: `
@@ -2181,7 +2034,6 @@ RuleTester.describe("check-sql", () => {
         `,
       },
       {
-        filename,
         name: "using class",
         options: withConnection(connections.withTag),
         code: `
@@ -2196,7 +2048,6 @@ RuleTester.describe("check-sql", () => {
         `,
       },
       {
-        filename,
         name: "using class",
         options: withConnection(connections.withTag),
         code: `
@@ -2216,7 +2067,6 @@ RuleTester.describe("check-sql", () => {
     ],
     invalid: [
       {
-        filename,
         name: "local class with incorrect properties",
         options: withConnection(connections.withTag),
         code: `

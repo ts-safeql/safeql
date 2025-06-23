@@ -4,7 +4,6 @@ import assert from "assert";
 import * as O from "fp-ts/lib/Option";
 import * as TE from "fp-ts/lib/TaskEither";
 import { flow, identity, pipe } from "fp-ts/lib/function";
-import { parseQuery } from "libpg-query";
 import { Sql } from "postgres";
 import { afterAll, beforeAll, test } from "vitest";
 import { GenerateParams, ResolvedTargetEntry, createGenerator } from "./generate";
@@ -168,7 +167,6 @@ afterAll(async () => {
 
 const { generate } = createGenerator();
 const generateTE = flow(generate, TE.tryCatchK(identity, InternalError.to));
-const parseQueryTE = flow(parseQuery, TE.tryCatchK(identity, InternalError.to));
 
 const testQuery = async (params: {
   query: string;
@@ -185,11 +183,9 @@ const testQuery = async (params: {
   const run = (sql: Sql) =>
     pipe(
       TE.Do,
-      TE.bind("pgParsed", () => parseQueryTE(params.query)),
-      TE.bind("result", ({ pgParsed }) =>
+      TE.bind("result", () =>
         generateTE({
           sql,
-          pgParsed,
           query: { text: query, sourcemaps: [] },
           cacheKey,
           fieldTransform: undefined,
@@ -695,7 +691,7 @@ test("select where int column = any(array)", async () => {
 test("select with syntax error", async () => {
   await testQuery({
     query: `SELECT id FROM caregiver WHERE`,
-    expectedError: "Internal error: syntax error at end of input",
+    expectedError: "syntax error at end of input",
   });
 });
 

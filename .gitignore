@@ -1,3 +1,5 @@
 node_modules
 .turbo
 *.tsbuildinfo
+dist
+generated

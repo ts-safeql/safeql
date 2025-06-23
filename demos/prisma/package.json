@@ -9,21 +9,21 @@
     "test": "tsx src/prisma.test.ts",
     "lint": "eslint src",
     "lint!": "eslint src --fix",
-    "clean": "rm -rf lib"
+    "clean": "rm -rf dist"
   },
   "devDependencies": {
+    "@eslint/js": "^9.23.0",
     "@ts-safeql/eslint-plugin": "workspace:*",
-    "@types/node": "^18.19.68",
-    "@typescript-eslint/eslint-plugin": "^7.18.0",
-    "@typescript-eslint/parser": "^7.18.0",
+    "@types/node": "^22.13.13",
     "conditional-type-checks": "1.0.6",
-    "eslint": "^8.57.1",
-    "tsx": "^4.19.2",
-    "typescript": "^5.7.2",
-    "zx": "^8.2.4"
+    "eslint": "^9.23.0",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2",
+    "typescript-eslint": "^8.28.0",
+    "zx": "^8.4.1"
   },
   "dependencies": {
-    "@prisma/client": "5.13.0",
-    "prisma": "5.13.0"
+    "@prisma/client": "6.5.0",
+    "prisma": "6.5.0"
   }
 }

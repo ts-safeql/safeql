@@ -79,7 +79,7 @@ const cases: {
 ];
 
 export const getNonNullableColumnsTE = flow(
-  parser.parseQuery,
+  parser.parse,
   taskEither.tryCatchK(identity, InternalError.to),
   taskEither.map(getNonNullableColumns),
   taskEither.map((set) => Array.from(set)),
