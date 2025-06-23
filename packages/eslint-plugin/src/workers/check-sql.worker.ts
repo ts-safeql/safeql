@@ -72,6 +72,13 @@ export type WorkerError =
   | GenerateError;
 export type WorkerResult = GenerateResult;
 
+/**
+ * Handles SQL query checking by establishing the appropriate database connection, optionally running migrations, and generating the query result.
+ *
+ * Determines the connection strategy based on the provided parameters, manages connection initialization and migration execution if needed, and invokes the SQL generator to produce the query result.
+ *
+ * @returns A TaskEither resolving to the generated query result or a worker error.
+ */
 function workerHandler(params: CheckSQLWorkerParams): TE.TaskEither<WorkerError, WorkerResult> {
   const strategy = getConnectionStartegyByRuleOptionConnection(params);
 

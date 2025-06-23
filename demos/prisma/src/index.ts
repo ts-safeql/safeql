@@ -1,5 +1,8 @@
 import { PrismaClient } from "@/prisma-client";
 
+/**
+ * Retrieves the ID of the first user from the database using both a raw SQL query and a Prisma Client query, then logs the results.
+ */
 async function main() {
   const prisma = new PrismaClient();
 

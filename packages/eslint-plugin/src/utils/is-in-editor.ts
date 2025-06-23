@@ -1,5 +1,11 @@
 /* eslint-disable no-constant-binary-expression */
-// https://github.com/antfu/eslint-config/blob/de2d48d0f4409c66fccbf0872896f00c202f7bf1/src/utils.ts#L135
+/**
+ * Determines if the current process is running within a code editor environment.
+ *
+ * Returns `false` if running in a CI environment or within Git hooks or lint-staged scripts. Otherwise, returns `true` if any environment variables associated with popular editors (such as VS Code, JetBrains IDEs, or Vim/Neovim) are present.
+ *
+ * @returns `true` if the process is likely running inside a code editor environment; otherwise, `false`.
+ */
 export function isInEditorEnv(): boolean {
   if (process.env.CI) return false;
   if (isInGitHooksOrLintStaged()) return false;

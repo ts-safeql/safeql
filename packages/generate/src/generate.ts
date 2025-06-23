@@ -123,6 +123,15 @@ type GenerateContext = {
   fieldTransform: IdentiferCase | undefined;
 };
 
+/**
+ * Generates TypeScript type definitions for the result of a PostgreSQL query.
+ *
+ * Introspects PostgreSQL metadata and parses the SQL query AST to infer column types, nullability, and structure. Applies user-provided type and column overrides, detects duplicate columns, and returns either a detailed type mapping or an error describing issues such as duplicate columns or PostgreSQL errors.
+ *
+ * @param params - Query parameters and generation options, including overrides and field transforms
+ * @param cache - Metadata and override cache used for performance optimization
+ * @returns Either a successful result containing typed column entries and query metadata, or a detailed error if generation fails
+ */
 async function generate(
   params: GenerateParams,
   cache: Cache,
@@ -261,7 +270,7 @@ async function generate(
       );
     }
 
-    const parsed = await parser.parse(query.text);
+    const parsed = await parser.parse(query.text)
     const relationsWithJoins = flattenRelationsWithJoinsMap(getRelationsWithJoins(parsed));
     const nonNullableColumnsBasedOnAST = getNonNullableColumns(parsed);
 

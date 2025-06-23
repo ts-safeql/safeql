@@ -4,6 +4,11 @@ import pg from "pg";
 
 const DATABASE_NAME = "safeql_vercel";
 
+/**
+ * Sets up the PostgreSQL database by dropping and recreating it, then creating required tables.
+ *
+ * Drops the existing "safeql_vercel" database if it exists, creates a new one, and establishes the "person" and "starship" tables with appropriate schema.
+ */
 async function main() {
   // 1. Drop the database if exists
   console.log("Dropping database if exists...");

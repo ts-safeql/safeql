@@ -1,6 +1,11 @@
 import { Db } from "@ts-safeql-demos/shared/client";
 import postgres from "postgres";
 
+/**
+ * Executes sample queries on the database client to select from the `comments` table and insert into the `test_date_columns` table.
+ *
+ * Performs two identical select queries on the `comments` table and one insert query into the `test_date_columns` table, primarily for testing or demonstration purposes.
+ */
 export function check(client: Db) {
   const sql = postgres();
 

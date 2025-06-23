@@ -106,6 +106,11 @@ function isTagMemberValid(
   return false;
 }
 
+/**
+ * Dispatches SQL query checking to the appropriate handler based on the connection target type.
+ *
+ * Determines whether to validate the tagged template expression using tag-based or wrapper-based logic, and invokes the corresponding checking function.
+ */
 function checkConnection(params: {
   context: RuleContext;
   connection: RuleOptionConnection;
@@ -133,6 +138,11 @@ const generateSyncE = flow(
 
 let fatalError: WorkerError | undefined;
 
+/**
+ * Validates a SQL tagged template expression against the configured database connection and target, ensuring the query is valid and type annotations are present and correct.
+ *
+ * Reports detailed ESLint errors for invalid queries, misconfigurations, missing or incorrect type annotations, and fatal worker errors. If type annotations are required but missing or incorrect, reports the expected and actual types.
+ */
 function reportCheck(params: {
   context: RuleContext;
   tag: TSESTree.TaggedTemplateExpression;
