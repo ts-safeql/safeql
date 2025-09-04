@@ -2107,4 +2107,62 @@ RuleTester.describe("check-sql", () => {
       },
     ],
   });
+
+  ruleTester.run("namespace import", rules["check-sql"], {
+    valid: [
+      {
+        name: "select statement with type imported from inline namespace",
+        options: withConnection(connections.base),
+        code: `
+          namespace Caregiver {
+            export interface Name {
+              firstName: string;
+              lastName: string;
+            }
+          }
+
+          function run() {
+            const result = conn.query<Caregiver.Name>(sql\`
+              select first_name as "firstName", last_name as "lastName" from caregiver
+            \`);
+          }
+        `,
+      },
+    ],
+    invalid: [
+      {
+        name: "incorrect type annotation with namespace type",
+        options: withConnection(connections.base),
+        code: `
+          namespace Caregiver {
+            export interface Name {
+              firstName: string;
+              lastName: string;
+            }
+          }
+
+          function run() {
+            const result = conn.query<Caregiver.Name>(sql\`
+              select first_name, last_name from caregiver
+            \`);
+          }
+        `,
+        output: `
+          namespace Caregiver {
+            export interface Name {
+              firstName: string;
+              lastName: string;
+            }
+          }
+
+          function run() {
+            const result = conn.query<{ first_name: string; last_name: string }>(sql\`
+              select first_name, last_name from caregiver
+            \`);
+          }
+        `,
+        errors: [{ messageId: "incorrectTypeAnnotations" }],
+      },
+    ],
+  });
 });
