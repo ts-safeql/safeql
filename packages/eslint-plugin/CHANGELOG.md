@@ -1,5 +1,11 @@
 # @ts-safeql/eslint-plugin
 
+## 4.0.1
+
+### Patch Changes
+
+- 0177905: Add support for namespace types in type annotations
+
 ## 4.0.0
 
 ### Major Changes
