@@ -308,6 +308,9 @@ function getDescribedAExpr({
           return { value, nullable, array: false };
         }
 
+        case type.kind === "object":
+          return { value: "jsonb", array: false, nullable: false };
+
         default:
           return null;
       }
@@ -349,8 +352,23 @@ function getDescribedAExpr({
     return [adjust(left), operator, adjust(right)];
   };
 
+  const getNullable = () => {
+    if (context.nonNullableColumns.has(name)) {
+      return false;
+    }
+
+    if (lnode.nullable || rnode.nullable) {
+      return true;
+    }
+
+    const operatorForcesNullable =
+      ["->>", "#>>"].includes(operator) && hasColumnReference(node.lexpr);
+
+    return operatorForcesNullable;
+  };
+
   const getType = (): ASTDescribedColumnType | undefined => {
-    const nullable = !context.nonNullableColumns.has(name) && (lnode.nullable || rnode.nullable);
+    const nullable = getNullable();
     const [dleft, doperator, dright] = downcast();
 
     const type =
@@ -1085,6 +1103,70 @@ function concatStringNodes(nodes: LibPgQueryAST.Node[] | undefined): string {
       .filter(Boolean)
       .join(".") ?? ""
   );
+}
+
+function hasColumnReference(node: LibPgQueryAST.Node | undefined): boolean {
+  if (node === undefined) {
+    return false;
+  }
+
+  if (node.ColumnRef !== undefined) {
+    return true;
+  }
+
+  if (node.A_Const !== undefined) {
+    return false;
+  }
+
+  if (node.TypeCast !== undefined) {
+    return hasColumnReference(node.TypeCast.arg);
+  }
+
+  if (node.A_Expr !== undefined) {
+    return hasColumnReference(node.A_Expr.lexpr) || hasColumnReference(node.A_Expr.rexpr);
+  }
+
+  if (node.BoolExpr !== undefined) {
+    return (node.BoolExpr.args ?? []).some(hasColumnReference);
+  }
+
+  if (node.FuncCall !== undefined) {
+    return (node.FuncCall.args ?? []).some(hasColumnReference);
+  }
+
+  if (node.CoalesceExpr !== undefined) {
+    return node.CoalesceExpr.args.some(hasColumnReference);
+  }
+
+  if (node.CaseExpr !== undefined) {
+    if (node.CaseExpr.arg && hasColumnReference(node.CaseExpr.arg)) {
+      return true;
+    }
+
+    if (node.CaseExpr.defresult && hasColumnReference(node.CaseExpr.defresult)) {
+      return true;
+    }
+
+    return node.CaseExpr.args.some((caseWhen) => {
+      if (caseWhen.CaseWhen === undefined) {
+        return false;
+      }
+
+      return (
+        hasColumnReference(caseWhen.CaseWhen.expr) || hasColumnReference(caseWhen.CaseWhen.result)
+      );
+    });
+  }
+
+  if (node.A_ArrayExpr !== undefined) {
+    return (node.A_ArrayExpr.elements ?? []).some(hasColumnReference);
+  }
+
+  if (node.SubLink !== undefined) {
+    return true;
+  }
+
+  return false;
 }
 
 type GetDescribedParamsOf<T> = {
