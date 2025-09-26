@@ -2034,6 +2034,57 @@ test(`'{"a": {"b": 1}}'::jsonb ->> 'a' => string`, async () => {
   });
 });
 
+test(`'{"a": {"b": 1}}'::jsonb #>> '{a,b}' => string`, async () => {
+  await testQuery({
+    query: `SELECT '{"a": {"b": 1}}'::jsonb #>> '{a,b}'`,
+    expected: [["?column?", { kind: "type", value: "string", type: "text" }]],
+  });
+});
+
+test(`jsonb subselect ->> key => string | null`, async () => {
+  await testQuery({
+    query: `SELECT (SELECT data FROM employee LIMIT 1) ->> 'myKey' as extracted_value`,
+    expected: [
+      [
+        "extracted_value",
+        {
+          kind: "union",
+          value: [
+            { kind: "type", value: "string", type: "text" },
+            { kind: "type", value: "null", type: "null" },
+          ],
+        },
+      ],
+    ],
+    unknownColumns: ["extracted_value"],
+  });
+});
+
+test(`jsonb_build_object with column ->> key => string | null`, async () => {
+  await testQuery({
+    query: `SELECT jsonb_build_object('name', caregiver.last_name) ->> 'name' as extracted_value FROM caregiver`,
+    expected: [
+      [
+        "extracted_value",
+        {
+          kind: "union",
+          value: [
+            { kind: "type", value: "string", type: "text" },
+            { kind: "type", value: "null", type: "null" },
+          ],
+        },
+      ],
+    ],
+  });
+});
+
+test(`jsonb_build_object without column ->> key => string`, async () => {
+  await testQuery({
+    query: `SELECT jsonb_build_object('name', 'value') ->> 'name'`,
+    expected: [["?column?", { kind: "type", value: "string", type: "text" }]],
+  });
+});
+
 test(`'{"a": 1, "b": 2}'::jsonb #- '{a}' => jsonb`, async () => {
   await testQuery({
     query: `SELECT '{"a": 1, "b": 2}'::jsonb #- '{a}'`,
@@ -2309,6 +2360,24 @@ test("varchar not like expr", async () => {
         {
           kind: "object",
           value: [["key", { kind: "type", type: "bool", value: "boolean" }]],
+        },
+      ],
+    ],
+  });
+});
+
+test("jsonb ->> operator should return string | null", async () => {
+  await testQuery({
+    query: `SELECT data->>'myKey' as extracted_value FROM employee`,
+    expected: [
+      [
+        "extracted_value",
+        {
+          kind: "union",
+          value: [
+            { kind: "type", value: "string", type: "text" },
+            { kind: "type", value: "null", type: "null" },
+          ],
         },
       ],
     ],
