@@ -1,5 +1,14 @@
 # @ts-safeql/generate
 
+## 4.0.2
+
+### Patch Changes
+
+- bd0f64b: Fixed jsonb `->>` and `#>>` operators to correctly infer nullable types when left expressions contain column references.
+  - @ts-safeql/shared@4.0.2
+  - @ts-safeql/sql-ast@4.0.2
+  - @ts-safeql/test-utils@0.0.50
+
 ## 4.0.1
 
 ### Patch Changes
