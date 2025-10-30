@@ -15,14 +15,13 @@ import {
   flattenRelationsWithJoinsMap,
   getRelationsWithJoins,
 } from "./utils/get-relations-with-joins";
+import { getNonNullableColumns } from "./utils/get-nonnullable-columns";
 
 type ASTDescriptionOptions = {
   parsed: LibPgQueryAST.ParseResult;
-  relations: FlattenedRelationWithJoins[];
   typesMap: Map<string, { override: boolean; value: string }>;
   typeExprMap: Map<string, Map<string, Map<string, string>>>;
   overridenColumnTypesMap: Map<string, Map<string, string>>;
-  nonNullableColumns: Set<string>;
   pgColsBySchemaAndTableName: Map<string, Map<string, PgColRow[]>>;
   pgTypes: PgTypesMap;
   pgEnums: PgEnumsMaps;
@@ -33,6 +32,8 @@ type ASTDescriptionContext = ASTDescriptionOptions & {
   select: LibPgQueryAST.SelectStmt;
   resolver: SourcesResolver;
   resolved: WeakMap<LibPgQueryAST.Node, string>;
+  nonNullableColumns: Set<string>;
+  relations: FlattenedRelationWithJoins[];
   toTypeScriptType: (
     params: { oid: number; baseOid: number | null } | { name: string },
   ) => ASTDescribedColumnType;
@@ -49,12 +50,27 @@ export type ASTDescribedColumnType =
 
 export function getASTDescription(
   params: ASTDescriptionOptions,
-): Map<number, ASTDescribedColumn | undefined> {
+): {
+  map: Map<number, ASTDescribedColumn | undefined>;
+  meta: {
+    relations: FlattenedRelationWithJoins[];
+    nonNullableColumns: Set<string>;
+  };
+} {
   const select = params.parsed.stmts[0]?.stmt?.SelectStmt;
 
   if (select === undefined) {
-    return new Map();
+    return {
+      map: new Map(),
+      meta: {
+        relations: [],
+        nonNullableColumns: new Set(),
+      },
+    };
   }
+
+  const nonNullableColumns = getNonNullableColumns(params.parsed);
+  const relations = flattenRelationsWithJoinsMap(getRelationsWithJoins(params.parsed));
 
   function getTypeByOid(oid: number) {
     const name = params.pgTypes.get(oid)?.name;
@@ -78,10 +94,12 @@ export function getASTDescription(
 
   const context: ASTDescriptionContext = {
     ...params,
+    nonNullableColumns,
+    relations,
     resolver: getSources({
-      relations: params.relations,
+      relations: relations,
       select: select,
-      nonNullableColumns: params.nonNullableColumns,
+      nonNullableColumns: nonNullableColumns,
       pgColsBySchemaAndTableName: params.pgColsBySchemaAndTableName,
     }),
     select: select,
@@ -180,7 +198,13 @@ export function getASTDescription(
     final.set(i, result);
   }
 
-  return final;
+  return {
+    map: final,
+    meta: {
+      relations,
+      nonNullableColumns,
+    },
+  };
 }
 
 function mergeColumns(columns: (ASTDescribedColumn | undefined)[]): ASTDescribedColumn | undefined {
@@ -542,18 +566,16 @@ function getDescribedSelectStmt({
 
   const subDescription = getASTDescription({
     parsed: subParsed,
-    relations: flattenRelationsWithJoinsMap(getRelationsWithJoins(subParsed)),
     typesMap: context.typesMap,
     typeExprMap: context.typeExprMap,
     overridenColumnTypesMap: context.overridenColumnTypesMap,
-    nonNullableColumns: new Set(),
     pgColsBySchemaAndTableName: context.pgColsBySchemaAndTableName,
     pgTypes: context.pgTypes,
     pgEnums: context.pgEnums,
     pgFns: context.pgFns,
   });
 
-  const firstColumn = subDescription.get(0);
+  const firstColumn = subDescription.map.get(0);
   if (firstColumn) {
     return [
       {

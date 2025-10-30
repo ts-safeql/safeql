@@ -16,12 +16,7 @@ import { either } from "fp-ts";
 import postgres from "postgres";
 import { ASTDescribedColumn, getASTDescription } from "./ast-describe";
 import { ColType } from "./utils/colTypes";
-import { getNonNullableColumns } from "./utils/get-nonnullable-columns";
-import {
-  FlattenedRelationWithJoins,
-  flattenRelationsWithJoinsMap,
-  getRelationsWithJoins,
-} from "./utils/get-relations-with-joins";
+import { FlattenedRelationWithJoins } from "./utils/get-relations-with-joins";
 import * as parser from "libpg-query";
 
 type JSToPostgresTypeMap = Record<string, unknown>;
@@ -262,15 +257,11 @@ async function generate(
     }
 
     const parsed = await parser.parse(query.text);
-    const relationsWithJoins = flattenRelationsWithJoinsMap(getRelationsWithJoins(parsed));
-    const nonNullableColumnsBasedOnAST = getNonNullableColumns(parsed);
 
     const astQueryDescription = getASTDescription({
       parsed: parsed,
-      relations: relationsWithJoins,
       typesMap: typesMap,
       overridenColumnTypesMap: overridenColumnTypesMap,
-      nonNullableColumns: nonNullableColumnsBasedOnAST,
       pgColsBySchemaAndTableName: pgColsBySchemaAndTableName,
       pgTypes: pgTypes,
       pgEnums: pgEnums,
@@ -283,13 +274,13 @@ async function generate(
         .get(col.table)
         ?.find((x) => x.colNum === col.number);
 
-      const astDescribed = astQueryDescription.get(position);
+      const astDescribed = astQueryDescription.map.get(position);
 
       return {
         described: col,
         astDescribed: astDescribed,
         introspected: introspected,
-        isNonNullableBasedOnAST: nonNullableColumnsBasedOnAST.has(col.name),
+        isNonNullableBasedOnAST: astQueryDescription.meta.nonNullableColumns.has(col.name),
       };
     });
 
@@ -297,7 +288,7 @@ async function generate(
       columns,
       pgTypes,
       pgEnums,
-      relationsWithJoins,
+      relationsWithJoins: astQueryDescription.meta.relations,
       overrides: {
         types: typesMap,
         columns: overridenColumnTypesMap,

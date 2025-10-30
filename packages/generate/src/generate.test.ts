@@ -2406,3 +2406,21 @@ test("scalar subquery in select list should infer correct type", async () => {
     ],
   });
 });
+
+test("scalar subquery with WHERE should infer non-nullable type", async () => {
+  await testQuery({
+    schema: `
+      CREATE TABLE tbl (
+        id INTEGER PRIMARY KEY,
+        col TEXT
+      );
+    `,
+    query: `SELECT (SELECT col FROM tbl WHERE col IS NOT NULL LIMIT 1) AS col`,
+    expected: [
+      [
+        "col",
+        { kind: "type", value: "string", type: "text" },
+      ],
+    ],
+  });
+});
