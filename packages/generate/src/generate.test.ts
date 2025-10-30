@@ -2392,6 +2392,17 @@ test("scalar subquery in select list should infer correct type", async () => {
       );
     `,
     query: `SELECT (SELECT col FROM tbl LIMIT 1) AS col`,
-    expected: [["col", { kind: "union", value: [{ kind: "type", value: "string", type: "text" }, { kind: "type", value: "null", type: "null" }] }]],
+    expected: [
+      [
+        "col",
+        {
+          kind: "union",
+          value: [
+            { kind: "type", value: "string", type: "text" },
+            { kind: "type", value: "null", type: "null" },
+          ],
+        },
+      ],
+    ],
   });
 });
