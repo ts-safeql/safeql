@@ -10,12 +10,12 @@ import {
 } from "./ast-decribe.utils";
 import { ResolvedColumn, SourcesResolver, getSources } from "./ast-get-sources";
 import { PgColRow, PgEnumsMaps, PgTypesMap } from "./generate";
+import { getNonNullableColumns } from "./utils/get-nonnullable-columns";
 import {
   FlattenedRelationWithJoins,
   flattenRelationsWithJoinsMap,
   getRelationsWithJoins,
 } from "./utils/get-relations-with-joins";
-import { getNonNullableColumns } from "./utils/get-nonnullable-columns";
 
 type ASTDescriptionOptions = {
   parsed: LibPgQueryAST.ParseResult;
@@ -48,9 +48,7 @@ export type ASTDescribedColumnType =
   | { kind: "type"; value: string; type: string; base?: string }
   | { kind: "literal"; value: string; base: ASTDescribedColumnType };
 
-export function getASTDescription(
-  params: ASTDescriptionOptions,
-): {
+export function getASTDescription(params: ASTDescriptionOptions): {
   map: Map<number, ASTDescribedColumn | undefined>;
   meta: {
     relations: FlattenedRelationWithJoins[];
