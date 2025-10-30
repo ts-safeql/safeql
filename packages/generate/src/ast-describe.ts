@@ -10,7 +10,11 @@ import {
 } from "./ast-decribe.utils";
 import { ResolvedColumn, SourcesResolver, getSources } from "./ast-get-sources";
 import { PgColRow, PgEnumsMaps, PgTypesMap } from "./generate";
-import { FlattenedRelationWithJoins } from "./utils/get-relations-with-joins";
+import {
+  FlattenedRelationWithJoins,
+  flattenRelationsWithJoinsMap,
+  getRelationsWithJoins,
+} from "./utils/get-relations-with-joins";
 
 type ASTDescriptionOptions = {
   parsed: LibPgQueryAST.ParseResult;
@@ -245,6 +249,10 @@ function getDescribedNode(params: {
 
   if (node.A_Expr !== undefined) {
     return getDescribedAExpr({ alias: alias, node: node.A_Expr, context });
+  }
+
+  if (node.SelectStmt !== undefined) {
+    return getDescribedSelectStmt({ alias: alias, node: node.SelectStmt, context });
   }
 
   return [];
@@ -488,22 +496,74 @@ function getDescribedSubLink({
   context,
   node,
 }: GetDescribedParamsOf<LibPgQueryAST.SubLink>): ASTDescribedColumn[] {
+  const getSubLinkType = (): ASTDescribedColumnType => {
+    if (node.subLinkType === LibPgQueryAST.SubLinkType.EXISTS_SUBLINK) {
+      return context.toTypeScriptType({ name: "bool" });
+    }
+
+    if (node.subLinkType === LibPgQueryAST.SubLinkType.EXPR_SUBLINK) {
+      const described = node.subselect?.SelectStmt
+        ? getDescribedNode({
+            alias: undefined,
+            node: { SelectStmt: node.subselect.SelectStmt },
+            context,
+          })
+        : [];
+
+      return described.length > 0
+        ? described[0].type
+        : context.toTypeScriptType({ name: "unknown" });
+    }
+
+    return context.toTypeScriptType({ name: "unknown" });
+  };
+
   return [
     {
       name: alias ?? "exists",
       type: resolveType({
         context: context,
         nullable: false,
-        type: (() => {
-          if (node.subLinkType === LibPgQueryAST.SubLinkType.EXISTS_SUBLINK) {
-            return context.toTypeScriptType({ name: "bool" });
-          }
-
-          return context.toTypeScriptType({ name: "unknown" });
-        })(),
+        type: getSubLinkType(),
       }),
     },
   ];
+}
+
+function getDescribedSelectStmt({
+  alias,
+  context,
+  node,
+}: GetDescribedParamsOf<LibPgQueryAST.SelectStmt>): ASTDescribedColumn[] {
+  const subParsed: LibPgQueryAST.ParseResult = {
+    version: 0,
+    stmts: [{ stmt: { SelectStmt: node }, stmtLocation: 0, stmtLen: 0 }],
+  };
+
+  const subDescription = getASTDescription({
+    parsed: subParsed,
+    relations: flattenRelationsWithJoinsMap(getRelationsWithJoins(subParsed)),
+    typesMap: context.typesMap,
+    typeExprMap: context.typeExprMap,
+    overridenColumnTypesMap: context.overridenColumnTypesMap,
+    nonNullableColumns: new Set(),
+    pgColsBySchemaAndTableName: context.pgColsBySchemaAndTableName,
+    pgTypes: context.pgTypes,
+    pgEnums: context.pgEnums,
+    pgFns: context.pgFns,
+  });
+
+  const firstColumn = subDescription.get(0);
+  if (firstColumn) {
+    return [
+      {
+        name: alias ?? firstColumn.name,
+        type: firstColumn.type,
+      },
+    ];
+  }
+
+  return [];
 }
 
 function getDescribedCoalesceExpr({

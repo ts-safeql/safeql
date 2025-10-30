@@ -2056,7 +2056,6 @@ test(`jsonb subselect ->> key => string | null`, async () => {
         },
       ],
     ],
-    unknownColumns: ["extracted_value"],
   });
 });
 
@@ -2381,5 +2380,18 @@ test("jsonb ->> operator should return string | null", async () => {
         },
       ],
     ],
+  });
+});
+
+test("scalar subquery in select list should infer correct type", async () => {
+  await testQuery({
+    schema: `
+      CREATE TABLE tbl (
+        id INTEGER PRIMARY KEY,
+        col TEXT
+      );
+    `,
+    query: `SELECT (SELECT col FROM tbl LIMIT 1) AS col`,
+    expected: [["col", { kind: "union", value: [{ kind: "type", value: "string", type: "text" }, { kind: "type", value: "null", type: "null" }] }]],
   });
 });
