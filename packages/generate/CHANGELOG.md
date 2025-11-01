@@ -1,5 +1,14 @@
 # @ts-safeql/generate
 
+## 4.0.3
+
+### Patch Changes
+
+- 6ec9a46: Fixed type inference for scalar subqueries in select lists.
+  - @ts-safeql/shared@4.0.3
+  - @ts-safeql/sql-ast@4.0.3
+  - @ts-safeql/test-utils@0.0.51
+
 ## 4.0.2
 
 ### Patch Changes
