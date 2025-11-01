@@ -10,15 +10,18 @@ import {
 } from "./ast-decribe.utils";
 import { ResolvedColumn, SourcesResolver, getSources } from "./ast-get-sources";
 import { PgColRow, PgEnumsMaps, PgTypesMap } from "./generate";
-import { FlattenedRelationWithJoins } from "./utils/get-relations-with-joins";
+import { getNonNullableColumns } from "./utils/get-nonnullable-columns";
+import {
+  FlattenedRelationWithJoins,
+  flattenRelationsWithJoinsMap,
+  getRelationsWithJoins,
+} from "./utils/get-relations-with-joins";
 
 type ASTDescriptionOptions = {
   parsed: LibPgQueryAST.ParseResult;
-  relations: FlattenedRelationWithJoins[];
   typesMap: Map<string, { override: boolean; value: string }>;
   typeExprMap: Map<string, Map<string, Map<string, string>>>;
   overridenColumnTypesMap: Map<string, Map<string, string>>;
-  nonNullableColumns: Set<string>;
   pgColsBySchemaAndTableName: Map<string, Map<string, PgColRow[]>>;
   pgTypes: PgTypesMap;
   pgEnums: PgEnumsMaps;
@@ -29,6 +32,8 @@ type ASTDescriptionContext = ASTDescriptionOptions & {
   select: LibPgQueryAST.SelectStmt;
   resolver: SourcesResolver;
   resolved: WeakMap<LibPgQueryAST.Node, string>;
+  nonNullableColumns: Set<string>;
+  relations: FlattenedRelationWithJoins[];
   toTypeScriptType: (
     params: { oid: number; baseOid: number | null } | { name: string },
   ) => ASTDescribedColumnType;
@@ -43,14 +48,27 @@ export type ASTDescribedColumnType =
   | { kind: "type"; value: string; type: string; base?: string }
   | { kind: "literal"; value: string; base: ASTDescribedColumnType };
 
-export function getASTDescription(
-  params: ASTDescriptionOptions,
-): Map<number, ASTDescribedColumn | undefined> {
+export function getASTDescription(params: ASTDescriptionOptions): {
+  map: Map<number, ASTDescribedColumn | undefined>;
+  meta: {
+    relations: FlattenedRelationWithJoins[];
+    nonNullableColumns: Set<string>;
+  };
+} {
   const select = params.parsed.stmts[0]?.stmt?.SelectStmt;
 
   if (select === undefined) {
-    return new Map();
+    return {
+      map: new Map(),
+      meta: {
+        relations: [],
+        nonNullableColumns: new Set(),
+      },
+    };
   }
+
+  const nonNullableColumns = getNonNullableColumns(params.parsed);
+  const relations = flattenRelationsWithJoinsMap(getRelationsWithJoins(params.parsed));
 
   function getTypeByOid(oid: number) {
     const name = params.pgTypes.get(oid)?.name;
@@ -74,10 +92,12 @@ export function getASTDescription(
 
   const context: ASTDescriptionContext = {
     ...params,
+    nonNullableColumns,
+    relations,
     resolver: getSources({
-      relations: params.relations,
+      relations: relations,
       select: select,
-      nonNullableColumns: params.nonNullableColumns,
+      nonNullableColumns: nonNullableColumns,
       pgColsBySchemaAndTableName: params.pgColsBySchemaAndTableName,
     }),
     select: select,
@@ -176,7 +196,13 @@ export function getASTDescription(
     final.set(i, result);
   }
 
-  return final;
+  return {
+    map: final,
+    meta: {
+      relations,
+      nonNullableColumns,
+    },
+  };
 }
 
 function mergeColumns(columns: (ASTDescribedColumn | undefined)[]): ASTDescribedColumn | undefined {
@@ -245,6 +271,10 @@ function getDescribedNode(params: {
 
   if (node.A_Expr !== undefined) {
     return getDescribedAExpr({ alias: alias, node: node.A_Expr, context });
+  }
+
+  if (node.SelectStmt !== undefined) {
+    return getDescribedSelectStmt({ alias: alias, node: node.SelectStmt, context });
   }
 
   return [];
@@ -488,22 +518,72 @@ function getDescribedSubLink({
   context,
   node,
 }: GetDescribedParamsOf<LibPgQueryAST.SubLink>): ASTDescribedColumn[] {
+  const getSubLinkType = (): ASTDescribedColumnType => {
+    if (node.subLinkType === LibPgQueryAST.SubLinkType.EXISTS_SUBLINK) {
+      return context.toTypeScriptType({ name: "bool" });
+    }
+
+    if (node.subLinkType === LibPgQueryAST.SubLinkType.EXPR_SUBLINK) {
+      const described = node.subselect?.SelectStmt
+        ? getDescribedNode({
+            alias: undefined,
+            node: { SelectStmt: node.subselect.SelectStmt },
+            context,
+          })
+        : [];
+
+      return described.length > 0
+        ? described[0].type
+        : context.toTypeScriptType({ name: "unknown" });
+    }
+
+    return context.toTypeScriptType({ name: "unknown" });
+  };
+
   return [
     {
       name: alias ?? "exists",
       type: resolveType({
         context: context,
         nullable: false,
-        type: (() => {
-          if (node.subLinkType === LibPgQueryAST.SubLinkType.EXISTS_SUBLINK) {
-            return context.toTypeScriptType({ name: "bool" });
-          }
-
-          return context.toTypeScriptType({ name: "unknown" });
-        })(),
+        type: getSubLinkType(),
       }),
     },
   ];
+}
+
+function getDescribedSelectStmt({
+  alias,
+  context,
+  node,
+}: GetDescribedParamsOf<LibPgQueryAST.SelectStmt>): ASTDescribedColumn[] {
+  const subParsed: LibPgQueryAST.ParseResult = {
+    version: 0,
+    stmts: [{ stmt: { SelectStmt: node }, stmtLocation: 0, stmtLen: 0 }],
+  };
+
+  const subDescription = getASTDescription({
+    parsed: subParsed,
+    typesMap: context.typesMap,
+    typeExprMap: context.typeExprMap,
+    overridenColumnTypesMap: context.overridenColumnTypesMap,
+    pgColsBySchemaAndTableName: context.pgColsBySchemaAndTableName,
+    pgTypes: context.pgTypes,
+    pgEnums: context.pgEnums,
+    pgFns: context.pgFns,
+  });
+
+  const firstColumn = subDescription.map.get(0);
+  if (firstColumn) {
+    return [
+      {
+        name: alias ?? firstColumn.name,
+        type: firstColumn.type,
+      },
+    ];
+  }
+
+  return [];
 }
 
 function getDescribedCoalesceExpr({
