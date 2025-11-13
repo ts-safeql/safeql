@@ -126,9 +126,7 @@ const cases: {
     expected: [
       [
         "parent_table",
-        [
-          { alias: undefined, name: "latest", type: LibPgQueryAST.JoinType.JOIN_LEFT },
-        ],
+        [{ alias: undefined, name: "latest", type: LibPgQueryAST.JoinType.JOIN_LEFT }],
       ],
     ],
   },
