@@ -32,7 +32,7 @@ export function validateInsertResult(
     return; // Table not found in metadata
   }
 
-  const insertCols = insertStmt.cols?.map((col) => col.ResTarget?.name).filter(Boolean) ?? [];
+  const insertCols = getInsertColumns(insertStmt, tableCols);
 
   const missing = tableCols.filter(
     (c) => c.colNotNull && !c.colHasDef && c.colIdentity === "" && !insertCols.includes(c.colName),
@@ -59,4 +59,24 @@ export function validateInsertResult(
     position,
     sourcemaps: query.sourcemaps,
   });
+}
+
+function getInsertColumns(stmt: LibPgQueryAST.InsertStmt, tableCols: PgColRow[]): string[] {
+  if (stmt.cols) {
+    return stmt.cols
+      .map((col) => col.ResTarget?.name)
+      .filter((name): name is string => Boolean(name));
+  }
+
+  if (stmt.selectStmt === undefined) {
+    return [];
+  }
+
+  const valuesFromSelect = stmt.selectStmt.SelectStmt?.valuesLists?.at(0)?.List?.items;
+
+  if (valuesFromSelect !== undefined) {
+    return tableCols.slice(0, valuesFromSelect.length).map((c) => c.colName);
+  }
+
+  return tableCols.map((c) => c.colName);
 }

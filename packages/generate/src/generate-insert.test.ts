@@ -262,4 +262,214 @@ describe("INSERT validation", () => {
       `,
     });
   });
+
+  test("positional INSERT without explicit column list should succeed when all required columns provided", async () => {
+    await testQuery({
+      schema: `
+        CREATE TABLE test_tbl (
+          id SERIAL PRIMARY KEY,
+          name TEXT NOT NULL,
+          optional TEXT
+        );
+      `,
+      query: `INSERT INTO test_tbl VALUES (DEFAULT, 'test', NULL) RETURNING *`,
+      expected: [
+        ["id", { kind: "type", value: "number", type: "int4" }],
+        ["name", { kind: "type", value: "string", type: "text" }],
+        [
+          "optional",
+          {
+            kind: "union",
+            value: [
+              { kind: "type", value: "string", type: "text" },
+              { kind: "type", value: "null", type: "null" },
+            ],
+          },
+        ],
+      ],
+      unknownColumns: ["id", "name", "optional"],
+    });
+  });
+
+  test("positional INSERT without explicit column list should error when missing required columns", async () => {
+    await testQuery({
+      schema: `
+        CREATE TABLE test_tbl (
+          id SERIAL PRIMARY KEY,
+          name TEXT NOT NULL,
+          required TEXT NOT NULL
+        );
+      `,
+      query: `INSERT INTO test_tbl VALUES (1, 'test')`,
+      expectedError: normalizeIndent`
+        null value in column "required" violates not-null constraint
+        Hint: Columns "required" are not nullable and have no default value.
+      `,
+    });
+  });
+
+  test("INSERT with explicit column list should validate correctly", async () => {
+    await testQuery({
+      schema: `
+        CREATE TABLE test_tbl (
+          id SERIAL PRIMARY KEY,
+          name TEXT NOT NULL,
+          email TEXT NOT NULL,
+          optional TEXT
+        );
+      `,
+      query: `INSERT INTO test_tbl (name, email) VALUES ('test', 'test@example.com') RETURNING *`,
+      expected: [
+        ["id", { kind: "type", value: "number", type: "int4" }],
+        ["name", { kind: "type", value: "string", type: "text" }],
+        ["email", { kind: "type", value: "string", type: "text" }],
+        [
+          "optional",
+          {
+            kind: "union",
+            value: [
+              { kind: "type", value: "string", type: "text" },
+              { kind: "type", value: "null", type: "null" },
+            ],
+          },
+        ],
+      ],
+      unknownColumns: ["id", "name", "email", "optional"],
+    });
+  });
+
+  test("INSERT with DEFAULT value should succeed when column has default", async () => {
+    await testQuery({
+      schema: `
+        CREATE TABLE test_tbl (
+          id SERIAL PRIMARY KEY,
+          name TEXT NOT NULL DEFAULT 'default'
+        );
+      `,
+      query: `INSERT INTO test_tbl (id) VALUES (DEFAULT) RETURNING *`,
+      expected: [
+        ["id", { kind: "type", value: "number", type: "int4" }],
+        ["name", { kind: "type", value: "string", type: "text" }],
+      ],
+      unknownColumns: ["id", "name"],
+    });
+  });
+
+  test("INSERT with positional VALUES should match table column order", async () => {
+    await testQuery({
+      schema: `
+        CREATE TABLE test_tbl (
+          id SERIAL PRIMARY KEY,
+          name TEXT NOT NULL,
+          email TEXT,
+          optional TEXT
+        );
+      `,
+      query: `INSERT INTO test_tbl VALUES (DEFAULT, 'test', 'test@example.com', NULL) RETURNING *`,
+      expected: [
+        ["id", { kind: "type", value: "number", type: "int4" }],
+        ["name", { kind: "type", value: "string", type: "text" }],
+        [
+          "email",
+          {
+            kind: "union",
+            value: [
+              { kind: "type", value: "string", type: "text" },
+              { kind: "type", value: "null", type: "null" },
+            ],
+          },
+        ],
+        [
+          "optional",
+          {
+            kind: "union",
+            value: [
+              { kind: "type", value: "string", type: "text" },
+              { kind: "type", value: "null", type: "null" },
+            ],
+          },
+        ],
+      ],
+      unknownColumns: ["id", "name", "email", "optional"],
+    });
+  });
+
+  test("INSERT with SELECT without column list should validate all table columns", async () => {
+    await testQuery({
+      schema: `
+        CREATE TABLE source_tbl (id INT, name TEXT, email TEXT);
+        CREATE TABLE test_tbl (
+          id SERIAL PRIMARY KEY,
+          name TEXT NOT NULL,
+          email TEXT,
+          optional TEXT
+        );
+      `,
+      query: `
+        INSERT INTO test_tbl 
+        SELECT id, name, email FROM source_tbl
+        RETURNING *
+      `,
+      expected: [
+        ["id", { kind: "type", value: "number", type: "int4" }],
+        ["name", { kind: "type", value: "string", type: "text" }],
+        [
+          "email",
+          {
+            kind: "union",
+            value: [
+              { kind: "type", value: "string", type: "text" },
+              { kind: "type", value: "null", type: "null" },
+            ],
+          },
+        ],
+        [
+          "optional",
+          {
+            kind: "union",
+            value: [
+              { kind: "type", value: "string", type: "text" },
+              { kind: "type", value: "null", type: "null" },
+            ],
+          },
+        ],
+      ],
+      unknownColumns: ["id", "name", "email", "optional"],
+    });
+  });
+
+  test("INSERT DEFAULT VALUES should succeed with all defaults", async () => {
+    await testQuery({
+      schema: `
+        CREATE TABLE test_tbl (
+          id SERIAL PRIMARY KEY,
+          name TEXT NOT NULL DEFAULT 'default'
+        );
+      `,
+      query: `INSERT INTO test_tbl DEFAULT VALUES RETURNING *`,
+      expected: [
+        ["id", { kind: "type", value: "number", type: "int4" }],
+        ["name", { kind: "type", value: "string", type: "text" }],
+      ],
+      unknownColumns: ["id", "name"],
+    });
+  });
+
+  test("INSERT with fewer positional values than columns should error on missing required columns", async () => {
+    await testQuery({
+      schema: `
+        CREATE TABLE test_tbl (
+          id SERIAL PRIMARY KEY,
+          name TEXT NOT NULL,
+          email TEXT NOT NULL,
+          optional TEXT
+        );
+      `,
+      query: `INSERT INTO test_tbl VALUES (DEFAULT, 'test')`,
+      expectedError: normalizeIndent`
+        null value in column "email" violates not-null constraint
+        Hint: Columns "email" are not nullable and have no default value.
+      `,
+    });
+  });
 });
