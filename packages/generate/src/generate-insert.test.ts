@@ -35,7 +35,7 @@ describe("INSERT validation", () => {
       query: `INSERT INTO test_tbl (id) VALUES (1)`,
       expectedError: normalizeIndent`
         null value in column "required" violates not-null constraint
-        Hint: Columns "required" are not nullable and have no default value.
+        Hint: Column "required" is not nullable and has no default value.
       `,
     });
   });
@@ -59,7 +59,7 @@ describe("INSERT validation", () => {
       query: `INSERT INTO test_tbl (id) VALUES (1)`,
       expectedError: normalizeIndent`
         null value in column "required" violates not-null constraint
-        Hint: Columns "required" are not nullable and have no default value.
+        Hint: Column "required" is not nullable and has no default value.
       `,
     });
   });
@@ -95,7 +95,7 @@ describe("INSERT validation", () => {
       query: `INSERT INTO test_tbl DEFAULT VALUES`,
       expectedError: normalizeIndent`
         null value in column "name" violates not-null constraint
-        Hint: Columns "name" are not nullable and have no default value.
+        Hint: Column "name" is not nullable and has no default value.
       `,
     });
   });
@@ -109,7 +109,7 @@ describe("INSERT validation", () => {
       query: `INSERT INTO target_tbl (id, name) SELECT id, name FROM source_tbl`,
       expectedError: normalizeIndent`
         null value in column "required" violates not-null constraint
-        Hint: Columns "required" are not nullable and have no default value.
+        Hint: Column "required" is not nullable and has no default value.
       `,
     });
   });
@@ -141,7 +141,7 @@ describe("INSERT validation", () => {
       query: `INSERT INTO test_tbl (id) OVERRIDING SYSTEM VALUE VALUES (1)`,
       expectedError: normalizeIndent`
         null value in column "name" violates not-null constraint
-        Hint: Columns "name" are not nullable and have no default value.
+        Hint: Column "name" is not nullable and has no default value.
       `,
     });
   });
@@ -175,7 +175,7 @@ describe("INSERT validation", () => {
       query: `INSERT INTO test_tbl (id) VALUES (1) ON CONFLICT (unique_col) DO NOTHING`,
       expectedError: normalizeIndent`
         null value in column "name" violates not-null constraint
-        Hint: Columns "name" are not nullable and have no default value.
+        Hint: Column "name" is not nullable and has no default value.
       `,
     });
   });
@@ -219,7 +219,7 @@ describe("INSERT validation", () => {
       query: `INSERT INTO test_tbl (id) VALUES (1), (2), (3)`,
       expectedError: normalizeIndent`
         null value in column "name" violates not-null constraint
-        Hint: Columns "name" are not nullable and have no default value.
+        Hint: Column "name" is not nullable and has no default value.
       `,
     });
   });
@@ -239,7 +239,7 @@ describe("INSERT validation", () => {
       `,
       expectedError: normalizeIndent`
         null value in column "required" violates not-null constraint
-        Hint: Columns "required" are not nullable and have no default value.
+        Hint: Column "required" is not nullable and has no default value.
       `,
     });
   });
@@ -258,7 +258,7 @@ describe("INSERT validation", () => {
       query: `INSERT INTO child_tbl (parent_name) VALUES ('test')`,
       expectedError: normalizeIndent`
         null value in column "child_name" violates not-null constraint
-        Hint: Columns "child_name" are not nullable and have no default value.
+        Hint: Column "child_name" is not nullable and has no default value.
       `,
     });
   });
@@ -303,7 +303,7 @@ describe("INSERT validation", () => {
       query: `INSERT INTO test_tbl VALUES (1, 'test')`,
       expectedError: normalizeIndent`
         null value in column "required" violates not-null constraint
-        Hint: Columns "required" are not nullable and have no default value.
+        Hint: Column "required" is not nullable and has no default value.
       `,
     });
   });
@@ -468,7 +468,7 @@ describe("INSERT validation", () => {
       query: `INSERT INTO test_tbl VALUES (DEFAULT, 'test')`,
       expectedError: normalizeIndent`
         null value in column "email" violates not-null constraint
-        Hint: Columns "email" are not nullable and have no default value.
+        Hint: Column "email" is not nullable and has no default value.
       `,
     });
   });
