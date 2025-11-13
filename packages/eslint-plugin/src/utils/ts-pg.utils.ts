@@ -272,7 +272,7 @@ function getPgTypeFromTsType(params: {
       if (nonNullTypes.length === 1) {
         return checkType({ checker, type: nonNullTypes[0], options });
       }
-      
+
       return getPgTypeFromTsTypeUnion({ types: symbolType.types });
     }
 
