@@ -1,5 +1,12 @@
 # @ts-safeql/eslint-plugin
 
+## 4.0.6
+
+### Patch Changes
+
+- b41cc6e: update zod to v4
+- 6d1a7dc: fixed an issue where json/b fields weren't transformed when using `fieldTransform`
+
 ## 4.0.5
 
 ### Patch Changes

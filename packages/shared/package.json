@@ -1,6 +1,6 @@
 {
   "name": "@ts-safeql/shared",
-  "version": "4.0.5",
+  "version": "4.0.6",
   "license": "MIT",
   "repository": "https://github.com/ts-safeql/safeql/tree/master/packages/eslint-plugin",
   "files": [
