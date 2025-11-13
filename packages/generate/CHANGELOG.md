@@ -1,5 +1,15 @@
 # @ts-safeql/generate
 
+## 4.0.6
+
+### Patch Changes
+
+- e020435: fixed an issue where custom type was inferred incorrectly in conjunction with custom columns
+- 6d1a7dc: fixed an issue where json/b fields weren't transformed when using `fieldTransform`
+  - @ts-safeql/shared@4.0.6
+  - @ts-safeql/sql-ast@4.0.6
+  - @ts-safeql/test-utils@0.0.54
+
 ## 4.0.5
 
 ### Patch Changes
