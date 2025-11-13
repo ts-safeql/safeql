@@ -490,7 +490,11 @@ function getResolvedTargetEntry(params: {
     const typeOverride = params?.context?.overrides?.types.get(pgType.name);
 
     if (typeOverride !== undefined) {
-      return { kind: "type", value: typeOverride.value, type: pgType.name } satisfies ResolvedTarget;
+      return {
+        kind: "type",
+        value: typeOverride.value,
+        type: pgType.name,
+      } satisfies ResolvedTarget;
     }
 
     if (params.context.overrides?.types === undefined || pgType === undefined) {
