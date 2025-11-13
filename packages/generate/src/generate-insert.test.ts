@@ -472,4 +472,25 @@ describe("INSERT validation", () => {
       `,
     });
   });
+
+  test("INSERT with type override in conjunction with unrelated column override should use custom type", async () => {
+    await testQuery({
+      options: {
+        overrides: {
+          types: { timestamptz: "Instant" },
+          columns: { "tbl2.col": "CustomType" },
+        },
+      },
+      schema: `
+        CREATE TABLE IF NOT EXISTS tbl (
+          col TIMESTAMPTZ NOT NULL
+        );
+      `,
+      query: `
+        INSERT INTO tbl (col) VALUES (NOW()) RETURNING *
+      `,
+      expected: [["col", { kind: "type", value: "Instant", type: "timestamptz" }]],
+      unknownColumns: ["col"],
+    });
+  });
 });
