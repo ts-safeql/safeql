@@ -271,6 +271,7 @@ async function generate(
       pgEnums: pgEnums,
       pgFns: functionsMap,
       typeExprMap: pgTypeExprMap,
+      fieldTransform: params.fieldTransform,
     });
 
     const columns = result.columns.map((col, position): ColumnAnalysisResult => {
