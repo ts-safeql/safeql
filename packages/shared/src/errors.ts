@@ -230,6 +230,7 @@ export class PostgresError extends Error {
     sourcemaps: QuerySourceMapEntry[];
   }) {
     super(params.message);
+    this.name = "PostgresError";
     this.queryText = params.queryText;
     this.message = params.message;
     this.line = params.line;
