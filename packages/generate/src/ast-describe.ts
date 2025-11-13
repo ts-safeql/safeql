@@ -1,4 +1,4 @@
-import { fmap, normalizeIndent } from "@ts-safeql/shared";
+import { fmap, normalizeIndent, toCase, IdentiferCase } from "@ts-safeql/shared";
 import * as LibPgQueryAST from "@ts-safeql/sql-ast";
 import {
   isColumnStarRef,
@@ -26,6 +26,7 @@ type ASTDescriptionOptions = {
   pgTypes: PgTypesMap;
   pgEnums: PgEnumsMaps;
   pgFns: Map<string, { ts: string; pg: string }>;
+  fieldTransform: IdentiferCase | undefined;
 };
 
 type ASTDescriptionContext = ASTDescriptionOptions & {
@@ -571,6 +572,7 @@ function getDescribedSelectStmt({
     pgTypes: context.pgTypes,
     pgEnums: context.pgEnums,
     pgFns: context.pgFns,
+    fieldTransform: context.fieldTransform,
   });
 
   const firstColumn = subDescription.map.get(0);
@@ -936,7 +938,8 @@ function getDescribedJsonBuildObjectFunCall({
       return [unknownDescribedColumn];
     }
 
-    describedColumn.value.push([alias, resolveType({ context, nullable: false, type })]);
+    const transformedKey = toCase(alias, context.fieldTransform);
+    describedColumn.value.push([transformedKey, resolveType({ context, nullable: false, type })]);
   }
 
   return [

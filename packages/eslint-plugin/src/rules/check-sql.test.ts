@@ -1878,6 +1878,33 @@ RuleTester.describe("check-sql", () => {
           \`;
         `,
       },
+      {
+        name: "json/b: fieldTransform camel should apply to jsonb_build_object keys",
+        options: withConnection(connections.withTag, {
+          targets: [{ tag: "sql", fieldTransform: "camel" }],
+        }),
+        code: `sql<{ candidateLocations: { isSelected: boolean }[] | null }>\`
+          SELECT
+            jsonb_agg(
+              jsonb_build_object(
+                'is_selected', TRUE
+              )
+            ) AS candidate_locations
+        \``,
+      },
+      {
+        name: "json/b: fieldTransform camel should apply to nested jsonb_build_object keys",
+        options: withConnection(connections.withTag, {
+          targets: [{ tag: "sql", fieldTransform: "camel" }],
+        }),
+        code: `sql<{ metadata: { outerKey: { innerKey: 'value' } } }>\`
+          SELECT
+            jsonb_build_object(
+              'outer_key',
+              jsonb_build_object('inner_key', 'value')
+            ) AS metadata
+        \``,
+      },
     ],
     invalid: [
       {
@@ -1996,6 +2023,29 @@ RuleTester.describe("check-sql", () => {
           \`
         `,
         errors: [{ messageId: "missingTypeAnnotations" }],
+      },
+      {
+        name: "json/b: fieldTransform camel should enforce transformation on jsonb keys",
+        options: withConnection(connections.withTag, {
+          targets: [{ tag: "sql", fieldTransform: "camel" }],
+        }),
+        code: `sql<{ candidateLocations: { is_selected: boolean }[] | null }>\`
+          SELECT
+            jsonb_agg(
+              jsonb_build_object(
+                'is_selected', TRUE
+              )
+            ) AS candidate_locations
+        \``,
+        output: `sql<{ candidateLocations: { isSelected: boolean }[] | null }>\`
+          SELECT
+            jsonb_agg(
+              jsonb_build_object(
+                'is_selected', TRUE
+              )
+            ) AS candidate_locations
+        \``,
+        errors: [{ messageId: "incorrectTypeAnnotations" }],
       },
     ],
   });
