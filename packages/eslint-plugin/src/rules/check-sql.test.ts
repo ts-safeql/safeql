@@ -1257,7 +1257,7 @@ RuleTester.describe("check-sql", () => {
          `,
       },
       {
-        name: 'insert with custom type { timestamptz: "Instant" }',
+        name: 'insert with custom type { timestamptz: "Instant" } - property access',
         options: withConnection(connections.withTag, {
           overrides: { types: { timestamptz: "Instant" } },
         }),
