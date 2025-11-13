@@ -1,5 +1,14 @@
 # @ts-safeql/generate
 
+## 4.0.4
+
+### Patch Changes
+
+- c1919e2: improve insert statement validation
+  - @ts-safeql/shared@4.0.4
+  - @ts-safeql/sql-ast@4.0.4
+  - @ts-safeql/test-utils@0.0.52
+
 ## 4.0.3
 
 ### Patch Changes
