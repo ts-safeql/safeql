@@ -1,5 +1,11 @@
 # @ts-safeql/eslint-plugin
 
+## 4.0.5
+
+### Patch Changes
+
+- ad0b725: fixed an issue with nullable custom types in insert statements
+
 ## 4.0.4
 
 ## 4.0.3
