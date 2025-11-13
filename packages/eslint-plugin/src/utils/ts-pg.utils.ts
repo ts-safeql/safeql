@@ -267,6 +267,12 @@ function getPgTypeFromTsType(params: {
     const symbolType = checker.getTypeOfSymbolAtLocation(symbol!, node);
 
     if (TSUtils.isTsUnionType(symbolType)) {
+      // If union is X | null, continue with X
+      const nonNullTypes = symbolType.types.filter((t) => t.flags !== ts.TypeFlags.Null);
+      if (nonNullTypes.length === 1) {
+        return checkType({ checker, type: nonNullTypes[0], options });
+      }
+      
       return getPgTypeFromTsTypeUnion({ types: symbolType.types });
     }
 
@@ -316,9 +322,17 @@ function getPgTypeFromTsType(params: {
   // Handle union types
   if (TSUtils.isTsUnionType(type)) {
     const matchingType = type.types.find((t) => t.flags in tsFlagToPgTypeMap);
-    return matchingType
-      ? E.right({ kind: "cast", cast: tsFlagToPgTypeMap[matchingType.flags] })
-      : E.left("Unsupported union type");
+    if (matchingType) {
+      return E.right({ kind: "cast", cast: tsFlagToPgTypeMap[matchingType.flags] });
+    }
+
+    // If union is X | null, continue with X
+    const nonNullTypes = type.types.filter((t) => t.flags !== ts.TypeFlags.Null);
+    if (nonNullTypes.length === 1) {
+      return checkType({ checker, type: nonNullTypes[0], options });
+    }
+
+    return E.left("Unsupported union type");
   }
 
   return checkType({ checker, type, options });

@@ -144,6 +144,10 @@ const runMigrations1 = <TTypes extends Record<string, unknown>>(sql: Sql<TTypes>
     CREATE TABLE test_nullable_boolean (
       colname BOOLEAN
     );
+
+    CREATE TABLE test_nullable_timestamptz (
+      colname TIMESTAMPTZ
+    );
 `);
 
 RuleTester.describe("check-sql", () => {
@@ -1225,16 +1229,48 @@ RuleTester.describe("check-sql", () => {
           type Meta = { is_test: boolean; };
           type Caregiver = { meta: Meta | null };
 
-          await sql<Caregiver[]>\`
-            SELECT
-              CASE WHEN caregiver.id IS NOT NULL
-                THEN jsonb_build_object('is_test', caregiver.first_name LIKE '%test%')
-                ELSE NULL
-              END AS meta
-            FROM
-              caregiver
-          \`;
-        `,
+           await sql<Caregiver[]>\`
+             SELECT
+               CASE WHEN caregiver.id IS NOT NULL
+                 THEN jsonb_build_object('is_test', caregiver.first_name LIKE '%test%')
+                 ELSE NULL
+               END AS meta
+             FROM
+               caregiver
+           \`;
+         `,
+      },
+      {
+        name: 'insert with custom type { timestamptz: "Instant" }',
+        options: withConnection(connections.withTag, {
+          overrides: { types: { timestamptz: "Instant" } },
+        }),
+        code: `
+          class Instant {}
+          function foo(instant: Instant | null) {
+            sql<{ colname: Instant | null }>\`
+              INSERT INTO test_nullable_timestamptz (colname)
+              VALUES (\${instant})
+              RETURNING *
+            \`
+          }
+         `,
+      },
+      {
+        name: 'insert with custom type { timestamptz: "Instant" }',
+        options: withConnection(connections.withTag, {
+          overrides: { types: { timestamptz: "Instant" } },
+        }),
+        code: `
+          class Instant {}
+          function foo(x: { instant: Instant | null }) {
+            sql<{ colname: Instant | null }>\`
+              INSERT INTO test_nullable_timestamptz (colname)
+              VALUES (\${x.instant})
+              RETURNING *
+            \`
+          }
+         `,
       },
     ],
     invalid: [
