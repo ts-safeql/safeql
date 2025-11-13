@@ -497,16 +497,7 @@ function getResolvedTargetEntry(params: {
       } satisfies ResolvedTarget;
     }
 
-    if (params.context.overrides?.types === undefined || pgType === undefined) {
-      return undefined;
-    }
-
-    const override = params.context.overrides.types.get(pgType.name);
-
-    return fmap(
-      override,
-      ({ value }): ResolvedTarget => ({ kind: "type", value, type: pgType.name }),
-    );
+    return undefined;
   })();
 
   const value = valueAsOverride ?? valueAsEnum ?? valueAsType;
