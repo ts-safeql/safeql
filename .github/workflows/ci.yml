@@ -20,8 +20,6 @@ jobs:
     strategy:
       matrix:
         postgres-version: [16, 17]
-        os: ubuntu-latest
-        node-version: 22
       fail-fast: false
     services:
       postgres:

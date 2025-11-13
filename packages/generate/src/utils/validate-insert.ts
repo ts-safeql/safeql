@@ -47,14 +47,18 @@ export function validateInsertResult(
 
   const message =
     missing.length === 1
-      ? `null value in column ${columnsStr} violates not-null constraint`
-      : `null value in columns ${columnsStr} violates not-null constraint`;
-
-  const hint = `Hint: Columns ${columnsStr} are not nullable and have no default value.`;
+      ? [
+          `null value in column ${columnsStr} violates not-null constraint`,
+          `Hint: Column ${columnsStr} is not nullable and has no default value.`,
+        ].join("\n")
+      : [
+          `null value in columns ${columnsStr} violates not-null constraint`,
+          `Hint: Columns ${columnsStr} are not nullable and have no default value.`,
+        ].join("\n");
 
   throw PostgresError.of({
     queryText: query.text,
-    message: `${message}\n${hint}`,
+    message: message,
     line: "1",
     position,
     sourcemaps: query.sourcemaps,
