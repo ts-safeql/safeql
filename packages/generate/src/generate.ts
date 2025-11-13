@@ -479,24 +479,18 @@ function getResolvedTargetEntry(params: {
 
     if (!pgType) return undefined;
 
-    if (params.context.overrides?.columns && params.context.overrides.columns.size > 0) {
-      const override = params.context.overrides.columns
-        .get(params.col.introspected?.tableName ?? "")
-        ?.get(params.col.described.name);
+    const columnOverride = params?.context?.overrides?.columns
+      .get(params.col.introspected?.tableName ?? "")
+      ?.get(params.col.described.name);
 
-      return fmap(
-        override,
-        (value): ResolvedTarget => ({ kind: "type", value, type: pgType.name }),
-      );
+    if (columnOverride !== undefined) {
+      return { kind: "type", value: columnOverride, type: pgType.name } satisfies ResolvedTarget;
     }
 
-    if (params.context.overrides?.types) {
-      const override = params.context.overrides.types.get(pgType.name);
+    const typeOverride = params?.context?.overrides?.types.get(pgType.name);
 
-      return fmap(
-        override,
-        ({ value }): ResolvedTarget => ({ kind: "type", value, type: pgType.name }),
-      );
+    if (typeOverride !== undefined) {
+      return { kind: "type", value: typeOverride.value, type: pgType.name } satisfies ResolvedTarget;
     }
 
     if (params.context.overrides?.types === undefined || pgType === undefined) {
