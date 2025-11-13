@@ -500,7 +500,7 @@ export default createRule({
     },
     messages: messages,
     type: "problem",
-    schema: z.toJSONSchema(RuleOptions) as JSONSchema4,
+    schema: z.toJSONSchema(RuleOptions, { target: "draft-4" }) as JSONSchema4,
   },
   defaultOptions: [],
   create(context) {
