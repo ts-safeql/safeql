@@ -10,7 +10,6 @@ import {
 import { JSONSchema4 } from "@typescript-eslint/utils/json-schema";
 import { match } from "ts-pattern";
 import ts from "typescript";
-import { zodToJsonSchema } from "zod-to-json-schema";
 import { ESTreeUtils } from "../utils";
 import { E, J, flow, pipe } from "../utils/fp-ts";
 import {
@@ -50,6 +49,7 @@ import {
   shouldLintFile,
   transformTypes,
 } from "./check-sql.utils";
+import z from "zod";
 
 const messages = {
   typeInferenceFailed: "Type inference failed {{error}}",
@@ -500,7 +500,7 @@ export default createRule({
     },
     messages: messages,
     type: "problem",
-    schema: zodToJsonSchema(RuleOptions, { target: "openApi3" }) as JSONSchema4,
+    schema: z.toJSONSchema(RuleOptions, { target: "draft-4" }) as JSONSchema4,
   },
   defaultOptions: [],
   create(context) {
