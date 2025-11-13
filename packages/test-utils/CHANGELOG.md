@@ -1,5 +1,11 @@
 # @ts-safeql/test-utils
 
+## 0.0.52
+
+### Patch Changes
+
+- @ts-safeql/shared@4.0.4
+
 ## 0.0.51
 
 ### Patch Changes
