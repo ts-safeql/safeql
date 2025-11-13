@@ -16,15 +16,14 @@ concurrency:
 
 jobs:
   check:
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        os: [ubuntu-latest]
-        node-version: ["20"]
+        postgres-version: [16, 17]
       fail-fast: false
     services:
       postgres:
-        image: postgres:16
+        image: postgres:${{ matrix.postgres-version }}
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres

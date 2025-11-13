@@ -18,6 +18,7 @@ import { ASTDescribedColumn, getASTDescription } from "./ast-describe";
 import { ColType } from "./utils/colTypes";
 import { FlattenedRelationWithJoins } from "./utils/get-relations-with-joins";
 import * as parser from "libpg-query";
+import { isParsedInsertResult, validateInsertResult } from "./utils/validate-insert";
 
 type JSToPostgresTypeMap = Record<string, unknown>;
 type Sql = postgres.Sql<JSToPostgresTypeMap>;
@@ -213,6 +214,11 @@ async function generate(
 
   try {
     const result = await sql.unsafe(query.text, [], { prepare: true }).describe();
+    const parsed = await parser.parse(query.text);
+
+    if (isParsedInsertResult(parsed)) {
+      validateInsertResult(parsed, pgColsBySchemaAndTableName, query);
+    }
 
     if (result.columns === undefined || result.columns === null || result.columns.length === 0) {
       return either.right({ output: null, unknownColumns: [], stmt: result, query: query });
@@ -255,8 +261,6 @@ async function generate(
         }),
       );
     }
-
-    const parsed = await parser.parse(query.text);
 
     const astQueryDescription = getASTDescription({
       parsed: parsed,
@@ -633,6 +637,7 @@ export interface PgColRow {
   colNum: number;
   colHasDef: boolean;
   colNotNull: boolean;
+  colIdentity: string;
 }
 
 async function getPgCols(sql: Sql) {
@@ -651,7 +656,8 @@ async function getPgCols(sql: Sql) {
           END AS "colBaseTypeOid",
           pg_attribute.attnum AS "colNum",
           pg_attribute.atthasdef "colHasDef",
-          pg_attribute.attnotnull "colNotNull"
+          pg_attribute.attnotnull "colNotNull",
+          pg_attribute.attidentity "colIdentity"
       FROM
           pg_attribute,
           pg_class,
