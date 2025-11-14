@@ -1,5 +1,11 @@
 # @ts-safeql/eslint-plugin
 
+## 4.0.7
+
+### Patch Changes
+
+- a4409be: Fixed an issue where fields from LEFT JOIN LATERAL subqueries were incorrectly inferred as non-nullable.
+
 ## 4.0.6
 
 ### Patch Changes
