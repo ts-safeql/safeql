@@ -2385,3 +2385,61 @@ test("select from LEFT JOIN LATERAL should return nullable field", async () => {
     ],
   });
 });
+
+test("nullable columns in regular subselect should remain nullable", async () => {
+  await testQuery({
+    schema: `
+      CREATE TABLE test_table (
+        id INTEGER PRIMARY KEY,
+        nullable_text TEXT,
+        non_null_text TEXT NOT NULL
+      );
+    `,
+    query: `
+      SELECT nullable_text, non_null_text
+      FROM (SELECT nullable_text, non_null_text FROM test_table) sub
+    `,
+    expected: [
+      [
+        "nullable_text",
+        {
+          kind: "union",
+          value: [
+            { kind: "type", value: "string", type: "text" },
+            { kind: "type", value: "null", type: "null" },
+          ],
+        },
+      ],
+      ["non_null_text", { kind: "type", value: "string", type: "text" }],
+    ],
+  });
+});
+
+test("nullable columns in INNER JOIN subselect should remain nullable", async () => {
+  await testQuery({
+    schema: `
+      CREATE TABLE table_a (id INTEGER PRIMARY KEY);
+      CREATE TABLE table_b (
+        id INTEGER PRIMARY KEY,
+        nullable_col TEXT
+      );
+    `,
+    query: `
+      SELECT sub.nullable_col
+      FROM table_a
+      INNER JOIN (SELECT id, nullable_col FROM table_b) sub ON sub.id = table_a.id
+    `,
+    expected: [
+      [
+        "nullable_col",
+        {
+          kind: "union",
+          value: [
+            { kind: "type", value: "string", type: "text" },
+            { kind: "type", value: "null", type: "null" },
+          ],
+        },
+      ],
+    ],
+  });
+});

@@ -315,7 +315,10 @@ export function getSources({
         case "subselect": {
           const nested = source.sources.getNestedResolvedTargetField(field);
           if (nested) {
-            return { ...nested, isNotNull: !checkIsNullableDueToRelation(source.name) };
+            return {
+              ...nested,
+              isNotNull: nested.isNotNull && !checkIsNullableDueToRelation(source.name),
+            };
           }
           break;
         }
