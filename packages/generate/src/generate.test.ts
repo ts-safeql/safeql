@@ -2350,3 +2350,96 @@ test("scalar subquery with WHERE should infer non-nullable type", async () => {
     expected: [["col", { kind: "type", value: "string", type: "text" }]],
   });
 });
+
+test("select from LEFT JOIN LATERAL should return nullable field", async () => {
+  await testQuery({
+    schema: `
+      CREATE TABLE parent_table (id INTEGER PRIMARY KEY);
+      CREATE TABLE child_table (
+        parent_id INTEGER REFERENCES parent_table(id),
+        status BOOLEAN NOT NULL
+      );
+    `,
+    query: `
+      SELECT
+        latest_child.status AS latest_status
+      FROM
+        parent_table
+        LEFT JOIN LATERAL (
+          SELECT child_table.status
+          FROM child_table
+          WHERE child_table.parent_id = parent_table.id
+        ) latest_child ON TRUE
+    `,
+    expected: [
+      [
+        "latest_status",
+        {
+          kind: "union",
+          value: [
+            { kind: "type", value: "boolean", type: "bool" },
+            { kind: "type", value: "null", type: "null" },
+          ],
+        },
+      ],
+    ],
+  });
+});
+
+test("nullable columns in regular subselect should remain nullable", async () => {
+  await testQuery({
+    schema: `
+      CREATE TABLE test_table (
+        id INTEGER PRIMARY KEY,
+        nullable_text TEXT,
+        non_null_text TEXT NOT NULL
+      );
+    `,
+    query: `
+      SELECT nullable_text, non_null_text
+      FROM (SELECT nullable_text, non_null_text FROM test_table) sub
+    `,
+    expected: [
+      [
+        "nullable_text",
+        {
+          kind: "union",
+          value: [
+            { kind: "type", value: "string", type: "text" },
+            { kind: "type", value: "null", type: "null" },
+          ],
+        },
+      ],
+      ["non_null_text", { kind: "type", value: "string", type: "text" }],
+    ],
+  });
+});
+
+test("nullable columns in INNER JOIN subselect should remain nullable", async () => {
+  await testQuery({
+    schema: `
+      CREATE TABLE table_a (id INTEGER PRIMARY KEY);
+      CREATE TABLE table_b (
+        id INTEGER PRIMARY KEY,
+        nullable_col TEXT
+      );
+    `,
+    query: `
+      SELECT sub.nullable_col
+      FROM table_a
+      INNER JOIN (SELECT id, nullable_col FROM table_b) sub ON sub.id = table_a.id
+    `,
+    expected: [
+      [
+        "nullable_col",
+        {
+          kind: "union",
+          value: [
+            { kind: "type", value: "string", type: "text" },
+            { kind: "type", value: "null", type: "null" },
+          ],
+        },
+      ],
+    ],
+  });
+});

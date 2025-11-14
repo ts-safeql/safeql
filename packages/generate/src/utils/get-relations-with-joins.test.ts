@@ -113,6 +113,23 @@ const cases: {
       ],
     ],
   },
+  {
+    query: `
+      SELECT latest.status
+      FROM parent_table
+        LEFT JOIN LATERAL (
+          SELECT child_table.status
+          FROM child_table
+          WHERE child_table.parent_id = parent_table.id
+        ) latest ON TRUE
+    `,
+    expected: [
+      [
+        "parent_table",
+        [{ alias: undefined, name: "latest", type: LibPgQueryAST.JoinType.JOIN_LEFT }],
+      ],
+    ],
+  },
 ];
 
 export const getRelationsWithJoinsTE = flow(

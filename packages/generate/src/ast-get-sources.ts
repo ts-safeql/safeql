@@ -314,7 +314,12 @@ export function getSources({
         case "cte":
         case "subselect": {
           const nested = source.sources.getNestedResolvedTargetField(field);
-          if (nested) return nested;
+          if (nested) {
+            return {
+              ...nested,
+              isNotNull: nested.isNotNull && !checkIsNullableDueToRelation(source.name),
+            };
+          }
           break;
         }
         case "table": {
@@ -342,7 +347,15 @@ export function getSources({
           switch (source.kind) {
             case "subselect": {
               const column = source.sources.getNestedResolvedTargetField(field);
-              if (column) return [column];
+              if (column) {
+                // Check if this subselect is part of a LEFT JOIN or FULL JOIN
+                const isNullableDueToRelation = checkIsNullableDueToRelation(source.name);
+                if (isNullableDueToRelation && column.isNotNull) {
+                  // Make the column nullable if it's from a left/full joined subselect
+                  return [{ ...column, isNotNull: false }];
+                }
+                return [column];
+              }
               break;
             }
             default:
@@ -367,7 +380,17 @@ export function getSources({
         for (const source of sources.values()) {
           switch (source.kind) {
             case "subselect": {
-              return source.sources.getColumnsByTargetField(field);
+              const columns = source.sources.getColumnsByTargetField(field);
+              if (columns) {
+                // Check if this subselect is part of a LEFT JOIN or FULL JOIN
+                const isNullableDueToRelation = checkIsNullableDueToRelation(source.name);
+                if (isNullableDueToRelation) {
+                  // Make columns nullable if they're from a left/full joined subselect
+                  return columns.map((col) => (col.isNotNull ? { ...col, isNotNull: false } : col));
+                }
+                return columns;
+              }
+              break;
             }
 
             default:
