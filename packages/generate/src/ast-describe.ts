@@ -990,17 +990,43 @@ function getColumnRefOrigins({
   }
 }
 
+function getContextForColumnRef(
+  context: ASTDescriptionContext,
+  node: LibPgQueryAST.ColumnRef,
+): ASTDescriptionContext {
+  if (isColumnTableColumnRef(node.fields) || isColumnTableStarRef(node.fields)) {
+    const sourceName = node.fields[0].String.sval;
+    const source = context.resolver.sources.get(sourceName);
+    if (source?.kind === "cte") {
+      return { ...context, resolver: source.sources };
+    }
+  }
+
+  return context;
+}
+
 function getDescribedColumnRef({
   alias,
   context,
   node,
 }: GetDescribedParamsOf<LibPgQueryAST.ColumnRef>): ASTDescribedColumn[] {
-  const origins = getColumnRefOrigins({ alias, context, node })
-    ?.map((origin) => getDescribedNode({ alias, node: origin, context }))
-    .flat();
+  const definitionNodes = getColumnRefOrigins({ alias, context, node });
 
-  if (origins) return origins;
+  if (definitionNodes) {
+    const defContext = getContextForColumnRef(context, node);
+    return definitionNodes.flatMap((node) =>
+      getDescribedNode({ alias, node, context: defContext }),
+    );
+  }
 
+  return getDescribedColumnRefFromSchema({ alias, context, node });
+}
+
+function getDescribedColumnRefFromSchema({
+  alias,
+  context,
+  node,
+}: GetDescribedParamsOf<LibPgQueryAST.ColumnRef>): ASTDescribedColumn[] {
   // select *
   if (isColumnStarRef(node.fields)) {
     return getDescribedColumnByResolvedColumns({
