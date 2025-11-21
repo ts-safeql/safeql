@@ -1,5 +1,15 @@
 # @ts-safeql/generate
 
+## 4.0.8
+
+### Patch Changes
+
+- 8c935fc: fix: correct type inference for CTEs with aggregations and joins
+- 5d90bb3: fix: apply column overrides correctly when using aliased columns in RETURNING clause
+  - @ts-safeql/shared@4.0.8
+  - @ts-safeql/sql-ast@4.0.8
+  - @ts-safeql/test-utils@0.0.56
+
 ## 4.0.7
 
 ### Patch Changes
