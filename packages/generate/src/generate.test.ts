@@ -56,7 +56,7 @@ function runMigrations(sql: SQL) {
       id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
       nullable_col TEXT
     );
-    
+
     CREATE TYPE overriden_enum AS ENUM ('foo', 'bar');
     
     CREATE TABLE test_overriden_enum (
@@ -2436,6 +2436,45 @@ test("nullable columns in INNER JOIN subselect should remain nullable", async ()
           kind: "union",
           value: [
             { kind: "type", value: "string", type: "text" },
+            { kind: "type", value: "null", type: "null" },
+          ],
+        },
+      ],
+    ],
+  });
+});
+
+test("regression: wrong inference of nullable in aggregation", async () => {
+  await testQuery({
+    query: `
+      with subquery as (
+        select a_id, array_agg(b_id) as list
+        from b
+        group by a_id
+      )
+      select subquery.list
+      from a
+      left join subquery on (subquery.a_id = a.id);
+    `,
+    schema: `
+      CREATE TABLE a (
+        id int primary key,
+        name text not null default ''
+      );
+ 
+      CREATE TABLE b (
+        a_id int not null,
+        b_id int not null,
+        primary key (a_id, b_id)
+      );
+    `,
+    expected: [
+      [
+        "list",
+        {
+          kind: "union",
+          value: [
+            { kind: "array", value: { kind: "type", value: "number", type: "int4" } },
             { kind: "type", value: "null", type: "null" },
           ],
         },
