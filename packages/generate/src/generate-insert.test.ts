@@ -493,4 +493,18 @@ describe("INSERT validation", () => {
       unknownColumns: ["col"],
     });
   });
+
+  test("INSERT with column override and aliased returning should use custom type", async () => {
+    await testQuery({
+      options: {
+        overrides: {
+          columns: { "test_tbl.col": "CustomType" },
+        },
+      },
+      schema: `CREATE TABLE test_tbl (col TEXT NOT NULL);`,
+      query: `INSERT INTO test_tbl (col) VALUES ('val') RETURNING col AS aliased_col`,
+      expected: [["aliased_col", { kind: "type", value: "CustomType", type: "text" }]],
+      unknownColumns: ["aliased_col"],
+    });
+  });
 });
