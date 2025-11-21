@@ -481,7 +481,7 @@ function getResolvedTargetEntry(params: {
 
     const columnOverride = params?.context?.overrides?.columns
       .get(params.col.introspected?.tableName ?? "")
-      ?.get(params.col.described.name);
+      ?.get(params.col.introspected?.colName ?? params.col.described.name);
 
     if (columnOverride !== undefined) {
       return { kind: "type", value: columnOverride, type: pgType.name } satisfies ResolvedTarget;
