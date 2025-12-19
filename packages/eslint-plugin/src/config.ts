@@ -14,9 +14,6 @@ export default {
       rules: {
         "@ts-safeql/check-sql": ["error", { useConfigFile: true }],
       },
-      languageOptions: {
-        parserOptions: { project: true },
-      },
     } satisfies FlatConfig.Config,
 
     /**
@@ -28,9 +25,6 @@ export default {
       },
       rules: {
         "@ts-safeql/check-sql": ["error", { connections }],
-      },
-      languageOptions: {
-        parserOptions: { project: true },
       },
     }),
   },
