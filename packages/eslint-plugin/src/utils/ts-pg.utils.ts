@@ -223,7 +223,9 @@ function getPgTypeFromTsTypeUnion(params: {
   }
 
   if (mixedTypes.length > 1) {
-    return E.left(`Union types must result in the same PostgreSQL type (found ${mixedTypes.join(", ")})`);
+    return E.left(
+      `Union types must result in the same PostgreSQL type (found ${mixedTypes.join(", ")})`,
+    );
   }
 
   return E.right(firstStrategy);
@@ -243,8 +245,17 @@ function getPgTypeFromTsType(params: {
   const { checker, node, type, options } = params;
 
   if (node.kind === ts.SyntaxKind.ConditionalExpression) {
-    const whenTrue = checkType({ checker, type: checker.getTypeAtLocation(node.whenTrue), options });
-    const whenFalse = checkType({ checker, type: checker.getTypeAtLocation(node.whenFalse), options });
+    const whenTrue = checkType({
+      checker,
+      type: checker.getTypeAtLocation(node.whenTrue),
+      options,
+    });
+
+    const whenFalse = checkType({
+      checker,
+      type: checker.getTypeAtLocation(node.whenFalse),
+      options,
+    });
 
     if (E.isLeft(whenTrue)) {
       return whenTrue;
@@ -260,7 +271,11 @@ function getPgTypeFromTsType(params: {
       return E.right(null);
     }
 
-    if (trueStrategy !== null && falseStrategy !== null && trueStrategy.cast !== falseStrategy.cast) {
+    if (
+      trueStrategy !== null &&
+      falseStrategy !== null &&
+      trueStrategy.cast !== falseStrategy.cast
+    ) {
       return E.left(
         `Conditional expression must have the same type (true = ${trueStrategy.cast}, false = ${falseStrategy.cast})`,
       );
