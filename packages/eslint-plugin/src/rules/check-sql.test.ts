@@ -774,7 +774,7 @@ RuleTester.describe("check-sql", () => {
           {
             messageId: "invalidQuery",
             data: {
-              error: "Union types must be of the same type (found string, number)",
+              error: "Union types must result in the same PostgreSQL type (found text, int)",
             },
           },
         ],
