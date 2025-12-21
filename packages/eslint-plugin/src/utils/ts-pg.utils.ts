@@ -209,7 +209,8 @@ function getPgTypeFromTsTypeUnion(params: {
   }
 
   if (strategies.length === 0) {
-    return E.right(null);
+    const typesStr = nonNullTypes.map((t) => checker.typeToString(t)).join(", ");
+    return E.left(`No PostgreSQL type could be inferred for the union members: ${typesStr}`);
   }
 
   const firstStrategy = strategies[0];
