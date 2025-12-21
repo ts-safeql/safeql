@@ -192,26 +192,50 @@ const tsFlagToPgTypeMap: Record<number, string> = {
   [ts.TypeFlags.BigIntLiteral]: "bigint",
 };
 
-function getPgTypeFromTsTypeUnion(params: { types: ts.Type[] }): E.Either<string, PgTypeStrategy> {
-  const types = params.types.filter((t) => (t.flags & ts.TypeFlags.Null) === 0);
-  const isStringLiterals = types.every((t) => t.flags & ts.TypeFlags.StringLiteral);
+function getPgTypeFromTsTypeUnion(params: {
+  types: ts.Type[];
+  checker: ts.TypeChecker;
+  options: RuleOptionConnection;
+}): E.Either<string, PgTypeStrategy | null> {
+  const { types, checker, options } = params;
+  const nonNullTypes = types.filter((t) => (t.flags & ts.TypeFlags.Null) === 0);
+
+  if (nonNullTypes.length === 0) {
+    return E.right(null);
+  }
+
+  const isStringLiterals = nonNullTypes.every((t) => t.flags & ts.TypeFlags.StringLiteral);
 
   if (isStringLiterals) {
     return E.right({
       kind: "one-of",
-      types: types.map((t) => (t as ts.StringLiteralType).value),
+      types: nonNullTypes.map((t) => (t as ts.StringLiteralType).value),
       cast: "text",
     });
   }
 
-  const isUnionOfTheSameType = types.every((t) => t.flags === types[0].flags);
-  const pgType = getPgTypeFromFlags(types[0].flags);
+  const results = nonNullTypes.map((t) => checkType({ checker, type: t, options }));
+  const firstResult = results[0];
 
-  if (!isUnionOfTheSameType || pgType === undefined) {
-    return E.left(createMixedTypesInUnionErrorMessage(types.map((t) => t.flags)));
+  if (E.isLeft(firstResult)) {
+    return firstResult;
   }
 
-  return E.right({ kind: "cast", cast: pgType });
+  const firstPgType = firstResult.right;
+
+  for (let i = 1; i < results.length; i++) {
+    const result = results[i];
+    if (E.isLeft(result)) {
+      return result;
+    }
+
+    const pgType = result.right;
+    if (pgType.cast !== firstPgType.cast) {
+      return E.left(createMixedTypesInUnionErrorMessage(nonNullTypes.map((t) => t.flags)));
+    }
+  }
+
+  return E.right({ kind: "cast", cast: firstPgType.cast });
 }
 
 type PgTypeStrategy =
@@ -273,21 +297,17 @@ function getPgTypeFromTsType(params: {
     }
 
     if (symbolType.isUnion()) {
-      // If union is X | null, continue with X
-      const nonNullTypes = symbolType.types.filter((t) => (t.flags & ts.TypeFlags.Null) === 0);
-      if (nonNullTypes.length === 1) {
-        return checkType({ checker, type: nonNullTypes[0], options });
-      }
-
-      return getPgTypeFromTsTypeUnion({ types: symbolType.types });
+      return getPgTypeFromTsTypeUnion({ types: symbolType.types, checker, options });
     }
 
     if (TSUtils.isTsArrayUnionType(checker, symbolType)) {
       const elementTypeUnion = symbolType.resolvedTypeArguments?.[0].types;
       return elementTypeUnion
         ? pipe(
-            getPgTypeFromTsTypeUnion({ types: elementTypeUnion }),
-            E.map((pgType) => ({ kind: "cast", cast: `${pgType.cast}[]` })),
+            getPgTypeFromTsTypeUnion({ types: elementTypeUnion, checker, options }),
+            E.map((pgType) =>
+              pgType === null ? null : { kind: "cast", cast: `${pgType.cast}[]` },
+            ),
           )
         : E.left("Invalid array union type");
     }
@@ -327,22 +347,7 @@ function getPgTypeFromTsType(params: {
 
   // Handle union types
   if (type.isUnion()) {
-    const matchingType = type.types.find((t) => {
-      const flags = getPgTypeFromFlags(t.flags);
-      return flags !== undefined && flags !== null;
-    });
-
-    if (matchingType) {
-      return E.right({ kind: "cast", cast: getPgTypeFromFlags(matchingType.flags)! });
-    }
-
-    // If union is X | null, continue with X
-    const nonNullTypes = type.types.filter((t) => (t.flags & ts.TypeFlags.Null) === 0);
-    if (nonNullTypes.length === 1) {
-      return checkType({ checker, type: nonNullTypes[0], options });
-    }
-
-    return E.left("Unsupported union type");
+    return getPgTypeFromTsTypeUnion({ types: type.types, checker, options });
   }
 
   return checkType({ checker, type, options });
@@ -437,22 +442,12 @@ function checkType(params: {
 
   // Handle union types
   if (type.isUnion()) {
-    const matchingType = type.types.find((t) => {
-      const flags = getPgTypeFromFlags(t.flags);
-      return flags !== undefined && flags !== null;
-    });
-
-    if (matchingType) {
-      return E.right({ kind: "cast", cast: getPgTypeFromFlags(matchingType.flags)! });
-    }
-
-    // If union is X | null, continue with X
-    const nonNullTypes = type.types.filter((t) => (t.flags & ts.TypeFlags.Null) === 0);
-    if (nonNullTypes.length === 1) {
-      return checkType({ checker, type: nonNullTypes[0], options });
-    }
-
-    return E.left("Unsupported union type");
+    return pipe(
+      getPgTypeFromTsTypeUnion({ types: type.types, checker, options }),
+      E.chain((pgType) =>
+        pgType === null ? E.left("Unsupported union type (only null)") : E.right(pgType),
+      ),
+    );
   }
 
   // Fallback for unsupported types
