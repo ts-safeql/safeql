@@ -311,7 +311,9 @@ RuleTester.describe("check-sql", () => {
       },
       {
         name: "successfully selects an enum[] column",
-        options: withConnection(connections.base, { overrides: { types: { certification: "Certification" } } }),
+        options: withConnection(connections.base, {
+          overrides: { types: { certification: "Certification" } },
+        }),
         code: `
           type Certification = 'HHA' | 'RN' | 'LPN' | 'CNA' | 'PCA' | 'OTHER';
           const result = conn.query<{ certifications: Certification[] }>(sql\`select certifications from test_enum_array\`);
