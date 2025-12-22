@@ -800,9 +800,54 @@ function getDescribedFuncCall(
       return getDescribedJsonAggFunCall(params);
     case functionName === "array_agg":
       return getDescribedArrayAggFunCall(params);
+    case functionName === "unnest":
+      return getDescribedUnnestFunCall(params);
     default:
       return getDescribedFuncCallByPgFn(params);
   }
+}
+
+function getDescribedUnnestFunCall({
+  alias,
+  context,
+  node,
+}: GetDescribedParamsOf<LibPgQueryAST.FuncCall>): ASTDescribedColumn[] {
+  const functionName = node.funcname.at(-1)?.String?.sval ?? "";
+  const name = alias ?? functionName;
+
+  const firstArg = node.args?.at(0);
+  if (firstArg === undefined) {
+    return [{ name, type: context.toTypeScriptType({ name: "unknown" }) }];
+  }
+
+  const described = getDescribedNode({ alias: undefined, node: firstArg, context }).at(0);
+  if (described === undefined) {
+    return [{ name, type: context.toTypeScriptType({ name: "unknown" }) }];
+  }
+
+  function unwrap(type: ASTDescribedColumnType): ASTDescribedColumnType {
+    if (type.kind === "array") {
+      return unwrap(type.value);
+    }
+
+    if (type.kind === "union") {
+      const hasArray = type.value.some((t) => t.kind === "array");
+
+      const unwrapped = type.value
+        .filter((t) => !hasArray || !(t.kind === "type" && t.value === "null"))
+        .map(unwrap);
+
+      return mergeDescribedColumnTypes(unwrapped);
+    }
+
+    if (type.kind === "type" && type.type.startsWith("_")) {
+      return { ...type, type: type.type.slice(1) };
+    }
+
+    return type;
+  }
+
+  return [{ name, type: unwrap(described.type) }];
 }
 
 function getDescribedFuncCallByPgFn({

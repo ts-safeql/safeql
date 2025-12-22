@@ -2508,3 +2508,78 @@ test("select array of enums", async () => {
     ],
   });
 });
+
+test("select unnest(array_text_column)", async () => {
+  await testQuery({
+    query: `SELECT unnest(array_text_column) as unnested_text FROM all_types`,
+    expected: [["unnested_text", { kind: "type", value: "string", type: "text" }]],
+  });
+});
+
+test("select unnest(array_enum_column)", async () => {
+  await testQuery({
+    schema: `
+      CREATE TYPE my_enum AS ENUM ('A', 'B', 'C');
+      CREATE TABLE test_unnest_enum (col my_enum[] NOT NULL);
+    `,
+    query: `SELECT unnest(col) as unnested_enum FROM test_unnest_enum`,
+    expected: [
+      [
+        "unnested_enum",
+        {
+          kind: "union",
+          value: [
+            { kind: "type", value: "'A'", type: "my_enum" },
+            { kind: "type", value: "'B'", type: "my_enum" },
+            { kind: "type", value: "'C'", type: "my_enum" },
+          ],
+        },
+      ],
+    ],
+  });
+});
+
+test("select unnest(multidimensional_array)", async () => {
+  await testQuery({
+    query: `SELECT unnest(ARRAY[[1,2],[3,4]]) as unnested_int`,
+    expected: [
+      [
+        "unnested_int",
+        {
+          kind: "union",
+          value: [
+            { kind: "literal", value: "1", base: { kind: "type", value: "number", type: "int4" } },
+            { kind: "literal", value: "2", base: { kind: "type", value: "number", type: "int4" } },
+            { kind: "literal", value: "3", base: { kind: "type", value: "number", type: "int4" } },
+            { kind: "literal", value: "4", base: { kind: "type", value: "number", type: "int4" } },
+          ],
+        },
+      ],
+    ],
+  });
+});
+
+test("select unnest(nullable_array_column)", async () => {
+  await testQuery({
+    query: `SELECT unnest(nullable_date_arr) as unnested_date FROM test_date_column`,
+    expected: [["unnested_date", { kind: "type", value: "Date", type: "date" }]],
+  });
+});
+
+test("select unnest(array_with_nulls)", async () => {
+  await testQuery({
+    query: `SELECT unnest(ARRAY[1, NULL]) as unnested_int`,
+    expected: [
+      [
+        "unnested_int",
+        {
+          kind: "union",
+          value: [
+            { kind: "literal", value: "1", base: { kind: "type", value: "number", type: "int4" } },
+            { kind: "type", value: "null", type: "null" },
+          ],
+        },
+      ],
+    ],
+  });
+});
