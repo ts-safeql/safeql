@@ -884,13 +884,15 @@ RuleTester.describe("check-sql", () => {
             sql\`INSERT INTO test_insert_array_union_literals (colname) VALUES (\${mixed})\`
           }
         `,
-        errors: [{
-          messageId: "invalidQuery",
-          data: {
-            error: "Union types must result in the same PostgreSQL type (found text, int)"
-          }
-        }]
-      }
+        errors: [
+          {
+            messageId: "invalidQuery",
+            data: {
+              error: "Union types must result in the same PostgreSQL type (found text, int)",
+            },
+          },
+        ],
+      },
     ],
   });
 
