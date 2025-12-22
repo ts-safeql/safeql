@@ -34,6 +34,11 @@ const runMigrations1 = <TTypes extends Record<string, unknown>>(sql: Sql<TTypes>
     CREATE TYPE certification AS ENUM ('HHA', 'RN', 'LPN', 'CNA', 'PCA', 'OTHER');
     CREATE DOMAIN phone_number AS TEXT CHECK (VALUE ~ '^[0-9]{3}-[0-9]{3}-[0-9]{4}$');
 
+    CREATE TABLE test_enum_array (
+        id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+        certifications certification[] NOT NULL
+    );
+
     CREATE TABLE caregiver (
         id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
         first_name TEXT NOT NULL,
@@ -291,6 +296,36 @@ RuleTester.describe("check-sql", () => {
           enum Certification { HHA = "HHA", RN = "RN" }
           function foo() {
             sql\`select from caregiver where certification = \${Certification.HHA}\`
+          }
+        `,
+      },
+      {
+        name: "compare typescript enum array with postgres enum array using ANY",
+        options: withConnection(connections.withTag),
+        code: `
+          enum Certification { HHA = "HHA", RN = "RN" }
+          function foo(certs: Certification[]) {
+            sql\`select from caregiver where certification = ANY(\${certs}::certification[])\`
+          }
+        `,
+      },
+      {
+        name: "successfully selects an enum[] column",
+        options: withConnection(connections.base, {
+          overrides: { types: { certification: "Certification" } },
+        }),
+        code: `
+          type Certification = 'HHA' | 'RN' | 'LPN' | 'CNA' | 'PCA' | 'OTHER';
+          const result = conn.query<{ certifications: Certification[] }>(sql\`select certifications from test_enum_array\`);
+        `,
+      },
+      {
+        name: "successfully compares an enum[] column with an array of possibilities",
+        options: withConnection(connections.withTag),
+        code: `
+          enum Certification { HHA = "HHA", RN = "RN" }
+          function foo(certs: Certification[]) {
+            sql\`select from test_enum_array where certifications && \${certs}::certification[]\`
           }
         `,
       },
@@ -739,7 +774,7 @@ RuleTester.describe("check-sql", () => {
           {
             messageId: "invalidQuery",
             data: {
-              error: "Union types must be of the same type (found string, number)",
+              error: "Union types must result in the same PostgreSQL type (found text, int)",
             },
           },
         ],
@@ -837,6 +872,23 @@ RuleTester.describe("check-sql", () => {
             messageId: "invalidQuery",
             data: {
               error: 'invalid input value for enum certification: "RM"',
+            },
+          },
+        ],
+      },
+      {
+        name: "reject heterogeneous array union",
+        options: withConnection(connections.withTag),
+        code: `
+          function foo(mixed: (string | number)[]) {
+            sql\`INSERT INTO test_insert_array_union_literals (colname) VALUES (\${mixed})\`
+          }
+        `,
+        errors: [
+          {
+            messageId: "invalidQuery",
+            data: {
+              error: "Union types must result in the same PostgreSQL type (found text, int)",
             },
           },
         ],

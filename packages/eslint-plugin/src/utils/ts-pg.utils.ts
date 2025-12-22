@@ -163,24 +163,6 @@ const tsTypeToPgTypeMap: Record<string, string> = {
   unknown: "text",
 };
 
-const tsKindToPgTypeMap: Record<number, string> = {
-  [ts.SyntaxKind.NumericLiteral]: "int",
-  [ts.SyntaxKind.TrueKeyword]: "boolean",
-  [ts.SyntaxKind.FalseKeyword]: "boolean",
-  [ts.SyntaxKind.BigIntLiteral]: "bigint",
-};
-
-const tsFlagToTsTypeStringMap: Record<number, string> = {
-  [ts.TypeFlags.String]: "string",
-  [ts.TypeFlags.Number]: "number",
-  [ts.TypeFlags.Boolean]: "boolean",
-  [ts.TypeFlags.BigInt]: "bigint",
-  [ts.TypeFlags.NumberLiteral]: "number",
-  [ts.TypeFlags.StringLiteral]: "string",
-  [ts.TypeFlags.BooleanLiteral]: "boolean",
-  [ts.TypeFlags.BigIntLiteral]: "bigint",
-};
-
 const tsFlagToPgTypeMap: Record<number, string> = {
   [ts.TypeFlags.String]: "text",
   [ts.TypeFlags.Number]: "int",
@@ -192,26 +174,62 @@ const tsFlagToPgTypeMap: Record<number, string> = {
   [ts.TypeFlags.BigIntLiteral]: "bigint",
 };
 
-function getPgTypeFromTsTypeUnion(params: { types: ts.Type[] }): E.Either<string, PgTypeStrategy> {
-  const types = params.types.filter((t) => t.flags !== ts.TypeFlags.Null);
-  const isStringLiterals = types.every((t) => t.flags & ts.TypeFlags.StringLiteral);
+function getPgTypeFromTsTypeUnion(params: {
+  types: ts.Type[];
+  checker: ts.TypeChecker;
+  options: RuleOptionConnection;
+}): E.Either<string, PgTypeStrategy | null> {
+  const { types, checker, options } = params;
+  const nonNullTypes = types.filter((t) => (t.flags & ts.TypeFlags.Null) === 0);
+
+  if (nonNullTypes.length === 0) {
+    return E.right(null);
+  }
+
+  const isStringLiterals = nonNullTypes.every((t) => t.flags & ts.TypeFlags.StringLiteral);
 
   if (isStringLiterals) {
     return E.right({
       kind: "one-of",
-      types: types.map((t) => (t as ts.StringLiteralType).value),
+      types: nonNullTypes.map((t) => (t as ts.StringLiteralType).value),
       cast: "text",
     });
   }
 
-  const isUnionOfTheSameType = types.every((t) => t.flags === types[0].flags);
-  const pgType = tsFlagToPgTypeMap[types[0].flags];
+  const results = nonNullTypes.map((t) => checkType({ checker, type: t, options }));
+  const strategies: PgTypeStrategy[] = [];
 
-  if (!isUnionOfTheSameType || pgType === undefined) {
-    return E.left(createMixedTypesInUnionErrorMessage(types.map((t) => t.flags)));
+  for (const result of results) {
+    if (E.isLeft(result)) {
+      return result;
+    }
+    if (result.right !== null) {
+      strategies.push(result.right);
+    }
   }
 
-  return E.right({ kind: "cast", cast: pgType });
+  if (strategies.length === 0) {
+    const typesStr = nonNullTypes.map((t) => checker.typeToString(t)).join(", ");
+    return E.left(`No PostgreSQL type could be inferred for the union members: ${typesStr}`);
+  }
+
+  const firstStrategy = strategies[0];
+  const mixedTypes: string[] = [firstStrategy.cast];
+
+  for (let i = 1; i < strategies.length; i++) {
+    const strategy = strategies[i];
+    if (strategy.cast !== firstStrategy.cast) {
+      mixedTypes.push(strategy.cast);
+    }
+  }
+
+  if (mixedTypes.length > 1) {
+    return E.left(
+      `Union types must result in the same PostgreSQL type (found ${mixedTypes.join(", ")})`,
+    );
+  }
+
+  return E.right(firstStrategy);
 }
 
 type PgTypeStrategy =
@@ -227,133 +245,65 @@ function getPgTypeFromTsType(params: {
 }): E.Either<string, PgTypeStrategy | null> {
   const { checker, node, type, options } = params;
 
-  // Check for conditional expression
   if (node.kind === ts.SyntaxKind.ConditionalExpression) {
-    const whenTrueType = getPgTypeFromFlags(checker.getTypeAtLocation(node.whenTrue).flags);
-    const whenFalseType = getPgTypeFromFlags(checker.getTypeAtLocation(node.whenFalse).flags);
+    const whenTrue = checkType({
+      checker,
+      type: checker.getTypeAtLocation(node.whenTrue),
+      options,
+    });
 
-    if (whenTrueType === undefined || whenFalseType === undefined) {
-      return E.left(
-        `Unsupported conditional expression flags (true = ${whenTrueType}, false = ${whenFalseType})`,
-      );
+    const whenFalse = checkType({
+      checker,
+      type: checker.getTypeAtLocation(node.whenFalse),
+      options,
+    });
+
+    if (E.isLeft(whenTrue)) {
+      return whenTrue;
+    }
+    if (E.isLeft(whenFalse)) {
+      return whenFalse;
     }
 
-    if (whenTrueType === null && whenFalseType === null) {
+    const trueStrategy = whenTrue.right;
+    const falseStrategy = whenFalse.right;
+
+    if (trueStrategy === null && falseStrategy === null) {
       return E.right(null);
     }
 
-    const bothNonNullable = whenTrueType !== null && whenFalseType !== null;
-
-    if (bothNonNullable && whenTrueType !== whenFalseType) {
-      return E.left(
-        `Conditional expression must have the same type (true = ${whenTrueType}, false = ${whenFalseType})`,
-      );
-    }
-
-    if (whenTrueType !== null) {
-      return E.right({ kind: "cast", cast: whenTrueType });
-    }
-
-    if (whenFalseType !== null) {
-      return E.right({ kind: "cast", cast: whenFalseType });
-    }
-
-    return E.right(null);
-  }
-
-  // Check for identifier
-  if (node.kind === ts.SyntaxKind.Identifier) {
-    const symbol = checker.getSymbolAtLocation(node);
-    const symbolType = checker.getTypeOfSymbolAtLocation(symbol!, node);
-
-    if (TSUtils.isTsUnionType(symbolType)) {
-      // If union is X | null, continue with X
-      const nonNullTypes = symbolType.types.filter((t) => t.flags !== ts.TypeFlags.Null);
-      if (nonNullTypes.length === 1) {
-        return checkType({ checker, type: nonNullTypes[0], options });
-      }
-
-      return getPgTypeFromTsTypeUnion({ types: symbolType.types });
-    }
-
-    if (TSUtils.isTsArrayUnionType(checker, symbolType)) {
-      const elementTypeUnion = symbolType.resolvedTypeArguments?.[0].types;
-      return elementTypeUnion
-        ? pipe(
-            getPgTypeFromTsTypeUnion({ types: elementTypeUnion }),
-            E.map((pgType) => ({ kind: "cast", cast: `${pgType.cast}[]` })),
-          )
-        : E.left("Invalid array union type");
-    }
-
     if (
-      checker.isArrayType(type) &&
-      TSUtils.isTsTypeReference(type) &&
-      type.typeArguments?.length === 1
+      trueStrategy !== null &&
+      falseStrategy !== null &&
+      trueStrategy.cast !== falseStrategy.cast
     ) {
-      const typeArgument = type.typeArguments?.[0];
-
-      return pipe(
-        checkType({ checker, type: typeArgument, options }),
-        E.map((pgType): PgTypeStrategy => ({ kind: "cast", cast: `${pgType.cast}[]` })),
+      return E.left(
+        `Conditional expression must have the same type (true = ${trueStrategy.cast}, false = ${falseStrategy.cast})`,
       );
     }
-  }
 
-  if (node.kind === ts.SyntaxKind.StringLiteral) {
-    return E.right({ kind: "literal", value: `'${node.text}'`, cast: "text" });
-  }
-
-  // Check for known SyntaxKind mappings
-  if (node.kind in tsKindToPgTypeMap) {
-    return E.right({ kind: "cast", cast: tsKindToPgTypeMap[node.kind] });
-  }
-
-  // Check for known type flags
-  if (type.flags in tsFlagToPgTypeMap) {
-    return E.right({ kind: "cast", cast: tsFlagToPgTypeMap[type.flags] });
-  }
-
-  // Handle null type
-  if (type.flags === ts.TypeFlags.Null) {
-    return E.right(null);
-  }
-
-  // Handle union types
-  if (TSUtils.isTsUnionType(type)) {
-    const matchingType = type.types.find((t) => t.flags in tsFlagToPgTypeMap);
-    if (matchingType) {
-      return E.right({ kind: "cast", cast: tsFlagToPgTypeMap[matchingType.flags] });
+    const strategy = trueStrategy ?? falseStrategy;
+    if (strategy === null) {
+      return E.right(null);
     }
 
-    // If union is X | null, continue with X
-    const nonNullTypes = type.types.filter((t) => t.flags !== ts.TypeFlags.Null);
-    if (nonNullTypes.length === 1) {
-      return checkType({ checker, type: nonNullTypes[0], options });
-    }
-
-    return E.left("Unsupported union type");
+    return E.right({ kind: "cast", cast: strategy.cast });
   }
 
   return checkType({ checker, type, options });
-}
-
-function getPgTypeFromFlags(flags: ts.TypeFlags): string | null | undefined {
-  if (flags === ts.TypeFlags.Null) {
-    return null;
-  }
-
-  return tsFlagToPgTypeMap[flags];
 }
 
 function checkType(params: {
   checker: TypeChecker;
   type: ts.Type;
   options: RuleOptionConnection;
-}): E.Either<string, PgTypeStrategy> {
+}): E.Either<string, PgTypeStrategy | null> {
   const { checker, type, options } = params;
 
-  // Handle array types
+  if (type.flags & ts.TypeFlags.Null) {
+    return E.right(null);
+  }
+
   const typeStr = checker.typeToString(type);
   const singularType = typeStr.replace(/\[\]$/, "");
   const isArray = typeStr !== singularType;
@@ -363,25 +313,18 @@ function checkType(params: {
     return E.right({ kind: "cast", cast: isArray ? `${singularPgType}[]` : singularPgType });
   }
 
-  if (checker.isArrayType(type)) {
-    const elementType = (type as ts.TypeReference).typeArguments?.[0];
-    if (
-      elementType?.isUnion() &&
-      elementType.types.every((t) => t.flags === elementType.types[0].flags)
-    ) {
-      return E.right({
-        kind: "cast",
-        cast: `${getPgTypeFromFlags(elementType.types[0].flags)}[]`,
-      });
-    }
-  }
+  // Handle overrides
+  const typesWithOverrides = { ...defaultTypeMapping, ...options.overrides?.types };
+  const override = Object.entries(typesWithOverrides).find(([, tsType]) =>
+    doesMatchPattern({
+      pattern: typeof tsType === "string" ? tsType : tsType.parameter,
+      text: singularType,
+    }),
+  );
 
-  if (type.isStringLiteral()) {
-    return E.right({ kind: "literal", value: `'${type.value}'`, cast: "text" });
-  }
-
-  if (type.isNumberLiteral()) {
-    return E.right({ kind: "literal", value: `${type.value}`, cast: "int" });
+  if (override) {
+    const [pgType] = override;
+    return E.right({ kind: "cast", cast: isArray ? `${pgType}[]` : pgType });
   }
 
   const enumType = TSUtils.getEnumKind(type);
@@ -398,17 +341,39 @@ function checkType(params: {
     }
   }
 
-  // Handle overrides
-  const typesWithOverrides = { ...defaultTypeMapping, ...options.overrides?.types };
-  const override = Object.entries(typesWithOverrides).find(([, tsType]) =>
-    doesMatchPattern({
-      pattern: typeof tsType === "string" ? tsType : tsType.parameter,
-      text: singularType,
-    }),
-  );
+  if (checker.isArrayType(type)) {
+    const elementType = (type as ts.TypeReference).typeArguments?.[0];
 
-  if (override) {
-    const [pgType] = override;
+    if (elementType) {
+      return pipe(
+        checkType({ checker, type: elementType, options }),
+        E.map((pgType): PgTypeStrategy | null =>
+          pgType === null ? null : { kind: "cast", cast: `${pgType.cast}[]` },
+        ),
+      );
+    }
+  }
+
+  if (type.isStringLiteral()) {
+    return E.right({ kind: "literal", value: `'${type.value}'`, cast: "text" });
+  }
+
+  if (type.isNumberLiteral()) {
+    return E.right({ kind: "literal", value: `${type.value}`, cast: "int" });
+  }
+
+  // Handle union types
+  if (type.isUnion()) {
+    return pipe(
+      getPgTypeFromTsTypeUnion({ types: type.types, checker, options }),
+      E.chain((pgType) =>
+        pgType === null ? E.left("Unsupported union type (only null)") : E.right(pgType),
+      ),
+    );
+  }
+
+  if (type.flags in tsFlagToPgTypeMap) {
+    const pgType = tsFlagToPgTypeMap[type.flags];
     return E.right({ kind: "cast", cast: isArray ? `${pgType}[]` : pgType });
   }
 
@@ -432,12 +397,4 @@ function checkType(params: {
 
     Read docs - https://safeql.dev/api/#connections-overrides-types-optional
   `);
-}
-
-function createMixedTypesInUnionErrorMessage(flags: ts.TypeFlags[]) {
-  const flagsAsText = flags
-    .map((flag) => tsFlagToTsTypeStringMap[flag] ?? `unknown (${flag})`)
-    .join(", ");
-
-  return `Union types must be of the same type (found ${flagsAsText})`;
 }
