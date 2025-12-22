@@ -2,7 +2,6 @@ import {
   assertNever,
   defaultTypesMap,
   DuplicateColumnsError,
-  fmap,
   getOrSetFromMapWithEnabled,
   groupBy,
   IdentiferCase,
@@ -13,11 +12,11 @@ import {
 } from "@ts-safeql/shared";
 import * as LibPgQueryAST from "@ts-safeql/sql-ast";
 import { either } from "fp-ts";
+import * as parser from "libpg-query";
 import postgres from "postgres";
 import { ASTDescribedColumn, getASTDescription } from "./ast-describe";
 import { ColType } from "./utils/colTypes";
 import { FlattenedRelationWithJoins } from "./utils/get-relations-with-joins";
-import * as parser from "libpg-query";
 import { isParsedInsertResult, validateInsertResult } from "./utils/validate-insert";
 
 type JSToPostgresTypeMap = Record<string, unknown>;
@@ -469,11 +468,13 @@ function getResolvedTargetEntry(params: {
 
     return {
       kind: "union",
-      value: pgEnum.values.map((value): ResolvedTarget => ({
-        kind: "type",
-        value: `'${value}'`,
-        type: pgEnum.name,
-      })),
+      value: pgEnum.values.map(
+        (value): ResolvedTarget => ({
+          kind: "type",
+          value: `'${value}'`,
+          type: pgEnum.name,
+        }),
+      ),
     };
   };
 
