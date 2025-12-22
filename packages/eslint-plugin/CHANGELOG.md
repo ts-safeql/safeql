@@ -1,5 +1,7 @@
 # @ts-safeql/eslint-plugin
 
+## 4.1.0
+
 ## 4.0.9
 
 ### Patch Changes

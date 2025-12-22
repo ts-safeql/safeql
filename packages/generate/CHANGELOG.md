@@ -1,5 +1,17 @@
 # @ts-safeql/generate
 
+## 4.1.0
+
+### Minor Changes
+
+- f05d9f4: Added support for `unnest` function in type inference. This allows correct typing when expanding arrays into rows, including support for multidimensional arrays and enums.
+
+### Patch Changes
+
+- @ts-safeql/shared@4.1.0
+- @ts-safeql/sql-ast@4.1.0
+- @ts-safeql/test-utils@0.0.58
+
 ## 4.0.9
 
 ### Patch Changes
