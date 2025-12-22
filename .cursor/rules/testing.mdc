@@ -1,0 +1,29 @@
+---
+globs: *.test.ts
+alwaysApply: false
+---
+# Testing Rules
+
+When running tests in this project, you must follow these steps:
+
+1. **Navigate to the package directory**: `cd` into the specific package directory where the test is located (e.g., `cd packages/eslint-plugin`).
+2. **Run the test using pnpm and vitest**: Use the following command format:
+   ```bash
+   pnpm vitest run [filename] -t "[testname]"
+   ```
+
+Replace `[filename]` with the path to the test file relative to the package root (e.g., `src/rules/check-sql.test.ts`), and `[testname]` with the specific test name or a pattern matching the test name you want to run.
+
+## Guidelines
+- Always `cd` to the package root before running `pnpm vitest`.
+- Use the `run` command for a single execution.
+- Use the `-t` flag to isolate specific tests, especially in large test files.
+
+## Example
+
+To run a specific test in `packages/eslint-plugin/src/rules/check-sql.test.ts`:
+
+```bash
+cd packages/eslint-plugin
+pnpm vitest run src/rules/check-sql.test.ts -t "my test name"
+```
