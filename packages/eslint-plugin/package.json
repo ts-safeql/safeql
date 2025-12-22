@@ -11,6 +11,13 @@
   "types": "dist/index.d.ts",
   "module": "dist/index.mjs",
   "main": "dist/index.cjs",
+  "typesVersions": {
+    "*": {
+      "config": [
+        "./dist/config.d.ts"
+      ]
+    }
+  },
   "exports": {
     ".": {
       "types": {
