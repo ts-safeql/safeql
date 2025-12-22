@@ -458,14 +458,42 @@ function getResolvedTargetEntry(params: {
   }
 
   const pgTypeOid = params.col.introspected?.colBaseTypeOid ?? params.col.described.type;
+  const pgType = params.context.pgTypes.get(pgTypeOid);
 
-  const valueAsEnum = fmap(
-    params.context.pgEnums.get(pgTypeOid),
-    ({ values }): ResolvedTarget => ({
+  const getEnumByOid = (oid: number): ResolvedTarget | undefined => {
+    const pgEnum = params.context.pgEnums.get(oid);
+
+    if (pgEnum === undefined) {
+      return undefined;
+    }
+
+    return {
       kind: "union",
-      value: values.map((x): ResolvedTarget => ({ kind: "type", value: `'${x}'`, type: "text" })),
-    }),
-  );
+      value: pgEnum.values.map((value): ResolvedTarget => ({
+        kind: "type",
+        value: `'${value}'`,
+        type: pgEnum.name,
+      })),
+    };
+  };
+
+  const valueAsEnum = (() => {
+    const enumTarget = getEnumByOid(pgTypeOid);
+
+    if (enumTarget !== undefined) {
+      return enumTarget;
+    }
+
+    if (pgType?.typelem !== undefined && pgType.typelem !== 0) {
+      const elemEnumTarget = getEnumByOid(pgType.typelem);
+
+      if (elemEnumTarget !== undefined) {
+        return { kind: "array", value: elemEnumTarget } satisfies ResolvedTarget;
+      }
+    }
+
+    return undefined;
+  })();
 
   const valueAsType = getTsTypeFromPgTypeOid({
     pgTypeOid: pgTypeOid,
@@ -599,13 +627,14 @@ async function getPgEnums(sql: Sql): Promise<PgEnumsMaps> {
 interface PgTypeRow {
   oid: number;
   name: ColType;
+  typelem: number;
 }
 
 export type PgTypesMap = Map<number, PgTypeRow>;
 
 async function getPgTypes(sql: Sql): Promise<PgTypesMap> {
   const rows = await sql<PgTypeRow[]>`
-        SELECT oid, typname as name FROM pg_type
+        SELECT oid, typname as name, typelem FROM pg_type
     `;
 
   const map = new Map<number, PgTypeRow>();

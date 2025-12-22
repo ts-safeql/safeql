@@ -114,13 +114,14 @@ export function getASTDescription(params: ASTDescriptionOptions): {
         };
       }
 
+      const pgType = params.pgTypes.get(p.oid);
       const typeByOid = getTypeByOid(p.oid);
 
       if (typeByOid.override) {
         const baseType: ASTDescribedColumnType = {
           kind: "type",
           value: typeByOid.value,
-          type: params.pgTypes.get(p.oid)?.name ?? "unknown",
+          type: pgType?.name ?? "unknown",
         };
         return typeByOid.isArray ? { kind: "array", value: baseType } : baseType;
       }
@@ -136,17 +137,46 @@ export function getASTDescription(params: ASTDescriptionOptions): {
         return typeByBaseOid.isArray ? { kind: "array", value: baseType } : baseType;
       }
 
-      const enumValue = "oid" in p ? params.pgEnums.get(p.oid) : undefined;
+      const getEnumByOid = (oid: number): ASTDescribedColumnType | undefined => {
+        const pgEnum = params.pgEnums.get(oid);
 
-      if (enumValue !== undefined) {
+        if (pgEnum === undefined) {
+          return undefined;
+        }
+
         return {
           kind: "union",
-          value: enumValue.values.map((value) => ({
+          value: pgEnum.values.map((value) => ({
             kind: "type",
             value: `'${value}'`,
-            type: enumValue.name,
+            type: pgEnum.name,
           })),
         };
+      };
+
+      const valueAsEnum = (() => {
+        const enumType = getEnumByOid(p.oid);
+
+        if (enumType !== undefined) {
+          return enumType;
+        }
+
+        if (pgType?.typelem !== undefined && pgType.typelem !== 0) {
+          const arrayEnumValue = getEnumByOid(pgType.typelem);
+
+          if (arrayEnumValue !== undefined) {
+            return {
+              kind: "array",
+              value: arrayEnumValue,
+            } satisfies ASTDescribedColumnType;
+          }
+        }
+
+        return undefined;
+      })();
+
+      if (valueAsEnum !== undefined) {
+        return valueAsEnum;
       }
 
       const { isArray, value } = typeByBaseOid ?? typeByOid;
@@ -154,7 +184,7 @@ export function getASTDescription(params: ASTDescriptionOptions): {
       const type: ASTDescribedColumnType = {
         kind: "type",
         value: value,
-        type: params.pgTypes.get(p.oid)?.name ?? "unknown",
+        type: pgType?.name ?? "unknown",
       };
 
       if (p.baseOid !== null) {

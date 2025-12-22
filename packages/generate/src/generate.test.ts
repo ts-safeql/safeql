@@ -2482,3 +2482,29 @@ test("regression: wrong inference of nullable in aggregation", async () => {
     ],
   });
 });
+
+test("select array of enums", async () => {
+  await testQuery({
+    schema: `
+      CREATE TYPE my_enum AS ENUM ('A', 'B', 'C');
+      CREATE TABLE test_array_enum (col my_enum[] NOT NULL);
+    `,
+    query: `SELECT col FROM test_array_enum`,
+    expected: [
+      [
+        "col",
+        {
+          kind: "array",
+          value: {
+            kind: "union",
+            value: [
+              { kind: "type", value: "'A'", type: "my_enum" },
+              { kind: "type", value: "'B'", type: "my_enum" },
+              { kind: "type", value: "'C'", type: "my_enum" },
+            ],
+          },
+        },
+      ],
+    ],
+  });
+});
