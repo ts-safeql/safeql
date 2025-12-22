@@ -876,6 +876,21 @@ RuleTester.describe("check-sql", () => {
           },
         ],
       },
+      {
+        name: "reject heterogeneous array union",
+        options: withConnection(connections.withTag),
+        code: `
+          function foo(mixed: (string | number)[]) {
+            sql\`INSERT INTO test_insert_array_union_literals (colname) VALUES (\${mixed})\`
+          }
+        `,
+        errors: [{
+          messageId: "invalidQuery",
+          data: {
+            error: "Union types must result in the same PostgreSQL type (found text, int)"
+          }
+        }]
+      }
     ],
   });
 
