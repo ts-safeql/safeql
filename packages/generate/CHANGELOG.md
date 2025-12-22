@@ -1,5 +1,14 @@
 # @ts-safeql/generate
 
+## 4.0.9
+
+### Patch Changes
+
+- 3b980f9: Fix inference for array of enums (it now expands to the enum's members instead of `unknown[]`).
+  - @ts-safeql/shared@4.0.9
+  - @ts-safeql/sql-ast@4.0.9
+  - @ts-safeql/test-utils@0.0.57
+
 ## 4.0.8
 
 ### Patch Changes

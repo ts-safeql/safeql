@@ -1,5 +1,13 @@
 # @ts-safeql/eslint-plugin
 
+## 4.0.9
+
+### Patch Changes
+
+- 6176063: Add `typesVersions` to `package.json` to support projects using legacy `moduleResolution` settings (like `node` / `node10`) that do not support the `exports` field for subpath resolution.
+- 3b980f9: Fix inference for array of enums (it now expands to the enum's members instead of `unknown[]`).
+- ffa8033: Improve type inference for enum arrays and union types.
+
 ## 4.0.8
 
 ## 4.0.7
