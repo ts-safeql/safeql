@@ -22,7 +22,7 @@ const ruleTester = new RuleTester({
   languageOptions: {
     parser: parser,
     parserOptions: {
-      project: true,
+      projectService: true,
       tsconfigRootDir: path.resolve(__dirname, "./ts-fixture"),
     },
   },

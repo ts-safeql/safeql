@@ -17,16 +17,24 @@ Check out [@ts-safeql-demos/basic-flat-config](https://github.com/ts-safeql/safe
 
 ```js
 // eslint.config.js
+import tseslint from "typescript-eslint";
+import safeql from "@ts-safeql/eslint-plugin/config";
 
-export default [
-  // ...
+export default tseslint.config(
+  {
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+      },
+    },
+  },
   safeql.configs.connections({
     // The URL of the database:
     databaseUrl: "postgres://postgres:postgres@localhost:5432/my_database",
     // Check all of the queries that are used with the `sql` tag:
     targets: [{ tag: "sql" }],
-  }),
-];
+  })
+);
 ```
 
 == Legacy Config
@@ -87,9 +95,17 @@ Check out [@ts-safeql-demos/multi-connections](https://github.com/ts-safeql/safe
 
 ```js
 // eslint.config.js
+import tseslint from "typescript-eslint";
+import safeql from "@ts-safeql/eslint-plugin/config";
 
-export default [
-  // ...
+export default tseslint.config(
+  {
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+      },
+    },
+  },
   safeql.configs.connections({
     connections: [
       {
@@ -109,8 +125,8 @@ export default [
         ],
       },
     ],
-  }),
-];
+  })
+);
 ```
 
 == Legacy Config
@@ -165,9 +181,17 @@ Check out [@ts-safeql-demos/basic-migrations-raw](https://github.com/ts-safeql/s
 
 ```js
 // eslint.config.js
+import tseslint from "typescript-eslint";
+import safeql from "@ts-safeql/eslint-plugin/config";
 
-export default [
-  // ...
+export default tseslint.config(
+  {
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+      },
+    },
+  },
   safeql.configs.connections({
     connections: [
       {
@@ -180,8 +204,8 @@ export default [
         // "connectionUrl": "postgres://pguser:password@localhost:5432/postgres"
       },
     ],
-  }),
-];
+  })
+);
 ```
 
 == Legacy Config
@@ -250,9 +274,17 @@ Check out [@ts-safeql-demos/multi-connections](https://github.com/ts-safeql/safe
 
 ```js
 // eslint.config.js
+import tseslint from "typescript-eslint";
+import safeql from "@ts-safeql/eslint-plugin/config";
 
-export default [
-  // ...
+export default tseslint.config(
+  {
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+      },
+    },
+  },
   safeql.configs.connections({
     connections: [
       {
@@ -270,8 +302,8 @@ export default [
         ],
       },
     ],
-  }),
-];
+  })
+);
 ```
 
 == Legacy Config
@@ -316,9 +348,17 @@ export default [
 
 ```js
 // eslint.config.js
+import tseslint from "typescript-eslint";
+import safeql from "@ts-safeql/eslint-plugin/config";
 
-export default [
-  // ...
+export default tseslint.config(
+  {
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+      },
+    },
+  },
   safeql.configs.connections({
     connections: [
       {
@@ -343,8 +383,8 @@ export default [
         ],
       },
     ],
-  }),
-];
+  })
+);
 ```
 
 == Legacy Config
@@ -399,9 +439,17 @@ SafeQL uses [minimatch](https://github.com/isaacs/minimatch) to match the glob p
 
 ```js
 // eslint.config.js
+import tseslint from "typescript-eslint";
+import safeql from "@ts-safeql/eslint-plugin/config";
 
-export default [
-  // ...
+export default tseslint.config(
+  {
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+      },
+    },
+  },
   safeql.configs.connections({
     // The URL of the database:
     databaseUrl: "postgres://postgres:postgres@localhost:5432/my_database",
@@ -410,8 +458,8 @@ export default [
       // either `db.$queryRaw` or `db.$executeRaw` // [!code focus]
       { tag: "db.+($queryRaw|$executeRaw)" }, // [!code focus]
     ],
-  }),
-];
+  })
+);
 ```
 
 == Legacy Config
@@ -453,9 +501,17 @@ SafeQL can also use regex to match the sql tags.
 
 ```js
 // eslint.config.js
+import tseslint from "typescript-eslint";
+import safeql from "@ts-safeql/eslint-plugin/config";
 
-export default [
-  // ...
+export default tseslint.config(
+  {
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+      },
+    },
+  },
   safeql.configs.connections({
     // The URL of the database:
     databaseUrl: "postgres://postgres:postgres@localhost:5432/my_database",
@@ -464,8 +520,8 @@ export default [
       // either `db.$queryRaw` or `db.$executeRaw` // [!code focus]
       { tag: { regex: 'db\.($queryRaw|$executeRaw)' } }, // [!code focus]
     ],
-  }),
-];
+  })
+);
 ```
 
 == Legacy Config
@@ -519,9 +575,17 @@ function getName() {
 
 ```js
 // eslint.config.js
+import tseslint from "typescript-eslint";
+import safeql from "@ts-safeql/eslint-plugin/config";
 
-export default [
-  // ...
+export default tseslint.config(
+  {
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+      },
+    },
+  },
   safeql.configs.connections({
     connections: [
       {
@@ -532,8 +596,8 @@ export default [
         ],
       },
     ],
-  }),
-];
+  })
+);
 ```
 
 == Legacy Config

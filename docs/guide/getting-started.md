@@ -45,7 +45,13 @@ import safeql from "@ts-safeql/eslint-plugin/config";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  // ...
+  {
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+      },
+    },
+  },
   safeql.configs.connections({
     // read more about configuration in the next section
     databaseUrl: "postgres://postgres:postgres@localhost:5432/my_database",
@@ -55,7 +61,7 @@ export default tseslint.config(
 ```
 
 == Legacy Config
-1. Add `@ts-safeql/eslint-plugin` to your plugins and set [`parserOptions.project`](https://typescript-eslint.io/docs/linting/typed-linting):
+1. Add `@ts-safeql/eslint-plugin` to your plugins and set [`parserOptions.project`](https://typescript-eslint.io/docs/linting/typed-linting) (or `parserOptions.projectService` for typescript-eslint v8+):
 
 ```json
 // .eslintrc.json
