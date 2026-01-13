@@ -106,6 +106,13 @@ export function getSources({
 
   const ctes = getColumnCTEs(select.withClause?.ctes ?? []);
 
+  const cteSources = new Map(
+    Array.from(ctes.entries()).map(([name, resolver]) => [
+      name,
+      { kind: "cte", name, sources: resolver } as const,
+    ]),
+  );
+
   function resolveRangeVarSchema(node: LibPgQueryAST.RangeVar): string {
     switch (true) {
       case node.schemaname !== undefined:
@@ -131,6 +138,12 @@ export function getSources({
 
       if (cteResolver !== undefined) {
         return [{ kind: "cte", name: node.RangeVar.relname, sources: cteResolver }];
+      }
+
+      const inheritedSource = prevSources?.get(node.RangeVar.relname);
+
+      if (inheritedSource?.kind === "cte") {
+        return [inheritedSource];
       }
 
       const schemaName = resolveRangeVarSchema(node.RangeVar);
@@ -203,6 +216,7 @@ export function getSources({
   const sources: Map<string, SelectSource> = new Map([
     ...(prevSources?.entries() ?? []),
     ...getColumnSources(select).entries(),
+    ...cteSources.entries(),
   ]);
 
   const cachedColumnsMap = new WeakMap<

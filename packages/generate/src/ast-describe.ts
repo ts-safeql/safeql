@@ -27,6 +27,7 @@ type ASTDescriptionOptions = {
   pgEnums: PgEnumsMaps;
   pgFns: Map<string, { ts: string; pg: string }>;
   fieldTransform: IdentiferCase | undefined;
+  prevSources?: SourcesResolver["sources"];
 };
 
 type ASTDescriptionContext = ASTDescriptionOptions & {
@@ -98,6 +99,7 @@ export function getASTDescription(params: ASTDescriptionOptions): {
     resolver: getSources({
       relations: relations,
       select: select,
+      prevSources: params.prevSources,
       nonNullableColumns: nonNullableColumns,
       pgColsBySchemaAndTableName: params.pgColsBySchemaAndTableName,
     }),
@@ -603,6 +605,7 @@ function getDescribedSelectStmt({
     pgEnums: context.pgEnums,
     pgFns: context.pgFns,
     fieldTransform: context.fieldTransform,
+    prevSources: context.resolver.sources,
   });
 
   const firstColumn = subDescription.map.get(0);
@@ -1240,6 +1243,7 @@ function getDescribedColumnsFromSelect(params: {
     pgEnums: params.context.pgEnums,
     pgFns: params.context.pgFns,
     fieldTransform: params.context.fieldTransform,
+    prevSources: params.context.resolver.sources,
   });
 
   return Array.from(subDescription.map.values()).filter(

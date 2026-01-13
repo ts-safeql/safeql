@@ -2,4 +2,4 @@
 "@ts-safeql/generate": patch
 ---
 
-fix: correct array_agg inference for union subselects and CTEs
+fix: correct inference for array_agg and scalar subqueries in CTEs

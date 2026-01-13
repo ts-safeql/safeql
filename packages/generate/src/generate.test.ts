@@ -2390,6 +2390,24 @@ test("scalar subquery in select list should infer correct type", async () => {
   });
 });
 
+test("scalar subquery from CTE should infer correct type", async () => {
+  await testQuery({
+    schema: `
+      CREATE TABLE users (
+        id BIGINT PRIMARY KEY,
+        name TEXT NOT NULL
+      );
+    `,
+    query: `
+      WITH existing AS (
+        SELECT name FROM users LIMIT 1
+      )
+      SELECT (SELECT name FROM existing) AS user_name
+    `,
+    expected: [["user_name", { kind: "type", value: "string", type: "text" }]],
+  });
+});
+
 test("scalar subquery with WHERE should infer non-nullable type", async () => {
   await testQuery({
     schema: `
