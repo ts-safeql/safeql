@@ -921,6 +921,58 @@ test("select array_agg(col order by col)", async () => {
   });
 });
 
+test("select array_agg from union subquery", async () => {
+  await testQuery({
+    query: `
+      SELECT
+        array_agg(val) AS "values"
+      FROM
+        (
+          SELECT 'a' AS "val"
+          UNION
+          SELECT 'b' AS "val" WHERE FALSE
+        ) t1
+    `,
+    expected: [
+      [
+        "values",
+        {
+          kind: "union",
+          value: [
+            { kind: "array", value: { kind: "type", value: "string", type: "text" } },
+            { kind: "type", value: "null", type: "null" },
+          ],
+        },
+      ],
+    ],
+  });
+});
+
+test("select coalesce(array_agg) from union subquery", async () => {
+  await testQuery({
+    query: `
+      WITH
+        data AS (
+          SELECT
+            array_agg(val) AS "values"
+          FROM
+            (
+              SELECT 'a' AS "val"
+              UNION
+              SELECT 'b' AS "val" WHERE FALSE
+            ) t1
+        )
+      SELECT
+        coalesce(data.values, ARRAY[]::TEXT[]) AS "result"
+      FROM
+        data
+    `,
+    expected: [
+      ["result", { kind: "array", value: { kind: "type", value: "string", type: "text" } }],
+    ],
+  });
+});
+
 test("select jsonb_agg(tbl)", async () => {
   await testQuery({
     query: `SELECT jsonb_agg(agency) FROM agency`,
