@@ -921,6 +921,87 @@ test("select array_agg(col order by col)", async () => {
   });
 });
 
+test("select array_agg from union subquery", async () => {
+  await testQuery({
+    query: `
+      SELECT
+        array_agg(val) AS "values"
+      FROM
+        (
+          SELECT 'a' AS "val"
+          UNION
+          SELECT 'b' AS "val" WHERE FALSE
+        ) t1
+    `,
+    expected: [
+      [
+        "values",
+        {
+          kind: "union",
+          value: [
+            { kind: "array", value: { kind: "type", value: "string", type: "text" } },
+            { kind: "type", value: "null", type: "null" },
+          ],
+        },
+      ],
+    ],
+  });
+});
+
+test("array_agg should not include unused CTE types", async () => {
+  await testQuery({
+    query: `
+      WITH
+        foo AS (
+          SELECT 'a' AS val
+          UNION
+          SELECT 'b' AS val
+        ),
+        bar AS (
+          SELECT 1 AS val
+        )
+      SELECT array_agg(val) AS values FROM foo
+    `,
+    expected: [
+      [
+        "values",
+        {
+          kind: "union",
+          value: [
+            { kind: "array", value: { kind: "type", value: "string", type: "text" } },
+            { kind: "type", value: "null", type: "null" },
+          ],
+        },
+      ],
+    ],
+  });
+});
+
+test("select coalesce(array_agg) from union subquery", async () => {
+  await testQuery({
+    query: `
+      WITH
+        data AS (
+          SELECT
+            array_agg(val) AS "values"
+          FROM
+            (
+              SELECT 'a' AS "val"
+              UNION
+              SELECT 'b' AS "val" WHERE FALSE
+            ) t1
+        )
+      SELECT
+        coalesce(data.values, ARRAY[]::TEXT[]) AS "result"
+      FROM
+        data
+    `,
+    expected: [
+      ["result", { kind: "array", value: { kind: "type", value: "string", type: "text" } }],
+    ],
+  });
+});
+
 test("select jsonb_agg(tbl)", async () => {
   await testQuery({
     query: `SELECT jsonb_agg(agency) FROM agency`,
@@ -2338,6 +2419,35 @@ test("scalar subquery in select list should infer correct type", async () => {
   });
 });
 
+test("scalar subquery from CTE should infer correct type", async () => {
+  await testQuery({
+    schema: `
+      CREATE TABLE users (
+        id BIGINT PRIMARY KEY,
+        name TEXT NOT NULL
+      );
+    `,
+    query: `
+      WITH existing AS (
+        SELECT name FROM users LIMIT 1
+      )
+      SELECT (SELECT name FROM existing) AS user_name
+    `,
+    expected: [
+      [
+        "user_name",
+        {
+          kind: "union",
+          value: [
+            { kind: "type", value: "string", type: "text" },
+            { kind: "type", value: "null", type: "null" },
+          ],
+        },
+      ],
+    ],
+  });
+});
+
 test("scalar subquery with WHERE should infer non-nullable type", async () => {
   await testQuery({
     schema: `
@@ -2347,7 +2457,18 @@ test("scalar subquery with WHERE should infer non-nullable type", async () => {
       );
     `,
     query: `SELECT (SELECT col FROM tbl WHERE col IS NOT NULL LIMIT 1) AS col`,
-    expected: [["col", { kind: "type", value: "string", type: "text" }]],
+    expected: [
+      [
+        "col",
+        {
+          kind: "union",
+          value: [
+            { kind: "type", value: "string", type: "text" },
+            { kind: "type", value: "null", type: "null" },
+          ],
+        },
+      ],
+    ],
   });
 });
 

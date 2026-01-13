@@ -27,6 +27,8 @@ type ASTDescriptionOptions = {
   pgEnums: PgEnumsMaps;
   pgFns: Map<string, { ts: string; pg: string }>;
   fieldTransform: IdentiferCase | undefined;
+  prevSources?: SourcesResolver["sources"];
+  cteSelects?: Map<string, LibPgQueryAST.SelectStmt>;
 };
 
 type ASTDescriptionContext = ASTDescriptionOptions & {
@@ -91,13 +93,23 @@ export function getASTDescription(params: ASTDescriptionOptions): {
     };
   }
 
+  const cteSelects = new Map(params.cteSelects);
+
+  for (const cte of select.withClause?.ctes ?? []) {
+    if (cte.CommonTableExpr?.ctequery?.SelectStmt && cte.CommonTableExpr?.ctename) {
+      cteSelects.set(cte.CommonTableExpr.ctename, cte.CommonTableExpr.ctequery.SelectStmt);
+    }
+  }
+
   const context: ASTDescriptionContext = {
     ...params,
+    cteSelects,
     nonNullableColumns,
     relations,
     resolver: getSources({
       relations: relations,
       select: select,
+      prevSources: params.prevSources,
       nonNullableColumns: nonNullableColumns,
       pgColsBySchemaAndTableName: params.pgColsBySchemaAndTableName,
     }),
@@ -576,7 +588,7 @@ function getDescribedSubLink({
       name: alias ?? "exists",
       type: resolveType({
         context: context,
-        nullable: false,
+        nullable: node.subLinkType === LibPgQueryAST.SubLinkType.EXPR_SUBLINK,
         type: getSubLinkType(),
       }),
     },
@@ -603,6 +615,8 @@ function getDescribedSelectStmt({
     pgEnums: context.pgEnums,
     pgFns: context.pgFns,
     fieldTransform: context.fieldTransform,
+    prevSources: context.resolver.sources,
+    cteSelects: context.cteSelects,
   });
 
   const firstColumn = subDescription.map.get(0);
@@ -910,6 +924,19 @@ function getDescribedArrayAggFunCall({
     ];
   }
 
+  if (firstArg.described.length === 0) {
+    const type = resolveType({
+      context,
+      nullable: !context.nonNullableColumns.has(name),
+      type: {
+        kind: "array",
+        value: context.toTypeScriptType({ name: "unknown" }),
+      },
+    });
+
+    return [{ name, type }];
+  }
+
   const isSourceRef =
     context.resolver.sources.get(concatStringNodes(firstArg.node.ColumnRef?.fields)) !== undefined;
 
@@ -924,7 +951,7 @@ function getDescribedArrayAggFunCall({
               kind: "object",
               value: firstArg.described.map((x) => [x.name, x.type]),
             }
-          : firstArg.described[0].type,
+          : normalizeLiteralUnion(firstArg.described[0].type),
     },
   });
 
@@ -1072,8 +1099,29 @@ function getContextForColumnRef(
   if (isColumnTableColumnRef(node.fields) || isColumnTableStarRef(node.fields)) {
     const sourceName = node.fields[0].String.sval;
     const source = context.resolver.sources.get(sourceName);
+
     if (source?.kind === "cte") {
-      return { ...context, resolver: source.sources };
+      const select = context.select.withClause?.ctes.find(
+        (cte) => cte.CommonTableExpr?.ctename === sourceName,
+      )?.CommonTableExpr?.ctequery?.SelectStmt;
+
+      return {
+        ...context,
+        resolver: source.sources,
+        select: select ?? context.select,
+      };
+    }
+
+    if (source?.kind === "subselect") {
+      const select = context.select.fromClause
+        ?.map((from) => from.RangeSubselect)
+        .find((subselect) => subselect?.alias?.aliasname === sourceName)?.subquery?.SelectStmt;
+
+      return {
+        ...context,
+        resolver: source.sources,
+        select: select ?? context.select,
+      };
     }
   }
 
@@ -1094,7 +1142,13 @@ function getDescribedColumnRef({
     );
   }
 
-  return getDescribedColumnRefFromSchema({ alias, context, node });
+  const fromSchema = getDescribedColumnRefFromSchema({ alias, context, node });
+
+  if (fromSchema.length > 0) {
+    return fromSchema;
+  }
+
+  return getDescribedColumnRefFromSelectSources({ alias, context, node });
 }
 
 function getDescribedColumnRefFromSchema({
@@ -1149,6 +1203,74 @@ function getDescribedColumnRefFromSchema({
   }
 
   return [];
+}
+
+function getDescribedColumnRefFromSelectSources({
+  alias,
+  context,
+  node,
+}: GetDescribedParamsOf<LibPgQueryAST.ColumnRef>): ASTDescribedColumn[] {
+  if (!isColumnUnknownRef(node.fields)) {
+    return [];
+  }
+
+  const columnName = node.fields[0].String.sval;
+
+  const getSelectsFromNode = (node: LibPgQueryAST.Node | undefined): LibPgQueryAST.SelectStmt[] => {
+    if (node?.RangeSubselect?.subquery?.SelectStmt !== undefined) {
+      return [node.RangeSubselect.subquery.SelectStmt];
+    }
+
+    if (node?.RangeVar !== undefined) {
+      const select = context.cteSelects?.get(node.RangeVar.relname);
+      return select ? [select] : [];
+    }
+
+    if (node?.JoinExpr !== undefined) {
+      return [...getSelectsFromNode(node.JoinExpr.larg), ...getSelectsFromNode(node.JoinExpr.rarg)];
+    }
+
+    return [];
+  };
+
+  const selects = (context.select.fromClause ?? []).flatMap((node) => getSelectsFromNode(node));
+
+  return selects.flatMap((select) =>
+    getDescribedColumnsFromSelect({ context, select })
+      .filter((column) => column.name === columnName)
+      .map((column) => ({
+        name: alias ?? column.name,
+        type: column.type,
+      })),
+  );
+}
+
+function getDescribedColumnsFromSelect(params: {
+  context: ASTDescriptionContext;
+  select: LibPgQueryAST.SelectStmt;
+}): ASTDescribedColumn[] {
+  const subParsed: LibPgQueryAST.ParseResult = {
+    version: 0,
+    stmts: [{ stmt: { SelectStmt: params.select }, stmtLocation: 0, stmtLen: 0 }],
+  };
+
+  const subDescription = getASTDescription({
+    parsed: subParsed,
+    typesMap: params.context.typesMap,
+    typeExprMap: params.context.typeExprMap,
+    overridenColumnTypesMap: params.context.overridenColumnTypesMap,
+    pgColsBySchemaAndTableName: params.context.pgColsBySchemaAndTableName,
+    pgTypes: params.context.pgTypes,
+    pgEnums: params.context.pgEnums,
+    pgFns: params.context.pgFns,
+    fieldTransform: params.context.fieldTransform,
+    prevSources: params.context.resolver.sources,
+    cteSelects: params.context.cteSelects,
+  });
+
+  return Array.from(subDescription.map.values()).filter(
+    (column): column is ASTDescribedColumn => column !== undefined,
+  );
 }
 
 function getDescribedColumnByResolvedColumns(params: {
@@ -1358,3 +1480,17 @@ type GetDescribedParamsOf<T> = {
   node: T;
   context: ASTDescriptionContext;
 };
+
+function normalizeLiteralUnion(type: ASTDescribedColumnType): ASTDescribedColumnType {
+  if (type.kind !== "union") {
+    return type;
+  }
+
+  const hasLiteral = type.value.some((value) => value.kind === "literal");
+
+  if (!hasLiteral) {
+    return type;
+  }
+
+  return mergeDescribedColumnTypes(type.value.map(getBaseType));
+}
