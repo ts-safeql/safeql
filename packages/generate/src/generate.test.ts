@@ -948,6 +948,35 @@ test("select array_agg from union subquery", async () => {
   });
 });
 
+test("array_agg should not include unused CTE types", async () => {
+  await testQuery({
+    query: `
+      WITH
+        foo AS (
+          SELECT 'a' AS val
+          UNION
+          SELECT 'b' AS val
+        ),
+        bar AS (
+          SELECT 1 AS val
+        )
+      SELECT array_agg(val) AS values FROM foo
+    `,
+    expected: [
+      [
+        "values",
+        {
+          kind: "union",
+          value: [
+            { kind: "array", value: { kind: "type", value: "string", type: "text" } },
+            { kind: "type", value: "null", type: "null" },
+          ],
+        },
+      ],
+    ],
+  });
+});
+
 test("select coalesce(array_agg) from union subquery", async () => {
   await testQuery({
     query: `

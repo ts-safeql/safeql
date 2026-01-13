@@ -28,6 +28,7 @@ type ASTDescriptionOptions = {
   pgFns: Map<string, { ts: string; pg: string }>;
   fieldTransform: IdentiferCase | undefined;
   prevSources?: SourcesResolver["sources"];
+  cteSelects?: Map<string, LibPgQueryAST.SelectStmt>;
 };
 
 type ASTDescriptionContext = ASTDescriptionOptions & {
@@ -92,8 +93,17 @@ export function getASTDescription(params: ASTDescriptionOptions): {
     };
   }
 
+  const cteSelects = new Map(params.cteSelects);
+
+  for (const cte of select.withClause?.ctes ?? []) {
+    if (cte.CommonTableExpr?.ctequery?.SelectStmt && cte.CommonTableExpr?.ctename) {
+      cteSelects.set(cte.CommonTableExpr.ctename, cte.CommonTableExpr.ctequery.SelectStmt);
+    }
+  }
+
   const context: ASTDescriptionContext = {
     ...params,
+    cteSelects,
     nonNullableColumns,
     relations,
     resolver: getSources({
@@ -606,6 +616,7 @@ function getDescribedSelectStmt({
     pgFns: context.pgFns,
     fieldTransform: context.fieldTransform,
     prevSources: context.resolver.sources,
+    cteSelects: context.cteSelects,
   });
 
   const firstColumn = subDescription.map.get(0);
@@ -1205,14 +1216,24 @@ function getDescribedColumnRefFromSelectSources({
 
   const columnName = node.fields[0].String.sval;
 
-  const selects = [
-    ...(context.select.withClause?.ctes ?? []).flatMap((cte) =>
-      cte.CommonTableExpr?.ctequery?.SelectStmt ? [cte.CommonTableExpr.ctequery.SelectStmt] : [],
-    ),
-    ...(context.select.fromClause ?? []).flatMap((from) =>
-      from.RangeSubselect?.subquery?.SelectStmt ? [from.RangeSubselect.subquery.SelectStmt] : [],
-    ),
-  ];
+  const getSelectsFromNode = (node: LibPgQueryAST.Node | undefined): LibPgQueryAST.SelectStmt[] => {
+    if (node?.RangeSubselect?.subquery?.SelectStmt !== undefined) {
+      return [node.RangeSubselect.subquery.SelectStmt];
+    }
+
+    if (node?.RangeVar !== undefined) {
+      const select = context.cteSelects?.get(node.RangeVar.relname);
+      return select ? [select] : [];
+    }
+
+    if (node?.JoinExpr !== undefined) {
+      return [...getSelectsFromNode(node.JoinExpr.larg), ...getSelectsFromNode(node.JoinExpr.rarg)];
+    }
+
+    return [];
+  };
+
+  const selects = (context.select.fromClause ?? []).flatMap((node) => getSelectsFromNode(node));
 
   return selects.flatMap((select) =>
     getDescribedColumnsFromSelect({ context, select })
@@ -1244,6 +1265,7 @@ function getDescribedColumnsFromSelect(params: {
     pgFns: params.context.pgFns,
     fieldTransform: params.context.fieldTransform,
     prevSources: params.context.resolver.sources,
+    cteSelects: params.context.cteSelects,
   });
 
   return Array.from(subDescription.map.values()).filter(
