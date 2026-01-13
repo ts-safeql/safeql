@@ -1,5 +1,14 @@
 # @ts-safeql/generate
 
+## 4.1.1
+
+### Patch Changes
+
+- 58fcf59: fix: correct inference for array_agg and scalar subqueries in CTEs
+  - @ts-safeql/shared@4.1.1
+  - @ts-safeql/sql-ast@4.1.1
+  - @ts-safeql/test-utils@0.0.59
+
 ## 4.1.0
 
 ### Minor Changes
