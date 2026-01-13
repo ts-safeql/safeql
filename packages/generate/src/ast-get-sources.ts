@@ -142,7 +142,7 @@ export function getSources({
 
       const inheritedSource = prevSources?.get(node.RangeVar.relname);
 
-      if (inheritedSource?.kind === "cte") {
+      if (inheritedSource?.kind === "cte" || inheritedSource?.kind === "subselect") {
         return [inheritedSource];
       }
 

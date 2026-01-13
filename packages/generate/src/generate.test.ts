@@ -2433,7 +2433,18 @@ test("scalar subquery from CTE should infer correct type", async () => {
       )
       SELECT (SELECT name FROM existing) AS user_name
     `,
-    expected: [["user_name", { kind: "type", value: "string", type: "text" }]],
+    expected: [
+      [
+        "user_name",
+        {
+          kind: "union",
+          value: [
+            { kind: "type", value: "string", type: "text" },
+            { kind: "type", value: "null", type: "null" },
+          ],
+        },
+      ],
+    ],
   });
 });
 
@@ -2446,7 +2457,18 @@ test("scalar subquery with WHERE should infer non-nullable type", async () => {
       );
     `,
     query: `SELECT (SELECT col FROM tbl WHERE col IS NOT NULL LIMIT 1) AS col`,
-    expected: [["col", { kind: "type", value: "string", type: "text" }]],
+    expected: [
+      [
+        "col",
+        {
+          kind: "union",
+          value: [
+            { kind: "type", value: "string", type: "text" },
+            { kind: "type", value: "null", type: "null" },
+          ],
+        },
+      ],
+    ],
   });
 });
 

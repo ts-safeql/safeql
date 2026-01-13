@@ -588,7 +588,7 @@ function getDescribedSubLink({
       name: alias ?? "exists",
       type: resolveType({
         context: context,
-        nullable: false,
+        nullable: node.subLinkType === LibPgQueryAST.SubLinkType.EXPR_SUBLINK,
         type: getSubLinkType(),
       }),
     },
