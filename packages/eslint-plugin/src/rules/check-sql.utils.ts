@@ -190,7 +190,7 @@ export function reportMissingTypeAnnotations(params: {
   tag: TSESTree.TaggedTemplateExpression;
   baseNode: TSESTree.BaseNode;
   actual: string;
-  enforceType: EnforceTypeOption;
+  enforceType?: EnforceTypeOption;
 }) {
   const { context, tag, baseNode, actual, enforceType = "fix" } = params;
 
