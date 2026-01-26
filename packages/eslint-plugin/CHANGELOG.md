@@ -1,5 +1,14 @@
 # @ts-safeql/eslint-plugin
 
+## 4.2.0
+
+### Minor Changes
+
+- 604ed87: Add `enforceType` option to control whether type annotation issues are auto-fixed or suggested
+
+  - `"fix"` (default): Auto-fixes type annotations when running with `--fix`
+  - `"suggest"`: Provides suggestions instead of auto-fix (requires manual acceptance in IDE)
+
 ## 4.1.1
 
 ## 4.1.0
