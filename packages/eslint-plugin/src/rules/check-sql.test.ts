@@ -2303,4 +2303,67 @@ RuleTester.describe("check-sql", () => {
       },
     ],
   });
+
+  ruleTester.run("enforceType option", rules["check-sql"], {
+    valid: [
+      {
+        name: "valid query with enforceType: 'suggest' should pass",
+        options: withConnection(connections.withTag, { enforceType: "suggest" }),
+        code: "sql<{ id: number }>`select id from caregiver`",
+      },
+      {
+        name: "valid query with enforceType: 'fix' (explicit) should pass",
+        options: withConnection(connections.withTag, { enforceType: "fix" }),
+        code: "sql<{ id: number }>`select id from caregiver`",
+      },
+    ],
+    invalid: [
+      {
+        name: "missing type annotation with enforceType: 'suggest' should provide suggestion instead of fix",
+        options: withConnection(connections.withTag, { enforceType: "suggest" }),
+        code: "sql`select id from caregiver`",
+        errors: [
+          {
+            messageId: "missingTypeAnnotations",
+            suggestions: [
+              {
+                messageId: "missingTypeAnnotations",
+                output: "sql<{ id: number }>`select id from caregiver`",
+              },
+            ],
+          },
+        ],
+      },
+      {
+        name: "incorrect type annotation with enforceType: 'suggest' should provide suggestion instead of fix",
+        options: withConnection(connections.withTag, { enforceType: "suggest" }),
+        code: "sql<{ id: string }>`select id from caregiver`",
+        errors: [
+          {
+            messageId: "incorrectTypeAnnotations",
+            suggestions: [
+              {
+                messageId: "incorrectTypeAnnotations",
+                output: "sql<{ id: number }>`select id from caregiver`",
+              },
+            ],
+          },
+        ],
+      },
+      {
+        name: "missing type annotation with enforceType: 'fix' (explicit) should auto-fix",
+        options: withConnection(connections.withTag, { enforceType: "fix" }),
+        code: "sql`select id from caregiver`",
+        output: "sql<{ id: number }>`select id from caregiver`",
+        errors: [{ messageId: "missingTypeAnnotations" }],
+      },
+      {
+        name: "missing type annotation with default enforceType should auto-fix",
+        options: withConnection(connections.withTag),
+        code: "sql`select id from agency`",
+        output: "sql<{ id: number }>`select id from agency`",
+        errors: [{ messageId: "missingTypeAnnotations" }],
+      },
+    ],
+  });
 });

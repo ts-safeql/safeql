@@ -96,6 +96,13 @@ const zBaseSchema = z.object({
    * By default, it will infer all literals.
    */
   inferLiterals: z.union([z.boolean(), z.enum(["number", "string", "boolean"]).array()]).optional(),
+
+  /**
+   * Specifies how to enforce type annotations.
+   * - "fix": Auto-fix type annotations when running with --fix (default)
+   * - "suggest": Provide suggestions instead of auto-fix (requires manual acceptance in IDE)
+   */
+  enforceType: z.enum(["fix", "suggest"]).optional(),
 });
 
 export const zConnectionMigration = z.object({
@@ -154,3 +161,5 @@ export type RuleOptions = z.infer<typeof RuleOptions>;
 
 export type InferLiteralsOption = NonNullable<z.infer<typeof zBaseSchema>["inferLiterals"]>;
 export const defaultInferLiteralOptions: InferLiteralsOption = ["string"];
+
+export type EnforceTypeOption = NonNullable<z.infer<typeof zBaseSchema>["enforceType"]>;
