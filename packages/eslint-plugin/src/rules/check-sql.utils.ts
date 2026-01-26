@@ -10,7 +10,7 @@ import {
   fmap,
 } from "@ts-safeql/shared";
 import { TSESTree } from "@typescript-eslint/utils";
-import { SourceCode } from "@typescript-eslint/utils/ts-eslint";
+import { RuleFixer, SourceCode } from "@typescript-eslint/utils/ts-eslint";
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
@@ -23,7 +23,12 @@ import { ExpectedResolvedTarget } from "../utils/get-resolved-target-by-type-nod
 import { mapConnectionOptionsToString, parseConnection } from "../utils/pg.utils";
 import { WorkerError } from "../workers/check-sql.worker";
 import { RuleContext } from "./check-sql.rule";
-import { InferLiteralsOption, RuleOptionConnection, zConnectionMigration } from "./RuleOptions";
+import {
+  EnforceTypeOption,
+  InferLiteralsOption,
+  RuleOptionConnection,
+  zConnectionMigration,
+} from "./RuleOptions";
 
 type TypeReplacerString = string;
 type TypeReplacerFromTo = [string, string];
@@ -185,17 +190,21 @@ export function reportMissingTypeAnnotations(params: {
   tag: TSESTree.TaggedTemplateExpression;
   baseNode: TSESTree.BaseNode;
   actual: string;
+  enforceType?: EnforceTypeOption;
 }) {
-  const { context, tag, baseNode, actual } = params;
+  const { context, tag, baseNode, actual, enforceType = "fix" } = params;
+
+  const fixFn = (fixer: RuleFixer) => fixer.insertTextAfterRange(baseNode.range, `<${actual}>`);
+  const data = { fix: actual };
 
   return context.report({
     node: tag,
     messageId: "missingTypeAnnotations",
     loc: baseNode.loc,
-    fix: (fixer) => fixer.insertTextAfterRange(baseNode.range, `<${actual}>`),
-    data: {
-      fix: actual,
-    },
+    data,
+    ...(enforceType === "suggest"
+      ? { suggest: [{ messageId: "missingTypeAnnotations" as const, fix: fixFn, data }] }
+      : { fix: fixFn }),
   });
 }
 
@@ -204,18 +213,21 @@ export function reportIncorrectTypeAnnotations(params: {
   typeParameter: TSESTree.TSTypeParameterInstantiation;
   expected: string | null;
   actual: string | null;
+  enforceType?: EnforceTypeOption;
 }) {
-  const { context, typeParameter } = params;
+  const { context, typeParameter, enforceType = "fix" } = params;
   const newValue = params.actual === null ? "" : `<${params.actual}>`;
+
+  const fixFn = (fixer: RuleFixer) => fixer.replaceText(typeParameter, newValue);
+  const data = { expected: params.expected, actual: params.actual ?? "No type annotation" };
 
   return context.report({
     node: typeParameter.params[0],
     messageId: "incorrectTypeAnnotations",
-    fix: (fixer) => fixer.replaceText(typeParameter, newValue),
-    data: {
-      expected: params.expected,
-      actual: params.actual ?? "No type annotation",
-    },
+    data,
+    ...(enforceType === "suggest"
+      ? { suggest: [{ messageId: "incorrectTypeAnnotations" as const, fix: fixFn, data }] }
+      : { fix: fixFn }),
   });
 }
 export function reportInvalidTypeAnnotations(params: {

@@ -234,6 +234,7 @@ function reportCheck(params: {
               transform: target.transform,
               inferLiterals: connection.inferLiterals ?? defaultInferLiteralOptions,
             }),
+            enforceType: connection.enforceType,
           });
         }
 
@@ -294,6 +295,7 @@ function reportCheck(params: {
                 inferLiterals: connection.inferLiterals ?? defaultInferLiteralOptions,
               }),
             ),
+            enforceType: connection.enforceType,
           });
         }
       },
@@ -495,6 +497,7 @@ export default createRule({
   name: "check-sql",
   meta: {
     fixable: "code",
+    hasSuggestions: true,
     docs: {
       description: "Ensure that sql queries have type annotations",
     },
