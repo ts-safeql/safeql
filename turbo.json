@@ -1,18 +1,30 @@
 {
-  "$schema": "https://turborepo.org/schema.json",
+  "$schema": "https://turborepo.dev/schema.v2.json",
   "globalDependencies": ["tsconfig.node.json", "turbo.json", "package.json"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**"]
     },
+    "transit": {
+      "dependsOn": ["^transit"]
+    },
     "typecheck": {
-      "dependsOn": ["^typecheck"]
+      "dependsOn": ["transit"]
     },
     "test": {
       "dependsOn": ["^build"],
       "inputs": ["src/**/*.ts", "test/**/*.ts"]
     },
-    "lint": {}
+    "lint": {
+      "dependsOn": ["transit"]
+    },
+    "lint!": {
+      "dependsOn": ["transit"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    }
   }
 }

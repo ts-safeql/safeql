@@ -39,7 +39,7 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: 20.x
           cache: "pnpm"
       - run: pnpm install
       - run: pnpm run setup
@@ -48,8 +48,6 @@ jobs:
           PGPASSWORD: postgres
           PGHOST: localhost
           PGDATABASE: postgres
-      - run: pnpm build
-      - run: pnpm typecheck
-      - run: pnpm lint
+      - run: pnpm turbo run build typecheck lint --affected
       - run: pnpm format
-      - run: pnpm test
+      - run: pnpm turbo run test --affected
