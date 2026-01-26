@@ -91,6 +91,10 @@ export default defineConfig({
               },
               { text: "keepAlive", link: "/api/index.md#connections-keepalive-optional" },
               {
+                text: "enforceType",
+                link: "/api/index.md#connections-enforcetype-optional",
+              },
+              {
                 text: "inferLiterals",
                 link: "/api/index.md#connections-inferliterals-optional",
               },
