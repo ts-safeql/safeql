@@ -368,6 +368,22 @@ support type annotations. Usage:
 True by default. If set to false, the connection will be closed after the query is executed. This
 is not recommended, and should only be used if you're sure that the connection should be closed.
 
+### `connections.enforceType` (Optional)
+
+Controls how SafeQL enforces type annotations on your queries. Can be one of the following:
+
+- `"fix"` (default) - Automatically fix type annotations when running ESLint with `--fix`
+- `"suggest"` - Provide suggestions instead of auto-fix (requires manual acceptance in IDE)
+
+```json
+{
+  "connections": {
+    // ...
+    "enforceType": "suggest" // [!code focus]
+  }
+}
+```
+
 ### `connections.inferLiterals` (Optional)
 
 Controls how SafeQL infer literals in your queries. By default, SafeQL will infer all of the string literals.
