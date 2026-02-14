@@ -163,6 +163,7 @@ export async function enrichMysqlColsWithTypeCode(
           enrichedCols.push({
             ...col,
             colTypeCode: preparedCol.typeCode,
+            colNullable: preparedCol.nullable,
           });
         } else {
           // If no match, keep as is

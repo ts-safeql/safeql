@@ -253,6 +253,9 @@ importers:
       '@ts-safeql/eslint-plugin':
         specifier: workspace:*
         version: link:../../packages/eslint-plugin
+      '@ts-safeql/sql-tag':
+        specifier: workspace:*
+        version: link:../../packages/sql-tag
       '@types/node':
         specifier: ^22.13.13
         version: 22.13.13
@@ -409,6 +412,43 @@ importers:
         specifier: ^8.4.1
         version: 8.4.1
 
+  demos/prisma-mysql:
+    dependencies:
+      '@prisma/client':
+        specifier: 6.5.0
+        version: 6.5.0(prisma@6.5.0(typescript@5.8.2))(typescript@5.8.2)
+      mysql2:
+        specifier: ^3.17.0
+        version: 3.17.0
+      prisma:
+        specifier: 6.5.0
+        version: 6.5.0(typescript@5.8.2)
+    devDependencies:
+      '@eslint/js':
+        specifier: ^9.23.0
+        version: 9.23.0
+      '@ts-safeql/eslint-plugin':
+        specifier: workspace:*
+        version: link:../../packages/eslint-plugin
+      '@types/node':
+        specifier: ^22.13.13
+        version: 22.13.13
+      eslint:
+        specifier: ^9.23.0
+        version: 9.23.0(jiti@2.4.2)
+      tsx:
+        specifier: ^4.19.3
+        version: 4.19.3
+      typescript:
+        specifier: ^5.8.2
+        version: 5.8.2
+      typescript-eslint:
+        specifier: ^8.28.0
+        version: 8.28.0(eslint@9.23.0(jiti@2.4.2))(typescript@5.8.2)
+      zx:
+        specifier: ^8.4.1
+        version: 8.4.1
+
   demos/shared:
     dependencies:
       postgres:
@@ -455,6 +495,43 @@ importers:
       ts-node:
         specifier: 10.9.2
         version: 10.9.2(@types/node@22.13.13)(typescript@5.8.2)
+      tsx:
+        specifier: ^4.19.3
+        version: 4.19.3
+      typescript:
+        specifier: ^5.8.2
+        version: 5.8.2
+      typescript-eslint:
+        specifier: ^8.28.0
+        version: 8.28.0(eslint@9.23.0(jiti@2.4.2))(typescript@5.8.2)
+
+  demos/typeorm-mysql:
+    dependencies:
+      '@ts-safeql/sql-tag':
+        specifier: workspace:*
+        version: link:../../packages/sql-tag
+      mysql2:
+        specifier: ^3.17.0
+        version: 3.17.0
+      reflect-metadata:
+        specifier: ^0.2.2
+        version: 0.2.2
+      typeorm:
+        specifier: 0.3.21
+        version: 0.3.21(mysql2@3.17.0)(pg@8.14.1)(reflect-metadata@0.2.2)(ts-node@10.9.2(@types/node@22.13.13)(typescript@5.8.2))
+    devDependencies:
+      '@eslint/js':
+        specifier: ^9.23.0
+        version: 9.23.0
+      '@ts-safeql/eslint-plugin':
+        specifier: workspace:*
+        version: link:../../packages/eslint-plugin
+      '@types/node':
+        specifier: ^22.13.13
+        version: 22.13.13
+      eslint:
+        specifier: ^9.23.0
+        version: 9.23.0(jiti@2.4.2)
       tsx:
         specifier: ^4.19.3
         version: 4.19.3
@@ -2535,6 +2612,7 @@ packages:
 
   glob@10.4.5:
     resolution: {integrity: sha512-7Bv8RF0k6xjo7d4A/PxYLbUCfb6c+Vpd2/mB2yRDlew7Jb5hEXiCD9ibfO7wpk8i4sevK6DFny9h7EYbM3/sHg==}
+    deprecated: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
     hasBin: true
 
   globals@14.0.0:

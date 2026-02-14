@@ -6,6 +6,7 @@
     "build": "tsc",
     "watch": "tsc --watch",
     "setup": "tsx src/setup.ts",
+    "start": "tsx src/index.ts",
     "lint": "eslint src",
     "lint!": "eslint src --fix"
   },
@@ -19,6 +20,7 @@
   "dependencies": {
     "@ts-safeql-demos/shared": "workspace:*",
     "@ts-safeql/eslint-plugin": "workspace:*",
+    "@ts-safeql/sql-tag": "workspace:*",
     "@types/node": "^22.13.13",
     "mysql2": "^3.17.0"
   }
