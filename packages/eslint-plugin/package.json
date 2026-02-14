@@ -66,6 +66,7 @@
   "dependencies": {
     "chokidar": "^4.0.3",
     "fp-ts": "^2.16.9",
+    "mysql2": "^3.17.0",
     "pg-connection-string": "2.7.0",
     "postgres": "^3.4.5",
     "quansync": "^0.2.10",

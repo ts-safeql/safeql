@@ -74,37 +74,47 @@ export type WorkerResult = GenerateResult;
 
 function workerHandler(params: CheckSQLWorkerParams): TE.TaskEither<WorkerError, WorkerResult> {
   const strategy = getConnectionStartegyByRuleOptionConnection(params);
+  const driver = params.connection.driver ?? "postgres";
 
   const connnectionPayload = match(strategy)
     .with({ type: "databaseUrl" }, ({ databaseUrl }) =>
-      TE.right(connections.getOrCreate(databaseUrl)),
+      TE.tryCatch(
+        () => connections.getOrCreate(driver, databaseUrl),
+        (error) => new InternalError(`Failed to create database connection: ${error}`),
+      ),
     )
-    .with({ type: "migrations" }, ({ migrationsDir, databaseName, connectionUrl }) => {
-      const { connectionOptions, databaseUrl } = getMigrationDatabaseMetadata({
-        connectionUrl,
-        databaseName,
-      });
-      const { sql, isFirst } = connections.getOrCreate(databaseUrl);
-      const { sql: migrationSql } = connections.getOrCreate(connectionUrl, {
-        onnotice: () => {
-          /* silence notices */
+    .with({ type: "migrations" }, ({ migrationsDir, databaseName, connectionUrl }) =>
+      TE.tryCatch(
+        async () => {
+          const { connectionOptions, databaseUrl } = getMigrationDatabaseMetadata({
+            connectionUrl,
+            databaseName,
+          });
+          const { sql, isFirst, dbConnection } = await connections.getOrCreate(driver, databaseUrl);
+          const { sql: migrationSql } = await connections.getOrCreate(driver, connectionUrl, {
+            onnotice: () => {
+              /* silence notices */
+            },
+          });
+          const connectionPayload: ConnectionPayload = { sql, isFirst, databaseUrl, dbConnection };
+
+          if (isFirst) {
+            if (!sql || !migrationSql) {
+              throw new InternalError("SQL connection is not available for migrations");
+            }
+            const migrationsPath = path.join(params.projectDir, migrationsDir);
+            await initDatabase(migrationSql, connectionOptions.database)();
+            const migrationResult = await runMigrations({ migrationsPath, sql })();
+            if (migrationResult._tag === "Left") {
+              throw migrationResult.left;
+            }
+          }
+
+          return connectionPayload;
         },
-      });
-      const connectionPayload: ConnectionPayload = { sql, isFirst, databaseUrl };
-
-      if (isFirst) {
-        const migrationsPath = path.join(params.projectDir, migrationsDir);
-
-        return pipe(
-          TE.Do,
-          TE.chainW(() => initDatabase(migrationSql, connectionOptions.database)),
-          TE.chainW(() => runMigrations({ migrationsPath, sql })),
-          TE.map(() => connectionPayload),
-        );
-      }
-
-      return TE.right(connectionPayload);
-    })
+        (error) => new InternalError(`Failed to setup migrations: ${error}`),
+      ),
+    )
     .exhaustive();
 
   const generateTask = (params: GenerateParams) => {
@@ -113,14 +123,35 @@ function workerHandler(params: CheckSQLWorkerParams): TE.TaskEither<WorkerError,
 
   return pipe(
     connnectionPayload,
-    TE.chainW(({ sql, databaseUrl }) => {
-      return generateTask({
-        sql,
-        query: params.query,
-        cacheKey: databaseUrl,
-        overrides: params.connection.overrides,
-        fieldTransform: params.target.fieldTransform,
-      });
+    TE.chainW(({ sql, databaseUrl, dbConnection }) => {
+      switch (driver) {
+        case "mysql": {
+          if (!dbConnection) {
+            throw new InternalError("Database connection is not available for MySQL");
+          }
+          return generateTask({
+            driver: "mysql",
+            dbConnection: dbConnection!,
+            query: params.query,
+            cacheKey: databaseUrl,
+            overrides: params.connection.overrides,
+            fieldTransform: params.target.fieldTransform,
+          });
+        }
+        case "postgres": {
+          if (!sql) {
+            throw new InternalError("SQL connection is not available for PostgreSQL");
+          }
+          return generateTask({
+            driver: "postgres",
+            sql,
+            query: params.query,
+            cacheKey: databaseUrl,
+            overrides: params.connection.overrides,
+            fieldTransform: params.target.fieldTransform,
+          });
+        }
+      }
     }),
     TE.chainW(TE.fromEither),
   );

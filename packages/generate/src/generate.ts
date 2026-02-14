@@ -9,6 +9,8 @@ import {
   PostgresError,
   QuerySourceMapEntry,
   toCase,
+  mysqlTypesMap,
+  mysqlTypeCodeToColType,
 } from "@ts-safeql/shared";
 import * as LibPgQueryAST from "@ts-safeql/sql-ast";
 import { either } from "fp-ts";
@@ -18,6 +20,13 @@ import { ASTDescribedColumn, getASTDescription } from "./ast-describe";
 import { ColType } from "./utils/colTypes";
 import { FlattenedRelationWithJoins } from "./utils/get-relations-with-joins";
 import { isParsedInsertResult, validateInsertResult } from "./utils/validate-insert";
+import {
+  getMysqlCols,
+  getMysqlEnumTypeValues,
+  enrichMysqlColsWithTypeCode,
+  MySQLColRow,
+} from "./mysql-metadata";
+import type { IDatabaseConnection } from "./database-adapter";
 
 type JSToPostgresTypeMap = Record<string, unknown>;
 type Sql = postgres.Sql<JSToPostgresTypeMap>;
@@ -34,7 +43,7 @@ export type ResolvedTargetEntry = [string, ResolvedTarget];
 export type GenerateResult = {
   output: Extract<ResolvedTarget, { kind: "object" }> | null;
   unknownColumns: string[];
-  stmt: postgres.Statement;
+  stmt: postgres.Statement | null;
   query: { text: string; sourcemaps: QuerySourceMapEntry[] };
 };
 export type GenerateError = DuplicateColumnsError | PostgresError;
@@ -46,8 +55,7 @@ type Overrides = {
   columns: Map<string, Map<string, string>>;
 };
 
-export interface GenerateParams {
-  sql: Sql;
+type BaseGenerateParams = {
   query: { text: string; sourcemaps: QuerySourceMapEntry[] };
   cacheMetadata?: boolean;
   cacheKey: CacheKey;
@@ -56,7 +64,13 @@ export interface GenerateParams {
     types: Record<string, OverrideValue>;
     columns: Record<string, string>;
   }>;
-}
+};
+
+export type GenerateParams = BaseGenerateParams &
+  (
+    | { driver: "postgres"; sql: Sql; dbConnection?: never }
+    | { driver: "mysql"; dbConnection: IDatabaseConnection; sql?: never }
+  );
 
 type TypesMap = Map<string, { override: boolean; value: string }>;
 
@@ -116,13 +130,14 @@ type GenerateContext = {
   overrides: Overrides | undefined;
   pgColsBySchemaAndTableName: Map<string, Map<string, PgColRow[]>>;
   fieldTransform: IdentiferCase | undefined;
+  driver: "postgres" | "mysql";
 };
 
 async function generate(
   params: GenerateParams,
   cache: Cache,
 ): Promise<either.Either<GenerateError, GenerateResult>> {
-  const { sql, query, cacheKey, cacheMetadata = true } = params;
+  const { query, cacheKey, cacheMetadata = true } = params;
 
   const {
     pgColsByTableOidCache,
@@ -135,7 +150,14 @@ async function generate(
     shouldCache: cacheMetadata,
     map: cache.base,
     key: cacheKey,
-    value: () => getDatabaseMetadata(sql),
+    value: () => {
+      switch (params.driver) {
+        case "postgres":
+          return getDatabaseMetadata({ name: "postgres", sql: params.sql });
+        case "mysql":
+          return getDatabaseMetadata({ name: "mysql", dbConnection: params.dbConnection });
+      }
+    },
   });
 
   const typesMap = await getOrSetFromMapWithEnabled({
@@ -195,7 +217,7 @@ async function generate(
 
       for (const [functionName, signatures] of pgFnsByName.entries()) {
         for (const signature of signatures.sort(byReturnType)) {
-          const tsArgs = signature.arguments.map((arg) => {
+          const tsArgs = signature.arguments.map((arg: string) => {
             return typesMap.get(arg)?.value ?? "unknown";
           });
 
@@ -212,7 +234,21 @@ async function generate(
   });
 
   try {
-    const result = await sql.unsafe(query.text, [], { prepare: true }).describe();
+    if (params.driver === "mysql") {
+      return await generateMySQLQuery(params, {
+        pgColsByTableOidCache,
+        pgColsBySchemaAndTableName,
+        pgTypes,
+        pgEnums,
+        pgFnsByName,
+        pgTypeExprMap,
+        typesMap,
+        overridenColumnTypesMap,
+        functionsMap,
+      });
+    }
+
+    const result = await params.sql.unsafe(query.text, [], { prepare: true }).describe();
     const parsed = await parser.parse(query.text);
 
     if (isParsedInsertResult(parsed)) {
@@ -299,6 +335,7 @@ async function generate(
       },
       pgColsBySchemaAndTableName,
       fieldTransform: params.fieldTransform,
+      driver: "postgres",
     };
 
     return either.right({
@@ -326,25 +363,37 @@ async function generate(
   }
 }
 
-async function getDatabaseMetadata(sql: Sql) {
-  const pgTypes = await getPgTypes(sql);
-  const pgCols = await getPgCols(sql);
-  const pgEnums = await getPgEnums(sql);
-  const pgFns = await getPgFunctions(sql);
-  const pgColsByTableOidCache = groupBy(pgCols, "tableOid");
-  const pgColsBySchemaAndTableName = groupBy(pgCols, "schemaName", "tableName");
-  const pgFnsByName = groupBy(pgFns, "name");
-  const pgTypeExprMap = await getPgTypeExprMap(sql);
+async function getDatabaseMetadata(
+  driver: { name: "postgres"; sql: Sql } | { name: "mysql"; dbConnection: IDatabaseConnection },
+) {
+  switch (driver.name) {
+    case "mysql": {
+      const mysqlColsRaw = await getMysqlCols(driver.dbConnection);
+      const mysqlEnumsRaw = await getMysqlEnumTypeValues(driver.dbConnection);
+      const mysqlCols = await enrichMysqlColsWithTypeCode(driver.dbConnection, mysqlColsRaw);
+      return convertMySQLMetadataToPostgresStructure(mysqlCols, mysqlEnumsRaw);
+    }
+    case "postgres": {
+      const pgTypes = await getPgTypes(driver.sql);
+      const pgCols = await getPgCols(driver.sql);
+      const pgEnums = await getPgEnums(driver.sql);
+      const pgFns = await getPgFunctions(driver.sql);
+      const pgColsByTableOidCache = groupBy(pgCols, "tableOid");
+      const pgColsBySchemaAndTableName = groupBy(pgCols, "schemaName", "tableName");
+      const pgFnsByName = groupBy(pgFns, "name");
+      const pgTypeExprMap = await getPgTypeExprMap(driver.sql);
 
-  return {
-    pgTypes,
-    pgCols,
-    pgEnums,
-    pgColsByTableOidCache,
-    pgColsBySchemaAndTableName,
-    pgFnsByName,
-    pgTypeExprMap,
-  };
+      return {
+        pgTypes,
+        pgCols,
+        pgEnums,
+        pgColsByTableOidCache,
+        pgColsBySchemaAndTableName,
+        pgFnsByName,
+        pgTypeExprMap,
+      };
+    }
+  }
 }
 
 type ColumnAnalysisResult = {
@@ -450,10 +499,46 @@ function getResolvedTargetEntry(params: {
   context: GenerateContext;
 }): ResolvedTargetEntry {
   if (params.col.astDescribed !== undefined) {
-    return [
-      toCase(params.col.described.name, params.context.fieldTransform),
-      params.col.astDescribed.type,
-    ];
+    // PostgreSQL: use astDescribed.type directly (already parsed correctly by libpg-query)
+    if (params.context.driver === "postgres") {
+      return [
+        toCase(params.col.described.name, params.context.fieldTransform),
+        params.col.astDescribed.type,
+      ];
+    }
+
+    // MySQL-specific ENUM handling:
+    // Prepared Statements return ENUM columns as CHAR (type code 254),
+    // so we need to resolve them to union types using INFORMATION_SCHEMA metadata.
+    const typeOid = params.col.described.type;
+    const pgEnum = params.context.pgEnums.get(typeOid);
+    if (pgEnum) {
+      // Resolve ENUM to union type
+      const resolvedTarget: ResolvedTarget = {
+        kind: "union",
+        value: pgEnum.values.map(
+          (value): ResolvedTarget => ({
+            kind: "type",
+            value: `'${value}'`,
+            type: pgEnum.name,
+          }),
+        ),
+      };
+      return [toCase(params.col.described.name, params.context.fieldTransform), resolvedTarget];
+    }
+
+    // For non-ENUM types in MySQL: derive TypeScript type from astDescribed.type
+    const astType = params.col.astDescribed.type;
+    const typeString = astType.kind === "type" ? astType.type : "unknown";
+
+    const tsType =
+      params.context.overrides?.types.get(typeString)?.value ?? defaultTypesMap.get(typeString);
+
+    const resolvedTarget: ResolvedTarget = tsType
+      ? { kind: "type", value: tsType, type: typeString }
+      : { kind: "type", value: "unknown", type: typeString };
+
+    return [toCase(params.col.described.name, params.context.fieldTransform), resolvedTarget];
   }
 
   const pgTypeOid = params.col.introspected?.colBaseTypeOid ?? params.col.described.type;
@@ -751,4 +836,193 @@ async function getPgTypeExprMap(sql: Sql): Promise<Map<string, Map<string, Map<s
   }
 
   return map;
+}
+
+/**
+ * Generate type information for a MySQL query using Prepared Statements.
+ *
+ * Note: This function receives already-converted metadata (pgTypes, pgEnums, etc.)
+ * from getDatabaseMetadata(), which internally uses convertMySQLTypesToPgTypes()
+ * and convertMySQLEnumsToPgEnums(). Therefore, we don't need to call these
+ * conversion functions again here.
+ */
+async function generateMySQLQuery(
+  params: GenerateParams,
+  metadata: {
+    pgColsByTableOidCache: Map<number, PgColRow[]>;
+    pgColsBySchemaAndTableName: Map<string, Map<string, PgColRow[]>>;
+    pgTypes: PgTypesMap;
+    pgEnums: PgEnumsMaps;
+    pgFnsByName: Map<string, PgFnRow[]>;
+    pgTypeExprMap: Map<string, Map<string, Map<string, string>>>;
+    typesMap: TypesMap;
+    overridenColumnTypesMap: Map<string, Map<string, string>>;
+    functionsMap: FunctionsMap;
+  },
+): Promise<either.Either<GenerateError, GenerateResult>> {
+  const { query, dbConnection, driver } = params;
+  if (driver !== "mysql") {
+    throw new Error("Invalid driver for generateMySQLQuery");
+  }
+
+  const prepared = await dbConnection.prepare(query.text);
+
+  // Convert MySQL Prepared Statement columns to PostgreSQL-compatible format by cross-referencing with INFORMATION_SCHEMA metadata.
+  const columns = prepared.columns.map((col, index): ColumnAnalysisResult => {
+    // Find metadata for this column from INFORMATION_SCHEMA
+    const schema = col.schema || metadata.pgColsBySchemaAndTableName.keys().next().value || "";
+    const tableMetadata = metadata.pgColsBySchemaAndTableName.get(schema);
+    const tableCols = tableMetadata?.get(col.table);
+    const introspected = tableCols?.find((x) => x.colName === col.name);
+
+    // Get PostgreSQL-compatible type name from MySQL type code
+    const typeCode = typeof col.type === "number" ? col.type : 0;
+    const colType = mysqlTypeCodeToColType.get(typeCode);
+
+    // For ENUM types: use the OID from INFORMATION_SCHEMA instead of type code
+    // because Prepared Statements return ENUM columns as CHAR (type code 254)
+    const finalTypeOid = introspected?.colTypeOid ?? typeCode;
+
+    const describedColumn: postgres.Column<string> = {
+      name: col.name,
+      table: introspected?.tableOid ?? 0,
+      number: introspected?.colNum ?? index + 1,
+      type: finalTypeOid, // Use OID from INFORMATION_SCHEMA for ENUM types
+    };
+
+    const astDescribed: ASTDescribedColumn | undefined = colType
+      ? {
+          name: col.name,
+          type: {
+            kind: "type",
+            value: colType,
+            type: colType,
+          },
+        }
+      : undefined;
+
+    return {
+      described: describedColumn,
+      astDescribed,
+      introspected: introspected,
+      isNonNullableBasedOnAST: !col.nullable,
+    };
+  });
+
+  const context: GenerateContext = {
+    columns,
+    pgTypes: metadata.pgTypes,
+    pgEnums: metadata.pgEnums,
+    relationsWithJoins: [],
+    overrides: {
+      types: metadata.typesMap,
+      columns: metadata.overridenColumnTypesMap,
+    },
+    pgColsBySchemaAndTableName: metadata.pgColsBySchemaAndTableName,
+    fieldTransform: params.fieldTransform,
+    driver: "mysql",
+  };
+
+  return either.right({
+    output: getTypedColumnEntries({ context }),
+    unknownColumns: columns
+      .filter((x) => x.astDescribed === undefined)
+      .map((x) => x.described.name),
+    stmt: null, // MySQL does not have a Statement object
+    query: query,
+  });
+}
+
+/**
+ * Convert MySQL metadata to PostgreSQL structure.
+ */
+function convertMySQLMetadataToPostgresStructure(
+  mysqlCols: MySQLColRow[],
+  mysqlEnumsRaw: Map<string, { table: string; column: string; values: string[] }>,
+) {
+  const pgTypes = convertMySQLTypesToPgTypes();
+  const { pgEnums, enumColumnToOid } = convertMySQLEnumsToPgEnums(mysqlEnumsRaw);
+
+  // tableOid: Generate a unique number by hashing the table name.
+  const tableOidMap = new Map<string, number>();
+  let nextOid = 1;
+
+  const pgCols: PgColRow[] = mysqlCols.map((col) => {
+    const tableKey = `${col.schemaName}.${col.tableName}`;
+    if (!tableOidMap.has(tableKey)) {
+      tableOidMap.set(tableKey, nextOid++);
+    }
+    const tableOid = tableOidMap.get(tableKey)!;
+
+    // For ENUM columns, get the OID from enumColumnToOid
+    const enumKey = `${col.tableName}.${col.colName}`;
+    const colTypeOid = enumColumnToOid.get(enumKey) ?? col.colTypeCode;
+
+    return {
+      schemaName: col.schemaName,
+      tableOid,
+      tableName: col.tableName,
+      colName: col.colName,
+      colTypeOid,
+      colBaseTypeOid: null,
+      colNum: col.ordinalPosition,
+      colHasDef: col.colDefault !== null,
+      colNotNull: !col.colNullable,
+      colIdentity: col.colExtra.includes("auto_increment") ? "a" : "",
+    };
+  });
+
+  const pgColsByTableOidCache = groupBy(pgCols, "tableOid");
+  const pgColsBySchemaAndTableName = groupBy(pgCols, "schemaName", "tableName");
+  const pgFnsByName = new Map(); // Don't get functions for MySQL
+  const pgTypeExprMap = new Map(); // MySQL doesn't have type expression map
+
+  return {
+    pgTypes,
+    pgCols,
+    pgEnums,
+    pgColsByTableOidCache,
+    pgColsBySchemaAndTableName,
+    pgFnsByName,
+    pgTypeExprMap,
+  };
+}
+
+/**
+ * Convert MySQL types to PgTypesMap format.
+ */
+function convertMySQLTypesToPgTypes(): PgTypesMap {
+  const pgTypes: PgTypesMap = new Map();
+  for (const [typeCode, typeName] of mysqlTypesMap.entries()) {
+    pgTypes.set(typeCode, {
+      oid: typeCode,
+      name: typeName as ColType,
+      typelem: 0,
+    });
+  }
+  return pgTypes;
+}
+
+/**
+ * Convert MySQL ENUMs to PgEnumsMaps format.
+ */
+function convertMySQLEnumsToPgEnums(
+  mysqlEnumsRaw: Map<string, { table: string; column: string; values: string[] }>,
+): {
+  pgEnums: PgEnumsMaps;
+  enumColumnToOid: Map<string, number>;
+} {
+  const pgEnums: PgEnumsMaps = new Map();
+  const enumColumnToOid = new Map<string, number>();
+  for (const [key, enumData] of mysqlEnumsRaw.entries()) {
+    // ENUM 用の疑似 OID を生成
+    const enumOid = 10000 + pgEnums.size;
+    pgEnums.set(enumOid, {
+      name: `${enumData.table}_${enumData.column}`,
+      values: enumData.values,
+    });
+    // table.column から enumOid への逆マッピングを作成
+    enumColumnToOid.set(key, enumOid);
+  }
+  return { pgEnums, enumColumnToOid };
 }

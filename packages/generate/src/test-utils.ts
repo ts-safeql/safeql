@@ -19,7 +19,7 @@ export function createTestQuery(sql: SQL) {
     query: string;
     expected?: ResolvedTargetEntry[] | null;
     expectedError?: string;
-    options?: Partial<GenerateParams>;
+    options?: Partial<Omit<GenerateParams, "driver" | "sql" | "dbConnection" | "query">>;
     unknownColumns?: string[];
     schema?: string;
     overrides?: GenerateParams["overrides"];
@@ -32,6 +32,7 @@ export function createTestQuery(sql: SQL) {
         TE.Do,
         TE.bind("result", () =>
           generateTE({
+            driver: "postgres",
             sql,
             query: { text: query, sourcemaps: [] },
             cacheKey,

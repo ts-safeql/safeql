@@ -5,35 +5,67 @@ import {
   ConnectionPayload,
   getConnectionStartegyByRuleOptionConnection,
 } from "../rules/check-sql.utils";
-import { O, pipe } from "./fp-ts";
 import { mapConnectionOptionsToString, parseConnection } from "./pg.utils";
+import {
+  createDatabaseConnection,
+  type IDatabaseConnection,
+  PostgresConnection,
+  type DatabaseDriver,
+} from "@ts-safeql/generate";
 
 export function createConnectionManager() {
   const connectionMap: Map<string, Sql> = new Map();
+  const connectionAdapterMap: Map<string, IDatabaseConnection> = new Map();
 
   return {
-    getOrCreate: (databaseUrl: string, options?: postgres.Options<never>) =>
-      getOrCreateConnection(databaseUrl, connectionMap, options),
-    close: (params: CloseConnectionParams) => closeConnection(params, connectionMap),
+    getOrCreate: (driver: DatabaseDriver, databaseUrl: string, options?: postgres.Options<never>) =>
+      getOrCreateConnection(driver, databaseUrl, connectionMap, connectionAdapterMap, options),
+    close: (params: CloseConnectionParams) =>
+      closeConnection(params, connectionMap, connectionAdapterMap),
   };
 }
 
-function getOrCreateConnection(
+async function getOrCreateConnection(
+  driver: DatabaseDriver,
   databaseUrl: string,
   connectionMap: Map<string, Sql>,
+  connectionAdapterMap: Map<string, IDatabaseConnection>,
   options?: postgres.Options<never>,
-): ConnectionPayload {
-  return pipe(
-    O.fromNullable(connectionMap.get(databaseUrl)),
-    O.foldW(
-      () => {
-        const sql = postgres(databaseUrl, options);
-        connectionMap.set(databaseUrl, sql);
-        return { sql, databaseUrl, isFirst: true };
-      },
-      (sql) => ({ sql, databaseUrl, isFirst: false }),
-    ),
-  );
+): Promise<ConnectionPayload> {
+  const existingConnection = connectionAdapterMap.get(databaseUrl);
+
+  // Return existing connection if available
+  if (existingConnection) {
+    const sql =
+      existingConnection.driver === "postgres"
+        ? (existingConnection as PostgresConnection).sql
+        : undefined;
+    return {
+      sql,
+      databaseUrl,
+      isFirst: false,
+      dbConnection: existingConnection,
+    };
+  }
+
+  // Create new connection
+  const connection = await createDatabaseConnection(driver, databaseUrl, options);
+  connectionAdapterMap.set(databaseUrl, connection);
+  switch (driver) {
+    case "postgres": {
+      const sql = (connection as PostgresConnection).sql;
+      connectionMap.set(databaseUrl, sql);
+      return { sql, databaseUrl, isFirst: true, dbConnection: connection };
+    }
+    case "mysql": {
+      return {
+        sql: undefined,
+        databaseUrl,
+        isFirst: true,
+        dbConnection: connection,
+      };
+    }
+  }
 }
 
 export interface CloseConnectionParams {
@@ -41,29 +73,38 @@ export interface CloseConnectionParams {
   projectDir: string;
 }
 
-function closeConnection(params: CloseConnectionParams, connectionMap: Map<string, Sql>) {
+async function closeConnection(
+  params: CloseConnectionParams,
+  connectionMap: Map<string, Sql>,
+  connectionAdapterMap: Map<string, IDatabaseConnection>,
+) {
   const { connection, projectDir } = params;
   const strategy = getConnectionStartegyByRuleOptionConnection({ connection, projectDir });
 
-  match(strategy)
-    .with({ type: "databaseUrl" }, ({ databaseUrl }) => {
-      const sql = connectionMap.get(databaseUrl);
+  await match(strategy)
+    .with({ type: "databaseUrl" }, async ({ databaseUrl }) => {
+      const sql = connectionAdapterMap.get(databaseUrl);
       if (sql) {
-        sql.end();
+        await sql.end();
+        connectionAdapterMap.delete(databaseUrl);
         connectionMap.delete(databaseUrl);
       }
     })
-    .with({ type: "migrations" }, ({ connectionUrl, databaseName }) => {
+    .with({ type: "migrations" }, async ({ connectionUrl, databaseName }) => {
       const connectionOptions = { ...parseConnection(connectionUrl), database: databaseName };
       const databaseUrl = mapConnectionOptionsToString(connectionOptions);
-      const sql = connectionMap.get(databaseUrl);
-      const migrationSql = connectionMap.get(connectionUrl);
-      if (sql) {
-        sql.end();
+
+      const adapterConnection = connectionAdapterMap.get(databaseUrl);
+      const migrationAdapterConnection = connectionAdapterMap.get(connectionUrl);
+
+      if (adapterConnection) {
+        await adapterConnection.end();
+        connectionAdapterMap.delete(databaseUrl);
         connectionMap.delete(databaseUrl);
       }
-      if (migrationSql) {
-        migrationSql.end();
+      if (migrationAdapterConnection) {
+        await migrationAdapterConnection.end();
+        connectionAdapterMap.delete(connectionUrl);
         connectionMap.delete(connectionUrl);
       }
     })

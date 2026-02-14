@@ -1,4 +1,4 @@
-import { ResolvedTarget } from "@ts-safeql/generate";
+import { IDatabaseConnection, ResolvedTarget } from "@ts-safeql/generate";
 import {
   DuplicateColumnsError,
   InvalidConfigError,
@@ -338,9 +338,10 @@ export function getConnectionStartegyByRuleOptionConnection(params: {
 }
 
 export interface ConnectionPayload {
-  sql: Sql;
+  sql?: Sql;
   databaseUrl: string;
   isFirst: boolean;
+  dbConnection: IDatabaseConnection;
 }
 
 export function runMigrations(params: { migrationsPath: string; sql: Sql }) {

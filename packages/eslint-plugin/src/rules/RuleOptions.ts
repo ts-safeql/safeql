@@ -107,6 +107,13 @@ const zBaseSchema = z.object({
 
 export const zConnectionMigration = z.object({
   /**
+   * The database driver to use. Defaults to 'postgres'.
+   * - 'postgres': PostgreSQL database
+   * - 'mysql': MySQL database
+   */
+  driver: z.enum(["postgres", "mysql"]).optional(),
+
+  /**
    * The path where the migration files are located.
    */
   migrationsDir: z.string(),
@@ -131,6 +138,13 @@ export const zConnectionMigration = z.object({
   watchMode: z.boolean().optional(),
 });
 const zConnectionUrl = z.object({
+  /**
+   * The database driver to use. Defaults to 'postgres'.
+   * - 'postgres': PostgreSQL database (postgres://...)
+   * - 'mysql': MySQL database (mysql://...)
+   */
+  driver: z.enum(["postgres", "mysql"]).optional(),
+
   /**
    * The connection url to the database
    */

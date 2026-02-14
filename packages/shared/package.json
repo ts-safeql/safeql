@@ -39,6 +39,7 @@
   "dependencies": {
     "@typescript-eslint/utils": "^8.28.0",
     "minimatch": "^10.0.1",
+    "mysql2": "^3.17.0",
     "postgres": "^3.4.5"
   }
 }
