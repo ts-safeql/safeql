@@ -15,7 +15,7 @@ function createMySQLSqlTag(connection: mysql.Connection) {
 export async function run() {
   const connection = await mysql.createConnection({
     host: "localhost",
-    port: 3307,
+    port: 3306,
     user: "root",
     password: "rootpass",
     database: "safeql_mysql2_demo",

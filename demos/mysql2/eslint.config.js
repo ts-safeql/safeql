@@ -14,7 +14,7 @@ export default tseslint.config({
   extends: [
     safeql.configs.connections({
       driver: "mysql",
-      databaseUrl: "mysql://root:rootpass@localhost:3307/safeql_mysql2_demo",
+      databaseUrl: "mysql://root:rootpass@localhost:3306/safeql_mysql2_demo",
       targets: [{ tag: "sql", transform: "{type}[]" }],
     }),
   ],
