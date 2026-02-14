@@ -928,7 +928,7 @@ async function generateMySQLQuery(
     unknownColumns: columns
       .filter((x) => x.astDescribed === undefined)
       .map((x) => x.described.name),
-    stmt: null, // MySQL does not have a Statement object
+    stmt: null,
     query: query,
   });
 }
