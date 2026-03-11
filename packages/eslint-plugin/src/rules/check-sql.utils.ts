@@ -261,7 +261,7 @@ export function getDatabaseName(params: {
 }
 
 export function shouldLintFile(params: RuleContext) {
-  const fileName = params.getFilename();
+  const fileName = params.filename;
 
   for (const extension of ["ts", "tsx", "mts", "mtsx"]) {
     if (fileName.endsWith(`.${extension}`)) {
