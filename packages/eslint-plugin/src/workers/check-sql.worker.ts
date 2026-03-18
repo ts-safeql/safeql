@@ -1,14 +1,10 @@
-import {
-  createGenerator,
-  GenerateError,
-  GenerateParams,
-  GenerateResult,
-} from "@ts-safeql/generate";
+import { createGenerator, GenerateError, GenerateResult } from "@ts-safeql/generate";
 import {
   DatabaseInitializationError,
   InternalError,
   InvalidMigrationError,
   InvalidMigrationsPathError,
+  PluginError,
   QuerySourceMapEntry,
 } from "@ts-safeql/shared";
 import path from "path";
@@ -68,6 +64,7 @@ export type WorkerError =
   | InvalidMigrationsPathError
   | InvalidMigrationError
   | InternalError
+  | PluginError
   | DatabaseInitializationError
   | GenerateError;
 export type WorkerResult = GenerateResult;
@@ -75,9 +72,15 @@ export type WorkerResult = GenerateResult;
 function workerHandler(params: CheckSQLWorkerParams): TE.TaskEither<WorkerError, WorkerResult> {
   const strategy = getConnectionStartegyByRuleOptionConnection(params);
 
-  const connnectionPayload = match(strategy)
+  const connnectionPayload: TE.TaskEither<WorkerError, ConnectionPayload> = match(strategy)
     .with({ type: "databaseUrl" }, ({ databaseUrl }) =>
       TE.right(connections.getOrCreate(databaseUrl)),
+    )
+    .with({ type: "pluginsOnly" }, ({ plugins }) =>
+      TE.tryCatch(
+        () => connections.getOrCreateFromPlugins(plugins, params.projectDir),
+        (error) => (error instanceof PluginError ? error : PluginError.from("unknown")(error)),
+      ),
     )
     .with({ type: "migrations" }, ({ migrationsDir, databaseName, connectionUrl }) => {
       const { connectionOptions, databaseUrl } = getMigrationDatabaseMetadata({
@@ -107,20 +110,20 @@ function workerHandler(params: CheckSQLWorkerParams): TE.TaskEither<WorkerError,
     })
     .exhaustive();
 
-  const generateTask = (params: GenerateParams) => {
-    return TE.tryCatch(() => generator.generate(params), InternalError.to);
-  };
-
   return pipe(
     connnectionPayload,
-    TE.chainW(({ sql, databaseUrl }) => {
-      return generateTask({
-        sql,
-        query: params.query,
-        cacheKey: databaseUrl,
-        overrides: params.connection.overrides,
-        fieldTransform: params.target.fieldTransform,
-      });
+    TE.chainW(({ sql, databaseUrl, pluginName }) => {
+      return TE.tryCatch(
+        () =>
+          generator.generate({
+            sql,
+            query: params.query,
+            cacheKey: databaseUrl,
+            overrides: params.connection.overrides,
+            fieldTransform: params.target.fieldTransform,
+          }),
+        (e) => (pluginName ? PluginError.from(pluginName)(e) : InternalError.to(e)),
+      );
     }),
     TE.chainW(TE.fromEither),
   );

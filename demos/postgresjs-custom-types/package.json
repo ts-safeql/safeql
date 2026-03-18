@@ -20,6 +20,6 @@
     "@js-joda/core": "^5.6.4",
     "@ts-safeql-demos/shared": "workspace:*",
     "@ts-safeql/eslint-plugin": "workspace:*",
-    "postgres": "^3.4.5"
+    "postgres": "3.4.7"
   }
 }

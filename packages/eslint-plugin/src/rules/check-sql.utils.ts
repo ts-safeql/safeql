@@ -15,7 +15,6 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { Sql } from "postgres";
-import { match } from "ts-pattern";
 import { z } from "zod";
 import { isOneOf } from "../utils/estree.utils";
 import { E, TE, pipe } from "../utils/fp-ts";
@@ -297,10 +296,13 @@ export function getMigrationDatabaseMetadata(params: {
   return { databaseUrl, connectionOptions };
 }
 
+type PluginDescriptors = Array<{ package: string; config: Record<string, unknown> }>;
+
 type ConnectionStrategy =
   | {
       type: "databaseUrl";
       databaseUrl: string;
+      plugins?: PluginDescriptors;
     }
   | {
       type: "migrations";
@@ -308,6 +310,11 @@ type ConnectionStrategy =
       connectionUrl: string;
       databaseName: string;
       watchMode: boolean;
+      plugins?: PluginDescriptors;
+    }
+  | {
+      type: "pluginsOnly";
+      plugins: PluginDescriptors;
     };
 
 export function getConnectionStartegyByRuleOptionConnection(params: {
@@ -334,13 +341,20 @@ export function getConnectionStartegyByRuleOptionConnection(params: {
     };
   }
 
-  return match(connection).exhaustive();
+  if (connection.plugins && connection.plugins.length > 0) {
+    return { type: "pluginsOnly", plugins: connection.plugins };
+  }
+
+  throw new Error(
+    "Invalid connection configuration: must specify databaseUrl, migrationsDir, or plugins",
+  );
 }
 
 export interface ConnectionPayload {
   sql: Sql;
   databaseUrl: string;
   isFirst: boolean;
+  pluginName?: string;
 }
 
 export function runMigrations(params: { migrationsPath: string; sql: Sql }) {

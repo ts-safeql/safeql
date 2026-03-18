@@ -47,7 +47,14 @@ export default defineConfig({
       },
       {
         text: "Advanced",
-        items: [{ text: "Incremental adoption", link: "/advanced/incremental-adoption" }],
+        items: [
+          { text: "Plugin API", link: "/guide/plugins" },
+          { text: "Incremental adoption", link: "/advanced/incremental-adoption" },
+        ],
+      },
+      {
+        text: "Official Plugins",
+        items: [{ text: "AWS Auth", link: "/plugins/auth-aws" }],
       },
       {
         text: "@ts-safeql/sql-tag",
@@ -66,6 +73,7 @@ export default defineConfig({
             link: "/api/index.md#connections",
             items: [
               { text: "databaseUrl", link: "/api/index.md#connections-databaseurl" },
+              { text: "plugins", link: "/api/index.md#connections-plugins" },
               { text: "migrationsDir", link: "/api/index.md#connections-migrationsdir" },
               { text: "watchMode", link: "/api/index.md#connections-watchmode-optional" },
               { text: "connectionUrl", link: "/api/index.md#connections-connectionurl-optional" },

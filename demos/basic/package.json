@@ -20,6 +20,6 @@
     "@ts-safeql-demos/shared": "workspace:*",
     "@ts-safeql/eslint-plugin": "workspace:*",
     "@types/node": "^22.13.13",
-    "postgres": "^3.4.5"
+    "postgres": "3.4.7"
   }
 }

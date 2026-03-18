@@ -64,10 +64,11 @@
     "vitest": "^3.0.9"
   },
   "dependencies": {
+    "@ts-safeql/plugin-utils": "workspace:*",
     "chokidar": "^4.0.3",
     "fp-ts": "^2.16.9",
     "pg-connection-string": "2.7.0",
-    "postgres": "^3.4.5",
+    "postgres": "3.4.7",
     "quansync": "^0.2.10",
     "synckit": "^0.10.3",
     "ts-pattern": "^5.6.2",

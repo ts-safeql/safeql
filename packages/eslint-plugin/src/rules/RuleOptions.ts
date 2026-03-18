@@ -57,6 +57,12 @@ const zOverrideTypeResolver = z.union([
   z.string(),
   z.object({ parameter: zStringOrRegex, return: z.string() }),
 ]);
+
+const zPluginDescriptor = z.object({
+  package: z.string(),
+  config: z.object({}).loose(),
+});
+
 const zBaseSchema = z.object({
   targets: z.union([zWrapperTarget, zTagTarget]).array(),
 
@@ -103,6 +109,13 @@ const zBaseSchema = z.object({
    * - "suggest": Provide suggestions instead of auto-fix (requires manual acceptance in IDE)
    */
   enforceType: z.enum(["fix", "suggest"]).optional(),
+
+  /**
+   * Optional array of plugins. Each plugin can provide hooks (e.g., `createConnection`).
+   * When used alongside `databaseUrl` or `migrationsDir`, only non-connection hooks apply.
+   * When used alone, at least one plugin must provide `createConnection`.
+   */
+  plugins: z.array(zPluginDescriptor).optional(),
 });
 
 export const zConnectionMigration = z.object({
@@ -137,8 +150,11 @@ const zConnectionUrl = z.object({
   databaseUrl: z.string(),
 });
 const zRuleOptionConnection = z.union([
-  zBaseSchema.merge(zConnectionMigration),
-  zBaseSchema.merge(zConnectionUrl),
+  zBaseSchema.extend(zConnectionMigration.shape),
+  zBaseSchema.extend(zConnectionUrl.shape),
+  zBaseSchema.refine((data) => data.plugins && data.plugins.length > 0, {
+    message: "Must specify databaseUrl, migrationsDir, or plugins with at least one entry",
+  }),
 ]);
 export type RuleOptionConnection = z.infer<typeof zRuleOptionConnection>;
 

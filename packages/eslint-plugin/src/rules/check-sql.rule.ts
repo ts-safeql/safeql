@@ -199,6 +199,7 @@ function reportCheck(params: {
             { _tag: "InvalidMigrationsPathError" },
             { _tag: "DatabaseInitializationError" },
             { _tag: "InternalError" },
+            { _tag: "PluginError" },
             (error) => {
               if (params.connection.keepAlive === true) {
                 fatalError = error;

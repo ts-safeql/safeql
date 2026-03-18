@@ -1,23 +1,24 @@
 {
-  "name": "@ts-safeql-demos/config-file-flat-config",
+  "name": "@ts-safeql-demos/plugin-aws-iam",
   "version": "0.0.0",
+  "private": true,
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "watch": "tsc --watch",
-    "setup": "tsx src/setup.ts",
-    "lint": "eslint src",
+    "lint": "bash scripts/verify-plugin-error.sh",
+    "lint:live": "eslint src",
     "lint!": "eslint src --fix"
   },
   "devDependencies": {
     "@eslint/js": "^9.23.0",
     "@types/node": "^22.13.13",
+    "dotenv": "^16.4.7",
     "eslint": "^9.23.0",
-    "tsx": "^4.19.3",
     "typescript": "^5.8.2",
     "typescript-eslint": "^8.28.0"
   },
   "dependencies": {
+    "@ts-safeql/plugin-auth-aws": "workspace:*",
     "@ts-safeql/eslint-plugin": "workspace:*",
     "postgres": "3.4.7"
   }

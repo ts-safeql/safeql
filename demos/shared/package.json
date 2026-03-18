@@ -7,6 +7,6 @@
     "typescript": "^5.8.2"
   },
   "dependencies": {
-    "postgres": "^3.4.5"
+    "postgres": "3.4.7"
   }
 }
