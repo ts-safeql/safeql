@@ -33,7 +33,7 @@ importers:
         specifier: ^22.13.13
         version: 22.13.13
       postgres:
-        specifier: 3.4.7
+        specifier: ^3.4.5
         version: 3.4.7
     devDependencies:
       '@eslint/js':
@@ -58,7 +58,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/eslint-plugin
       postgres:
-        specifier: 3.4.7
+        specifier: ^3.4.5
         version: 3.4.7
     devDependencies:
       '@eslint/js':
@@ -89,7 +89,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/eslint-plugin
       postgres:
-        specifier: 3.4.7
+        specifier: ^3.4.5
         version: 3.4.7
     devDependencies:
       '@eslint/js':
@@ -117,7 +117,7 @@ importers:
         specifier: ^22.13.13
         version: 22.13.13
       postgres:
-        specifier: 3.4.7
+        specifier: ^3.4.5
         version: 3.4.7
     devDependencies:
       '@eslint/js':
@@ -145,7 +145,7 @@ importers:
         specifier: ^22.13.13
         version: 22.13.13
       postgres:
-        specifier: 3.4.7
+        specifier: ^3.4.5
         version: 3.4.7
     devDependencies:
       '@eslint/js':
@@ -170,7 +170,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/eslint-plugin
       postgres:
-        specifier: 3.4.7
+        specifier: ^3.4.5
         version: 3.4.7
     devDependencies:
       '@eslint/js':
@@ -201,7 +201,7 @@ importers:
         specifier: ^22.13.13
         version: 22.13.13
       postgres:
-        specifier: 3.4.7
+        specifier: ^3.4.5
         version: 3.4.7
     devDependencies:
       '@eslint/js':
@@ -229,7 +229,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/eslint-plugin
       postgres:
-        specifier: 3.4.7
+        specifier: ^3.4.5
         version: 3.4.7
     devDependencies:
       '@eslint/js':
@@ -254,7 +254,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/eslint-plugin
       postgres:
-        specifier: 3.4.7
+        specifier: ^3.4.5
         version: 3.4.7
     devDependencies:
       '@eslint/js':
@@ -285,7 +285,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/plugins/auth-aws
       postgres:
-        specifier: 3.4.7
+        specifier: ^3.4.5
         version: 3.4.7
     devDependencies:
       '@eslint/js':
@@ -319,7 +319,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/eslint-plugin
       postgres:
-        specifier: 3.4.7
+        specifier: ^3.4.5
         version: 3.4.7
     devDependencies:
       '@eslint/js':
@@ -353,7 +353,7 @@ importers:
         specifier: ^22.13.13
         version: 22.13.13
       postgres:
-        specifier: 3.4.7
+        specifier: ^3.4.5
         version: 3.4.7
     devDependencies:
       '@eslint/js':
@@ -412,7 +412,7 @@ importers:
   demos/shared:
     dependencies:
       postgres:
-        specifier: 3.4.7
+        specifier: ^3.4.5
         version: 3.4.7
     devDependencies:
       '@types/node':
@@ -557,7 +557,7 @@ importers:
         specifier: 2.7.0
         version: 2.7.0
       postgres:
-        specifier: 3.4.7
+        specifier: ^3.4.5
         version: 3.4.7
       ts-pattern:
         specifier: ^5.6.2
@@ -600,7 +600,7 @@ importers:
         specifier: 2.7.0
         version: 2.7.0
       postgres:
-        specifier: 3.4.7
+        specifier: ^3.4.5
         version: 3.4.7
       quansync:
         specifier: ^0.2.10
@@ -676,7 +676,7 @@ importers:
         specifier: ^2.7.0
         version: 2.7.0
       postgres:
-        specifier: 3.4.7
+        specifier: ^3.4.5
         version: 3.4.7
     devDependencies:
       '@types/node':
@@ -710,7 +710,7 @@ importers:
   packages/plugin-utils:
     dependencies:
       postgres:
-        specifier: 3.4.7
+        specifier: ^3.4.5
         version: 3.4.7
     devDependencies:
       '@types/node':
@@ -741,7 +741,7 @@ importers:
         specifier: workspace:*
         version: link:../../plugin-utils
       postgres:
-        specifier: 3.4.7
+        specifier: ^3.4.5
         version: 3.4.7
     devDependencies:
       '@types/node':
@@ -766,7 +766,7 @@ importers:
         specifier: ^10.0.1
         version: 10.0.1
       postgres:
-        specifier: 3.4.7
+        specifier: ^3.4.5
         version: 3.4.7
     devDependencies:
       '@types/node':
@@ -827,7 +827,7 @@ importers:
         specifier: ^2.7.0
         version: 2.7.0
       postgres:
-        specifier: 3.4.7
+        specifier: ^3.4.5
         version: 3.4.7
     devDependencies:
       '@types/node':

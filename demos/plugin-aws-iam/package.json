@@ -20,6 +20,6 @@
   "dependencies": {
     "@ts-safeql/plugin-auth-aws": "workspace:*",
     "@ts-safeql/eslint-plugin": "workspace:*",
-    "postgres": "3.4.7"
+    "postgres": "^3.4.5"
   }
 }

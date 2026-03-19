@@ -46,6 +46,6 @@
     "@ts-safeql/test-utils": "workspace:*",
     "fp-ts": "^2.16.9",
     "pg-connection-string": "^2.7.0",
-    "postgres": "3.4.7"
+    "postgres": "^3.4.5"
   }
 }
