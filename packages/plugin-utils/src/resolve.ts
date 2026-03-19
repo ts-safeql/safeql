@@ -135,7 +135,7 @@ function isPluginShaped(value: unknown): value is SafeQLPlugin {
 }
 
 function prop(obj: unknown, key: string): unknown {
-  if (typeof obj === "object" && obj !== null && key in obj) {
+  if ((typeof obj === "object" || typeof obj === "function") && obj !== null && key in obj) {
     return (obj as Record<string, unknown>)[key];
   }
   return undefined;

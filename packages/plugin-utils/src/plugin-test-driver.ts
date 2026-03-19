@@ -1,6 +1,7 @@
 import fs from "fs";
 import os from "os";
 import path from "path";
+import parser from "@typescript-eslint/parser";
 import type ts from "typescript";
 import type { ParserServices, TSESTree } from "@typescript-eslint/utils";
 import type { SafeQLPlugin } from "./index";
@@ -50,11 +51,7 @@ export class PluginTestDriver {
   toSQL(source: string): ToSQLResult {
     fs.writeFileSync(this.testFilePath, source);
 
-    const { parseForESLint } =
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      require("@typescript-eslint/parser") as typeof import("@typescript-eslint/parser");
-
-    const { ast, services } = parseForESLint(source, {
+    const { ast, services } = parser.parseForESLint(source, {
       filePath: this.testFilePath,
       project: this.tsconfigPath,
       loc: true,

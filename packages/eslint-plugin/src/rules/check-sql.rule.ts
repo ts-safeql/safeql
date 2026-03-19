@@ -324,7 +324,7 @@ function reportCheck(params: {
         params.context.sourceCode,
       ),
     ),
-    E.bindW("result", ({ query }): E.Either<WorkerError, WorkerResult | null> => {
+    E.bindW("result", ({ query }) => {
       if (query === null) {
         return E.right(null);
       }
