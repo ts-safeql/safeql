@@ -8,13 +8,17 @@ layout: doc
 The plugin API is experimental and may change in future releases.
 :::
 
-SafeQL plugins let you extend SafeQL's behavior by hooking into its lifecycle. Plugins are packages that export a factory function — the factory receives config and returns an object with a `name` and hooks.
+SafeQL plugins extend query checking by hooking into the analysis lifecycle. A plugin is a factory function that receives config and returns an object with a `name` and hooks.
 
-Currently the only supported hook is `createConnection`, which provides a custom database connection strategy. More hooks will be added in future releases.
+## Conventions
+
+- Name packages `safeql-plugin-<name>` or scope under your org (e.g., `@myorg/safeql-plugin-foo`).
+- Include `safeql-plugin` in `package.json` keywords.
+- Default-export the `definePlugin()` result.
 
 ## Using Plugins
 
-Install the plugin package alongside `@ts-safeql/eslint-plugin`, then add it to the `plugins` array in your connection config:
+Install the plugin alongside `@ts-safeql/eslint-plugin`, then add it to your connection config:
 
 ```js
 import safeql from "@ts-safeql/eslint-plugin/config";
@@ -24,7 +28,7 @@ export default [
   safeql.configs.connections({
     plugins: [
       myPlugin({
-        /* plugin-specific options */
+        /* options */
       }),
     ],
     targets: [{ tag: "sql" }],
@@ -32,31 +36,54 @@ export default [
 ];
 ```
 
-Plugins can be used alongside `databaseUrl` or `migrationsDir`. When a connection method is already specified, only non-connection hooks from plugins apply. A plugin's `createConnection` hook is only used when no other connection method is configured.
-
-When multiple plugins provide the same hook, the last one in the array wins.
-
 ## Authoring a Plugin
 
-Use `definePlugin` from `@ts-safeql/plugin-utils` and default-export the result:
+Use `definePlugin` from `@ts-safeql/plugin-utils`:
 
 ```ts
 import { definePlugin } from "@ts-safeql/plugin-utils";
-import postgres from "postgres";
 
-type MyConfig = {
-  connectionString: string;
-};
+export default definePlugin({
+  name: "my-plugin",
+  package: "safeql-plugin-my-plugin",
+  setup(config) {
+    return {
+      // hooks go here
+    };
+  },
+});
+```
 
-export default definePlugin<MyConfig>({
+### Simple Examples
+
+**Custom connection:**
+
+```ts
+export default definePlugin<{ connectionString: string }>({
   name: "my-db",
   package: "safeql-plugin-my-db",
   setup(config) {
     return {
       createConnection: {
-        cacheKey: `my-db://${config.connectionString}`,
-        async handler() {
-          return postgres(config.connectionString);
+        cacheKey: config.connectionString,
+        handler: () => postgres(config.connectionString),
+      },
+    };
+  },
+});
+```
+
+**Type overrides for a SQL library:**
+
+```ts
+export default definePlugin({
+  name: "my-library",
+  package: "safeql-plugin-my-library",
+  setup() {
+    return {
+      connectionDefaults: {
+        overrides: {
+          types: { json: "JsonToken", date: "DateToken" },
         },
       },
     };
@@ -64,42 +91,110 @@ export default definePlugin<MyConfig>({
 });
 ```
 
-The default export is callable — users call it in their eslint config, and SafeQL's worker uses its `.factory` property at runtime to reconstruct the live plugin.
-
 ### Options
 
-| Option    | Description                                                                                         |
-| --------- | --------------------------------------------------------------------------------------------------- |
-| `name`    | Short name (e.g., `"my-db"`). Automatically prefixed with `safeql-plugin-`. Used in error messages. |
-| `package` | The npm package name. Used to resolve the plugin at runtime.                                        |
-| `setup`   | Receives user config, returns hooks.                                                                |
+| Option    | Description                                                 |
+| --------- | ----------------------------------------------------------- |
+| `name`    | Short identifier. Used in error messages.                   |
+| `package` | npm package name. Used to resolve the plugin in the worker. |
+| `setup`   | Factory function. Receives user config, returns hooks.      |
 
-### Hooks
+## Hooks
 
-Currently the only supported hook is `createConnection`:
+### `createConnection`
+
+- **Type:** `{ cacheKey: string; handler(): Promise<Sql> }`
+
+Provides a custom database connection.
+
+- `cacheKey` — stable string for connection deduplication. Same key reuses the existing connection.
+- `handler` — returns a [postgres](https://github.com/porsager/postgres) `Sql` instance.
+
+When `databaseUrl` or `migrationsDir` is specified, `createConnection` is ignored. If multiple plugins provide this hook, the last one wins.
+
+### `connectionDefaults`
+
+- **Type:** `Record<string, unknown>`
+
+Default values deep-merged into the connection config. User values take priority. When multiple plugins provide defaults, all are merged.
 
 ```ts
-createConnection?: {
-  cacheKey: string;
-  handler(): Promise<Sql>;
-};
+connectionDefaults: {
+  overrides: {
+    types: { json: "MyJsonType" },
+  },
+},
 ```
 
-- **`cacheKey`** — stable string for connection deduplication. Same key = reuse existing connection.
-- **`handler`** — async function that returns a [postgres](https://github.com/porsager/postgres) `Sql` instance.
+### `onTarget`
 
-More hooks will be added in future releases.
+- **Type:** `(params: { node; context }) => TargetMatch | false | undefined`
+- **Kind:** `sync`
 
-### Why Descriptors?
+Called for each `TaggedTemplateExpression`. Determines whether the tag is a SQL query.
 
-SafeQL runs query checking in a [worker thread](https://nodejs.org/api/worker_threads.html). Data crossing the worker boundary must be serializable — functions cannot be transferred. When a user calls the plugin in their config, it produces a plain `{ package, config }` descriptor. The worker then dynamically imports the package and uses `.factory` to reconstruct the live plugin.
+**Return values:**
 
-## Conventions
+- `TargetMatch` — proceed with checking (optionally with custom behavior)
+- `false` — skip this tag entirely
+- `undefined` — defer to next plugin or SafeQL default
 
-- Plugin packages should be named `safeql-plugin-<name>` or scoped under your org.
-- Include `safeql-plugin` in your `package.json` `keywords` field.
-- Default-export the `definePlugin()` result.
+```ts
+interface TargetMatch {
+  skipTypeAnnotations?: boolean;
+  typeCheck?: (ctx: TypeCheckContext) => TypeCheckReport | undefined;
+}
+```
 
-## Official Plugins
+**Example:** Skip `sql.fragment`, allow `sql.unsafe` without type checking:
 
-- [`@ts-safeql/plugin-auth-aws`](/plugins/auth-aws) — AWS RDS IAM authentication
+```ts
+onTarget({ node, context }) {
+  const tag = node.tag;
+  if (tag.type === "MemberExpression" && tag.property.name === "fragment") {
+    return false;
+  }
+  if (tag.type === "MemberExpression" && tag.property.name === "unsafe") {
+    return { skipTypeAnnotations: true };
+  }
+  return undefined;
+}
+```
+
+### `onExpression`
+
+- **Type:** `(params: { node; context }) => string | false | undefined`
+- **Kind:** `sync`
+
+Called for each interpolated expression inside a matched template.
+
+**Return values:**
+
+- `string` — inline SQL fragment (`$N` as placeholder, e.g., `"$N::jsonb"`)
+- `false` — skip the entire query (too dynamic to analyze)
+- `undefined` — use SafeQL default behavior
+
+```ts
+interface ExpressionContext {
+  precedingSQL: string;
+  checker: ts.TypeChecker;
+  tsNode: ts.Node;
+  tsType: ts.Type;
+  tsTypeText: string;
+}
+```
+
+**Example:** Handle library-specific helpers:
+
+```ts
+onExpression({ node, context }) {
+  if (isCallTo(node, "json")) return "$N::jsonb";
+  if (isCallTo(node, "identifier")) return buildIdentifier(node);
+  if (isCallTo(node, "join")) return false; // too dynamic
+  return undefined;
+}
+```
+
+## Why Descriptors?
+
+SafeQL runs in a [worker thread](https://nodejs.org/api/worker_threads.html). Data crossing the boundary must be serializable — functions cannot transfer. When users call the plugin, it produces a `{ package, config }` descriptor. The worker imports the package and calls `.factory` to reconstruct the live plugin.

@@ -2,8 +2,7 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { setupTestDatabase, generateTestDatabaseName } from "@ts-safeql/test-utils";
-import { createConnectionManager } from "./connection-manager";
-import type { ConnectionPayload } from "../rules/check-sql.utils";
+import { createConnectionManager } from "./index";
 
 const POSTGRES_URL = "postgres://postgres:postgres@localhost:5432/postgres";
 
@@ -18,11 +17,7 @@ export interface PluginSource {
   };
 }
 
-/**
- * Framework-agnostic test driver for the SafeQL plugin system.
- * Call `setup()` / `teardown()` from your runner's lifecycle hooks.
- */
-export class PluginTestDriver {
+export class ConnectionManagerTestDriver {
   databaseUrl = "";
   private tempDirs: string[] = [];
   private connections: Array<{ end(): Promise<void> }> = [];

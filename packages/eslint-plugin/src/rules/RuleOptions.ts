@@ -60,11 +60,11 @@ const zOverrideTypeResolver = z.union([
 
 const zPluginDescriptor = z.object({
   package: z.string(),
-  config: z.object({}).loose(),
+  config: z.looseObject({}).optional(),
 });
 
 const zBaseSchema = z.object({
-  targets: z.union([zWrapperTarget, zTagTarget]).array(),
+  targets: z.union([zWrapperTarget, zTagTarget]).array().optional(),
 
   /**
    * Whether or not keep the connection alive. Change it only if you know what you're doing.

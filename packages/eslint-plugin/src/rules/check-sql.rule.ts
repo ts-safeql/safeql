@@ -1,4 +1,10 @@
 import { ResolvedTarget } from "@ts-safeql/generate";
+import {
+  PluginManager,
+  type PluginResolvedTarget,
+  type SafeQLPlugin,
+  type TargetMatch,
+} from "@ts-safeql/plugin-utils";
 import { InvalidConfigError, doesMatchPattern, fmap } from "@ts-safeql/shared";
 import {
   ESLintUtils,
@@ -58,6 +64,7 @@ const messages = {
   missingTypeAnnotations: "Query is missing type annotation\n\tFix with: {{fix}}",
   incorrectTypeAnnotations: `Query has incorrect type annotation.\n\tExpected: {{expected}}\n\t  Actual: {{actual}}`,
   invalidTypeAnnotations: `Query has invalid type annotation (SafeQL does not support it. If you think it should, please open an issue)`,
+  pluginError: `{{error}}`,
 };
 export type RuleMessage = keyof typeof messages;
 
@@ -73,37 +80,66 @@ function check(params: {
     ? params.config.connections
     : [params.config.connections];
 
-  for (const connection of connections) {
-    for (const target of connection.targets) {
-      checkConnection({ ...params, connection, target });
+  for (let connection of connections) {
+    connection = applyPluginDefaults(connection, params.projectDir);
+
+    const targets = connection.targets ?? [];
+
+    if (targets.length > 0) {
+      for (const target of targets) {
+        checkConnection({ ...params, connection, target });
+      }
+    } else {
+      checkConnectionByPlugins({ ...params, connection });
     }
   }
 }
 
-function isTagMemberValid(
-  expr: TSESTree.TaggedTemplateExpression,
-): expr is TSESTree.TaggedTemplateExpression &
-  (
-    | {
-        tag: TSESTree.Identifier;
-      }
-    | {
-        tag: TSESTree.MemberExpression & {
-          property: TSESTree.Identifier;
-        };
-      }
-  ) {
-  // For example sql``
+function isTagMemberValid(expr: TSESTree.TaggedTemplateExpression): boolean {
   if (ESTreeUtils.isIdentifier(expr.tag)) {
     return true;
   }
 
-  // For example Provider.sql``
   if (ESTreeUtils.isMemberExpression(expr.tag) && ESTreeUtils.isIdentifier(expr.tag.property)) {
     return true;
   }
 
+  if (expr.tag.type === "CallExpression") {
+    return true;
+  }
+
   return false;
+}
+
+function checkConnectionByPlugins(params: {
+  context: RuleContext;
+  connection: RuleOptionConnection;
+  tag: TSESTree.TaggedTemplateExpression;
+  projectDir: string;
+}) {
+  const plugins = resolveConnectionPlugins(params.connection, params.projectDir);
+  if (plugins.length === 0) return;
+
+  const targetCtx = getTargetContext(params.context);
+  const targetMatch = resolvePluginTargetMatch(plugins, params.tag, targetCtx);
+  if (targetMatch === false || targetMatch === undefined) return;
+
+  const target: TagTarget = {
+    tag: { regex: ".*" },
+    skipTypeAnnotations: targetMatch.skipTypeAnnotations,
+  };
+
+  return reportCheck({
+    context: params.context,
+    tag: params.tag,
+    connection: params.connection,
+    target,
+    projectDir: params.projectDir,
+    baseNode: params.tag.tag,
+    typeParameter: params.tag.typeArguments,
+    plugins,
+    targetMatch,
+  });
 }
 
 function checkConnection(params: {
@@ -113,12 +149,38 @@ function checkConnection(params: {
   tag: TSESTree.TaggedTemplateExpression;
   projectDir: string;
 }) {
+  const plugins = resolveConnectionPlugins(params.connection, params.projectDir);
+  const targetCtx = plugins.length > 0 ? getTargetContext(params.context) : undefined;
+  const targetMatch = resolvePluginTargetMatch(plugins, params.tag, targetCtx);
+
+  if (targetMatch === false) {
+    return;
+  }
+
+  if (targetMatch !== undefined) {
+    const target: ConnectionTarget = {
+      ...params.target,
+      skipTypeAnnotations: targetMatch.skipTypeAnnotations ?? params.target.skipTypeAnnotations,
+    };
+    return reportCheck({
+      context: params.context,
+      tag: params.tag,
+      connection: params.connection,
+      target,
+      projectDir: params.projectDir,
+      baseNode: params.tag.tag,
+      typeParameter: params.tag.typeArguments,
+      plugins,
+      targetMatch,
+    });
+  }
+
   if ("tag" in params.target) {
-    return checkConnectionByTagExpression({ ...params, target: params.target });
+    return checkConnectionByTagExpression({ ...params, target: params.target, plugins });
   }
 
   if ("wrapper" in params.target) {
-    return checkConnectionByWrapperExpression({ ...params, target: params.target });
+    return checkConnectionByWrapperExpression({ ...params, target: params.target, plugins });
   }
 
   return match(params.target).exhaustive();
@@ -133,6 +195,81 @@ const generateSyncE = flow(
 
 let fatalError: WorkerError | undefined;
 
+const pluginManager = new PluginManager();
+
+function applyPluginDefaults(
+  connection: RuleOptionConnection,
+  projectDir: string,
+): RuleOptionConnection {
+  const plugins = resolveConnectionPlugins(connection, projectDir);
+  let merged = connection;
+  for (const plugin of plugins) {
+    if (plugin.connectionDefaults) {
+      merged = deepMergeDefaults(merged, plugin.connectionDefaults) as RuleOptionConnection;
+    }
+  }
+  return merged;
+}
+
+function deepMergeDefaults(
+  target: Record<string, unknown>,
+  defaults: Record<string, unknown>,
+): Record<string, unknown> {
+  const result: Record<string, unknown> = { ...target };
+  for (const key of Object.keys(defaults)) {
+    const defVal = defaults[key];
+    if (defVal && typeof defVal === "object" && !Array.isArray(defVal)) {
+      const existing = result[key];
+      result[key] =
+        existing && typeof existing === "object" && !Array.isArray(existing)
+          ? deepMergeDefaults(
+              existing as Record<string, unknown>,
+              defVal as Record<string, unknown>,
+            )
+          : { ...(defVal as Record<string, unknown>) };
+    } else if (result[key] === undefined) {
+      result[key] = defVal;
+    }
+  }
+  return result;
+}
+
+function resolveConnectionPlugins(
+  connection: RuleOptionConnection,
+  projectDir: string,
+): SafeQLPlugin[] {
+  if (!("plugins" in connection) || !connection.plugins?.length) {
+    return [];
+  }
+
+  return pluginManager.resolvePluginsSync(connection.plugins, projectDir);
+}
+
+function getTargetContext(
+  context: RuleContext,
+): import("@ts-safeql/plugin-utils").TargetContext | undefined {
+  const services = context.sourceCode.parserServices;
+  if (!hasParserServicesWithTypeInformation(services)) return undefined;
+  const checker = services.program?.getTypeChecker();
+  if (!checker) return undefined;
+  return { checker, parser: services };
+}
+
+function resolvePluginTargetMatch(
+  plugins: SafeQLPlugin[],
+  tag: TSESTree.TaggedTemplateExpression,
+  targetCtx: import("@ts-safeql/plugin-utils").TargetContext | undefined,
+): TargetMatch | false | undefined {
+  if (!targetCtx) return undefined;
+
+  let result: TargetMatch | false | undefined;
+  for (const plugin of plugins) {
+    const r = plugin.onTarget?.({ node: tag, context: targetCtx });
+    if (r !== undefined) result = r;
+  }
+  return result;
+}
+
 function reportCheck(params: {
   context: RuleContext;
   tag: TSESTree.TaggedTemplateExpression;
@@ -141,6 +278,8 @@ function reportCheck(params: {
   projectDir: string;
   typeParameter: TSESTree.TSTypeParameterInstantiation | undefined;
   baseNode: TSESTree.BaseNode;
+  plugins?: SafeQLPlugin[];
+  targetMatch?: TargetMatch;
 }) {
   const { context, tag, connection, target, projectDir, typeParameter, baseNode } = params;
 
@@ -174,9 +313,13 @@ function reportCheck(params: {
         checker,
         params.connection,
         params.context.sourceCode,
+        params.plugins,
       ),
     ),
-    E.bindW("result", ({ query }) => {
+    E.bindW("result", ({ query }): E.Either<WorkerError, WorkerResult | null> => {
+      if (query === null) {
+        return E.right(null);
+      }
       return generateSyncE({ query, connection, target, projectDir });
     }),
     E.fold(
@@ -211,6 +354,43 @@ function reportCheck(params: {
           .exhaustive();
       },
       ({ result, checker, parser }) => {
+        if (result === null) {
+          return;
+        }
+
+        if (params.targetMatch?.typeCheck && result.output) {
+          const compareOpts = {
+            nullAsOptional: nullAsOptional ?? false,
+            nullAsUndefined: nullAsUndefined ?? false,
+            inferLiterals: connection.inferLiterals ?? defaultInferLiteralOptions,
+          };
+          const report = params.targetMatch.typeCheck({
+            node: tag,
+            output: result.output as PluginResolvedTarget,
+            checker,
+            parser,
+            sourceCode: context.sourceCode,
+            getComparableString: (target) =>
+              getResolvedTargetComparableString({
+                target: target as ExpectedResolvedTarget,
+                ...compareOpts,
+              }),
+          });
+
+          if (report) {
+            return context.report({
+              node: report.node ?? tag.tag,
+              messageId: "pluginError",
+              data: { error: report.message },
+              fix: report.fix
+                ? (fixer) => fixer.replaceText(report.fix!.node, report.fix!.text)
+                : undefined,
+            });
+          }
+
+          return;
+        }
+
         const shouldSkipTypeAnnotations = target.skipTypeAnnotations === true;
 
         if (shouldSkipTypeAnnotations) {
@@ -316,6 +496,7 @@ function checkConnectionByTagExpression(params: {
   target: TagTarget;
   tag: TSESTree.TaggedTemplateExpression;
   projectDir: string;
+  plugins?: SafeQLPlugin[];
 }) {
   const { context, tag, projectDir, connection, target } = params;
 
@@ -330,6 +511,7 @@ function checkConnectionByTagExpression(params: {
       projectDir,
       baseNode: tag.tag,
       typeParameter: tag.typeArguments,
+      plugins: params.plugins,
     });
   }
 }
@@ -352,6 +534,7 @@ function checkConnectionByWrapperExpression(params: {
   target: WrapperTarget;
   tag: TSESTree.TaggedTemplateExpression;
   projectDir: string;
+  plugins?: SafeQLPlugin[];
 }) {
   const { context, tag, projectDir, connection, target } = params;
 
@@ -376,6 +559,7 @@ function checkConnectionByWrapperExpression(params: {
       projectDir,
       baseNode: wrapperNode.callee,
       typeParameter: wrapperNode.typeArguments,
+      plugins: params.plugins,
     });
   }
 }

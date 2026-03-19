@@ -36,6 +36,14 @@ export class PluginManager {
     return this.pickConnection(plugins);
   }
 
+  /**
+   * Synchronously resolve plugin descriptors into live plugin instances.
+   * For use in the main ESLint thread (onTarget/onExpression hooks).
+   */
+  resolvePluginsSync(descriptors: PluginDescriptor[], projectDir: string): SafeQLPlugin[] {
+    return descriptors.map((d) => this.resolveOneSync(d, projectDir));
+  }
+
   evictPlugins(descriptors: PluginDescriptor[]): void {
     for (const descriptor of descriptors) {
       this.pluginCache.delete(this.getCacheKey(descriptor));
@@ -59,8 +67,32 @@ export class PluginManager {
   }
 
   private getCacheKey(descriptor: PluginDescriptor): string {
-    const config = descriptor.config;
+    const config = descriptor.config ?? {};
     return `${descriptor.package}:${JSON.stringify(config, Object.keys(config).sort())}`;
+  }
+
+  private resolveOneSync(descriptor: PluginDescriptor, projectDir: string): SafeQLPlugin {
+    const key = this.getCacheKey(descriptor);
+    const cached = this.pluginCache.get(key);
+
+    if (cached) {
+      return cached;
+    }
+
+    const projectRequire = createRequire(path.resolve(projectDir, "package.json"));
+
+    let mod: Record<string, unknown>;
+    try {
+      mod = projectRequire(descriptor.package) as Record<string, unknown>;
+    } catch {
+      throw new Error(
+        `SafeQL plugin "${descriptor.package}" could not be loaded. Is it installed?`,
+      );
+    }
+
+    const plugin = this.extractPlugin(descriptor, mod);
+    this.pluginCache.set(key, plugin);
+    return plugin;
   }
 
   private async resolveOne(
@@ -86,9 +118,17 @@ export class PluginManager {
       );
     }
 
+    const plugin = this.extractPlugin(descriptor, mod as Record<string, unknown>);
+    this.pluginCache.set(key, plugin);
+    return plugin;
+  }
+
+  private extractPlugin(descriptor: PluginDescriptor, mod: Record<string, unknown>): SafeQLPlugin {
     const rawDefault = mod.default as Record<string, unknown> | undefined;
     const withFactory =
-      rawDefault?.factory ?? (rawDefault?.default as Record<string, unknown>)?.factory;
+      rawDefault?.factory ??
+      (rawDefault?.default as Record<string, unknown>)?.factory ??
+      mod.factory;
 
     if (typeof withFactory !== "function") {
       throw new Error(
@@ -96,7 +136,7 @@ export class PluginManager {
       );
     }
 
-    const plugin = withFactory(descriptor.config) as SafeQLPlugin;
+    const plugin = withFactory(descriptor.config ?? {}) as SafeQLPlugin;
 
     if (!plugin || typeof plugin.name !== "string") {
       throw new Error(
@@ -104,7 +144,6 @@ export class PluginManager {
       );
     }
 
-    this.pluginCache.set(key, plugin);
     return plugin;
   }
 }

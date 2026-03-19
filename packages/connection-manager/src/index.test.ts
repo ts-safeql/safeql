@@ -1,10 +1,9 @@
 import os from "os";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { getConnectionStartegyByRuleOptionConnection } from "../rules/check-sql.utils";
-import { PluginTestDriver } from "./plugin-test-driver";
+import { ConnectionManagerTestDriver } from "./test-driver";
 
 describe("connection-manager plugins", () => {
-  const driver = new PluginTestDriver();
+  const driver = new ConnectionManagerTestDriver();
 
   beforeAll(() => driver.setup());
   afterAll(() => driver.teardown());
@@ -81,25 +80,6 @@ describe("connection-manager plugins", () => {
           ],
         }),
       ).rejects.toThrow("last plugin wins");
-    });
-
-    it("plugins coexist with databaseUrl — connection uses databaseUrl", () => {
-      // ARRANGE
-      const connection = {
-        databaseUrl: driver.databaseUrl,
-        plugins: [{ package: "some-plugin", config: {} }],
-        targets: [{ tag: "sql" as const }],
-      };
-
-      // ACT
-      const strategy = getConnectionStartegyByRuleOptionConnection({
-        connection,
-        projectDir: os.tmpdir(),
-      });
-
-      // ASSERT
-      expect(strategy.type).toBe("databaseUrl");
-      expect(strategy.plugins).toEqual([{ package: "some-plugin", config: {} }]);
     });
   });
 

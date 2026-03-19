@@ -2,13 +2,40 @@ import { PluginManager } from "@ts-safeql/plugin-utils";
 import postgres, { Sql } from "postgres";
 import { match } from "ts-pattern";
 import { PluginError } from "@ts-safeql/shared";
-import { RuleOptionConnection } from "../rules/RuleOptions";
-import {
-  ConnectionPayload,
-  getConnectionStartegyByRuleOptionConnection,
-} from "../rules/check-sql.utils";
-import { O, pipe } from "./fp-ts";
+import * as O from "fp-ts/lib/Option.js";
+import { pipe } from "fp-ts/lib/function.js";
 import { mapConnectionOptionsToString, parseConnection } from "./pg.utils";
+
+export type { ConnectionOptions } from "./pg.utils";
+export { parseConnection, mapConnectionOptionsToString } from "./pg.utils";
+
+export interface ConnectionPayload {
+  sql: Sql;
+  databaseUrl: string;
+  isFirst: boolean;
+  pluginName?: string;
+}
+
+type PluginDescriptors = Array<{ package: string; config?: Record<string, unknown> }>;
+
+export type ConnectionStrategy =
+  | {
+      type: "databaseUrl";
+      databaseUrl: string;
+      plugins?: PluginDescriptors;
+    }
+  | {
+      type: "migrations";
+      migrationsDir: string;
+      connectionUrl: string;
+      databaseName: string;
+      watchMode: boolean;
+      plugins?: PluginDescriptors;
+    }
+  | {
+      type: "pluginsOnly";
+      plugins: PluginDescriptors;
+    };
 
 export function createConnectionManager() {
   const connectionMap: Map<string, Sql> = new Map();
@@ -18,10 +45,11 @@ export function createConnectionManager() {
     getOrCreate: (databaseUrl: string, options?: postgres.Options<never>) =>
       getOrCreateConnection(databaseUrl, connectionMap, options),
     getOrCreateFromPlugins: (
-      plugins: Array<{ package: string; config: Record<string, unknown> }>,
+      plugins: Array<{ package: string; config?: Record<string, unknown> }>,
       projectDir: string,
     ) => getOrCreateFromPlugins(plugins, connectionMap, pluginManager, projectDir),
-    close: (params: CloseConnectionParams) => closeConnection(params, connectionMap, pluginManager),
+    close: (strategy: ConnectionStrategy) =>
+      closeConnection(strategy, connectionMap, pluginManager),
   };
 }
 
@@ -44,15 +72,23 @@ function getOrCreateConnection(
 }
 
 async function getOrCreateFromPlugins(
-  plugins: Array<{ package: string; config: Record<string, unknown> }>,
+  plugins: Array<{ package: string; config?: Record<string, unknown> }>,
   connectionMap: Map<string, Sql>,
   pluginManager: PluginManager,
   projectDir: string,
 ): Promise<ConnectionPayload> {
-  const connection = await pluginManager.resolveConnection(plugins, projectDir);
+  let connection;
+  try {
+    connection = await pluginManager.resolveConnection(plugins, projectDir);
+  } catch (error) {
+    throw PluginError.from("plugin-resolution")(error);
+  }
 
   if (!connection) {
-    throw new Error("None of the loaded SafeQL plugins provide a createConnection hook.");
+    throw new PluginError(
+      "plugin-resolution",
+      "None of the loaded SafeQL plugins provide a createConnection hook.",
+    );
   }
 
   const { cacheKey, handler, pluginName } = connection;
@@ -71,19 +107,11 @@ async function getOrCreateFromPlugins(
   }
 }
 
-export interface CloseConnectionParams {
-  connection: RuleOptionConnection;
-  projectDir: string;
-}
-
 function closeConnection(
-  params: CloseConnectionParams,
+  strategy: ConnectionStrategy,
   connectionMap: Map<string, Sql>,
   pluginManager: PluginManager,
 ) {
-  const { connection, projectDir } = params;
-  const strategy = getConnectionStartegyByRuleOptionConnection({ connection, projectDir });
-
   match(strategy)
     .with({ type: "databaseUrl" }, ({ databaseUrl }) => {
       const sql = connectionMap.get(databaseUrl);

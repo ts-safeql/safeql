@@ -10,8 +10,8 @@ output=$(pnpm exec eslint src 2>&1 || true)
 
 echo "$output"
 
-echo "$output" | grep -q '\[safeql-plugin-aws-iam\]'  || { echo "FAIL: plugin error prefix missing"; exit 1; }
-echo "$output" | grep -qv 'Internal error'             || { echo "FAIL: got Internal error"; exit 1; }
-echo "$output" | grep -qv 'could not be loaded'        || { echo "FAIL: plugin failed to load"; exit 1; }
+echo "$output" | grep -q '\[safeql-plugin-aws-iam\]'   || { echo "FAIL: plugin error prefix missing"; exit 1; }
+! echo "$output" | grep -q 'Internal error'            || { echo "FAIL: got Internal error"; exit 1; }
+! echo "$output" | grep -q 'could not be loaded'       || { echo "FAIL: plugin failed to load"; exit 1; }
 
 echo "OK: plugin loaded, failed with expected plugin error"

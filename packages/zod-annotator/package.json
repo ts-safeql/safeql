@@ -1,8 +1,8 @@
 {
-  "name": "@ts-safeql/plugin-utils",
+  "name": "@ts-safeql/zod-annotator",
   "version": "4.2.0",
   "license": "MIT",
-  "repository": "https://github.com/ts-safeql/safeql/tree/master/packages/plugin-utils",
+  "repository": "https://github.com/ts-safeql/safeql/tree/master/packages/zod-annotator",
   "files": [
     "dist",
     "package.json"
@@ -16,16 +16,12 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
       "require": "./dist/index.cjs"
-    },
-    "./testing": {
-      "types": "./dist/plugin-test-driver.d.ts",
-      "import": "./dist/plugin-test-driver.mjs",
-      "require": "./dist/plugin-test-driver.cjs"
     }
   },
   "scripts": {
     "build": "unbuild",
     "dev": "unbuild --stub",
+    "test": "vitest --run",
     "typecheck": "tsc -b",
     "clean": "rm -rf dist"
   },
@@ -34,21 +30,15 @@
     "@typescript-eslint/parser": "^8.28.0",
     "@typescript-eslint/utils": "^8.28.0",
     "typescript": "^5.8.2",
-    "unbuild": "^3.5.0"
+    "unbuild": "^3.5.0",
+    "vitest": "^3.0.9",
+    "zod": "^4.1.12"
   },
   "dependencies": {
-    "postgres": "3.4.7"
+    "@ts-safeql/plugin-utils": "workspace:*"
   },
   "peerDependencies": {
     "@typescript-eslint/utils": "^8.0.0",
     "typescript": "^5.0.0"
-  },
-  "peerDependenciesMeta": {
-    "@typescript-eslint/utils": {
-      "optional": true
-    },
-    "typescript": {
-      "optional": true
-    }
   }
 }

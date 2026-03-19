@@ -17,10 +17,11 @@ export default definePlugin<AwsIamPluginConfig>({
   package: "@ts-safeql/plugin-auth-aws",
   setup(config) {
     const port = config.databasePort ?? 5432;
+    const profile = config.awsProfile ?? "default";
 
     return {
       createConnection: {
-        cacheKey: `iam://${config.databaseUser}@${config.databaseHost}:${port}/${config.databaseName}`,
+        cacheKey: `iam://${config.databaseUser}@${config.databaseHost}:${port}/${config.databaseName}?region=${config.awsRegion}&profile=${profile}`,
 
         async handler() {
           const {
@@ -35,13 +36,12 @@ export default definePlugin<AwsIamPluginConfig>({
             : fromNodeProviderChain({ clientConfig: { region } });
 
           const signer = new Signer({ hostname, port, username, region, credentials });
-          const token = await signer.getAuthToken();
 
           return postgres({
             host: hostname,
             port: port,
             user: username,
-            password: token,
+            password: () => signer.getAuthToken(),
             database: config.databaseName,
             ssl: "require",
           });

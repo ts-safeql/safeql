@@ -7,13 +7,12 @@ import {
   getDatabaseName,
   getMigrationDatabaseMetadata,
 } from "../rules/check-sql.utils";
-import { CloseConnectionParams } from "./connection-manager";
 
 interface WatchMigrationsDirParams {
   projectDir: string;
   connection: RuleOptionConnection & z.infer<typeof zConnectionMigration> & { watchMode: true };
   dropCacheKeyFn: (cacheKey: string) => void;
-  closeConnectionFn: (params: CloseConnectionParams) => void;
+  closeConnectionFn: () => void;
 }
 
 export function createWatchManager() {
@@ -45,7 +44,7 @@ export function createWatchManager() {
         });
 
         params.dropCacheKeyFn(databaseUrl);
-        params.closeConnectionFn({ connection: params.connection, projectDir: params.projectDir });
+        params.closeConnectionFn();
       },
     });
 
