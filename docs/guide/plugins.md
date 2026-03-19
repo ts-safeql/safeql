@@ -194,7 +194,3 @@ onExpression({ node, context }) {
   return undefined;
 }
 ```
-
-## Why Descriptors?
-
-SafeQL runs in a [worker thread](https://nodejs.org/api/worker_threads.html). Data crossing the boundary must be serializable — functions cannot transfer. When users call the plugin, it produces a `{ package, config }` descriptor. The worker imports the package and calls `.factory` to reconstruct the live plugin.
