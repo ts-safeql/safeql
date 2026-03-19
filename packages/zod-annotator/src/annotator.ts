@@ -8,18 +8,39 @@ import {
 import ts from "typescript";
 
 export interface ZodAnnotatorOptions {
-  /** Index of the Zod schema argument in the call expression (default: 0). */
+  /**
+   * Position of the Zod schema argument in the tagged call expression.
+   * For `sql(mySchema)\`...\`` this is `0` (the default).
+   * For `sql(conn, mySchema)\`...\`` this would be `1`.
+   */
   schemaArgIndex?: number;
 }
 
 /**
- * Create a `typeCheck` callback that compares a Zod schema against the
- * DB-resolved output and produces an auto-fix when they diverge.
+ * Creates a {@link TypeCheckContext.typeCheck} callback that compares a Zod
+ * schema's inferred type against the DB-resolved query output. When they
+ * diverge, it returns an auto-fix that rewrites the schema argument.
  *
- * Usage inside a plugin's `onTarget`:
+ * @param options - Optional configuration for schema argument position.
+ * @returns A `typeCheck` callback to use in a {@link TargetMatch}.
+ *
+ * @example
  * ```ts
  * import { createZodAnnotator } from "@ts-safeql/zod-annotator";
- * return { typeCheck: createZodAnnotator() };
+ *
+ * export default definePlugin({
+ *   name: "my-plugin",
+ *   package: "safeql-plugin-my-plugin",
+ *   setup() {
+ *     return {
+ *       onTarget({ node }) {
+ *         if (isMyTag(node)) {
+ *           return { typeCheck: createZodAnnotator() };
+ *         }
+ *       },
+ *     };
+ *   },
+ * });
  * ```
  */
 export function createZodAnnotator(
@@ -102,15 +123,10 @@ function tsTypeToTarget(
   }
 
   if (type.flags & ts.TypeFlags.Object) {
-    const objectType = type as ts.ObjectType;
-
-    if (objectType.objectFlags & ts.ObjectFlags.Reference) {
-      const typeRef = type as ts.TypeReference;
-      if (typeRef.target?.symbol?.name === "Array") {
-        const elementType = checker.getTypeArguments(typeRef)[0];
-        if (elementType) {
-          return { kind: "array", value: tsTypeToTarget(elementType, checker, node) };
-        }
+    if (isTypeReference(type) && type.target?.symbol?.name === "Array") {
+      const elementType = checker.getTypeArguments(type)[0];
+      if (elementType) {
+        return { kind: "array", value: tsTypeToTarget(elementType, checker, node) };
       }
     }
 
@@ -132,6 +148,13 @@ function tsTypeToTarget(
 
   const typeString = checker.typeToString(type, undefined, ts.TypeFormatFlags.NoTruncation);
   return { kind: "type", value: typeString };
+}
+
+function isTypeReference(type: ts.Type): type is ts.TypeReference {
+  return (
+    (type.flags & ts.TypeFlags.Object) !== 0 &&
+    ((type as ts.ObjectType).objectFlags & ts.ObjectFlags.Reference) !== 0
+  );
 }
 
 const TS_TO_ZOD: Record<string, string> = {

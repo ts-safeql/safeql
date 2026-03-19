@@ -11,8 +11,7 @@ pnpm --filter <pkg> test -- --run   # single package tests
 
 ## Gotchas
 
-- Never run `pnpm --filter <pkg> build`
-- Always use `pnpm build` (which handles dependency ordering and output formats correctly).
+- Never run `pnpm --filter <pkg> build`. Instead, always use `pnpm build` (which handles dependency ordering and output formats correctly).
 - For local dev, use `pnpm dev` (stubs via `unbuild --stub`, bypasses rollup entirely).
 - A local PostgreSQL instance is expected at `postgres://postgres:postgres@localhost:5432/postgres`.
 

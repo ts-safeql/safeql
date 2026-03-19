@@ -99,6 +99,33 @@ export async function getOrSetFromMap<T>(params: {
   return val;
 }
 
+type Obj = Record<string, unknown>;
+
+function isPlainObject(v: unknown): v is Obj {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+/**
+ * Deep-merge `defaults` into `target`. Values already present in `target` are
+ * never overwritten; nested plain objects are merged recursively.
+ */
+export function deepMergeDefaults<T extends Obj>(target: T, defaults: Obj): T {
+  const result: Obj = { ...target };
+
+  for (const key of Object.keys(defaults)) {
+    if (!(key in result) || result[key] === undefined) {
+      result[key] = defaults[key];
+      continue;
+    }
+
+    if (isPlainObject(result[key]) && isPlainObject(defaults[key])) {
+      result[key] = deepMergeDefaults(result[key], defaults[key]);
+    }
+  }
+
+  return result as T;
+}
+
 export function normalizeIndent<T extends string>(template: TemplateStringsArray, ...args: T[]): T {
   const fullString = template.reduce((accumulator, str, i) => {
     return accumulator + str + (args[i] || "");

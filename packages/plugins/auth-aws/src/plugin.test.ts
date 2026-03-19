@@ -1,18 +1,14 @@
 import { describe, it, expect } from "vitest";
 import plugin from "./plugin";
 
-const BASE_CONFIG = {
-  databaseHost: "my-db.cluster-abc.us-east-1.rds.amazonaws.com",
-  databaseUser: "admin",
-  databaseName: "mydb",
-  awsRegion: "us-east-1",
-};
-
 describe("auth-aws plugin", () => {
   it("cache key includes all config fields", () => {
     // ARRANGE
     const instance = plugin.factory({
-      ...BASE_CONFIG,
+      databaseHost: "my-db.cluster-abc.us-east-1.rds.amazonaws.com",
+      databaseUser: "admin",
+      databaseName: "mydb",
+      awsRegion: "us-east-1",
       databasePort: 5433,
       awsProfile: "staging",
     });

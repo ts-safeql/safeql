@@ -12,22 +12,14 @@ export type ResolvedConnection = {
 export class PluginManager {
   private readonly pluginCache = new Map<string, SafeQLPlugin>();
 
-  /**
-   * Resolve plugin descriptors and return the connection hook from the last
-   * plugin that provides `createConnection`. Returns `undefined` if none does.
-   */
   async resolveConnection(
     descriptors: PluginDescriptor[],
     projectDir: string,
   ): Promise<ResolvedConnection | undefined> {
     const plugins = await Promise.all(descriptors.map((d) => this.resolveOne(d, projectDir)));
-
     return this.pickConnection(plugins);
   }
 
-  /**
-   * Same as `resolveConnection` but only looks at already-cached plugin instances.
-   */
   getCachedConnection(descriptors: PluginDescriptor[]): ResolvedConnection | undefined {
     const plugins = descriptors
       .map((d) => this.pluginCache.get(this.getCacheKey(d)))
@@ -36,10 +28,7 @@ export class PluginManager {
     return this.pickConnection(plugins);
   }
 
-  /**
-   * Synchronously resolve plugin descriptors into live plugin instances.
-   * For use in the main ESLint thread (onTarget/onExpression hooks).
-   */
+  /** Synchronous — for use in the main ESLint thread (onTarget/onExpression hooks). */
   resolvePluginsSync(descriptors: PluginDescriptor[], projectDir: string): SafeQLPlugin[] {
     return descriptors.map((d) => this.resolveOneSync(d, projectDir));
   }
@@ -73,16 +62,13 @@ export class PluginManager {
   private resolveOneSync(descriptor: PluginDescriptor, projectDir: string): SafeQLPlugin {
     const key = this.getCacheKey(descriptor);
     const cached = this.pluginCache.get(key);
-
-    if (cached) {
-      return cached;
-    }
+    if (cached) return cached;
 
     const projectRequire = createRequire(path.resolve(projectDir, "package.json"));
 
-    let mod: Record<string, unknown>;
+    let mod: unknown;
     try {
-      mod = projectRequire(descriptor.package) as Record<string, unknown>;
+      mod = projectRequire(descriptor.package);
     } catch {
       throw new Error(
         `SafeQL plugin "${descriptor.package}" could not be loaded. Is it installed?`,
@@ -100,14 +86,11 @@ export class PluginManager {
   ): Promise<SafeQLPlugin> {
     const key = this.getCacheKey(descriptor);
     const cached = this.pluginCache.get(key);
-
-    if (cached) {
-      return cached;
-    }
+    if (cached) return cached;
 
     const projectRequire = createRequire(path.resolve(projectDir, "package.json"));
 
-    let mod: { default?: unknown };
+    let mod: unknown;
     try {
       const resolved = projectRequire.resolve(descriptor.package);
       mod = await import(resolved);
@@ -117,27 +100,23 @@ export class PluginManager {
       );
     }
 
-    const plugin = this.extractPlugin(descriptor, mod as Record<string, unknown>);
+    const plugin = this.extractPlugin(descriptor, mod);
     this.pluginCache.set(key, plugin);
     return plugin;
   }
 
-  private extractPlugin(descriptor: PluginDescriptor, mod: Record<string, unknown>): SafeQLPlugin {
-    const rawDefault = mod.default as Record<string, unknown> | undefined;
-    const withFactory =
-      rawDefault?.factory ??
-      (rawDefault?.default as Record<string, unknown>)?.factory ??
-      mod.factory;
+  private extractPlugin(descriptor: PluginDescriptor, mod: unknown): SafeQLPlugin {
+    const factory = getFactory(mod);
 
-    if (typeof withFactory !== "function") {
+    if (!factory) {
       throw new Error(
         `SafeQL plugin "${descriptor.package}" must default-export a definePlugin() result. See @ts-safeql/plugin-utils.`,
       );
     }
 
-    const plugin = withFactory(descriptor.config ?? {}) as SafeQLPlugin;
+    const plugin = factory(descriptor.config ?? {});
 
-    if (!plugin || typeof plugin.name !== "string") {
+    if (!isPluginShaped(plugin)) {
       throw new Error(
         `SafeQL plugin "${descriptor.package}" factory must return an object with at least a "name" property.`,
       );
@@ -145,6 +124,39 @@ export class PluginManager {
 
     return plugin;
   }
+}
+
+type PluginFactory = (config: Record<string, unknown>) => unknown;
+
+function isPluginShaped(value: unknown): value is SafeQLPlugin {
+  return (
+    typeof value === "object" && value !== null && typeof (value as SafeQLPlugin).name === "string"
+  );
+}
+
+function prop(obj: unknown, key: string): unknown {
+  if (typeof obj === "object" && obj !== null && key in obj) {
+    return (obj as Record<string, unknown>)[key];
+  }
+  return undefined;
+}
+
+function getFactory(mod: unknown): PluginFactory | undefined {
+  const defaultExport = prop(mod, "default");
+
+  // definePlugin() attaches .factory to the default export
+  const factory = prop(defaultExport, "factory");
+  if (typeof factory === "function") return factory as PluginFactory;
+
+  // CJS double-wraps: mod.default.default.factory
+  const nestedFactory = prop(prop(defaultExport, "default"), "factory");
+  if (typeof nestedFactory === "function") return nestedFactory as PluginFactory;
+
+  // Direct .factory on the module
+  const directFactory = prop(mod, "factory");
+  if (typeof directFactory === "function") return directFactory as PluginFactory;
+
+  return undefined;
 }
 
 function stableStringify(value: unknown): string {
@@ -156,9 +168,8 @@ function stableStringify(value: unknown): string {
     return `[${value.map(stableStringify).join(",")}]`;
   }
 
-  const keys = Object.keys(value as Record<string, unknown>).sort();
-  const entries = keys.map(
-    (k) => `${JSON.stringify(k)}:${stableStringify((value as Record<string, unknown>)[k])}`,
-  );
+  const entries = Object.entries(value)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([k, v]) => `${JSON.stringify(k)}:${stableStringify(v)}`);
   return `{${entries.join(",")}}`;
 }

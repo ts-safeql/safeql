@@ -1,23 +1,17 @@
 import fs from "fs";
 import os from "os";
 import path from "path";
+import type ts from "typescript";
 import type { ParserServices, TSESTree } from "@typescript-eslint/utils";
 import type { SafeQLPlugin } from "./index";
 
 export interface PluginTestDriverOptions {
   plugin: SafeQLPlugin;
-  /** Directory with node_modules for type resolution. Defaults to cwd. */
-  projectDir?: string;
+  projectDir: string;
 }
 
 export type ToSQLResult = { sql: string } | { skipped: true };
 
-/**
- * Black-box test driver for SafeQL plugin hooks.
- *
- * Given source code, it parses it with a real TypeScript type checker,
- * runs onTarget/onExpression hooks, and returns the SQL SafeQL would produce.
- */
 export class PluginTestDriver {
   private readonly plugin: SafeQLPlugin;
   private readonly tmpDir: string;
@@ -26,13 +20,12 @@ export class PluginTestDriver {
 
   constructor(options: PluginTestDriverOptions) {
     this.plugin = options.plugin;
-    const projectDir = options.projectDir ?? process.cwd();
 
     this.tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "safeql-hook-test-"));
     this.testFilePath = path.join(this.tmpDir, "test.ts");
     this.tsconfigPath = path.join(this.tmpDir, "tsconfig.json");
 
-    const srcNodeModules = path.join(projectDir, "node_modules");
+    const srcNodeModules = path.join(options.projectDir, "node_modules");
     const dstNodeModules = path.join(this.tmpDir, "node_modules");
     if (fs.existsSync(srcNodeModules) && !fs.existsSync(dstNodeModules)) {
       fs.symlinkSync(srcNodeModules, dstNodeModules);
@@ -70,8 +63,8 @@ export class PluginTestDriver {
       jsxPragma: null,
     });
 
-    const checker = (services as ParserServices).program?.getTypeChecker();
-    const nodeMap = (services as ParserServices).esTreeNodeToTSNodeMap;
+    const checker = services.program?.getTypeChecker();
+    const nodeMap = services.esTreeNodeToTSNodeMap;
 
     setParentPointers(ast);
 
@@ -80,13 +73,14 @@ export class PluginTestDriver {
       throw new Error("No TaggedTemplateExpression found in source");
     }
 
-    const parserServices = services as ParserServices;
-    const targetCtx = checker ? { checker, parser: parserServices } : undefined;
+    if (!checker) {
+      return { skipped: true };
+    }
 
     let taggedTemplate: TSESTree.TaggedTemplateExpression | undefined;
-    if (targetCtx && this.plugin.onTarget) {
+    if (this.plugin.onTarget) {
       for (const t of allTemplates) {
-        const result = this.plugin.onTarget({ node: t, context: targetCtx });
+        const result = this.plugin.onTarget({ node: t, context: { checker, parser: services } });
         if (result !== undefined && result !== false) {
           taggedTemplate = t;
         }
@@ -97,41 +91,72 @@ export class PluginTestDriver {
       return { skipped: true };
     }
 
-    const { quasis, expressions } = taggedTemplate.quasi;
+    return { sql: this.buildSQL(taggedTemplate, checker, nodeMap) };
+  }
+
+  private buildSQL(
+    template: TSESTree.TaggedTemplateExpression,
+    checker: ts.TypeChecker,
+    nodeMap: ParserServices["esTreeNodeToTSNodeMap"],
+  ): string {
+    const { quasis, expressions } = template.quasi;
     let sql = "";
 
     for (let i = 0; i < quasis.length; i++) {
       sql += quasis[i].value.raw;
 
-      if (i < expressions.length) {
-        const expr = expressions[i];
-        const tsTypeText = getTypeText(expr, checker, nodeMap);
+      if (i >= expressions.length) continue;
 
-        const context = {
-          precedingSQL: sql,
-          tsTypeText,
-          checker: checker!,
-          tsNode: nodeMap!.get(expr),
-          tsType: checker!.getTypeAtLocation(nodeMap!.get(expr)),
-        };
+      const expr = expressions[i];
+      const tsNode = nodeMap.get(expr);
+      const tsType = checker.getTypeAtLocation(tsNode);
 
-        const result = this.plugin.onExpression?.({ node: expr, context });
+      const context = {
+        precedingSQL: sql,
+        tsTypeText: checker.typeToString(tsType),
+        checker,
+        tsNode,
+        tsType,
+      };
 
-        if (typeof result === "string") {
-          sql += result;
-        } else if (result === false) {
-          sql += "/* skipped */";
-        } else {
-          sql += `$${i + 1}`;
-        }
+      const result = this.plugin.onExpression?.({ node: expr, context });
+
+      if (typeof result === "string") {
+        sql += result;
+      } else if (result === false) {
+        sql += "/* skipped */";
+      } else {
+        sql += `$${i + 1}`;
       }
     }
 
-    return { sql };
+    return sql;
   }
 
   teardown(): void {
     fs.rmSync(this.tmpDir, { recursive: true, force: true });
+  }
+}
+
+function isASTNode(value: unknown): value is TSESTree.Node {
+  return typeof value === "object" && value !== null && "type" in value;
+}
+
+function getNodeValues(node: TSESTree.Node): unknown[] {
+  return Object.entries(node)
+    .filter(([k]) => k !== "parent")
+    .map(([, v]) => v);
+}
+
+function forEachChild(node: TSESTree.Node, fn: (child: TSESTree.Node) => void): void {
+  for (const value of getNodeValues(node)) {
+    if (Array.isArray(value)) {
+      for (const child of value) {
+        if (isASTNode(child)) fn(child);
+      }
+    } else if (isASTNode(value)) {
+      fn(value);
+    }
   }
 }
 
@@ -142,53 +167,15 @@ function findAllTaggedTemplates(node: TSESTree.Node): TSESTree.TaggedTemplateExp
     results.push(node);
   }
 
-  for (const key of Object.keys(node)) {
-    if (key === "parent") continue;
-    const value = (node as unknown as Record<string, unknown>)[key];
-
-    if (Array.isArray(value)) {
-      for (const child of value) {
-        if (child && typeof child === "object" && "type" in child) {
-          results.push(...findAllTaggedTemplates(child as TSESTree.Node));
-        }
-      }
-    } else if (value && typeof value === "object" && "type" in value) {
-      results.push(...findAllTaggedTemplates(value as TSESTree.Node));
-    }
-  }
+  forEachChild(node, (child) => results.push(...findAllTaggedTemplates(child)));
 
   return results;
 }
 
 function setParentPointers(node: TSESTree.Node, parent?: TSESTree.Node): void {
-  if (parent) (node as { parent?: TSESTree.Node }).parent = parent;
-  for (const key of Object.keys(node)) {
-    if (key === "parent") continue;
-    const value = (node as unknown as Record<string, unknown>)[key];
-    if (Array.isArray(value)) {
-      for (const child of value) {
-        if (child && typeof child === "object" && "type" in child) {
-          setParentPointers(child as TSESTree.Node, node);
-        }
-      }
-    } else if (value && typeof value === "object" && "type" in value) {
-      setParentPointers(value as TSESTree.Node, node);
-    }
+  if (parent) {
+    node.parent = parent;
   }
-}
 
-function getTypeText(
-  expr: TSESTree.Expression,
-  checker: import("typescript").TypeChecker | undefined,
-  nodeMap: ParserServices["esTreeNodeToTSNodeMap"] | undefined,
-): string {
-  if (!checker || !nodeMap) return "unknown";
-
-  try {
-    const tsNode = nodeMap.get(expr);
-    const tsType = checker.getTypeAtLocation(tsNode);
-    return checker.typeToString(tsType);
-  } catch {
-    return "unknown";
-  }
+  forEachChild(node, (child) => setParentPointers(child, node));
 }

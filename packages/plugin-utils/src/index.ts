@@ -10,40 +10,33 @@ export interface ExpressionContext {
   tsTypeText: string;
 }
 
-/** Context passed to `onTarget` so the plugin can resolve imports, types, etc. */
 export interface TargetContext {
   checker: ts.TypeChecker;
   parser: ParserServices;
 }
 
+/**
+ * The object returned by a plugin's `setup` function (plus `name`).
+ * Each property is an optional hook into SafeQL's analysis pipeline.
+ */
 export interface SafeQLPlugin {
   name: string;
 
-  /**
-   * Default values to deep-merge into the connection config.
-   * User-provided values always take priority.
-   *
-   * Useful for setting library-specific type overrides, e.g.:
-   * ```ts
-   * connectionDefaults: {
-   *   overrides: { types: { date: "DateSqlToken" } }
-   * }
-   * ```
-   */
+  /** Deep-merged into the connection config. User-provided values always win. */
   connectionDefaults?: Record<string, unknown>;
 
   createConnection?: {
+    /** Stable identifier for connection deduplication. Same key reuses the existing connection. */
     cacheKey: string;
     handler(): Promise<Sql>;
   };
 
   /**
-   * Called for each TaggedTemplateExpression. Decides whether the tag is a SQL query.
+   * Called for every `TaggedTemplateExpression` in the file.
    *
-   * Return:
-   *   - TargetMatch object → this is a SQL query, with configuration
-   *   - false              → skip this tag entirely
-   *   - undefined          → defer to next plugin / SafeQL default
+   * @returns `TargetMatch` to check this tag as SQL,
+   *          `false` to skip it,
+   *          `undefined` to defer to the next plugin or SafeQL's default matching.
    */
   onTarget?(params: {
     node: TSESTree.TaggedTemplateExpression;
@@ -52,7 +45,10 @@ export interface SafeQLPlugin {
 
   /**
    * Called for each interpolated expression inside a matched template.
-   * Return: string (inline SQL) | false (skip entire query) | undefined (default $N::type).
+   *
+   * @returns A SQL fragment (use `$N` as the positional placeholder),
+   *          `false` to skip the entire query,
+   *          `undefined` to use SafeQL's default `$N::type` behaviour.
    */
   onExpression?(params: {
     node: TSESTree.Expression;
@@ -60,7 +56,6 @@ export interface SafeQLPlugin {
   }): string | false | undefined;
 }
 
-/** Structural mirror of `ResolvedTarget` from `@ts-safeql/generate`, so plugins never depend on generate. */
 export type PluginResolvedTarget =
   | { kind: "type"; value: string }
   | { kind: "literal"; value: string; base: PluginResolvedTarget }
@@ -69,14 +64,12 @@ export type PluginResolvedTarget =
   | { kind: "object"; value: [string, PluginResolvedTarget][] };
 
 /**
- * Check whether `actual` (the DB-resolved type) is assignable to `expected`
- * (the user-declared type, e.g. from a Zod schema).
+ * Checks whether `actual` (DB-resolved type) is assignable to `expected`
+ * (user-declared type, e.g. from a Zod schema) using TypeScript semantics.
  *
- * Follows TypeScript semantics:
- *  - `literal("alice")` is assignable to `string`
- *  - `number` is assignable to `any` / `unknown`
- *  - `string` is assignable to `string | null`
- *  - `union(A, B)` is assignable to `C` when every member is assignable to `C`
+ * @param actual   - What the query actually returns.
+ * @param expected - What the plugin or user declared.
+ * @returns `true` when `actual` is assignable to `expected`.
  */
 export function isAssignableTo(
   actual: PluginResolvedTarget,
@@ -135,64 +128,50 @@ function isLiteralOfType(literalValue: string, typeName: string): boolean {
   return false;
 }
 
-/**
- * Context passed to a plugin's `typeCheck` callback after the worker produces
- * a result. Plugins use this to compare their own expected type (e.g., a Zod
- * schema) against the DB-resolved output.
- */
+/** Passed to a plugin's {@link TargetMatch.typeCheck} after the query is resolved against the database. */
 export interface TypeCheckContext {
   node: TSESTree.TaggedTemplateExpression;
-  /** The DB-resolved output columns. */
+  /** What the query actually returns (DB-resolved columns). */
   output: PluginResolvedTarget;
   checker: ts.TypeChecker;
   parser: ParserServices;
   sourceCode: Readonly<TSESLint.SourceCode>;
-  /** Convert a resolved target to a comparable, normalised string. */
+  /** Normalises a target into a stable string, respecting `nullAsOptional` / `nullAsUndefined`. */
   getComparableString(target: PluginResolvedTarget): string;
 }
 
 /**
- * Returned by a plugin's `typeCheck` when the types do not match.
+ * Returned by {@link TargetMatch.typeCheck} when the types do not match.
+ * Return `undefined` from `typeCheck` when the types are correct.
  */
 export interface TypeCheckReport {
-  /** Human-readable error message. */
   message: string;
-  /** Node to report the error on (defaults to the tag expression). */
+  /** Defaults to the tag expression when omitted. */
   node?: TSESTree.Node;
-  /** Auto-fix: node to replace and its replacement text. */
+  /** When provided, ESLint will offer an auto-fix replacing `node` with `text`. */
   fix?: { node: TSESTree.Node; text: string };
 }
 
 export interface TargetMatch {
-  /** Skip type annotation checking for this query (e.g., sql.unsafe). */
   skipTypeAnnotations?: boolean;
-  /**
-   * Custom type check callback. When provided, SafeQL delegates type comparison
-   * to the plugin instead of running the built-in type annotation check.
-   *
-   * Return a `TypeCheckReport` to report a mismatch, or `undefined` if types match.
-   */
+  /** When set, SafeQL delegates type comparison to the plugin instead of the built-in check. */
   typeCheck?: (ctx: TypeCheckContext) => TypeCheckReport | undefined;
 }
 
+/** Serialisable descriptor produced by the config helper and consumed by the worker. */
 export interface PluginDescriptor {
   package: string;
   config?: Record<string, unknown>;
 }
 
 export interface DefinePluginOptions<TConfig> {
-  /** Short name, e.g. `"aws-iam"`. Automatically prefixed with `safeql-plugin-`. */
+  /** Prefixed with `safeql-plugin-` automatically. */
   name: string;
-  /** The npm package name, e.g. `"@ts-safeql/plugin-auth-aws"`. */
+  /** npm package name. Used to resolve the plugin in the worker. */
   package: string;
-  /** Receives user config, returns hooks. */
   setup: (config: TConfig) => Omit<SafeQLPlugin, "name">;
 }
 
-/**
- * The return type of `definePlugin`. Callable as a config helper,
- * with a `.factory` property used by the worker at runtime.
- */
 export type SafeQLPluginExport<TConfig> = ({} extends TConfig
   ? { (): PluginDescriptor; (config: TConfig): PluginDescriptor }
   : { (config: TConfig): PluginDescriptor }) & {
@@ -200,10 +179,8 @@ export type SafeQLPluginExport<TConfig> = ({} extends TConfig
 };
 
 /**
- * Define a SafeQL plugin.
- *
- * Returns a callable that serves as both the user-facing config helper
- * and (via `.factory`) the worker-side plugin factory.
+ * Define a SafeQL plugin. The returned function is both the user-facing config
+ * helper and (via `.factory`) the worker-side plugin constructor.
  *
  * @example
  * ```ts

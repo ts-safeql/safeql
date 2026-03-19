@@ -16,13 +16,13 @@ export interface ConnectionPayload {
   pluginName?: string;
 }
 
-type PluginDescriptors = Array<{ package: string; config?: Record<string, unknown> }>;
+type PluginDescriptors = { package: string; config?: Record<string, unknown> };
 
 export type ConnectionStrategy =
   | {
       type: "databaseUrl";
       databaseUrl: string;
-      plugins?: PluginDescriptors;
+      plugins?: PluginDescriptors[];
     }
   | {
       type: "migrations";
@@ -30,11 +30,11 @@ export type ConnectionStrategy =
       connectionUrl: string;
       databaseName: string;
       watchMode: boolean;
-      plugins?: PluginDescriptors;
+      plugins?: PluginDescriptors[];
     }
   | {
       type: "pluginsOnly";
-      plugins: PluginDescriptors;
+      plugins: PluginDescriptors[];
     };
 
 export function createConnectionManager() {
@@ -42,14 +42,18 @@ export function createConnectionManager() {
   const pluginManager = new PluginManager();
 
   return {
-    getOrCreate: (databaseUrl: string, options?: postgres.Options<never>) =>
-      getOrCreateConnection(databaseUrl, connectionMap, options),
+    getOrCreate: (databaseUrl: string, options?: postgres.Options<never>) => {
+      return getOrCreateConnection(databaseUrl, connectionMap, options);
+    },
     getOrCreateFromPlugins: (
       plugins: Array<{ package: string; config?: Record<string, unknown> }>,
       projectDir: string,
-    ) => getOrCreateFromPlugins(plugins, connectionMap, pluginManager, projectDir),
-    close: (strategy: ConnectionStrategy) =>
-      closeConnection(strategy, connectionMap, pluginManager),
+    ) => {
+      return getOrCreateFromPlugins(plugins, connectionMap, pluginManager, projectDir);
+    },
+    close: (strategy: ConnectionStrategy) => {
+      return closeConnection(strategy, connectionMap, pluginManager);
+    },
   };
 }
 

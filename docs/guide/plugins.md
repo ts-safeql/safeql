@@ -8,7 +8,7 @@ layout: doc
 The plugin API is experimental and may change in future releases.
 :::
 
-SafeQL plugins extend query checking by hooking into the analysis lifecycle. A plugin is a factory function that receives config and returns an object with a `name` and hooks.
+Plugins let library authors and teams adapt SafeQL to the SQL libraries and conventions they already use. With a plugin, you can provide a custom database connection, teach SafeQL which tagged templates should be treated as SQL, and control how interpolated expressions are analyzed.
 
 ## Conventions
 

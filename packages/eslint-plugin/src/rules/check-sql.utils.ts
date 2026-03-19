@@ -28,6 +28,7 @@ import {
   RuleOptionConnection,
   zConnectionMigration,
 } from "./RuleOptions";
+import { ConnectionStrategy } from "@ts-safeql/connection-manager";
 
 type TypeReplacerString = string;
 type TypeReplacerFromTo = [string, string];
@@ -63,6 +64,15 @@ export function transformTypes(typeString: string, transform: TypeTransformer): 
   return transformed;
 }
 
+/**
+ * Takes a generated result and a transform type and returns a result with the
+ * transformed type.
+ *
+ * @param transform could be either:
+ *  - a string that has {type} in it,
+ *  - an array of tuples that behave as [valueToBeReplaced, typeToReplaceWith]
+ *  - an array that has a mix of the above (such as ["{type}[]", ["colname", "x_colname"]])
+ */
 export function getFinalResolvedTargetString(params: {
   target: ResolvedTarget;
   transform?: TypeTransformer;
@@ -286,27 +296,6 @@ export function getMigrationDatabaseMetadata(params: {
 
   return { databaseUrl, connectionOptions };
 }
-
-type PluginDescriptors = Array<{ package: string; config?: Record<string, unknown> }>;
-
-export type ConnectionStrategy =
-  | {
-      type: "databaseUrl";
-      databaseUrl: string;
-      plugins?: PluginDescriptors;
-    }
-  | {
-      type: "migrations";
-      migrationsDir: string;
-      connectionUrl: string;
-      databaseName: string;
-      watchMode: boolean;
-      plugins?: PluginDescriptors;
-    }
-  | {
-      type: "pluginsOnly";
-      plugins: PluginDescriptors;
-    };
 
 export function getConnectionStartegyByRuleOptionConnection(params: {
   connection: RuleOptionConnection;

@@ -6,7 +6,6 @@ import { TSESLint, type ParserServices, type TSESTree } from "@typescript-eslint
 import type { PluginResolvedTarget } from "@ts-safeql/plugin-utils";
 import { createZodAnnotator } from "./annotator";
 
-// Resolve package root relative to this file (works in both dev and built code)
 const PACKAGE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const PACKAGE_TSCONFIG = path.join(PACKAGE_ROOT, "tsconfig.json");
 

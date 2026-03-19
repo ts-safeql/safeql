@@ -3,9 +3,10 @@ import {
   PluginManager,
   type PluginResolvedTarget,
   type SafeQLPlugin,
+  type TargetContext,
   type TargetMatch,
 } from "@ts-safeql/plugin-utils";
-import { InvalidConfigError, doesMatchPattern, fmap } from "@ts-safeql/shared";
+import { InvalidConfigError, deepMergeDefaults, doesMatchPattern, fmap } from "@ts-safeql/shared";
 import {
   ESLintUtils,
   ParserServices,
@@ -70,6 +71,11 @@ export type RuleMessage = keyof typeof messages;
 
 export type RuleContext = Readonly<TSESLint.RuleContext<RuleMessage, RuleOptions>>;
 
+interface PluginContext {
+  plugins: SafeQLPlugin[];
+  targetMatch: TargetMatch | false | undefined;
+}
+
 function check(params: {
   context: RuleContext;
   config: Config;
@@ -80,22 +86,46 @@ function check(params: {
     ? params.config.connections
     : [params.config.connections];
 
-  for (let connection of connections) {
-    connection = applyPluginDefaults(connection, params.projectDir);
+  for (const rawConnection of connections) {
+    const plugins = resolveConnectionPlugins(rawConnection, params.projectDir);
+    const connection = applyPluginDefaults(rawConnection, plugins);
+    const targetCtx = plugins.length > 0 ? getTargetContext(params.context) : undefined;
+    const targetMatch = resolvePluginTargetMatch(plugins, params.tag, targetCtx);
+    const pluginCtx: PluginContext = { plugins, targetMatch };
 
     const targets = connection.targets ?? [];
 
+    if (targets.length === 0 && targetMatch) {
+      reportCheck({
+        ...params,
+        connection,
+        target: {
+          tag: { regex: ".*" },
+          skipTypeAnnotations: targetMatch.skipTypeAnnotations,
+        },
+        pluginCtx,
+        baseNode: params.tag.tag,
+        typeParameter: params.tag.typeArguments,
+      });
+      continue;
+    }
+
     if (targets.length > 0) {
       for (const target of targets) {
-        checkConnection({ ...params, connection, target });
+        checkConnection({ ...params, connection, target, pluginCtx });
       }
-    } else {
-      checkConnectionByPlugins({ ...params, connection });
     }
   }
 }
 
-function isTagMemberValid(expr: TSESTree.TaggedTemplateExpression): boolean {
+function isTagMemberValid(
+  expr: TSESTree.TaggedTemplateExpression,
+): expr is TSESTree.TaggedTemplateExpression &
+  (
+    | { tag: TSESTree.Identifier }
+    | { tag: TSESTree.MemberExpression & { property: TSESTree.Identifier } }
+    | { tag: TSESTree.CallExpression }
+  ) {
   if (ESTreeUtils.isIdentifier(expr.tag)) {
     return true;
   }
@@ -111,56 +141,23 @@ function isTagMemberValid(expr: TSESTree.TaggedTemplateExpression): boolean {
   return false;
 }
 
-function checkConnectionByPlugins(params: {
-  context: RuleContext;
-  connection: RuleOptionConnection;
-  tag: TSESTree.TaggedTemplateExpression;
-  projectDir: string;
-}) {
-  const plugins = resolveConnectionPlugins(params.connection, params.projectDir);
-  if (plugins.length === 0) return;
-
-  const targetCtx = getTargetContext(params.context);
-  const targetMatch = resolvePluginTargetMatch(plugins, params.tag, targetCtx);
-  if (targetMatch === false || targetMatch === undefined) return;
-
-  const target: TagTarget = {
-    tag: { regex: ".*" },
-    skipTypeAnnotations: targetMatch.skipTypeAnnotations,
-  };
-
-  return reportCheck({
-    context: params.context,
-    tag: params.tag,
-    connection: params.connection,
-    target,
-    projectDir: params.projectDir,
-    baseNode: params.tag.tag,
-    typeParameter: params.tag.typeArguments,
-    plugins,
-    targetMatch,
-  });
-}
-
 function checkConnection(params: {
   context: RuleContext;
   connection: RuleOptionConnection;
   target: ConnectionTarget;
   tag: TSESTree.TaggedTemplateExpression;
   projectDir: string;
+  pluginCtx: PluginContext;
 }) {
-  const plugins = resolveConnectionPlugins(params.connection, params.projectDir);
-  const targetCtx = plugins.length > 0 ? getTargetContext(params.context) : undefined;
-  const targetMatch = resolvePluginTargetMatch(plugins, params.tag, targetCtx);
-
-  if (targetMatch === false) {
+  if (params.pluginCtx.targetMatch === false) {
     return;
   }
 
-  if (targetMatch !== undefined) {
+  if (params.pluginCtx.targetMatch !== undefined) {
     const target: ConnectionTarget = {
       ...params.target,
-      skipTypeAnnotations: targetMatch.skipTypeAnnotations ?? params.target.skipTypeAnnotations,
+      skipTypeAnnotations:
+        params.pluginCtx.targetMatch.skipTypeAnnotations ?? params.target.skipTypeAnnotations,
     };
     return reportCheck({
       context: params.context,
@@ -170,17 +167,15 @@ function checkConnection(params: {
       projectDir: params.projectDir,
       baseNode: params.tag.tag,
       typeParameter: params.tag.typeArguments,
-      plugins,
-      targetMatch,
     });
   }
 
   if ("tag" in params.target) {
-    return checkConnectionByTagExpression({ ...params, target: params.target, plugins });
+    return checkConnectionByTagExpression({ ...params, target: params.target });
   }
 
   if ("wrapper" in params.target) {
-    return checkConnectionByWrapperExpression({ ...params, target: params.target, plugins });
+    return checkConnectionByWrapperExpression({ ...params, target: params.target });
   }
 
   return match(params.target).exhaustive();
@@ -197,43 +192,6 @@ let fatalError: WorkerError | undefined;
 
 const pluginManager = new PluginManager();
 
-function applyPluginDefaults(
-  connection: RuleOptionConnection,
-  projectDir: string,
-): RuleOptionConnection {
-  const plugins = resolveConnectionPlugins(connection, projectDir);
-  let merged = connection;
-  for (const plugin of plugins) {
-    if (plugin.connectionDefaults) {
-      merged = deepMergeDefaults(merged, plugin.connectionDefaults) as RuleOptionConnection;
-    }
-  }
-  return merged;
-}
-
-function deepMergeDefaults(
-  target: Record<string, unknown>,
-  defaults: Record<string, unknown>,
-): Record<string, unknown> {
-  const result: Record<string, unknown> = { ...target };
-  for (const key of Object.keys(defaults)) {
-    const defVal = defaults[key];
-    if (defVal && typeof defVal === "object" && !Array.isArray(defVal)) {
-      const existing = result[key];
-      result[key] =
-        existing && typeof existing === "object" && !Array.isArray(existing)
-          ? deepMergeDefaults(
-              existing as Record<string, unknown>,
-              defVal as Record<string, unknown>,
-            )
-          : { ...(defVal as Record<string, unknown>) };
-    } else if (result[key] === undefined) {
-      result[key] = defVal;
-    }
-  }
-  return result;
-}
-
 function resolveConnectionPlugins(
   connection: RuleOptionConnection,
   projectDir: string,
@@ -245,9 +203,20 @@ function resolveConnectionPlugins(
   return pluginManager.resolvePluginsSync(connection.plugins, projectDir);
 }
 
-function getTargetContext(
-  context: RuleContext,
-): import("@ts-safeql/plugin-utils").TargetContext | undefined {
+function applyPluginDefaults(
+  connection: RuleOptionConnection,
+  plugins: SafeQLPlugin[],
+): RuleOptionConnection {
+  let merged = connection;
+  for (const plugin of plugins) {
+    if (plugin.connectionDefaults) {
+      merged = deepMergeDefaults(merged, plugin.connectionDefaults);
+    }
+  }
+  return merged;
+}
+
+function getTargetContext(context: RuleContext): TargetContext | undefined {
   const services = context.sourceCode.parserServices;
   if (!hasParserServicesWithTypeInformation(services)) return undefined;
   const checker = services.program?.getTypeChecker();
@@ -258,7 +227,7 @@ function getTargetContext(
 function resolvePluginTargetMatch(
   plugins: SafeQLPlugin[],
   tag: TSESTree.TaggedTemplateExpression,
-  targetCtx: import("@ts-safeql/plugin-utils").TargetContext | undefined,
+  targetCtx: TargetContext | undefined,
 ): TargetMatch | false | undefined {
   if (!targetCtx) return undefined;
 
@@ -270,6 +239,47 @@ function resolvePluginTargetMatch(
   return result;
 }
 
+function reportPluginTypeCheck(params: {
+  context: RuleContext;
+  tag: TSESTree.TaggedTemplateExpression;
+  connection: RuleOptionConnection;
+  checker: ts.TypeChecker;
+  parser: ParserServices;
+  output: PluginResolvedTarget;
+  typeCheck: NonNullable<TargetMatch["typeCheck"]>;
+}): void {
+  const { context, tag, connection, checker, parser, output, typeCheck } = params;
+
+  const nullAsOptional = connection.nullAsOptional ?? false;
+  const nullAsUndefined = connection.nullAsUndefined ?? false;
+
+  const report = typeCheck({
+    node: tag,
+    output,
+    checker,
+    parser,
+    sourceCode: context.sourceCode,
+    getComparableString: (target) =>
+      getResolvedTargetComparableString({
+        target: target as ExpectedResolvedTarget,
+        nullAsOptional,
+        nullAsUndefined,
+        inferLiterals: connection.inferLiterals ?? defaultInferLiteralOptions,
+      }),
+  });
+
+  if (report) {
+    context.report({
+      node: report.node ?? tag.tag,
+      messageId: "pluginError",
+      data: { error: report.message },
+      fix: report.fix
+        ? (fixer) => fixer.replaceText(report.fix!.node, report.fix!.text)
+        : undefined,
+    });
+  }
+}
+
 function reportCheck(params: {
   context: RuleContext;
   tag: TSESTree.TaggedTemplateExpression;
@@ -278,8 +288,7 @@ function reportCheck(params: {
   projectDir: string;
   typeParameter: TSESTree.TSTypeParameterInstantiation | undefined;
   baseNode: TSESTree.BaseNode;
-  plugins?: SafeQLPlugin[];
-  targetMatch?: TargetMatch;
+  pluginCtx?: PluginContext;
 }) {
   const { context, tag, connection, target, projectDir, typeParameter, baseNode } = params;
 
@@ -357,37 +366,19 @@ function reportCheck(params: {
           return;
         }
 
-        if (params.targetMatch?.typeCheck && result.output) {
-          const compareOpts = {
-            nullAsOptional: nullAsOptional ?? false,
-            nullAsUndefined: nullAsUndefined ?? false,
-            inferLiterals: connection.inferLiterals ?? defaultInferLiteralOptions,
-          };
-          const report = params.targetMatch.typeCheck({
-            node: tag,
-            output: result.output as PluginResolvedTarget,
-            checker,
-            parser,
-            sourceCode: context.sourceCode,
-            getComparableString: (target) =>
-              getResolvedTargetComparableString({
-                target: target as ExpectedResolvedTarget,
-                ...compareOpts,
-              }),
+        const pluginTypeCheck =
+          params.pluginCtx?.targetMatch && params.pluginCtx.targetMatch.typeCheck;
+
+        if (pluginTypeCheck && result.output) {
+          return reportPluginTypeCheck({
+            context: context,
+            tag: tag,
+            connection: connection,
+            checker: checker,
+            parser: parser,
+            output: result.output,
+            typeCheck: pluginTypeCheck,
           });
-
-          if (report) {
-            return context.report({
-              node: report.node ?? tag.tag,
-              messageId: "pluginError",
-              data: { error: report.message },
-              fix: report.fix
-                ? (fixer) => fixer.replaceText(report.fix!.node, report.fix!.text)
-                : undefined,
-            });
-          }
-
-          return;
         }
 
         const shouldSkipTypeAnnotations = target.skipTypeAnnotations === true;
@@ -495,7 +486,7 @@ function checkConnectionByTagExpression(params: {
   target: TagTarget;
   tag: TSESTree.TaggedTemplateExpression;
   projectDir: string;
-  plugins?: SafeQLPlugin[];
+  pluginCtx: PluginContext;
 }) {
   const { context, tag, projectDir, connection, target } = params;
 
@@ -510,7 +501,7 @@ function checkConnectionByTagExpression(params: {
       projectDir,
       baseNode: tag.tag,
       typeParameter: tag.typeArguments,
-      plugins: params.plugins,
+      pluginCtx: params.pluginCtx,
     });
   }
 }
@@ -533,7 +524,7 @@ function checkConnectionByWrapperExpression(params: {
   target: WrapperTarget;
   tag: TSESTree.TaggedTemplateExpression;
   projectDir: string;
-  plugins?: SafeQLPlugin[];
+  pluginCtx: PluginContext;
 }) {
   const { context, tag, projectDir, connection, target } = params;
 
@@ -558,7 +549,7 @@ function checkConnectionByWrapperExpression(params: {
       projectDir,
       baseNode: wrapperNode.callee,
       typeParameter: wrapperNode.typeArguments,
-      plugins: params.plugins,
+      pluginCtx: params.pluginCtx,
     });
   }
 }
