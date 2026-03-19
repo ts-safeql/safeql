@@ -1,10 +1,14 @@
 import fs from "fs";
-import os from "os";
 import path from "path";
-import parser from "@typescript-eslint/parser";
+import { fileURLToPath } from "url";
+import parser, { createProgram } from "@typescript-eslint/parser";
 import { TSESLint, type ParserServices, type TSESTree } from "@typescript-eslint/utils";
 import type { PluginResolvedTarget } from "@ts-safeql/plugin-utils";
 import { createZodAnnotator } from "./annotator";
+
+// Resolve package root relative to this file (works in both dev and built code)
+const PACKAGE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const PACKAGE_TSCONFIG = path.join(PACKAGE_ROOT, "tsconfig.json");
 
 export type RunParams = {
   input: string;
@@ -24,41 +28,54 @@ const DEFAULT_DECLARATIONS = [
 ];
 
 export class AnnotatorTestDriver {
-  private readonly tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "safeql-zod-annotator-"));
-  private readonly testFilePath = path.join(this.tmpDir, "test.ts");
-  private readonly tsconfigPath = path.join(this.tmpDir, "tsconfig.json");
+  private readonly tmpDir: string;
+  private readonly testFilePath: string;
+  private readonly tsconfigPath: string;
 
   constructor() {
-    const srcNodeModules = path.join(process.cwd(), "node_modules");
-    const dstNodeModules = path.join(this.tmpDir, "node_modules");
+    // Create temp directory inside the package root
+    const tmpRoot = path.join(PACKAGE_ROOT, ".test-tmp");
+    fs.mkdirSync(tmpRoot, { recursive: true });
+    this.tmpDir = tmpRoot;
+    this.testFilePath = path.join(this.tmpDir, "test.ts");
+    this.tsconfigPath = path.join(this.tmpDir, "tsconfig.json");
 
+    // Extend the package tsconfig to inherit lib resolution
+    fs.writeFileSync(
+      this.tsconfigPath,
+      JSON.stringify(
+        {
+          extends: path.relative(this.tmpDir, PACKAGE_TSCONFIG),
+          compilerOptions: {
+            noEmit: true,
+            incremental: false,
+            tsBuildInfoFile: "./.tsbuildinfo",
+          },
+          include: ["./test.ts"],
+        },
+        null,
+        2,
+      ),
+    );
+
+    // Symlink node_modules for pnpm package resolution
+    const srcNodeModules = path.join(PACKAGE_ROOT, "node_modules");
+    const dstNodeModules = path.join(this.tmpDir, "node_modules");
     if (fs.existsSync(srcNodeModules) && !fs.existsSync(dstNodeModules)) {
       fs.symlinkSync(srcNodeModules, dstNodeModules);
     }
-
-    fs.writeFileSync(
-      this.tsconfigPath,
-      JSON.stringify({
-        compilerOptions: {
-          strict: true,
-          target: "ES2022",
-          module: "ES2022",
-          moduleResolution: "bundler",
-          esModuleInterop: true,
-          skipLibCheck: true,
-        },
-        include: ["test.ts"],
-      }),
-    );
   }
 
   run(params: RunParams) {
     const source = this.buildSource(params);
     fs.writeFileSync(this.testFilePath, source);
 
+    // Create program anchored to PACKAGE_ROOT to properly resolve TypeScript libs
+    const program = createProgram(this.tsconfigPath, PACKAGE_ROOT);
+
     const { ast, services } = parser.parseForESLint(source, {
       filePath: this.testFilePath,
-      project: this.tsconfigPath,
+      programs: [program],
       loc: true,
       range: true,
       comment: false,

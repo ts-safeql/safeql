@@ -1,6 +1,7 @@
 {
   "name": "@ts-safeql/zod-annotator",
   "version": "4.2.0",
+  "description": "Zod schema annotator for SafeQL plugins",
   "license": "MIT",
   "repository": "https://github.com/ts-safeql/safeql/tree/master/packages/zod-annotator",
   "files": [

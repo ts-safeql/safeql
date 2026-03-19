@@ -22,12 +22,14 @@
     "build": "unbuild",
     "dev": "unbuild --stub",
     "typecheck": "tsc -b",
+    "test": "vitest --run",
     "clean": "rm -rf dist"
   },
   "devDependencies": {
     "@types/node": "^22.13.13",
     "typescript": "^5.8.2",
-    "unbuild": "^3.5.0"
+    "unbuild": "^3.5.0",
+    "vitest": "^3.0.9"
   },
   "dependencies": {
     "@aws-sdk/credential-providers": "^3.0.0",

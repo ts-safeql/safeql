@@ -117,6 +117,19 @@ describe("createZodAnnotator", () => {
     expect(result).toBeUndefined();
   });
 
+  it("preserves other arguments when fixing schema at custom index", () => {
+    // ARRANGE
+    const result = driver.run({
+      input: 'query("meta", z.string())`SELECT 1`;',
+      output: { kind: "type", value: "number" },
+      schemaArgIndex: 1,
+    });
+
+    // ASSERT
+    expect(result).toBeDefined();
+    expect(result?.fix?.text).toBe('query("meta", z.number())');
+  });
+
   it("reports mismatches and preserves the original callee text in fixes", () => {
     // ARRANGE
     const result = driver.run({
@@ -198,5 +211,20 @@ describe("createZodAnnotator", () => {
     // ASSERT
     expect(result).toBeDefined();
     expect(result?.fix?.text).toBe("query(z.union([z.string(), z.any(), z.null()]))");
+  });
+
+  it("accepts literal schema matching literal output", () => {
+    // ARRANGE
+    const result = driver.run({
+      input: 'query(z.literal("draft"))`SELECT 1`;',
+      output: {
+        kind: "literal",
+        value: '"draft"',
+        base: { kind: "type", value: "string" },
+      },
+    });
+
+    // ASSERT
+    expect(result).toBeUndefined();
   });
 });

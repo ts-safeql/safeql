@@ -313,7 +313,6 @@ function reportCheck(params: {
         checker,
         params.connection,
         params.context.sourceCode,
-        params.plugins,
       ),
     ),
     E.bindW("result", ({ query }): E.Either<WorkerError, WorkerResult | null> => {

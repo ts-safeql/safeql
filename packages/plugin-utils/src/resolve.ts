@@ -67,8 +67,7 @@ export class PluginManager {
   }
 
   private getCacheKey(descriptor: PluginDescriptor): string {
-    const config = descriptor.config ?? {};
-    return `${descriptor.package}:${JSON.stringify(config, Object.keys(config).sort())}`;
+    return `${descriptor.package}:${stableStringify(descriptor.config ?? {})}`;
   }
 
   private resolveOneSync(descriptor: PluginDescriptor, projectDir: string): SafeQLPlugin {
@@ -106,7 +105,7 @@ export class PluginManager {
       return cached;
     }
 
-    const projectRequire = createRequire(path.join(projectDir, "package.json"));
+    const projectRequire = createRequire(path.resolve(projectDir, "package.json"));
 
     let mod: { default?: unknown };
     try {
@@ -146,4 +145,20 @@ export class PluginManager {
 
     return plugin;
   }
+}
+
+function stableStringify(value: unknown): string {
+  if (value === null || typeof value !== "object") {
+    return JSON.stringify(value);
+  }
+
+  if (Array.isArray(value)) {
+    return `[${value.map(stableStringify).join(",")}]`;
+  }
+
+  const keys = Object.keys(value as Record<string, unknown>).sort();
+  const entries = keys.map(
+    (k) => `${JSON.stringify(k)}:${stableStringify((value as Record<string, unknown>)[k])}`,
+  );
+  return `{${entries.join(",")}}`;
 }

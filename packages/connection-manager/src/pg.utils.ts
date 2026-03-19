@@ -9,7 +9,9 @@ export interface ConnectionOptions {
 }
 
 export function mapConnectionOptionsToString(connectionOptions: ConnectionOptions): string {
-  return `postgres://${connectionOptions.user}:${connectionOptions.password}@${connectionOptions.host}:${connectionOptions.port}/${connectionOptions.database}`;
+  const user = encodeURIComponent(connectionOptions.user);
+  const password = encodeURIComponent(connectionOptions.password);
+  return `postgres://${user}:${password}@${connectionOptions.host}:${connectionOptions.port}/${connectionOptions.database}`;
 }
 
 export function parseConnection(databaseUrl: string): ConnectionOptions {

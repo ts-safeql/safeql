@@ -79,6 +79,13 @@ export class ConnectionManagerTestDriver {
 
   async connect(params: { descriptors: PluginDescriptor[]; projectDir?: string }) {
     const { descriptors, projectDir: explicitProjectDir } = params;
+
+    if (descriptors.length === 0 && !explicitProjectDir) {
+      throw new Error(
+        "connect() requires at least one plugin descriptor when projectDir is omitted",
+      );
+    }
+
     const manager = createConnectionManager();
     const projectDir = explicitProjectDir ?? path.dirname(descriptors[0].package);
     const payload = await manager.getOrCreateFromPlugins(descriptors, projectDir);

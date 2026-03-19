@@ -542,8 +542,48 @@ importers:
         specifier: ^3.5.0
         version: 3.5.0(typescript@5.8.2)(vue@3.5.13(typescript@5.8.2))
 
+  packages/connection-manager:
+    dependencies:
+      '@ts-safeql/plugin-utils':
+        specifier: workspace:*
+        version: link:../plugin-utils
+      '@ts-safeql/shared':
+        specifier: workspace:*
+        version: link:../shared
+      fp-ts:
+        specifier: ^2.16.9
+        version: 2.16.9
+      pg-connection-string:
+        specifier: 2.7.0
+        version: 2.7.0
+      postgres:
+        specifier: 3.4.7
+        version: 3.4.7
+      ts-pattern:
+        specifier: ^5.6.2
+        version: 5.6.2
+    devDependencies:
+      '@ts-safeql/test-utils':
+        specifier: workspace:*
+        version: link:../test-utils
+      '@types/node':
+        specifier: ^22.13.13
+        version: 22.13.13
+      typescript:
+        specifier: ^5.8.2
+        version: 5.8.2
+      unbuild:
+        specifier: ^3.5.0
+        version: 3.5.0(typescript@5.8.2)(vue@3.5.13(typescript@5.8.2))
+      vitest:
+        specifier: ^3.0.9
+        version: 3.0.9(@types/node@22.13.13)(jiti@2.4.2)(tsx@4.19.3)
+
   packages/eslint-plugin:
     dependencies:
+      '@ts-safeql/connection-manager':
+        specifier: workspace:*
+        version: link:../connection-manager
       '@ts-safeql/plugin-utils':
         specifier: workspace:*
         version: link:../plugin-utils
@@ -676,6 +716,12 @@ importers:
       '@types/node':
         specifier: ^22.13.13
         version: 22.13.13
+      '@typescript-eslint/parser':
+        specifier: ^8.28.0
+        version: 8.28.0(eslint@9.23.0(jiti@2.4.2))(typescript@5.8.2)
+      '@typescript-eslint/utils':
+        specifier: ^8.28.0
+        version: 8.28.0(eslint@9.23.0(jiti@2.4.2))(typescript@5.8.2)
       typescript:
         specifier: ^5.8.2
         version: 5.8.2
@@ -707,6 +753,9 @@ importers:
       unbuild:
         specifier: ^3.5.0
         version: 3.5.0(typescript@5.8.2)(vue@3.5.13(typescript@5.8.2))
+      vitest:
+        specifier: ^3.0.9
+        version: 3.0.9(@types/node@22.13.13)(jiti@2.4.2)(tsx@4.19.3)
 
   packages/shared:
     dependencies:
@@ -802,6 +851,34 @@ importers:
       unbuild:
         specifier: ^3.5.0
         version: 3.5.0(typescript@5.8.2)(vue@3.5.13(typescript@5.8.2))
+
+  packages/zod-annotator:
+    dependencies:
+      '@ts-safeql/plugin-utils':
+        specifier: workspace:*
+        version: link:../plugin-utils
+    devDependencies:
+      '@types/node':
+        specifier: ^22.13.13
+        version: 22.13.13
+      '@typescript-eslint/parser':
+        specifier: ^8.28.0
+        version: 8.28.0(eslint@9.23.0(jiti@2.4.2))(typescript@5.8.2)
+      '@typescript-eslint/utils':
+        specifier: ^8.28.0
+        version: 8.28.0(eslint@9.23.0(jiti@2.4.2))(typescript@5.8.2)
+      typescript:
+        specifier: ^5.8.2
+        version: 5.8.2
+      unbuild:
+        specifier: ^3.5.0
+        version: 3.5.0(typescript@5.8.2)(vue@3.5.13(typescript@5.8.2))
+      vitest:
+        specifier: ^3.0.9
+        version: 3.0.9(@types/node@22.13.13)(jiti@2.4.2)(tsx@4.19.3)
+      zod:
+        specifier: ^4.1.12
+        version: 4.1.12
 
 packages:
 

@@ -142,5 +142,12 @@ describe("connection-manager plugins", () => {
         driver.connect({ descriptors: [{ package: plugin, config: {} }] }),
       ).rejects.toThrow("provide a createConnection hook");
     });
+
+    it("throws when descriptors array is empty and projectDir is not provided", async () => {
+      // ACT & ASSERT
+      await expect(driver.connect({ descriptors: [] })).rejects.toThrow(
+        "at least one plugin descriptor",
+      );
+    });
   });
 });

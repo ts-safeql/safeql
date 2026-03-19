@@ -43,10 +43,14 @@ export function createZodAnnotator(
     const zodStr = resolvedTargetToZodSchema(output);
     const calleeText = sourceCode.getText(node.tag.callee);
 
+    const args = node.tag.arguments.map((arg, i) =>
+      i === schemaArgIndex ? zodStr : sourceCode.getText(arg),
+    );
+
     return {
       message: `Zod schema does not match query result.\n\tExpected: ${zodStr}`,
       node: node.tag,
-      fix: { node: node.tag, text: `${calleeText}(${zodStr})` },
+      fix: { node: node.tag, text: `${calleeText}(${args.join(", ")})` },
     };
   };
 }
@@ -82,6 +86,13 @@ function tsTypeToTarget(
   if (type.flags & ts.TypeFlags.Undefined) return { kind: "type", value: "undefined" };
   if (type.flags & ts.TypeFlags.Any) return { kind: "type", value: "any" };
   if (type.flags & ts.TypeFlags.Unknown) return { kind: "type", value: "unknown" };
+
+  if (type.isStringLiteral()) {
+    return { kind: "literal", value: `"${type.value}"`, base: { kind: "type", value: "string" } };
+  }
+  if (type.isNumberLiteral()) {
+    return { kind: "literal", value: String(type.value), base: { kind: "type", value: "number" } };
+  }
 
   if (type.isUnion()) {
     return {
