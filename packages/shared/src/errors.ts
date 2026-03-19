@@ -166,6 +166,32 @@ export class InternalError extends Error {
   }
 }
 
+export class PluginError extends Error {
+  _tag = "PluginError" as const;
+
+  constructor(pluginName: string, error: string) {
+    super(`[${pluginName}] ${error}`);
+  }
+
+  static from(pluginName: string) {
+    return (error: unknown) => {
+      if (error instanceof Error) {
+        const e = new PluginError(pluginName, error.message);
+        e.stack = error.stack;
+        return e;
+      }
+      return new PluginError(pluginName, `${error}`);
+    };
+  }
+
+  toJSON() {
+    return {
+      _tag: this._tag,
+      message: this.message,
+    };
+  }
+}
+
 export class DuplicateColumnsError extends Error {
   _tag = "DuplicateColumnsError" as const;
   columns: string[];

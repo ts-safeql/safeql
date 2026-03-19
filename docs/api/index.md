@@ -79,6 +79,24 @@ The database URL that the plugin will use to infer the types of the queries, and
 
 :::
 
+### `connections.plugins`
+
+An array of connection plugins for custom connection strategies. See [official plugins](/guide/plugins#official-plugins) for available options.
+
+```js
+import myPlugin from "safeql-plugin-example";
+
+// ...
+plugins: [myPlugin({ /* plugin-specific options */ })],
+```
+
+::: info
+
+- can be used alongside [`databaseUrl`](#connections-databaseurl) or [`migrationsDir`](#connections-migrationsdir) — non-connection hooks apply to the connection, while `createConnection` is only used when no other connection method is specified
+- see the [Plugin API](/guide/plugins) guide for usage and authoring details
+
+:::
+
 ### `connections.migrationsDir`
 
 The path to the directory where your [database migrations](https://www.prisma.io/dataguide/types/relational/what-are-database-migrations) are located (only `.sql` migration files supported currently). For example:

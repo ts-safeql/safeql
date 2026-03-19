@@ -1,8 +1,9 @@
 {
-  "name": "@ts-safeql/shared",
+  "name": "@ts-safeql/zod-annotator",
   "version": "4.2.0",
+  "description": "Zod schema annotator for SafeQL plugins",
   "license": "MIT",
-  "repository": "https://github.com/ts-safeql/safeql/tree/master/packages/eslint-plugin",
+  "repository": "https://github.com/ts-safeql/safeql/tree/master/packages/zod-annotator",
   "files": [
     "dist",
     "package.json"
@@ -21,24 +22,24 @@
   "scripts": {
     "build": "unbuild",
     "dev": "unbuild --stub",
-    "test": "vitest",
-    "lint": "eslint src",
-    "lint!": "eslint src --fix",
+    "test": "vitest --run",
     "typecheck": "tsc -b",
     "clean": "rm -rf dist"
   },
   "devDependencies": {
     "@types/node": "^22.13.13",
-    "@typescript-eslint/eslint-plugin": "^8.28.0",
     "@typescript-eslint/parser": "^8.28.0",
-    "eslint": "^9.23.0",
+    "@typescript-eslint/utils": "^8.28.0",
     "typescript": "^5.8.2",
     "unbuild": "^3.5.0",
-    "vitest": "^3.0.9"
+    "vitest": "^3.0.9",
+    "zod": "^4.1.12"
   },
   "dependencies": {
-    "@typescript-eslint/utils": "^8.28.0",
-    "minimatch": "^10.0.1",
-    "postgres": "^3.4.5"
+    "@ts-safeql/plugin-utils": "workspace:*"
+  },
+  "peerDependencies": {
+    "@typescript-eslint/utils": "^8.0.0",
+    "typescript": "^5.0.0"
   }
 }

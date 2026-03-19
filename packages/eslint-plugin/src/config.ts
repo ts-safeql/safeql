@@ -1,6 +1,14 @@
 import { FlatConfig } from "@typescript-eslint/utils/ts-eslint";
-import { Config } from "./rules/RuleOptions";
+import { RuleOptionConnection } from "./rules/RuleOptions";
 import safeqlPlugin from "./plugin";
+
+/** Distribute Omit over a union so discriminant members are preserved. */
+type DistributiveOmit<T, K extends keyof T> = T extends unknown ? Omit<T, K> : never;
+
+/** Input type — `targets` is optional when plugins handle tag matching. */
+type ConnectionInput = DistributiveOmit<RuleOptionConnection, "targets"> & {
+  targets?: RuleOptionConnection["targets"];
+};
 
 export default {
   configs: {
@@ -19,7 +27,7 @@ export default {
     /**
      * If you prefer configuring safeql via a flat config, use this config.
      */
-    connections: (connections: Config["connections"]): FlatConfig.Config => ({
+    connections: (connections: ConnectionInput | ConnectionInput[]): FlatConfig.Config => ({
       plugins: {
         "@ts-safeql": safeqlPlugin,
       },

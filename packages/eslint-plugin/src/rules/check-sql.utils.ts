@@ -15,7 +15,6 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { Sql } from "postgres";
-import { match } from "ts-pattern";
 import { z } from "zod";
 import { isOneOf } from "../utils/estree.utils";
 import { E, TE, pipe } from "../utils/fp-ts";
@@ -29,6 +28,7 @@ import {
   RuleOptionConnection,
   zConnectionMigration,
 } from "./RuleOptions";
+import { ConnectionStrategy } from "@ts-safeql/connection-manager";
 
 type TypeReplacerString = string;
 type TypeReplacerFromTo = [string, string];
@@ -297,19 +297,6 @@ export function getMigrationDatabaseMetadata(params: {
   return { databaseUrl, connectionOptions };
 }
 
-type ConnectionStrategy =
-  | {
-      type: "databaseUrl";
-      databaseUrl: string;
-    }
-  | {
-      type: "migrations";
-      migrationsDir: string;
-      connectionUrl: string;
-      databaseName: string;
-      watchMode: boolean;
-    };
-
 export function getConnectionStartegyByRuleOptionConnection(params: {
   connection: RuleOptionConnection;
   projectDir: string;
@@ -334,13 +321,13 @@ export function getConnectionStartegyByRuleOptionConnection(params: {
     };
   }
 
-  return match(connection).exhaustive();
-}
+  if (connection.plugins && connection.plugins.length > 0) {
+    return { type: "pluginsOnly", plugins: connection.plugins };
+  }
 
-export interface ConnectionPayload {
-  sql: Sql;
-  databaseUrl: string;
-  isFirst: boolean;
+  throw new Error(
+    "Invalid connection configuration: must specify databaseUrl, migrationsDir, or plugins",
+  );
 }
 
 export function runMigrations(params: { migrationsPath: string; sql: Sql }) {

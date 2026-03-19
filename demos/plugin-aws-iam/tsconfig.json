@@ -1,0 +1,7 @@
+{
+  "extends": "../../tsconfig.node.json",
+  "compilerOptions": {
+    "checkJs": true,
+    "outDir": "./dist"
+  }
+}

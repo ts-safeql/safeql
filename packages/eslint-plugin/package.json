@@ -64,6 +64,8 @@
     "vitest": "^3.0.9"
   },
   "dependencies": {
+    "@ts-safeql/connection-manager": "workspace:*",
+    "@ts-safeql/plugin-utils": "workspace:*",
     "chokidar": "^4.0.3",
     "fp-ts": "^2.16.9",
     "pg-connection-string": "2.7.0",
