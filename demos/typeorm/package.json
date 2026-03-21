@@ -12,15 +12,15 @@
     "typeorm": "typeorm-ts-node-commonjs"
   },
   "devDependencies": {
-    "@eslint/js": "^9.23.0",
+    "@eslint/js": "catalog:",
     "@ts-safeql/eslint-plugin": "workspace:*",
-    "@types/node": "^22.13.13",
+    "@types/node": "catalog:",
     "@types/pg": "^8.11.11",
-    "eslint": "^9.23.0",
+    "eslint": "catalog:",
     "ts-node": "10.9.2",
-    "tsx": "^4.19.3",
-    "typescript": "^5.8.2",
-    "typescript-eslint": "^8.28.0"
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:"
   },
   "dependencies": {
     "@ts-safeql/sql-tag": "workspace:*",

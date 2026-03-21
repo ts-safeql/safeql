@@ -10,18 +10,18 @@
     "lint!": "eslint src --fix"
   },
   "devDependencies": {
-    "@eslint/js": "^9.23.0",
+    "@eslint/js": "catalog:",
     "@types/pg": "^8.11.11",
     "dotenv": "16.4.7",
-    "eslint": "^9.23.0",
-    "tsx": "^4.19.3",
-    "typescript": "^5.8.2",
-    "typescript-eslint": "^8.28.0"
+    "eslint": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:"
   },
   "dependencies": {
     "@ts-safeql-demos/shared": "workspace:*",
     "@ts-safeql/eslint-plugin": "workspace:*",
-    "@types/node": "^22.13.13",
+    "@types/node": "catalog:",
     "@vercel/postgres": "0.10.0",
     "pg": "^8.14.1"
   }

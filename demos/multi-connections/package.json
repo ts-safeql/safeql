@@ -9,14 +9,14 @@
     "lint!": "eslint src --fix"
   },
   "devDependencies": {
-    "@eslint/js": "^9.23.0",
-    "eslint": "^9.23.0",
-    "typescript": "^5.8.2",
-    "typescript-eslint": "^8.28.0"
+    "@eslint/js": "catalog:",
+    "eslint": "catalog:",
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:"
   },
   "dependencies": {
     "@ts-safeql-demos/shared": "workspace:*",
     "@ts-safeql/eslint-plugin": "workspace:*",
-    "postgres": "^3.4.5"
+    "postgres": "catalog:"
   }
 }
