@@ -26,14 +26,14 @@
     "@ts-safeql/shared": "workspace:*",
     "fp-ts": "^2.16.9",
     "pg-connection-string": "2.7.0",
-    "postgres": "^3.4.5",
+    "postgres": "catalog:",
     "ts-pattern": "^5.6.2"
   },
   "devDependencies": {
     "@ts-safeql/test-utils": "workspace:*",
-    "@types/node": "^22.13.13",
-    "typescript": "^5.8.2",
-    "unbuild": "^3.5.0",
-    "vitest": "^3.0.9"
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "unbuild": "catalog:",
+    "vitest": "catalog:"
   }
 }

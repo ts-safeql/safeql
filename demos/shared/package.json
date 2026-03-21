@@ -3,10 +3,10 @@
   "version": "0.0.0",
   "type": "module",
   "devDependencies": {
-    "@types/node": "^22.13.13",
-    "typescript": "^5.8.2"
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
   },
   "dependencies": {
-    "postgres": "^3.4.5"
+    "postgres": "catalog:"
   }
 }

@@ -12,14 +12,14 @@
     "clean": "rm -rf dist"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
+    "@eslint/js": "catalog:",
     "@ts-safeql/eslint-plugin": "workspace:*",
-    "@types/node": "^22.13.13",
+    "@types/node": "catalog:",
     "conditional-type-checks": "1.0.6",
-    "eslint": "^10.0.3",
-    "tsx": "^4.19.3",
-    "typescript": "^5.8.2",
-    "typescript-eslint": "^8.57.1",
+    "eslint": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:",
     "zx": "^8.4.1"
   },
   "dependencies": {

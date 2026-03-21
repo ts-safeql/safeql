@@ -53,15 +53,15 @@
     "@ts-safeql/shared": "workspace:*",
     "@ts-safeql/sql-ast": "workspace:*",
     "@ts-safeql/test-utils": "workspace:*",
-    "@types/node": "^22.13.13",
-    "@typescript-eslint/eslint-plugin": "^8.57.1",
-    "@typescript-eslint/parser": "^8.57.1",
-    "@typescript-eslint/rule-tester": "^8.57.1",
-    "eslint": "^10.0.3",
-    "libpg-query": "^17.5.2",
-    "typescript": "^5.8.2",
-    "unbuild": "^3.5.0",
-    "vitest": "^3.0.9"
+    "@types/node": "catalog:",
+    "@typescript-eslint/eslint-plugin": "catalog:",
+    "@typescript-eslint/parser": "catalog:",
+    "@typescript-eslint/rule-tester": "catalog:",
+    "eslint": "catalog:",
+    "libpg-query": "catalog:",
+    "typescript": "catalog:",
+    "unbuild": "catalog:",
+    "vitest": "catalog:"
   },
   "dependencies": {
     "@ts-safeql/connection-manager": "workspace:*",
@@ -69,11 +69,11 @@
     "chokidar": "^4.0.3",
     "fp-ts": "^2.16.9",
     "pg-connection-string": "2.7.0",
-    "postgres": "^3.4.5",
+    "postgres": "catalog:",
     "quansync": "^0.2.10",
     "synckit": "^0.10.3",
     "ts-pattern": "^5.6.2",
-    "tsx": "^4.19.3",
+    "tsx": "catalog:",
     "zod": "^4.1.12"
   },
   "peerDependencies": {

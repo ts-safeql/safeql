@@ -27,18 +27,18 @@
     "clean": "rm -rf dist"
   },
   "devDependencies": {
-    "@types/node": "^22.13.13",
-    "@typescript-eslint/eslint-plugin": "^8.57.1",
-    "@typescript-eslint/parser": "^8.57.1",
-    "@typescript-eslint/utils": "^8.57.1",
-    "eslint": "^10.0.3",
-    "typescript": "^5.8.2",
-    "unbuild": "^3.5.0"
+    "@types/node": "catalog:",
+    "@typescript-eslint/eslint-plugin": "catalog:",
+    "@typescript-eslint/parser": "catalog:",
+    "@typescript-eslint/utils": "catalog:",
+    "eslint": "catalog:",
+    "typescript": "catalog:",
+    "unbuild": "catalog:"
   },
   "dependencies": {
     "@ts-safeql/shared": "workspace:*",
     "nanoid": "^5.1.5",
     "pg-connection-string": "^2.7.0",
-    "postgres": "^3.4.5"
+    "postgres": "catalog:"
   }
 }
