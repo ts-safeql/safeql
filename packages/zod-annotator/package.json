@@ -39,7 +39,7 @@
     "@ts-safeql/plugin-utils": "workspace:*"
   },
   "peerDependencies": {
-    "@typescript-eslint/utils": "^8.57.1",
+    "@typescript-eslint/utils": "^8.0.0",
     "typescript": "^5.0.0"
   }
 }

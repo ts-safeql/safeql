@@ -28,7 +28,7 @@ class SqlTag<$Value> {
   // used by node-pg
   get text() {
     return this.template.reduce(
-      (acc, part, i) => acc + part + (i === this.values.length ? "" : `$${++i}`),
+      (acc, part, i) => acc + part + (i === this.values.length ? "" : `$${i + 1}`),
       "",
     );
   }
