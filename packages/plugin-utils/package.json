@@ -31,8 +31,8 @@
   },
   "devDependencies": {
     "@types/node": "^22.13.13",
-    "@typescript-eslint/parser": "^8.28.0",
-    "@typescript-eslint/utils": "^8.28.0",
+    "@typescript-eslint/parser": "^8.57.1",
+    "@typescript-eslint/utils": "^8.57.1",
     "typescript": "^5.8.2",
     "unbuild": "^3.5.0"
   },
@@ -40,7 +40,7 @@
     "postgres": "^3.4.5"
   },
   "peerDependencies": {
-    "@typescript-eslint/utils": "^8.0.0",
+    "@typescript-eslint/utils": "^8.57.1",
     "typescript": "^5.0.0"
   },
   "peerDependenciesMeta": {

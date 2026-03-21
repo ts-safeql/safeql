@@ -10,11 +10,11 @@
     "lint!": "eslint src --fix"
   },
   "devDependencies": {
-    "@eslint/js": "^9.23.0",
-    "eslint": "^9.23.0",
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.0.3",
     "tsx": "^4.19.3",
     "typescript": "^5.8.2",
-    "typescript-eslint": "^8.28.0"
+    "typescript-eslint": "^8.57.1"
   },
   "dependencies": {
     "@ts-safeql-demos/shared": "workspace:*",
