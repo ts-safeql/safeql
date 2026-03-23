@@ -540,6 +540,7 @@ function isNullableResolvedTarget(target: ExpectedResolvedTarget | ResolvedTarge
 
 interface GetWordRangeInPositionParams {
   error: {
+    message: string;
     position: number;
     sourcemaps: QuerySourceMapEntry[];
   };
@@ -547,48 +548,101 @@ interface GetWordRangeInPositionParams {
   sourceCode: Readonly<SourceCode>;
 }
 
-function getQueryErrorPosition(params: GetWordRangeInPositionParams) {
-  const range: [number, number] = [params.error.position, params.error.position + 1];
+function getQueryErrorPosition({ error, tag, sourceCode }: GetWordRangeInPositionParams) {
+  const sourceMaps = error.sourcemaps;
+  const position = error.position;
 
-  for (const entry of params.error.sourcemaps) {
-    const generatedLength = Math.max(0, entry.generated.end - entry.generated.start);
-    const originalLength = Math.max(0, entry.original.end - entry.original.start);
-    const adjustment = originalLength - generatedLength;
+  const matchingSourceMap = sourceMaps.find(
+    (sourceMap) => position >= sourceMap.generated.start && position < sourceMap.generated.end,
+  );
 
-    if (range[0] >= entry.generated.start && range[1] <= entry.generated.end) {
-      range[0] = entry.original.start + entry.offset;
-      range[1] = entry.original.start + entry.offset + 1;
-      continue;
-    }
+  const sourceRange: [number, number] = matchingSourceMap
+    ? [
+        matchingSourceMap.original.start + matchingSourceMap.offset,
+        matchingSourceMap.original.start + matchingSourceMap.original.text.length,
+      ]
+    : getSourceRange(position, sourceMaps);
 
-    if (params.error.position >= entry.generated.start) {
-      range[0] += adjustment;
-    }
+  const syntaxErrorToken = error.message.match(/syntax error at or near "([^"]+)"/)?.[1];
 
-    if (params.error.position >= entry.generated.end) {
-      range[1] += adjustment;
+  if (syntaxErrorToken) {
+    const templateText = sourceCode.text.slice(tag.quasi.range[0], tag.quasi.range[1]);
+    const tokenIndex = findNearestMatchIndex(templateText, syntaxErrorToken, sourceRange[0]);
+
+    if (tokenIndex !== undefined) {
+      return {
+        sourceLocation: getSourceLocation(tag, sourceCode, [
+          tokenIndex,
+          tokenIndex + syntaxErrorToken.length,
+        ]),
+      };
     }
   }
 
-  const start = params.sourceCode.getLocFromIndex(params.tag.quasi.range[0] + range[0]);
-  const startLineText = params.sourceCode.getLines()[start.line - 1];
-  const remainingLineText = startLineText.substring(start.column);
-  const remainingWordLength = (remainingLineText.match(/^[\w.{}'$"]+/)?.at(0)?.length ?? 1) - 1;
-
-  const end = params.sourceCode.getLocFromIndex(params.tag.quasi.range[0] + range[1]);
-
-  const sourceLocation: TSESTree.SourceLocation = {
-    start: start,
-    end: {
-      line: end.line,
-      column: end.column + remainingWordLength,
-    },
+  return {
+    sourceLocation: getSourceLocation(
+      tag,
+      sourceCode,
+      sourceRange,
+      matchingSourceMap === undefined,
+    ),
   };
+}
+
+function getSourceRange(position: number, sourceMaps: QuerySourceMapEntry[]): [number, number] {
+  let positionOffset = 0;
+
+  for (const sourceMap of sourceMaps) {
+    if (position < sourceMap.generated.end) {
+      continue;
+    }
+
+    positionOffset += sourceMap.original.text.length - sourceMap.generated.text.length;
+  }
+
+  return [position + positionOffset, position + positionOffset + 1];
+}
+
+function findNearestMatchIndex(text: string, searchText: string, position: number) {
+  let closestIndex: number | undefined;
+
+  for (
+    let currentIndex = text.indexOf(searchText);
+    currentIndex !== -1;
+    currentIndex = text.indexOf(searchText, currentIndex + 1)
+  ) {
+    if (
+      closestIndex === undefined ||
+      Math.abs(currentIndex - position) < Math.abs(closestIndex - position)
+    ) {
+      closestIndex = currentIndex;
+    }
+  }
+
+  return closestIndex;
+}
+
+function getSourceLocation(
+  tag: TSESTree.TaggedTemplateExpression,
+  sourceCode: Readonly<SourceCode>,
+  range: [number, number],
+  extendToWord = false,
+): TSESTree.SourceLocation {
+  const start = sourceCode.getLocFromIndex(tag.quasi.range[0] + range[0]);
+  const end = sourceCode.getLocFromIndex(tag.quasi.range[0] + range[1]);
+
+  if (!extendToWord) {
+    return { start, end };
+  }
+
+  const lineTail = sourceCode.getLines()[start.line - 1].substring(start.column);
+  const wordLength = (lineTail.match(/^[\w.{}'$"]+/)?.at(0)?.length ?? 1) - 1;
 
   return {
-    range,
-    sourceLocation: sourceLocation,
-    remainingLineText: remainingLineText,
-    remainingWordLength: remainingWordLength,
+    start,
+    end: {
+      line: end.line,
+      column: end.column + wordLength,
+    },
   };
 }

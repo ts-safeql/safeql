@@ -1,0 +1,24 @@
+{
+  "name": "@ts-safeql-demos/plugin-slonik",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "lint": "eslint src"
+  },
+  "devDependencies": {
+    "@eslint/js": "catalog:",
+    "@slonik/pg-driver": "^48.13.2",
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "slonik": "^48.13.2",
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:",
+    "zod": "^4.3.6"
+  },
+  "dependencies": {
+    "@ts-safeql/eslint-plugin": "workspace:*",
+    "@ts-safeql/plugin-slonik": "workspace:*"
+  }
+}
