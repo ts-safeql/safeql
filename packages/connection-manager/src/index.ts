@@ -35,6 +35,7 @@ export type ConnectionStrategy =
   | {
       type: "pluginsOnly";
       plugins: PluginDescriptors[];
+      projectDir: string;
     };
 
 export function createConnectionManager() {
@@ -138,8 +139,8 @@ function closeConnection(
         connectionMap.delete(connectionUrl);
       }
     })
-    .with({ type: "pluginsOnly" }, ({ plugins }) => {
-      const cached = pluginManager.getCachedConnection(plugins);
+    .with({ type: "pluginsOnly" }, ({ plugins, projectDir }) => {
+      const cached = pluginManager.getCachedConnection(plugins, projectDir);
 
       if (cached) {
         const sql = connectionMap.get(cached.cacheKey);
@@ -149,7 +150,7 @@ function closeConnection(
         }
       }
 
-      pluginManager.evictPlugins(plugins);
+      pluginManager.evictPlugins(plugins, projectDir);
     })
     .exhaustive();
 }

@@ -20,9 +20,12 @@ export class PluginManager {
     return this.pickConnection(plugins);
   }
 
-  getCachedConnection(descriptors: PluginDescriptor[]): ResolvedConnection | undefined {
+  getCachedConnection(
+    descriptors: PluginDescriptor[],
+    projectDir: string,
+  ): ResolvedConnection | undefined {
     const plugins = descriptors
-      .map((d) => this.pluginCache.get(this.getCacheKey(d)))
+      .map((d) => this.pluginCache.get(this.getCacheKey(d, projectDir)))
       .filter((p): p is SafeQLPlugin => p !== undefined);
 
     return this.pickConnection(plugins);
@@ -33,9 +36,9 @@ export class PluginManager {
     return descriptors.map((d) => this.resolveOneSync(d, projectDir));
   }
 
-  evictPlugins(descriptors: PluginDescriptor[]): void {
+  evictPlugins(descriptors: PluginDescriptor[], projectDir: string): void {
     for (const descriptor of descriptors) {
-      this.pluginCache.delete(this.getCacheKey(descriptor));
+      this.pluginCache.delete(this.getCacheKey(descriptor, projectDir));
     }
   }
 
@@ -55,12 +58,14 @@ export class PluginManager {
     return result;
   }
 
-  private getCacheKey(descriptor: PluginDescriptor): string {
-    return `${descriptor.package}:${stableStringify(descriptor.config ?? {})}`;
+  private getCacheKey(descriptor: PluginDescriptor, projectDir: string): string {
+    return `${getResolvedPackageKey(descriptor.package, projectDir)}:${stableStringify(
+      descriptor.config ?? {},
+    )}`;
   }
 
   private resolveOneSync(descriptor: PluginDescriptor, projectDir: string): SafeQLPlugin {
-    const key = this.getCacheKey(descriptor);
+    const key = this.getCacheKey(descriptor, projectDir);
     const cached = this.pluginCache.get(key);
     if (cached) return cached;
 
@@ -164,4 +169,8 @@ function stableStringify(value: unknown): string {
 
 function isLocalPath(packageName: string): boolean {
   return packageName.startsWith(".") || path.isAbsolute(packageName);
+}
+
+function getResolvedPackageKey(packageName: string, projectDir: string): string {
+  return isLocalPath(packageName) ? path.resolve(projectDir, packageName) : packageName;
 }

@@ -322,7 +322,7 @@ export function getConnectionStartegyByRuleOptionConnection(params: {
   }
 
   if (connection.plugins && connection.plugins.length > 0) {
-    return { type: "pluginsOnly", plugins: connection.plugins };
+    return { type: "pluginsOnly", plugins: connection.plugins, projectDir };
   }
 
   throw new Error(
@@ -646,3 +646,4 @@ function getSourceLocation(
     },
   };
 }
+

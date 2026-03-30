@@ -1,5 +1,8 @@
+import fs from "fs";
 import os from "os";
+import path from "path";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { createConnectionManager } from "./index";
 import { ConnectionManagerTestDriver } from "./test-driver";
 
 describe("connection-manager plugins", () => {
@@ -80,6 +83,63 @@ describe("connection-manager plugins", () => {
           ],
         }),
       ).rejects.toThrow("last plugin wins");
+    });
+
+    it("resolves relative plugin paths per project directory", async () => {
+      const manager = createConnectionManager();
+      const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "safeql-local-plugin-"));
+
+      const createProject = (name: string) => {
+        const dir = path.join(tmpRoot, name);
+        fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(path.join(dir, "package.json"), "{}");
+        fs.writeFileSync(
+          path.join(dir, "plugin.ts"),
+          String.raw`
+import postgres from "postgres";
+import { definePlugin } from "@ts-safeql/plugin-utils";
+
+export default definePlugin({
+  name: "${name}",
+  package: "./plugin.ts",
+  setup(config) {
+    return {
+      createConnection: {
+        cacheKey: "${name}://" + config.databaseUrl,
+        async handler() {
+          return postgres(config.databaseUrl);
+        },
+      },
+    };
+  },
+});
+`,
+        );
+        return dir;
+      };
+
+      const firstProject = createProject("first-local");
+      const secondProject = createProject("second-local");
+      const descriptors = [{ package: "./plugin.ts", config: { databaseUrl: driver.databaseUrl } }];
+
+      let first;
+      let second;
+
+      try {
+        first = await manager.getOrCreateFromPlugins(descriptors, firstProject);
+        second = await manager.getOrCreateFromPlugins(descriptors, secondProject);
+
+        expect(first.pluginName).toBe("safeql-plugin-first-local");
+        expect(first.databaseUrl).toBe(`first-local://${driver.databaseUrl}`);
+        expect(second.pluginName).toBe("safeql-plugin-second-local");
+        expect(second.databaseUrl).toBe(`second-local://${driver.databaseUrl}`);
+      } finally {
+        await first?.sql.end().catch(() => {});
+        if (second?.sql && second.sql !== first?.sql) {
+          await second.sql.end().catch(() => {});
+        }
+        fs.rmSync(tmpRoot, { recursive: true, force: true });
+      }
     });
   });
 
