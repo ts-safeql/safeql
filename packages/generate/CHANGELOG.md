@@ -1,5 +1,14 @@
 # @ts-safeql/generate
 
+## 5.0.0
+
+### Patch Changes
+
+- Updated dependencies [acd33af]
+  - @ts-safeql/shared@5.0.0
+  - @ts-safeql/test-utils@0.0.61
+  - @ts-safeql/sql-ast@5.0.0
+
 ## 4.2.0
 
 ### Patch Changes
