@@ -5,6 +5,7 @@ import {
   normalizeIndent,
   QuerySourceMapEntry,
 } from "@ts-safeql/shared";
+import type { SafeQLPlugin } from "@ts-safeql/plugin-utils";
 import { TSESTreeToTSNode } from "@typescript-eslint/typescript-estree";
 import { ParserServices, TSESLint, TSESTree } from "@typescript-eslint/utils";
 import ts, { TypeChecker } from "typescript";
@@ -19,6 +20,7 @@ export function mapTemplateLiteralToQueryText(
   checker: ts.TypeChecker,
   options: RuleOptionConnection,
   sourceCode: Readonly<TSESLint.SourceCode>,
+  plugins: SafeQLPlugin[] = [],
 ) {
   let $idx = 0;
   let $queryText = "";
@@ -33,8 +35,44 @@ export function mapTemplateLiteralToQueryText(
 
     const position = $queryText.length;
     const expression = quasi.expressions[quasiIdx];
+    const expressionType = mapExpressionToTsTypeString({ expression, parser, checker });
+    const pluginExpression = resolvePluginExpression({
+      expression,
+      checker,
+      plugins,
+      precedingSQL: $queryText,
+      tsNode: expressionType.node,
+      tsType: expressionType.type,
+    });
 
-    const pgType = pipe(mapExpressionToTsTypeString({ expression, parser, checker }), (params) =>
+    if (pluginExpression === false) {
+      return E.right(null);
+    }
+
+    if (typeof pluginExpression === "string") {
+      const generatedPlaceholder = replacePluginPlaceholders(pluginExpression, $idx);
+      $idx = generatedPlaceholder.nextIndex;
+      const generatedText = generatedPlaceholder.text;
+      $queryText += generatedText;
+
+      sourcemaps.push({
+        original: {
+          start: expression.range[0] - quasi.range[0] - 2,
+          end: expression.range[1] - quasi.range[0] + 1,
+          text: sourceCode.text.slice(expression.range[0] - 2, expression.range[1] + 1),
+        },
+        generated: {
+          start: position,
+          end: position + generatedText.length,
+          text: generatedText,
+        },
+        offset: 0,
+      });
+
+      continue;
+    }
+
+    const pgType = pipe(expressionType, (params) =>
       getPgTypeFromTsType({ ...params, checker, options }),
     );
 
@@ -126,7 +164,7 @@ export function mapTemplateLiteralToQueryText(
     sourcemaps.push({
       original: {
         start: expression.range[0] - quasi.range[0] - 2,
-        end: expression.range[1] - quasi.range[0],
+        end: expression.range[1] - quasi.range[0] + 1,
         text: sourceCode.text.slice(expression.range[0] - 2, expression.range[1] + 1),
       },
       generated: {
@@ -141,6 +179,67 @@ export function mapTemplateLiteralToQueryText(
   return E.right({ text: $queryText, sourcemaps });
 }
 
+export function replacePluginPlaceholders(
+  text: string,
+  startIndex: number,
+): { text: string; nextIndex: number } {
+  let nextIndex = startIndex;
+  let output = "";
+  let cursor = 0;
+
+  while (cursor < text.length) {
+    const dollarQuote = getDollarQuoteDelimiter(text, cursor);
+    if (dollarQuote) {
+      const end = text.indexOf(dollarQuote, cursor + dollarQuote.length);
+      const sliceEnd = end === -1 ? text.length : end + dollarQuote.length;
+      output += text.slice(cursor, sliceEnd);
+      cursor = sliceEnd;
+      continue;
+    }
+
+    if (text.startsWith("--", cursor)) {
+      const end = text.indexOf("\n", cursor + 2);
+      const sliceEnd = end === -1 ? text.length : end;
+      output += text.slice(cursor, sliceEnd);
+      cursor = sliceEnd;
+      continue;
+    }
+
+    if (text.startsWith("/*", cursor)) {
+      const end = text.indexOf("*/", cursor + 2);
+      const sliceEnd = end === -1 ? text.length : end + 2;
+      output += text.slice(cursor, sliceEnd);
+      cursor = sliceEnd;
+      continue;
+    }
+
+    if (text[cursor] === "'") {
+      const end = findQuotedLiteralEnd(text, cursor, "'");
+      output += text.slice(cursor, end);
+      cursor = end;
+      continue;
+    }
+
+    if (text[cursor] === '"') {
+      const end = findQuotedLiteralEnd(text, cursor, '"');
+      output += text.slice(cursor, end);
+      cursor = end;
+      continue;
+    }
+
+    if (text.startsWith("$N", cursor) && !isIdentifierChar(text[cursor + 2])) {
+      output += `$${++nextIndex}`;
+      cursor += 2;
+      continue;
+    }
+
+    output += text[cursor];
+    cursor += 1;
+  }
+
+  return { text: output, nextIndex };
+}
+
 function mapExpressionToTsTypeString(params: {
   expression: TSESTree.Expression;
   parser: ParserServices;
@@ -152,6 +251,63 @@ function mapExpressionToTsTypeString(params: {
     node: tsNode,
     type: tsType,
   };
+}
+
+function resolvePluginExpression(params: {
+  expression: TSESTree.Expression;
+  checker: ts.TypeChecker;
+  plugins: SafeQLPlugin[];
+  precedingSQL: string;
+  tsNode: ts.Node;
+  tsType: ts.Type;
+}): string | false | undefined {
+  for (const plugin of params.plugins) {
+    const pluginResult = plugin.onExpression?.({
+      node: params.expression,
+      context: {
+        precedingSQL: params.precedingSQL,
+        checker: params.checker,
+        tsNode: params.tsNode,
+        tsType: params.tsType,
+        tsTypeText: params.checker.typeToString(params.tsType),
+      },
+    });
+
+    if (pluginResult !== undefined) {
+      return pluginResult;
+    }
+  }
+
+  return undefined;
+}
+
+function getDollarQuoteDelimiter(text: string, cursor: number): string | undefined {
+  const match = /^\$[A-Za-z_][A-Za-z0-9_]*?\$|^\$\$/.exec(text.slice(cursor));
+  return match?.[0];
+}
+
+function findQuotedLiteralEnd(text: string, start: number, quote: "'" | '"'): number {
+  let cursor = start + 1;
+
+  while (cursor < text.length) {
+    if (text[cursor] !== quote) {
+      cursor += 1;
+      continue;
+    }
+
+    if (text[cursor + 1] === quote) {
+      cursor += 2;
+      continue;
+    }
+
+    return cursor + 1;
+  }
+
+  return text.length;
+}
+
+function isIdentifierChar(char: string | undefined): boolean {
+  return char !== undefined && /[A-Za-z0-9_]/.test(char);
 }
 
 const tsTypeToPgTypeMap: Record<string, string> = {

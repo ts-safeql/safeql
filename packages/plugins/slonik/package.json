@@ -1,13 +1,7 @@
 {
-  "name": "@ts-safeql/zod-annotator",
-  "version": "5.0.0",
-  "description": "Zod schema annotator for SafeQL plugins",
+  "name": "@ts-safeql/plugin-slonik",
+  "version": "4.2.0",
   "license": "MIT",
-  "repository": "https://github.com/ts-safeql/safeql/tree/master/packages/zod-annotator",
-  "files": [
-    "dist",
-    "package.json"
-  ],
   "type": "module",
   "types": "dist/index.d.ts",
   "module": "dist/index.mjs",
@@ -22,24 +16,26 @@
   "scripts": {
     "build": "unbuild",
     "dev": "unbuild --stub",
-    "test": "vitest --run",
     "typecheck": "tsc -b",
+    "test": "vitest --pool=forks --run",
     "clean": "rm -rf dist"
   },
   "devDependencies": {
+    "@ts-safeql/eslint-plugin": "workspace:*",
+    "@ts-safeql/plugin-utils": "workspace:*",
+    "@ts-safeql/test-utils": "workspace:*",
+    "@ts-safeql/zod-annotator": "workspace:*",
     "@types/node": "catalog:",
     "@typescript-eslint/parser": "catalog:",
-    "@typescript-eslint/utils": "catalog:",
+    "@typescript-eslint/rule-tester": "catalog:",
+    "postgres": "catalog:",
+    "slonik": "^48.13.2",
+    "zod": "^4.3.6",
     "typescript": "catalog:",
     "unbuild": "catalog:",
-    "vitest": "catalog:",
-    "zod": "^4.3.6"
-  },
-  "dependencies": {
-    "@ts-safeql/plugin-utils": "workspace:*"
+    "vitest": "catalog:"
   },
   "peerDependencies": {
-    "@typescript-eslint/utils": "^8.0.0",
-    "typescript": "^5.0.0"
+    "slonik": "^48.13.2"
   }
 }

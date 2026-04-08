@@ -2,12 +2,17 @@ import { defineBuildConfig } from "unbuild";
 
 export default defineBuildConfig([
   {
-    entries: ["src/index", "src/plugin-test-driver"],
+    entries: ["src/index"],
     declaration: true,
     sourcemap: true,
-    externals: ["@typescript-eslint/parser", "@typescript-eslint/utils", "typescript", "tsx"],
     rollup: {
       emitCJS: true,
     },
+    externals: [
+      "@ts-safeql/plugin-utils",
+      "@ts-safeql/zod-annotator",
+      "@typescript-eslint/utils",
+      "typescript",
+    ],
   },
 ]);

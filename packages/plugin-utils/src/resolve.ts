@@ -16,13 +16,16 @@ export class PluginManager {
     descriptors: PluginDescriptor[],
     projectDir: string,
   ): Promise<ResolvedConnection | undefined> {
-    const plugins = await Promise.all(descriptors.map((d) => this.resolveOne(d, projectDir)));
+    const plugins = descriptors.map((d) => this.resolveOne(d, projectDir));
     return this.pickConnection(plugins);
   }
 
-  getCachedConnection(descriptors: PluginDescriptor[]): ResolvedConnection | undefined {
+  getCachedConnection(
+    descriptors: PluginDescriptor[],
+    projectDir: string,
+  ): ResolvedConnection | undefined {
     const plugins = descriptors
-      .map((d) => this.pluginCache.get(this.getCacheKey(d)))
+      .map((d) => this.pluginCache.get(this.getCacheKey(d, projectDir)))
       .filter((p): p is SafeQLPlugin => p !== undefined);
 
     return this.pickConnection(plugins);
@@ -33,9 +36,9 @@ export class PluginManager {
     return descriptors.map((d) => this.resolveOneSync(d, projectDir));
   }
 
-  evictPlugins(descriptors: PluginDescriptor[]): void {
+  evictPlugins(descriptors: PluginDescriptor[], projectDir: string): void {
     for (const descriptor of descriptors) {
-      this.pluginCache.delete(this.getCacheKey(descriptor));
+      this.pluginCache.delete(this.getCacheKey(descriptor, projectDir));
     }
   }
 
@@ -55,54 +58,44 @@ export class PluginManager {
     return result;
   }
 
-  private getCacheKey(descriptor: PluginDescriptor): string {
-    return `${descriptor.package}:${stableStringify(descriptor.config ?? {})}`;
+  private getCacheKey(descriptor: PluginDescriptor, projectDir: string): string {
+    return `${getResolvedPackageKey(descriptor.package, projectDir)}:${stableStringify(
+      descriptor.config ?? {},
+    )}`;
   }
 
   private resolveOneSync(descriptor: PluginDescriptor, projectDir: string): SafeQLPlugin {
-    const key = this.getCacheKey(descriptor);
+    const key = this.getCacheKey(descriptor, projectDir);
     const cached = this.pluginCache.get(key);
     if (cached) return cached;
 
-    const projectRequire = createRequire(path.resolve(projectDir, "package.json"));
-
-    let mod: unknown;
-    try {
-      mod = projectRequire(descriptor.package);
-    } catch {
-      throw new Error(
-        `SafeQL plugin "${descriptor.package}" could not be loaded. Is it installed?`,
-      );
-    }
+    const mod = this.loadModuleSync(descriptor.package, projectDir);
 
     const plugin = this.extractPlugin(descriptor, mod);
     this.pluginCache.set(key, plugin);
     return plugin;
   }
 
-  private async resolveOne(
-    descriptor: PluginDescriptor,
-    projectDir: string,
-  ): Promise<SafeQLPlugin> {
-    const key = this.getCacheKey(descriptor);
-    const cached = this.pluginCache.get(key);
-    if (cached) return cached;
+  private resolveOne(descriptor: PluginDescriptor, projectDir: string): SafeQLPlugin {
+    return this.resolveOneSync(descriptor, projectDir);
+  }
 
+  private loadModuleSync(packageName: string, projectDir: string): unknown {
     const projectRequire = createRequire(path.resolve(projectDir, "package.json"));
 
-    let mod: unknown;
     try {
-      const resolved = projectRequire.resolve(descriptor.package);
-      mod = await import(resolved);
-    } catch {
-      throw new Error(
-        `SafeQL plugin "${descriptor.package}" could not be loaded. Is it installed?`,
-      );
-    }
+      if (isLocalPath(packageName)) {
+        const pluginPath = path.resolve(projectDir, packageName);
+        const tsx = createRequire(import.meta.url)(`tsx/cjs/api`);
+        return tsx.require(pluginPath, import.meta.url);
+      }
 
-    const plugin = this.extractPlugin(descriptor, mod);
-    this.pluginCache.set(key, plugin);
-    return plugin;
+      return projectRequire(packageName);
+    } catch (cause) {
+      throw new Error(`SafeQL plugin "${packageName}" could not be loaded. Is it installed?`, {
+        cause,
+      });
+    }
   }
 
   private extractPlugin(descriptor: PluginDescriptor, mod: unknown): SafeQLPlugin {
@@ -172,4 +165,12 @@ function stableStringify(value: unknown): string {
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([k, v]) => `${JSON.stringify(k)}:${stableStringify(v)}`);
   return `{${entries.join(",")}}`;
+}
+
+function isLocalPath(packageName: string): boolean {
+  return packageName.startsWith(".") || path.isAbsolute(packageName);
+}
+
+function getResolvedPackageKey(packageName: string, projectDir: string): string {
+  return isLocalPath(packageName) ? path.resolve(projectDir, packageName) : packageName;
 }

@@ -66,6 +66,7 @@ const messages = {
   incorrectTypeAnnotations: `Query has incorrect type annotation.\n\tExpected: {{expected}}\n\t  Actual: {{actual}}`,
   invalidTypeAnnotations: `Query has invalid type annotation (SafeQL does not support it. If you think it should, please open an issue)`,
   pluginError: `{{error}}`,
+  pluginSuggestion: "Apply suggested plugin fix",
 };
 export type RuleMessage = keyof typeof messages;
 
@@ -167,6 +168,7 @@ function checkConnection(params: {
       projectDir: params.projectDir,
       baseNode: params.tag.tag,
       typeParameter: params.tag.typeArguments,
+      pluginCtx: params.pluginCtx,
     });
   }
 
@@ -231,12 +233,14 @@ function resolvePluginTargetMatch(
 ): TargetMatch | false | undefined {
   if (!targetCtx) return undefined;
 
-  let result: TargetMatch | false | undefined;
   for (const plugin of plugins) {
-    const r = plugin.onTarget?.({ node: tag, context: targetCtx });
-    if (r !== undefined) result = r;
+    const result = plugin.onTarget?.({ node: tag, context: targetCtx });
+    if (result !== undefined) {
+      return result;
+    }
   }
-  return result;
+
+  return undefined;
 }
 
 function reportPluginTypeCheck(params: {
@@ -252,6 +256,7 @@ function reportPluginTypeCheck(params: {
 
   const nullAsOptional = connection.nullAsOptional ?? false;
   const nullAsUndefined = connection.nullAsUndefined ?? false;
+  const enforceType = connection.enforceType ?? "fix";
 
   const report = typeCheck({
     node: tag,
@@ -268,16 +273,37 @@ function reportPluginTypeCheck(params: {
       }),
   });
 
-  if (report) {
+  if (!report) return;
+
+  const reportNode = report.node ?? tag.tag;
+  const reportData = { error: report.message };
+  const reportFixData = report.fix;
+  const reportFix = reportFixData
+    ? (fixer: TSESLint.RuleFixer) => fixer.replaceText(reportFixData.node, reportFixData.text)
+    : undefined;
+
+  if (!reportFix || enforceType === "fix") {
     context.report({
-      node: report.node ?? tag.tag,
+      node: reportNode,
       messageId: "pluginError",
-      data: { error: report.message },
-      fix: report.fix
-        ? (fixer) => fixer.replaceText(report.fix!.node, report.fix!.text)
-        : undefined,
+      data: reportData,
+      fix: reportFix,
     });
+    return;
   }
+
+  context.report({
+    node: reportNode,
+    messageId: "pluginError",
+    data: reportData,
+    suggest: [
+      {
+        messageId: "pluginSuggestion",
+        data: reportData,
+        fix: reportFix,
+      },
+    ],
+  });
 }
 
 function reportCheck(params: {
@@ -322,6 +348,7 @@ function reportCheck(params: {
         checker,
         params.connection,
         params.context.sourceCode,
+        params.pluginCtx?.plugins,
       ),
     ),
     E.bindW("result", ({ query }) => {

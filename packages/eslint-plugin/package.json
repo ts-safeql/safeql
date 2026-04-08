@@ -74,7 +74,7 @@
     "synckit": "^0.10.3",
     "ts-pattern": "^5.6.2",
     "tsx": "catalog:",
-    "zod": "^4.1.12"
+    "zod": "^4.3.6"
   },
   "peerDependencies": {
     "@typescript-eslint/utils": ">=8.0.0",
