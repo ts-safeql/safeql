@@ -1,5 +1,17 @@
 # @ts-safeql/generate
 
+## 5.1.0
+
+### Minor Changes
+
+- 71d63b5: Smaller install: removed several `@ts-safeql/*` packages from runtime dependencies and inlined them into the published bundle.
+
+  If you use `@ts-safeql/generate` directly, install `libpg-query` alongside it — it's now a peer dependency.
+
+### Patch Changes
+
+- 71d63b5: Fix TypeScript types failing to resolve in CommonJS projects.
+
 ## 5.0.0
 
 ### Patch Changes

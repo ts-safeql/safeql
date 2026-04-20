@@ -1,5 +1,18 @@
 # @ts-safeql/eslint-plugin
 
+## 5.1.0
+
+### Minor Changes
+
+- 71d63b5: Smaller install: removed several `@ts-safeql/*` packages from runtime dependencies and inlined them into the published bundle.
+
+  If you use `@ts-safeql/generate` directly, install `libpg-query` alongside it — it's now a peer dependency.
+
+### Patch Changes
+
+- Updated dependencies [71d63b5]
+  - @ts-safeql/plugin-utils@5.0.1
+
 ## 5.0.0
 
 ### Major Changes
