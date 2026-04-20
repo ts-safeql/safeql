@@ -2,7 +2,11 @@
   "name": "@ts-safeql/eslint-plugin",
   "version": "5.0.0",
   "license": "MIT",
-  "repository": "https://github.com/ts-safeql/safeql/tree/master/packages/eslint-plugin",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ts-safeql/safeql.git",
+    "directory": "packages/eslint-plugin"
+  },
   "files": [
     "dist",
     "package.json"
@@ -45,10 +49,12 @@
     "test": "vitest --pool=forks --hideSkippedTests=true",
     "lint": "eslint src",
     "lint!": "eslint src --fix",
+    "publint": "publint",
     "typecheck": "tsc -b",
     "clean": "rm -rf dist"
   },
   "devDependencies": {
+    "@ts-safeql/connection-manager": "workspace:*",
     "@ts-safeql/generate": "workspace:*",
     "@ts-safeql/shared": "workspace:*",
     "@ts-safeql/sql-ast": "workspace:*",
@@ -59,12 +65,12 @@
     "@typescript-eslint/rule-tester": "catalog:",
     "eslint": "catalog:",
     "libpg-query": "catalog:",
+    "publint": "catalog:",
     "typescript": "catalog:",
     "unbuild": "catalog:",
     "vitest": "catalog:"
   },
   "dependencies": {
-    "@ts-safeql/connection-manager": "workspace:*",
     "@ts-safeql/plugin-utils": "workspace:*",
     "chokidar": "^4.0.3",
     "fp-ts": "^2.16.9",

@@ -2,7 +2,11 @@
   "name": "@ts-safeql/plugin-utils",
   "version": "5.0.0",
   "license": "MIT",
-  "repository": "https://github.com/ts-safeql/safeql/tree/master/packages/plugin-utils",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ts-safeql/safeql.git",
+    "directory": "packages/plugin-utils"
+  },
   "files": [
     "dist",
     "package.json"
@@ -13,12 +17,20 @@
   "main": "dist/index.cjs",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
+      "types": {
+        "import": "./dist/index.d.mts",
+        "require": "./dist/index.d.cts",
+        "default": "./dist/index.d.ts"
+      },
       "import": "./dist/index.mjs",
       "require": "./dist/index.cjs"
     },
     "./testing": {
-      "types": "./dist/plugin-test-driver.d.ts",
+      "types": {
+        "import": "./dist/plugin-test-driver.d.mts",
+        "require": "./dist/plugin-test-driver.d.cts",
+        "default": "./dist/plugin-test-driver.d.ts"
+      },
       "import": "./dist/plugin-test-driver.mjs",
       "require": "./dist/plugin-test-driver.cjs"
     }
@@ -26,6 +38,7 @@
   "scripts": {
     "build": "unbuild",
     "dev": "unbuild --stub",
+    "publint": "publint",
     "typecheck": "tsc -b",
     "clean": "rm -rf dist"
   },
@@ -33,6 +46,7 @@
     "@types/node": "catalog:",
     "@typescript-eslint/parser": "catalog:",
     "@typescript-eslint/utils": "catalog:",
+    "publint": "catalog:",
     "typescript": "catalog:",
     "unbuild": "catalog:"
   },

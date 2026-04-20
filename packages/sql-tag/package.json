@@ -3,7 +3,11 @@
   "version": "0.2.1",
   "description": "",
   "license": "MIT",
-  "repository": "https://github.com/ts-safeql/safeql/tree/master/packages/eslint-plugin",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ts-safeql/safeql.git",
+    "directory": "packages/sql-tag"
+  },
   "files": [
     "dist",
     "package.json"
@@ -29,6 +33,7 @@
     "test": "vitest",
     "lint": "eslint src",
     "lint!": "eslint src --fix",
+    "publint": "publint",
     "typecheck": "tsc -b",
     "clean": "rm -rf dist"
   },
@@ -37,6 +42,7 @@
     "@typescript-eslint/eslint-plugin": "catalog:",
     "@typescript-eslint/parser": "catalog:",
     "eslint": "catalog:",
+    "publint": "catalog:",
     "typescript": "catalog:",
     "unbuild": "catalog:",
     "vitest": "catalog:"

@@ -1,10 +1,10 @@
 import {
   defaultTypeMapping,
   doesMatchPattern,
-  InvalidQueryError,
   normalizeIndent,
   QuerySourceMapEntry,
 } from "@ts-safeql/shared";
+import { InvalidQueryError } from "../errors";
 import { TSESTreeToTSNode } from "@typescript-eslint/typescript-estree";
 import { ParserServices, TSESLint, TSESTree } from "@typescript-eslint/utils";
 import ts, { TypeChecker } from "typescript";

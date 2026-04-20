@@ -1,6 +1,7 @@
 {
   "name": "@ts-safeql/shared",
   "version": "5.0.0",
+  "private": true,
   "license": "MIT",
   "repository": "https://github.com/ts-safeql/safeql/tree/master/packages/eslint-plugin",
   "files": [
@@ -37,7 +38,6 @@
     "vitest": "catalog:"
   },
   "dependencies": {
-    "@typescript-eslint/utils": "catalog:",
     "minimatch": "^10.0.1",
     "postgres": "catalog:"
   }
