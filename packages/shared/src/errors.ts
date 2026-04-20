@@ -1,5 +1,4 @@
 import path from "path";
-import type { TSESTree } from "@typescript-eslint/utils";
 import postgres from "postgres";
 
 export class DatabaseInitializationError extends Error {
@@ -102,29 +101,6 @@ export class InvalidMigrationError extends Error {
       _tag: this._tag,
       filePath: this.filePath,
       message: this.message,
-    };
-  }
-}
-
-export class InvalidQueryError extends Error {
-  _tag = "InvalidQueryError" as const;
-
-  node: TSESTree.Expression;
-
-  constructor(error: string, node: TSESTree.Expression) {
-    super(error);
-    this.node = node;
-  }
-
-  static of(error: string, node: TSESTree.Expression) {
-    return new InvalidQueryError(error, node);
-  }
-
-  toJSON() {
-    return {
-      _tag: this._tag,
-      message: this.message,
-      node: this.node,
     };
   }
 }

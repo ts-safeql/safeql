@@ -9,6 +9,6 @@ export default defineBuildConfig([
       emitCJS: true,
       inlineDependencies: true,
     },
-    externals: ["libpg-query", "@typescript-eslint/utils"],
+    externals: ["libpg-query"],
   },
 ]);

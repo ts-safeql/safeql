@@ -4,11 +4,11 @@ import {
   InvalidConfigError,
   InvalidMigrationError,
   InvalidMigrationsPathError,
-  InvalidQueryError,
   PostgresError,
   QuerySourceMapEntry,
   fmap,
 } from "@ts-safeql/shared";
+import { InvalidQueryError } from "../errors";
 import { TSESTree } from "@typescript-eslint/utils";
 import { RuleFixer, SourceCode } from "@typescript-eslint/utils/ts-eslint";
 import crypto from "crypto";
