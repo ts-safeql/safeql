@@ -2,7 +2,11 @@
   "name": "@ts-safeql/plugin-auth-aws",
   "version": "4.3.0",
   "license": "MIT",
-  "repository": "https://github.com/ts-safeql/safeql/tree/master/packages/plugins/auth-aws",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ts-safeql/safeql.git",
+    "directory": "packages/plugins/auth-aws"
+  },
   "files": [
     "dist",
     "package.json"
@@ -13,7 +17,11 @@
   "main": "dist/index.cjs",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
+      "types": {
+        "import": "./dist/index.d.mts",
+        "require": "./dist/index.d.cts",
+        "default": "./dist/index.d.ts"
+      },
       "import": "./dist/index.mjs",
       "require": "./dist/index.cjs"
     }
@@ -21,12 +29,14 @@
   "scripts": {
     "build": "unbuild",
     "dev": "unbuild --stub",
+    "publint": "publint",
     "typecheck": "tsc -b",
     "test": "vitest --run",
     "clean": "rm -rf dist"
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "publint": "catalog:",
     "typescript": "catalog:",
     "unbuild": "catalog:",
     "vitest": "catalog:"

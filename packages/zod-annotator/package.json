@@ -3,7 +3,11 @@
   "version": "5.0.0",
   "description": "Zod schema annotator for SafeQL plugins",
   "license": "MIT",
-  "repository": "https://github.com/ts-safeql/safeql/tree/master/packages/zod-annotator",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ts-safeql/safeql.git",
+    "directory": "packages/zod-annotator"
+  },
   "files": [
     "dist",
     "package.json"
@@ -14,7 +18,11 @@
   "main": "dist/index.cjs",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
+      "types": {
+        "import": "./dist/index.d.mts",
+        "require": "./dist/index.d.cts",
+        "default": "./dist/index.d.ts"
+      },
       "import": "./dist/index.mjs",
       "require": "./dist/index.cjs"
     }
@@ -23,6 +31,7 @@
     "build": "unbuild",
     "dev": "unbuild --stub",
     "test": "vitest --run",
+    "publint": "publint",
     "typecheck": "tsc -b",
     "clean": "rm -rf dist"
   },
@@ -30,6 +39,7 @@
     "@types/node": "catalog:",
     "@typescript-eslint/parser": "catalog:",
     "@typescript-eslint/utils": "catalog:",
+    "publint": "catalog:",
     "typescript": "catalog:",
     "unbuild": "catalog:",
     "vitest": "catalog:",

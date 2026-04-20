@@ -3,7 +3,11 @@
   "version": "5.0.0",
   "description": "",
   "license": "MIT",
-  "repository": "https://github.com/ts-safeql/safeql/tree/master/packages/eslint-plugin",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ts-safeql/safeql.git",
+    "directory": "packages/generate"
+  },
   "files": [
     "dist",
     "package.json"
@@ -14,7 +18,11 @@
   "main": "dist/index.cjs",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
+      "types": {
+        "import": "./dist/index.d.mts",
+        "require": "./dist/index.d.cts",
+        "default": "./dist/index.d.ts"
+      },
       "import": "./dist/index.mjs",
       "require": "./dist/index.cjs"
     }
@@ -26,26 +34,31 @@
     "test": "vitest --pool=forks",
     "lint": "eslint src",
     "lint!": "eslint src --fix",
+    "publint": "publint",
     "typecheck": "tsc -b",
     "clean": "rm -rf dist"
   },
   "devDependencies": {
+    "@ts-safeql/shared": "workspace:*",
+    "@ts-safeql/sql-ast": "workspace:*",
+    "@ts-safeql/test-utils": "workspace:*",
     "@types/node": "catalog:",
     "@typescript-eslint/eslint-plugin": "catalog:",
     "@typescript-eslint/parser": "catalog:",
     "eslint": "catalog:",
     "libpg-query": "catalog:",
+    "publint": "catalog:",
     "tsx": "catalog:",
     "typescript": "catalog:",
     "unbuild": "catalog:",
     "vitest": "catalog:"
   },
   "dependencies": {
-    "@ts-safeql/shared": "workspace:*",
-    "@ts-safeql/sql-ast": "workspace:*",
-    "@ts-safeql/test-utils": "workspace:*",
     "fp-ts": "^2.16.9",
     "pg-connection-string": "^2.7.0",
     "postgres": "catalog:"
+  },
+  "peerDependencies": {
+    "libpg-query": ">=13.2.5"
   }
 }

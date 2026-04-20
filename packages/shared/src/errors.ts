@@ -1,5 +1,5 @@
 import path from "path";
-import { TSESTree } from "@typescript-eslint/utils";
+import type { TSESTree } from "@typescript-eslint/utils";
 import postgres from "postgres";
 
 export class DatabaseInitializationError extends Error {
