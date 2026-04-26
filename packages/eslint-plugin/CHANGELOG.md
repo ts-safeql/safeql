@@ -1,5 +1,7 @@
 # @ts-safeql/eslint-plugin
 
+## 5.1.1
+
 ## 5.1.0
 
 ### Minor Changes
