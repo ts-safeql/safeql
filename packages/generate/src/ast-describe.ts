@@ -15,6 +15,7 @@ import {
   FlattenedRelationWithJoins,
   flattenRelationsWithJoinsMap,
   getRelationsWithJoins,
+  isRelationNullableDueToJoin,
 } from "./utils/get-relations-with-joins";
 
 type ASTDescriptionOptions = {
@@ -1052,6 +1053,43 @@ function getDescribedJsonBuildObjectFunCall({
   ];
 }
 
+function findRangeSubselectByAlias(params: {
+  fromClause: LibPgQueryAST.Node[] | undefined;
+  alias: string;
+}): LibPgQueryAST.RangeSubselect | undefined {
+  for (const node of params.fromClause ?? []) {
+    const found = findRangeSubselectByAliasInFromNode(node, params.alias);
+
+    if (found !== undefined) {
+      return found;
+    }
+  }
+
+  return undefined;
+}
+
+function findRangeSubselectByAliasInFromNode(
+  node: LibPgQueryAST.Node | undefined,
+  alias: string,
+): LibPgQueryAST.RangeSubselect | undefined {
+  if (node === undefined) {
+    return undefined;
+  }
+
+  if (node.RangeSubselect?.alias?.aliasname === alias) {
+    return node.RangeSubselect;
+  }
+
+  if (node.JoinExpr !== undefined) {
+    return (
+      findRangeSubselectByAliasInFromNode(node.JoinExpr.larg, alias) ??
+      findRangeSubselectByAliasInFromNode(node.JoinExpr.rarg, alias)
+    );
+  }
+
+  return undefined;
+}
+
 function getColumnRefOrigins({
   context,
   node,
@@ -1062,11 +1100,9 @@ function getColumnRefOrigins({
       // lookup in cte
       context.select.withClause?.ctes.find((cte) => cte.CommonTableExpr?.ctename === source)
         ?.CommonTableExpr?.ctequery?.SelectStmt?.targetList ??
-      // lookup in subselect
-      context.select.fromClause
-        ?.map((from) => from.RangeSubselect)
-        .find((subselect) => subselect?.alias?.aliasname === source)?.subquery?.SelectStmt
-        ?.targetList
+      // lookup in subselect (including inside join trees, e.g. LATERAL)
+      findRangeSubselectByAlias({ fromClause: context.select.fromClause, alias: source })?.subquery
+        ?.SelectStmt?.targetList
     );
   }
 
@@ -1081,10 +1117,10 @@ function getColumnRefOrigins({
           (x) => x.ResTarget?.name === column,
         ) ??
       // lookup in subselect
-      context.select.fromClause
-        ?.map((from) => from.RangeSubselect)
-        .find((subselect) => subselect?.alias?.aliasname === source)
-        ?.subquery?.SelectStmt?.targetList?.find((x) => x.ResTarget?.name === column);
+      findRangeSubselectByAlias({
+        fromClause: context.select.fromClause,
+        alias: source,
+      })?.subquery?.SelectStmt?.targetList?.find((x) => x.ResTarget?.name === column);
 
     if (!origin) return undefined;
 
@@ -1113,9 +1149,10 @@ function getContextForColumnRef(
     }
 
     if (source?.kind === "subselect") {
-      const select = context.select.fromClause
-        ?.map((from) => from.RangeSubselect)
-        .find((subselect) => subselect?.alias?.aliasname === sourceName)?.subquery?.SelectStmt;
+      const select = findRangeSubselectByAlias({
+        fromClause: context.select.fromClause,
+        alias: sourceName,
+      })?.subquery?.SelectStmt;
 
       return {
         ...context,
@@ -1128,6 +1165,22 @@ function getContextForColumnRef(
   return context;
 }
 
+function isNullableSubselectColumnRef(
+  context: ASTDescriptionContext,
+  node: LibPgQueryAST.ColumnRef,
+): boolean {
+  if (!isColumnTableColumnRef(node.fields)) {
+    return false;
+  }
+
+  const sourceName = node.fields[0].String.sval;
+
+  return (
+    context.resolver.sources.get(sourceName)?.kind === "subselect" &&
+    isRelationNullableDueToJoin(context.relations, sourceName)
+  );
+}
+
 function getDescribedColumnRef({
   alias,
   context,
@@ -1137,9 +1190,18 @@ function getDescribedColumnRef({
 
   if (definitionNodes) {
     const defContext = getContextForColumnRef(context, node);
-    return definitionNodes.flatMap((node) =>
-      getDescribedNode({ alias, node, context: defContext }),
+    const columns = definitionNodes.flatMap((definitionNode) =>
+      getDescribedNode({ alias, node: definitionNode, context: defContext }),
     );
+
+    if (isNullableSubselectColumnRef(context, node)) {
+      return columns.map((col) => ({
+        ...col,
+        type: resolveType({ context, nullable: true, type: col.type }),
+      }));
+    }
+
+    return columns;
   }
 
   const fromSchema = getDescribedColumnRefFromSchema({ alias, context, node });
