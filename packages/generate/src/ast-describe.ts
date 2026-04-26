@@ -1169,7 +1169,7 @@ function isNullableSubselectColumnRef(
   context: ASTDescriptionContext,
   node: LibPgQueryAST.ColumnRef,
 ): boolean {
-  if (!isColumnTableColumnRef(node.fields)) {
+  if (!isColumnTableColumnRef(node.fields) && !isColumnTableStarRef(node.fields)) {
     return false;
   }
 

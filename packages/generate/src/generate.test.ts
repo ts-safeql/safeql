@@ -2537,6 +2537,66 @@ test("select jsonb_build_object from LEFT JOIN LATERAL should return nullable ob
   });
 });
 
+test("select star from LEFT JOIN LATERAL should return nullable object", async () => {
+  await testQuery({
+    schema: `
+      CREATE TABLE invoice (id INTEGER PRIMARY KEY, customer_id INTEGER NOT NULL);
+      CREATE TABLE customer (id INTEGER PRIMARY KEY, name TEXT NOT NULL);
+    `,
+    query: `
+      SELECT cust_json.*
+      FROM invoice inv
+      LEFT JOIN LATERAL (
+        SELECT jsonb_build_object('name', c.name) AS snapshot
+        FROM customer c
+        WHERE c.id = inv.customer_id
+      ) cust_json ON TRUE
+    `,
+    expected: [
+      [
+        "snapshot",
+        {
+          kind: "union",
+          value: [
+            { kind: "object", value: [["name", { kind: "type", value: "string", type: "text" }]] },
+            { kind: "type", value: "null", type: "null" },
+          ],
+        },
+      ],
+    ],
+  });
+});
+
+test("select nullable column from LEFT JOIN LATERAL should return flat nullable type", async () => {
+  await testQuery({
+    schema: `
+      CREATE TABLE invoice (id INTEGER PRIMARY KEY, customer_id INTEGER NOT NULL);
+      CREATE TABLE customer (id INTEGER PRIMARY KEY, nickname TEXT);
+    `,
+    query: `
+      SELECT cust_json.snapshot
+      FROM invoice inv
+      LEFT JOIN LATERAL (
+        SELECT c.nickname AS snapshot
+        FROM customer c
+        WHERE c.id = inv.customer_id
+      ) cust_json ON TRUE
+    `,
+    expected: [
+      [
+        "snapshot",
+        {
+          kind: "union",
+          value: [
+            { kind: "type", value: "string", type: "text" },
+            { kind: "type", value: "null", type: "null" },
+          ],
+        },
+      ],
+    ],
+  });
+});
+
 test("select jsonb_build_object from INNER JOIN LATERAL should return object", async () => {
   await testQuery({
     schema: `
