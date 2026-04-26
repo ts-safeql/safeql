@@ -1,5 +1,11 @@
 # @ts-safeql/generate
 
+## 5.1.1
+
+### Patch Changes
+
+- c88fb95: Improve inference for columns selected from subqueries inside join trees.
+
 ## 5.1.0
 
 ### Minor Changes
