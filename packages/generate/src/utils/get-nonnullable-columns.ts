@@ -265,6 +265,146 @@ function getTargetName(target: LibPgQueryAST.ResTarget): string {
   return target.name ?? getNodeName(target.val);
 }
 
+function addColumnRef(nonNullableColumns: Set<string>, node: LibPgQueryAST.Node | undefined) {
+  if (node?.ColumnRef?.fields !== undefined) {
+    nonNullableColumns.add(concatStringNodes(node.ColumnRef.fields));
+  }
+}
+
+function addColumnRefsFromEqualityExpr(
+  nonNullableColumns: Set<string>,
+  node: LibPgQueryAST.Node | undefined,
+) {
+  if (node?.BoolExpr?.boolop === LibPgQueryAST.BoolExprType.AND_EXPR) {
+    for (const arg of node.BoolExpr.args) {
+      addColumnRefsFromEqualityExpr(nonNullableColumns, arg);
+    }
+    return;
+  }
+
+  if (node?.A_Expr?.kind !== LibPgQueryAST.AExprKind.AEXPR_OP) {
+    return;
+  }
+
+  if (concatStringNodes(node.A_Expr.name) !== "=") {
+    return;
+  }
+
+  addColumnRef(nonNullableColumns, node.A_Expr.lexpr);
+  addColumnRef(nonNullableColumns, node.A_Expr.rexpr);
+}
+
+function addNonNullableColumnsFromSubselect(
+  nonNullableColumns: Set<string>,
+  node: LibPgQueryAST.Node,
+  root: LibPgQueryAST.ParseResult,
+) {
+  const select = node.RangeSubselect?.subquery?.SelectStmt;
+
+  if (select === undefined) {
+    return;
+  }
+
+  for (const name of getNonNullableColumnsInSelectStmt(select, root)) {
+    nonNullableColumns.add(name);
+  }
+}
+
+function addNonNullableColumnsFromFromNode(
+  nonNullableColumns: Set<string>,
+  node: LibPgQueryAST.Node,
+  root: LibPgQueryAST.ParseResult,
+  isNullable: boolean,
+) {
+  if (!isNullable) {
+    addNonNullableColumnsFromSubselect(nonNullableColumns, node, root);
+  }
+
+  const joinExpr = node.JoinExpr;
+
+  if (joinExpr === undefined) {
+    return;
+  }
+
+  switch (joinExpr.jointype) {
+    case LibPgQueryAST.JoinType.JOIN_TYPE_UNDEFINED:
+    case LibPgQueryAST.JoinType.JOIN_INNER:
+    case LibPgQueryAST.JoinType.JOIN_SEMI:
+    case LibPgQueryAST.JoinType.JOIN_UNIQUE_INNER:
+      if (!isNullable) {
+        addColumnRefsFromEqualityExpr(nonNullableColumns, joinExpr.quals);
+      }
+
+      if (joinExpr.larg !== undefined) {
+        addNonNullableColumnsFromFromNode(nonNullableColumns, joinExpr.larg, root, isNullable);
+      }
+
+      if (joinExpr.rarg !== undefined) {
+        addNonNullableColumnsFromFromNode(nonNullableColumns, joinExpr.rarg, root, isNullable);
+      }
+
+      break;
+
+    case LibPgQueryAST.JoinType.JOIN_LEFT:
+    case LibPgQueryAST.JoinType.JOIN_ANTI:
+    case LibPgQueryAST.JoinType.JOIN_UNIQUE_OUTER:
+      if (joinExpr.larg !== undefined) {
+        addNonNullableColumnsFromFromNode(nonNullableColumns, joinExpr.larg, root, isNullable);
+      }
+
+      if (joinExpr.rarg !== undefined) {
+        addNonNullableColumnsFromFromNode(nonNullableColumns, joinExpr.rarg, root, true);
+      }
+
+      break;
+
+    case LibPgQueryAST.JoinType.JOIN_RIGHT:
+      if (joinExpr.larg !== undefined) {
+        addNonNullableColumnsFromFromNode(nonNullableColumns, joinExpr.larg, root, true);
+      }
+
+      if (joinExpr.rarg !== undefined) {
+        addNonNullableColumnsFromFromNode(nonNullableColumns, joinExpr.rarg, root, isNullable);
+      }
+
+      break;
+
+    case LibPgQueryAST.JoinType.JOIN_FULL:
+    case LibPgQueryAST.JoinType.UNRECOGNIZED:
+      if (joinExpr.larg !== undefined) {
+        addNonNullableColumnsFromFromNode(nonNullableColumns, joinExpr.larg, root, true);
+      }
+
+      if (joinExpr.rarg !== undefined) {
+        addNonNullableColumnsFromFromNode(nonNullableColumns, joinExpr.rarg, root, true);
+      }
+
+      break;
+
+    default:
+      assertNever(joinExpr.jointype);
+  }
+}
+
+function addNonNullableTargetAliases(
+  nonNullableColumns: Set<string>,
+  targetList: LibPgQueryAST.Node[],
+) {
+  for (const target of targetList) {
+    const colRef = target.ResTarget?.val?.ColumnRef;
+
+    if (colRef?.fields === undefined || target.ResTarget === undefined) {
+      continue;
+    }
+
+    const columnName = concatStringNodes(colRef.fields);
+
+    if (nonNullableColumns.has(columnName)) {
+      nonNullableColumns.add(getTargetName(target.ResTarget));
+    }
+  }
+}
+
 function getNonNullableColumnsInSelectStmt(
   stmt: LibPgQueryAST.SelectStmt,
   root: LibPgQueryAST.ParseResult,
@@ -317,7 +457,15 @@ function getNonNullableColumnsInSelectStmt(
         }
       }
     }
+
+    addColumnRefsFromEqualityExpr(nonNullableColumns, stmt.whereClause);
   }
+
+  for (const from of stmt.fromClause ?? []) {
+    addNonNullableColumnsFromFromNode(nonNullableColumns, from, root, false);
+  }
+
+  addNonNullableTargetAliases(nonNullableColumns, targetList);
 
   return nonNullableColumns;
 }
