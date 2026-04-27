@@ -1,5 +1,11 @@
 # @ts-safeql/generate
 
+## 5.1.2
+
+### Patch Changes
+
+- e6de29c: Infer columns selected from views as non-null when equality predicates guarantee their presence.
+
 ## 5.1.1
 
 ### Patch Changes
