@@ -2637,6 +2637,21 @@ test("select inner joined view column inside subselect should remain non-nullabl
   });
 });
 
+test("select aliased inner joined view column from subselect should remain non-nullable", async () => {
+  await testQuery({
+    schema: `CREATE VIEW visible_caregiver AS SELECT id FROM caregiver`,
+    query: `
+      SELECT subquery.caregiver_id AS cid
+      FROM (
+        SELECT visible_caregiver.id AS caregiver_id
+        FROM caregiver_agency
+          JOIN visible_caregiver ON visible_caregiver.id = caregiver_agency.caregiver_id
+      ) subquery
+    `,
+    expected: [["cid", { kind: "type", value: "number", type: "int4" }]],
+  });
+});
+
 test("select inner joined view column inside JOIN LATERAL should remain non-nullable", async () => {
   await testQuery({
     schema: `CREATE VIEW visible_caregiver AS SELECT id FROM caregiver`,

@@ -279,6 +279,7 @@ function addColumnRefsFromEqualityExpr(
     for (const arg of node.BoolExpr.args) {
       addColumnRefsFromEqualityExpr(nonNullableColumns, arg);
     }
+    return;
   }
 
   if (node?.A_Expr?.kind !== LibPgQueryAST.AExprKind.AEXPR_OP) {
