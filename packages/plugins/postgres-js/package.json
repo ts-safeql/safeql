@@ -1,7 +1,6 @@
 {
-  "name": "@ts-safeql/connection-manager",
-  "version": "4.2.2",
-  "private": true,
+  "name": "@ts-safeql/plugin-postgres-js",
+  "version": "4.2.0",
   "license": "MIT",
   "type": "module",
   "types": "dist/index.d.ts",
@@ -21,19 +20,19 @@
     "test": "vitest",
     "clean": "rm -rf dist"
   },
-  "dependencies": {
-    "@ts-safeql/plugin-utils": "workspace:*",
-    "@ts-safeql/shared": "workspace:*",
-    "fp-ts": "^2.16.9",
-    "pg-connection-string": "2.7.0",
-    "postgres": "catalog:",
-    "ts-pattern": "^5.6.2"
-  },
   "devDependencies": {
+    "@ts-safeql/eslint-plugin": "workspace:*",
+    "@ts-safeql/plugin-utils": "workspace:*",
     "@ts-safeql/test-utils": "workspace:*",
     "@types/node": "catalog:",
+    "@typescript-eslint/parser": "catalog:",
+    "@typescript-eslint/rule-tester": "catalog:",
+    "postgres": "catalog:",
     "typescript": "catalog:",
     "unbuild": "catalog:",
     "vitest": "catalog:"
+  },
+  "peerDependencies": {
+    "postgres": ">=3.0.0"
   }
 }

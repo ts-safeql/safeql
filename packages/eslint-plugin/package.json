@@ -46,7 +46,7 @@
     "demo": "tsx src/index.ts",
     "build": "unbuild",
     "dev": "unbuild --stub",
-    "test": "vitest --pool=forks --hideSkippedTests=true",
+    "test": "vitest",
     "lint": "eslint src",
     "lint!": "eslint src --fix",
     "publint": "publint",

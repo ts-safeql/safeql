@@ -31,7 +31,7 @@
     "demo": "tsx index.ts",
     "build": "unbuild",
     "dev": "unbuild --stub",
-    "test": "vitest --pool=forks",
+    "test": "vitest",
     "lint": "eslint src",
     "lint!": "eslint src --fix",
     "publint": "publint",

@@ -2,6 +2,7 @@
 
 import tseslint from "typescript-eslint";
 import safeql from "@ts-safeql/eslint-plugin/config";
+import postgresjs from "@ts-safeql/plugin-postgres-js";
 
 export default tseslint.config({
   files: ["src/**/*.ts"],
@@ -14,7 +15,7 @@ export default tseslint.config({
   extends: [
     safeql.configs.connections({
       databaseUrl: "postgres://postgres:postgres@localhost:5432/safeql_postgresjs_demo",
-      targets: [{ tag: "sql", transform: "{type}[]" }],
+      plugins: [postgresjs()],
     }),
   ],
 });
