@@ -27,6 +27,7 @@
     "@types/node": "catalog:",
     "@typescript-eslint/parser": "catalog:",
     "@typescript-eslint/rule-tester": "catalog:",
+    "@typescript-eslint/utils": "catalog:",
     "postgres": "catalog:",
     "typescript": "catalog:",
     "unbuild": "catalog:",

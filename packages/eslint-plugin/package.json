@@ -63,6 +63,7 @@
     "@typescript-eslint/eslint-plugin": "catalog:",
     "@typescript-eslint/parser": "catalog:",
     "@typescript-eslint/rule-tester": "catalog:",
+    "@typescript-eslint/typescript-estree": "catalog:",
     "eslint": "catalog:",
     "libpg-query": "catalog:",
     "publint": "catalog:",
