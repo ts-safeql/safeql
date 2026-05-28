@@ -2507,6 +2507,192 @@ test("select from LEFT JOIN LATERAL should return nullable field", async () => {
   });
 });
 
+test("select jsonb_build_object from LEFT JOIN LATERAL should return nullable object", async () => {
+  await testQuery({
+    schema: `
+      CREATE TABLE invoice (id INTEGER PRIMARY KEY, customer_id INTEGER NOT NULL);
+      CREATE TABLE customer (id INTEGER PRIMARY KEY, name TEXT NOT NULL);
+    `,
+    query: `
+      SELECT cust_json.snapshot
+      FROM invoice inv
+      LEFT JOIN LATERAL (
+        SELECT jsonb_build_object('name', c.name) AS snapshot
+        FROM customer c
+        WHERE c.id = inv.customer_id
+      ) cust_json ON TRUE
+    `,
+    expected: [
+      [
+        "snapshot",
+        {
+          kind: "union",
+          value: [
+            { kind: "object", value: [["name", { kind: "type", value: "string", type: "text" }]] },
+            { kind: "type", value: "null", type: "null" },
+          ],
+        },
+      ],
+    ],
+  });
+});
+
+test("select star from LEFT JOIN LATERAL should return nullable object", async () => {
+  await testQuery({
+    schema: `
+      CREATE TABLE invoice (id INTEGER PRIMARY KEY, customer_id INTEGER NOT NULL);
+      CREATE TABLE customer (id INTEGER PRIMARY KEY, name TEXT NOT NULL);
+    `,
+    query: `
+      SELECT cust_json.*
+      FROM invoice inv
+      LEFT JOIN LATERAL (
+        SELECT jsonb_build_object('name', c.name) AS snapshot
+        FROM customer c
+        WHERE c.id = inv.customer_id
+      ) cust_json ON TRUE
+    `,
+    expected: [
+      [
+        "snapshot",
+        {
+          kind: "union",
+          value: [
+            { kind: "object", value: [["name", { kind: "type", value: "string", type: "text" }]] },
+            { kind: "type", value: "null", type: "null" },
+          ],
+        },
+      ],
+    ],
+  });
+});
+
+test("select nullable column from LEFT JOIN LATERAL should return flat nullable type", async () => {
+  await testQuery({
+    schema: `
+      CREATE TABLE invoice (id INTEGER PRIMARY KEY, customer_id INTEGER NOT NULL);
+      CREATE TABLE customer (id INTEGER PRIMARY KEY, nickname TEXT);
+    `,
+    query: `
+      SELECT cust_json.snapshot
+      FROM invoice inv
+      LEFT JOIN LATERAL (
+        SELECT c.nickname AS snapshot
+        FROM customer c
+        WHERE c.id = inv.customer_id
+      ) cust_json ON TRUE
+    `,
+    expected: [
+      [
+        "snapshot",
+        {
+          kind: "union",
+          value: [
+            { kind: "type", value: "string", type: "text" },
+            { kind: "type", value: "null", type: "null" },
+          ],
+        },
+      ],
+    ],
+  });
+});
+
+test("select inner joined view column should remain non-nullable", async () => {
+  await testQuery({
+    schema: `CREATE VIEW visible_caregiver AS SELECT id FROM caregiver`,
+    query: `
+      SELECT visible_caregiver.id AS caregiver_id
+      FROM caregiver_agency
+        JOIN visible_caregiver ON visible_caregiver.id = caregiver_agency.caregiver_id
+    `,
+    expected: [["caregiver_id", { kind: "type", value: "number", type: "int4" }]],
+  });
+});
+
+test("select view column joined through left joined column should remain non-nullable", async () => {
+  await testQuery({
+    schema: `CREATE VIEW visible_caregiver AS SELECT id FROM caregiver`,
+    query: `
+      SELECT visible_caregiver.id AS caregiver_id
+      FROM caregiver
+        LEFT JOIN caregiver_agency ON caregiver_agency.caregiver_id = caregiver.id
+        JOIN visible_caregiver ON visible_caregiver.id = caregiver_agency.caregiver_id
+    `,
+    expected: [["caregiver_id", { kind: "type", value: "number", type: "int4" }]],
+  });
+});
+
+test("select inner joined view column inside subselect should remain non-nullable", async () => {
+  await testQuery({
+    schema: `CREATE VIEW visible_caregiver AS SELECT id FROM caregiver`,
+    query: `
+      SELECT subquery.caregiver_id
+      FROM (
+        SELECT visible_caregiver.id AS caregiver_id
+        FROM caregiver_agency
+          JOIN visible_caregiver ON visible_caregiver.id = caregiver_agency.caregiver_id
+      ) subquery
+    `,
+    expected: [["caregiver_id", { kind: "type", value: "number", type: "int4" }]],
+  });
+});
+
+test("select aliased inner joined view column from subselect should remain non-nullable", async () => {
+  await testQuery({
+    schema: `CREATE VIEW visible_caregiver AS SELECT id FROM caregiver`,
+    query: `
+      SELECT subquery.caregiver_id AS cid
+      FROM (
+        SELECT visible_caregiver.id AS caregiver_id
+        FROM caregiver_agency
+          JOIN visible_caregiver ON visible_caregiver.id = caregiver_agency.caregiver_id
+      ) subquery
+    `,
+    expected: [["cid", { kind: "type", value: "number", type: "int4" }]],
+  });
+});
+
+test("select inner joined view column inside JOIN LATERAL should remain non-nullable", async () => {
+  await testQuery({
+    schema: `CREATE VIEW visible_caregiver AS SELECT id FROM caregiver`,
+    query: `
+      SELECT caregiver_lookup.caregiver_id
+      FROM caregiver_agency
+        JOIN LATERAL (
+          SELECT visible_caregiver.id AS caregiver_id
+          FROM visible_caregiver
+          WHERE visible_caregiver.id = caregiver_agency.caregiver_id
+          LIMIT 1
+        ) caregiver_lookup ON TRUE
+    `,
+    expected: [["caregiver_id", { kind: "type", value: "number", type: "int4" }]],
+  });
+});
+
+test("select jsonb_build_object from INNER JOIN LATERAL should return object", async () => {
+  await testQuery({
+    schema: `
+      CREATE TABLE invoice (id INTEGER PRIMARY KEY, customer_id INTEGER NOT NULL);
+      CREATE TABLE customer (id INTEGER PRIMARY KEY, name TEXT NOT NULL);
+    `,
+    query: `
+      SELECT cust_json.snapshot
+      FROM invoice inv
+      INNER JOIN LATERAL (
+        SELECT jsonb_build_object('name', c.name) AS snapshot
+        FROM customer c
+        WHERE c.id = inv.customer_id
+      ) cust_json ON TRUE
+    `,
+    expected: [
+      [
+        "snapshot",
+        { kind: "object", value: [["name", { kind: "type", value: "string", type: "text" }]] },
+      ],
+    ],
+  });
+});
+
 test("nullable columns in regular subselect should remain nullable", async () => {
   await testQuery({
     schema: `

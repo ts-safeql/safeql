@@ -16,6 +16,7 @@ catalog:
   "libpg-query": "^17.5.2"
   "postgres": "^3.4.5"
   "prettier": "^3.5.3"
+  "publint": "^0.3.18"
   "tsx": "^4.19.3"
   "turbo": "^2.4.4"
   "typescript": "^5.8.2"

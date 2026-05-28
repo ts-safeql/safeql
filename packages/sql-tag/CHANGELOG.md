@@ -1,5 +1,11 @@
 # @ts-safeql/safeql
 
+## 0.2.2
+
+### Patch Changes
+
+- 71d63b5: Fix TypeScript types failing to resolve in CommonJS projects.
+
 ## 0.2.1
 
 ### Patch Changes

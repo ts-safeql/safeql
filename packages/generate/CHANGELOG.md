@@ -1,5 +1,38 @@
 # @ts-safeql/generate
 
+## 5.1.2
+
+### Patch Changes
+
+- e6de29c: Infer columns selected from views as non-null when equality predicates guarantee their presence.
+
+## 5.1.1
+
+### Patch Changes
+
+- c88fb95: Improve inference for columns selected from subqueries inside join trees.
+
+## 5.1.0
+
+### Minor Changes
+
+- 71d63b5: Smaller install: removed several `@ts-safeql/*` packages from runtime dependencies and inlined them into the published bundle.
+
+  If you use `@ts-safeql/generate` directly, install `libpg-query` alongside it — it's now a peer dependency.
+
+### Patch Changes
+
+- 71d63b5: Fix TypeScript types failing to resolve in CommonJS projects.
+
+## 5.0.0
+
+### Patch Changes
+
+- Updated dependencies [acd33af]
+  - @ts-safeql/shared@5.0.0
+  - @ts-safeql/test-utils@0.0.61
+  - @ts-safeql/sql-ast@5.0.0
+
 ## 4.2.0
 
 ### Patch Changes

@@ -1,3 +1,4 @@
+import { assertNever } from "@ts-safeql/shared";
 import * as LibPgQueryAST from "@ts-safeql/sql-ast";
 
 interface Join {
@@ -90,4 +91,79 @@ export function flattenRelationsWithJoinsMap(
   });
 
   return result;
+}
+
+function isNullableJoinedRelation(joinType: LibPgQueryAST.JoinType): boolean {
+  switch (joinType) {
+    case LibPgQueryAST.JoinType.JOIN_LEFT:
+    case LibPgQueryAST.JoinType.JOIN_FULL:
+      return true;
+    case LibPgQueryAST.JoinType.JOIN_TYPE_UNDEFINED:
+    case LibPgQueryAST.JoinType.JOIN_INNER:
+    case LibPgQueryAST.JoinType.JOIN_RIGHT:
+    case LibPgQueryAST.JoinType.JOIN_SEMI:
+    case LibPgQueryAST.JoinType.JOIN_ANTI:
+    case LibPgQueryAST.JoinType.JOIN_UNIQUE_OUTER:
+    case LibPgQueryAST.JoinType.JOIN_UNIQUE_INNER:
+    case LibPgQueryAST.JoinType.UNRECOGNIZED:
+      return false;
+    default:
+      return assertNever(joinType);
+  }
+}
+
+function isNullableBaseRelation(joinType: LibPgQueryAST.JoinType): boolean {
+  switch (joinType) {
+    case LibPgQueryAST.JoinType.JOIN_RIGHT:
+    case LibPgQueryAST.JoinType.JOIN_FULL:
+      return true;
+    case LibPgQueryAST.JoinType.JOIN_TYPE_UNDEFINED:
+    case LibPgQueryAST.JoinType.JOIN_INNER:
+    case LibPgQueryAST.JoinType.JOIN_LEFT:
+    case LibPgQueryAST.JoinType.JOIN_SEMI:
+    case LibPgQueryAST.JoinType.JOIN_ANTI:
+    case LibPgQueryAST.JoinType.JOIN_UNIQUE_OUTER:
+    case LibPgQueryAST.JoinType.JOIN_UNIQUE_INNER:
+    case LibPgQueryAST.JoinType.UNRECOGNIZED:
+      return false;
+    default:
+      return assertNever(joinType);
+  }
+}
+
+function hasNullableBaseRelation(
+  relations: FlattenedRelationWithJoins[],
+  relationName: string,
+): boolean {
+  return relations.some(
+    (relation) => relation.relName === relationName && isNullableBaseRelation(relation.joinType),
+  );
+}
+
+export function isRelationNullableDueToJoin(
+  relations: FlattenedRelationWithJoins[],
+  relationName: string,
+): boolean {
+  const joinedRelation = relations.find(
+    (relation) => (relation.alias ?? relation.joinRelName) === relationName,
+  );
+
+  if (joinedRelation !== undefined) {
+    return isNullableJoinedRelation(joinedRelation.joinType);
+  }
+
+  return hasNullableBaseRelation(relations, relationName);
+}
+
+export function isTableNullableDueToJoin(
+  relations: FlattenedRelationWithJoins[],
+  tableName: string,
+): boolean {
+  const joinedRelation = relations.find((relation) => relation.joinRelName === tableName);
+
+  if (joinedRelation !== undefined) {
+    return isNullableJoinedRelation(joinedRelation.joinType);
+  }
+
+  return hasNullableBaseRelation(relations, tableName);
 }

@@ -1,7 +1,9 @@
-import { assertNever } from "@ts-safeql/shared";
 import * as LibPgQueryAST from "@ts-safeql/sql-ast";
 import { PgColRow } from "./generate";
-import { FlattenedRelationWithJoins } from "./utils/get-relations-with-joins";
+import {
+  FlattenedRelationWithJoins,
+  isRelationNullableDueToJoin,
+} from "./utils/get-relations-with-joins";
 
 export type SourcesResolver = ReturnType<typeof getSources>;
 
@@ -46,23 +48,6 @@ export function getSources({
   pgColsBySchemaAndTableName,
   relations,
 }: SourcesOptions) {
-  const relationsByAlias = new Map<string, FlattenedRelationWithJoins>();
-  const relationsByRelName = new Map<string, FlattenedRelationWithJoins[]>();
-
-  for (const rel of relations) {
-    const key = rel.alias ?? rel.joinRelName;
-
-    if (key) {
-      relationsByAlias.set(key, rel);
-    }
-
-    if (!relationsByRelName.has(rel.relName)) {
-      relationsByRelName.set(rel.relName, []);
-    }
-
-    relationsByRelName.get(rel.relName)!.push(rel);
-  }
-
   const tableToSchema = new Map<string, string>();
 
   const publicCols = pgColsBySchemaAndTableName.get("public");
@@ -331,7 +316,7 @@ export function getSources({
           if (nested) {
             return {
               ...nested,
-              isNotNull: nested.isNotNull && !checkIsNullableDueToRelation(source.name),
+              isNotNull: nested.isNotNull && !isRelationNullableDueToJoin(relations, source.name),
             };
           }
           break;
@@ -362,12 +347,12 @@ export function getSources({
             case "subselect": {
               const column = source.sources.getNestedResolvedTargetField(field);
               if (column) {
-                // Check if this subselect is part of a LEFT JOIN or FULL JOIN
-                const isNullableDueToRelation = checkIsNullableDueToRelation(source.name);
+                const isNullableDueToRelation = isRelationNullableDueToJoin(relations, source.name);
+
                 if (isNullableDueToRelation && column.isNotNull) {
-                  // Make the column nullable if it's from a left/full joined subselect
                   return [{ ...column, isNotNull: false }];
                 }
+
                 return [column];
               }
               break;
@@ -396,12 +381,12 @@ export function getSources({
             case "subselect": {
               const columns = source.sources.getColumnsByTargetField(field);
               if (columns) {
-                // Check if this subselect is part of a LEFT JOIN or FULL JOIN
-                const isNullableDueToRelation = checkIsNullableDueToRelation(source.name);
+                const isNullableDueToRelation = isRelationNullableDueToJoin(relations, source.name);
+
                 if (isNullableDueToRelation) {
-                  // Make columns nullable if they're from a left/full joined subselect
                   return columns.map((col) => (col.isNotNull ? { ...col, isNotNull: false } : col));
                 }
+
                 return columns;
               }
               break;
@@ -417,52 +402,9 @@ export function getSources({
     }
   }
 
-  function checkIsNullableDueToRelation(key: string): boolean {
-    const rel = relationsByAlias.get(key);
-    if (rel !== undefined) {
-      switch (rel.joinType) {
-        case LibPgQueryAST.JoinType.JOIN_LEFT:
-        case LibPgQueryAST.JoinType.JOIN_FULL:
-          return true;
-        case LibPgQueryAST.JoinType.JOIN_TYPE_UNDEFINED:
-        case LibPgQueryAST.JoinType.JOIN_INNER:
-        case LibPgQueryAST.JoinType.JOIN_RIGHT:
-        case LibPgQueryAST.JoinType.JOIN_SEMI:
-        case LibPgQueryAST.JoinType.JOIN_ANTI:
-        case LibPgQueryAST.JoinType.JOIN_UNIQUE_OUTER:
-        case LibPgQueryAST.JoinType.JOIN_UNIQUE_INNER:
-        case LibPgQueryAST.JoinType.UNRECOGNIZED:
-          return false;
-        default:
-          return assertNever(rel.joinType);
-      }
-    }
-
-    for (const relation of relationsByRelName.get(key) ?? []) {
-      switch (relation.joinType) {
-        case LibPgQueryAST.JoinType.JOIN_RIGHT:
-        case LibPgQueryAST.JoinType.JOIN_FULL:
-          return true;
-        case LibPgQueryAST.JoinType.JOIN_TYPE_UNDEFINED:
-        case LibPgQueryAST.JoinType.JOIN_INNER:
-        case LibPgQueryAST.JoinType.JOIN_LEFT:
-        case LibPgQueryAST.JoinType.JOIN_SEMI:
-        case LibPgQueryAST.JoinType.JOIN_ANTI:
-        case LibPgQueryAST.JoinType.JOIN_UNIQUE_OUTER:
-        case LibPgQueryAST.JoinType.JOIN_UNIQUE_INNER:
-        case LibPgQueryAST.JoinType.UNRECOGNIZED:
-          return false;
-        default:
-          return assertNever(relation.joinType);
-      }
-    }
-
-    return false;
-  }
-
   function resolveColumn(col: PgColRow, source: TableSelectSource): ResolvedColumn {
     const keyForNullability = source.alias ? source.alias : source.original;
-    const isNullableDueToRelation = checkIsNullableDueToRelation(keyForNullability);
+    const isNullableDueToRelation = isRelationNullableDueToJoin(relations, keyForNullability);
     const isNotNullBasedOnAST =
       nonNullableColumns.has(col.colName) ||
       nonNullableColumns.has(`${source.name}.${col.colName}`);

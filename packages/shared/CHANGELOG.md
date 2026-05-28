@@ -1,5 +1,14 @@
 # @ts-safeql/shared
 
+## 5.0.0
+
+### Minor Changes
+
+- acd33af: Add experimental plugin API and AWS auth plugin
+
+  - Experimental plugin system for extending SafeQL with custom behavior
+  - First official plugin: `@ts-safeql/plugin-auth-aws` for AWS RDS IAM authentication
+
 ## 4.2.0
 
 ## 4.1.1

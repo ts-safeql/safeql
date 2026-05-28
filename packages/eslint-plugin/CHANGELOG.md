@@ -1,5 +1,42 @@
 # @ts-safeql/eslint-plugin
 
+## 5.1.2
+
+## 5.1.1
+
+## 5.1.0
+
+### Minor Changes
+
+- 71d63b5: Smaller install: removed several `@ts-safeql/*` packages from runtime dependencies and inlined them into the published bundle.
+
+  If you use `@ts-safeql/generate` directly, install `libpg-query` alongside it — it's now a peer dependency.
+
+### Patch Changes
+
+- Updated dependencies [71d63b5]
+  - @ts-safeql/plugin-utils@5.0.1
+
+## 5.0.0
+
+### Major Changes
+
+- 00b9904: BREAKING: Add ESLint 10 support to SafeQL.
+
+### Minor Changes
+
+- acd33af: Add experimental plugin API and AWS auth plugin
+
+  - Experimental plugin system for extending SafeQL with custom behavior
+  - First official plugin: `@ts-safeql/plugin-auth-aws` for AWS RDS IAM authentication
+
+### Patch Changes
+
+- Updated dependencies [00b9904]
+- Updated dependencies [acd33af]
+  - @ts-safeql/plugin-utils@5.0.0
+  - @ts-safeql/connection-manager@4.2.1
+
 ## 4.2.0
 
 ### Minor Changes

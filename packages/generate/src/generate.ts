@@ -1,5 +1,4 @@
 import {
-  assertNever,
   defaultTypesMap,
   DuplicateColumnsError,
   getOrSetFromMapWithEnabled,
@@ -10,13 +9,15 @@ import {
   QuerySourceMapEntry,
   toCase,
 } from "@ts-safeql/shared";
-import * as LibPgQueryAST from "@ts-safeql/sql-ast";
 import { either } from "fp-ts";
 import * as parser from "libpg-query";
 import postgres from "postgres";
 import { ASTDescribedColumn, getASTDescription } from "./ast-describe";
 import { ColType } from "./utils/colTypes";
-import { FlattenedRelationWithJoins } from "./utils/get-relations-with-joins";
+import {
+  FlattenedRelationWithJoins,
+  isTableNullableDueToJoin,
+} from "./utils/get-relations-with-joins";
 import { isParsedInsertResult, validateInsertResult } from "./utils/validate-insert";
 
 type JSToPostgresTypeMap = Record<string, unknown>;
@@ -394,57 +395,6 @@ function buildInterfacePropertyValue(params: {
   ];
 }
 
-function checkIsNullableDueToRelation(params: {
-  col: PgColRow;
-  relationsWithJoins: FlattenedRelationWithJoins[];
-}) {
-  const { col, relationsWithJoins } = params;
-
-  const findByJoin = relationsWithJoins.find((x) => x.joinRelName === col.tableName);
-
-  if (findByJoin !== undefined) {
-    switch (findByJoin.joinType) {
-      case LibPgQueryAST.JoinType.JOIN_LEFT:
-      case LibPgQueryAST.JoinType.JOIN_FULL:
-        return true;
-      case LibPgQueryAST.JoinType.JOIN_TYPE_UNDEFINED:
-      case LibPgQueryAST.JoinType.JOIN_INNER:
-      case LibPgQueryAST.JoinType.JOIN_RIGHT:
-      case LibPgQueryAST.JoinType.JOIN_SEMI:
-      case LibPgQueryAST.JoinType.JOIN_ANTI:
-      case LibPgQueryAST.JoinType.JOIN_UNIQUE_OUTER:
-      case LibPgQueryAST.JoinType.JOIN_UNIQUE_INNER:
-      case LibPgQueryAST.JoinType.UNRECOGNIZED:
-        return false;
-      default:
-        assertNever(findByJoin.joinType);
-    }
-  }
-
-  const findByRel = relationsWithJoins.filter((x) => x.relName === col.tableName);
-
-  for (const rel of findByRel) {
-    switch (rel.joinType) {
-      case LibPgQueryAST.JoinType.JOIN_RIGHT:
-      case LibPgQueryAST.JoinType.JOIN_FULL:
-        return true;
-      case LibPgQueryAST.JoinType.JOIN_TYPE_UNDEFINED:
-      case LibPgQueryAST.JoinType.JOIN_INNER:
-      case LibPgQueryAST.JoinType.JOIN_LEFT:
-      case LibPgQueryAST.JoinType.JOIN_SEMI:
-      case LibPgQueryAST.JoinType.JOIN_ANTI:
-      case LibPgQueryAST.JoinType.JOIN_UNIQUE_OUTER:
-      case LibPgQueryAST.JoinType.JOIN_UNIQUE_INNER:
-      case LibPgQueryAST.JoinType.UNRECOGNIZED:
-        return false;
-      default:
-        assertNever(rel.joinType);
-    }
-  }
-
-  return false;
-}
-
 function getResolvedTargetEntry(params: {
   col: ColumnAnalysisResult;
   context: GenerateContext;
@@ -538,10 +488,7 @@ function getResolvedTargetEntry(params: {
     isNonNullable = params.col.introspected.colNotNull;
 
     if (
-      checkIsNullableDueToRelation({
-        col: params.col.introspected,
-        relationsWithJoins: params.context.relationsWithJoins,
-      })
+      isTableNullableDueToJoin(params.context.relationsWithJoins, params.col.introspected.tableName)
     ) {
       isNonNullable = false;
     }
