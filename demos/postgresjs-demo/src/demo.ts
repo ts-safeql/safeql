@@ -5,5 +5,5 @@ export function section(sectionName: string, callback: () => void) {
 
 export function example(exampleName: string, callback: () => unknown) {
   void exampleName;
-  void callback();
+  return callback();
 }

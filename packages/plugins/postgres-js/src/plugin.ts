@@ -68,7 +68,10 @@ function buildTypeScriptExpressionSQL(
 ): string | false | undefined {
   const expression = unwrapTypeScriptExpression(node);
 
-  if (ts.isTaggedTemplateExpression(expression) && isTypeScriptPostgresTag(expression.tag, checker)) {
+  if (
+    ts.isTaggedTemplateExpression(expression) &&
+    isTypeScriptPostgresTag(expression.tag, checker)
+  ) {
     return buildTypeScriptTemplateSQL(expression.template, checker);
   }
 
@@ -368,10 +371,7 @@ function isTypeScriptPostgresTag(node: ts.Node, checker: ts.TypeChecker): boolea
   return isTypeScriptPostgresSqlIdentifier(rootIdentifier, checker);
 }
 
-function isTypeScriptPostgresHelperCall(
-  node: ts.CallExpression,
-  checker: ts.TypeChecker,
-): boolean {
+function isTypeScriptPostgresHelperCall(node: ts.CallExpression, checker: ts.TypeChecker): boolean {
   const rootIdentifier = getTypeScriptRootIdentifier(node.expression);
 
   if (!rootIdentifier) {
@@ -451,7 +451,9 @@ function isTypeScriptPostgresSqlIdentifier(
 }
 
 function hasTypeScriptPostgresSymbol(type: ts.Type, checker: ts.TypeChecker): boolean {
-  const symbols = [type.symbol, type.aliasSymbol].filter((symbol): symbol is ts.Symbol => symbol !== undefined);
+  const symbols = [type.symbol, type.aliasSymbol].filter(
+    (symbol): symbol is ts.Symbol => symbol !== undefined,
+  );
 
   for (const symbol of symbols) {
     if (!isSymbolFromModule(checker, symbol, "postgres")) {
@@ -466,10 +468,7 @@ function hasTypeScriptPostgresSymbol(type: ts.Type, checker: ts.TypeChecker): bo
   return false;
 }
 
-function isTypeScriptPostgresSqlInitializer(
-  node: ts.Node,
-  checker: ts.TypeChecker,
-): boolean {
+function isTypeScriptPostgresSqlInitializer(node: ts.Node, checker: ts.TypeChecker): boolean {
   const expression = unwrapTypeScriptExpression(node);
 
   if (ts.isIdentifier(expression)) {
@@ -527,7 +526,8 @@ function isTypeScriptTransactionSqlParameter(
   checker: ts.TypeChecker,
 ): boolean {
   const symbol = checker.getSymbolAtLocation(identifier);
-  const resolved = symbol && (symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol);
+  const resolved =
+    symbol && (symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol);
 
   for (const declaration of resolved?.declarations ?? []) {
     if (!ts.isParameter(declaration)) {
@@ -601,7 +601,10 @@ function isSymbolFromModule(
   const resolved = symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
 
   for (const declaration of resolved.declarations ?? []) {
-    if (declaration.getSourceFile().fileName.includes(`/${moduleName}/`)) {
+    // Normalize separators so the match holds on Windows paths (`\`) too.
+    const fileName = declaration.getSourceFile().fileName.replace(/\\/g, "/");
+
+    if (fileName.includes(`/${moduleName}/`)) {
       return true;
     }
   }
@@ -614,7 +617,8 @@ function findTypeScriptInitializer(
   checker: ts.TypeChecker,
 ): ts.Expression | undefined {
   const symbol = checker.getSymbolAtLocation(identifier);
-  const resolved = symbol && (symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol);
+  const resolved =
+    symbol && (symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol);
 
   for (const declaration of resolved?.declarations ?? []) {
     if (ts.isVariableDeclaration(declaration) && declaration.initializer) {
@@ -646,6 +650,9 @@ function isTypeScriptFragmentVariable(
   return isTypeScriptInterpolatedAsFragment(parent.name, checker);
 }
 
+// Memoize the per-symbol source-file walk; WeakMap entries GC with the program.
+const interpolatedFragmentCache = new WeakMap<ts.Symbol, boolean>();
+
 function isTypeScriptInterpolatedAsFragment(
   identifier: ts.Identifier,
   checker: ts.TypeChecker,
@@ -654,6 +661,12 @@ function isTypeScriptInterpolatedAsFragment(
 
   if (!symbol) {
     return false;
+  }
+
+  const cached = interpolatedFragmentCache.get(symbol);
+
+  if (cached !== undefined) {
+    return cached;
   }
 
   const fragmentSymbol = symbol;
@@ -675,6 +688,7 @@ function isTypeScriptInterpolatedAsFragment(
   }
 
   visit(identifier.getSourceFile());
+  interpolatedFragmentCache.set(symbol, found);
   return found;
 }
 
@@ -731,10 +745,7 @@ function resolveTypeScriptSymbol(
   return symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
 }
 
-function buildSelectHelperSQL(
-  value: StaticValue,
-  columnNames: string[],
-): string | undefined {
+function buildSelectHelperSQL(value: StaticValue, columnNames: string[]): string | undefined {
   if (typeof value === "string") {
     if (columnNames.length > 0) {
       return escapeIdentifiers([value, ...columnNames]);
@@ -756,10 +767,7 @@ function buildSelectHelperSQL(
   return names.map((name) => `$N AS ${escapeIdentifier(name)}`).join(", ");
 }
 
-function buildInsertHelperSQL(
-  value: StaticValue,
-  columnNames: string[],
-): string | undefined {
+function buildInsertHelperSQL(value: StaticValue, columnNames: string[]): string | undefined {
   const rows = getObjectRows(value);
 
   if (!rows) {
@@ -767,17 +775,12 @@ function buildInsertHelperSQL(
   }
 
   const names = columnNames.length > 0 ? columnNames : Object.keys(rows[0]);
-  const values = rows
-    .map(() => `(${names.map(() => "$N").join(", ")})`)
-    .join(", ");
+  const values = rows.map(() => `(${names.map(() => "$N").join(", ")})`).join(", ");
 
   return `(${escapeIdentifiers(names)}) values ${values}`;
 }
 
-function buildUpdateHelperSQL(
-  value: StaticValue,
-  columnNames: string[],
-): string | undefined {
+function buildUpdateHelperSQL(value: StaticValue, columnNames: string[]): string | undefined {
   if (!isStaticRecord(value)) {
     return undefined;
   }
@@ -831,24 +834,26 @@ function getObjectRows(value: StaticValue): Array<Record<string, StaticValue>> |
   return value;
 }
 
-function getHelperKind(precedingSQL: string):
-  | "insert"
-  | "update"
-  | "in"
-  | "values"
-  | "select"
-  | "as"
-  | "returning"
-  | undefined {
-  const matches = [
-    findLastKeyword(precedingSQL, "insert"),
-    findLastKeyword(precedingSQL, "update"),
-    findLastKeyword(precedingSQL, "in"),
-    findLastKeyword(precedingSQL, "values"),
-    findLastKeyword(precedingSQL, "select"),
-    findLastKeyword(precedingSQL, "as"),
-    findLastKeyword(precedingSQL, "returning"),
-  ].filter((match): match is { name: NonNullable<ReturnType<typeof findLastKeyword>>["name"]; index: number } => match !== undefined);
+type HelperKeyword = "insert" | "update" | "in" | "values" | "select" | "as" | "returning";
+
+type HelperKeywordMatch = { name: HelperKeyword; index: number };
+
+const helperKeywords: HelperKeyword[] = [
+  "insert",
+  "update",
+  "in",
+  "values",
+  "select",
+  "as",
+  "returning",
+];
+
+// Picks the last-positioned keyword, mirroring postgres.js's `Builder.build`.
+// See the "CAST ... AS parity" test for the edge case this implies.
+function getHelperKind(precedingSQL: string): HelperKeyword | undefined {
+  const matches = helperKeywords
+    .map((keyword) => findLastKeyword(precedingSQL, keyword))
+    .filter((match): match is HelperKeywordMatch => match !== undefined);
 
   if (matches.length === 0) {
     return undefined;
@@ -858,11 +863,9 @@ function getHelperKind(precedingSQL: string):
   return matches[matches.length - 1].name;
 }
 
-function findLastKeyword(
-  text: string,
-  keyword: "insert" | "update" | "in" | "values" | "select" | "as" | "returning",
-): { name: typeof keyword; index: number } | undefined {
-  const pattern = new RegExp(`(?:^|[\\s(])${keyword}(?:$|[\\s(])`, "gi");
+function findLastKeyword(text: string, keyword: HelperKeyword): HelperKeywordMatch | undefined {
+  // Trailing boundary is a lookahead so adjacent same-keyword matches aren't skipped.
+  const pattern = new RegExp(`(?:^|[\\s(])${keyword}(?=$|[\\s(])`, "gi");
   let match = pattern.exec(text);
   let index: number | undefined;
 

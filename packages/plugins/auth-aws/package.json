@@ -31,7 +31,7 @@
     "dev": "unbuild --stub",
     "publint": "publint",
     "typecheck": "tsc -b",
-    "test": "vitest --run",
+    "test": "vitest",
     "clean": "rm -rf dist"
   },
   "devDependencies": {

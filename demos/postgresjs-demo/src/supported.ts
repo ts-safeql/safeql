@@ -156,7 +156,10 @@ section("Supported postgres.js helpers", () => {
   });
 
   example("matrix values helper", () => {
-    const rows = [[1, "Murray"], [2, "Walter"]];
+    const rows = [
+      [1, "Murray"],
+      [2, "Walter"],
+    ];
 
     void sql<{ id: number | null; name: string | null }[]>`
       SELECT data.id::int AS id, data.name::text AS name

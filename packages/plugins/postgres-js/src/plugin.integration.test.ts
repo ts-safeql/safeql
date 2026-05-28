@@ -78,7 +78,9 @@ RuleTester.describe("postgres-js integration", () => {
 
   const postgresJsConnection = {
     databaseUrl: `postgres://postgres:postgres@localhost:5432/${databaseName}`,
-    plugins: [{ package: "@ts-safeql/plugin-postgres-js", config: {} }] satisfies PluginDescriptor[],
+    plugins: [
+      { package: "@ts-safeql/plugin-postgres-js", config: {} },
+    ] satisfies PluginDescriptor[],
     keepAlive: false,
   };
 
@@ -143,35 +145,35 @@ section("wrapped", () => {
         name: "raw modifier is linted",
         options: withConnection(),
         code: p("sql`SELECT id FROM users`.raw()"),
-        output: p('sql<{ id: number }[]>`SELECT id FROM users`.raw()'),
+        output: p("sql<{ id: number }[]>`SELECT id FROM users`.raw()"),
         errors: [{ messageId: "missingTypeAnnotations" }],
       },
       {
         name: "describe modifier is linted",
         options: withConnection(),
         code: p("sql`SELECT id FROM users`.describe()"),
-        output: p('sql<{ id: number }[]>`SELECT id FROM users`.describe()'),
+        output: p("sql<{ id: number }[]>`SELECT id FROM users`.describe()"),
         errors: [{ messageId: "missingTypeAnnotations" }],
       },
       {
         name: "execute modifier is linted",
         options: withConnection(),
         code: p("sql`SELECT id FROM users`.execute()"),
-        output: p('sql<{ id: number }[]>`SELECT id FROM users`.execute()'),
+        output: p("sql<{ id: number }[]>`SELECT id FROM users`.execute()"),
         errors: [{ messageId: "missingTypeAnnotations" }],
       },
       {
         name: "cursor modifier is linted",
         options: withConnection(),
         code: p("sql`SELECT id FROM users`.cursor()"),
-        output: p('sql<{ id: number }[]>`SELECT id FROM users`.cursor()'),
+        output: p("sql<{ id: number }[]>`SELECT id FROM users`.cursor()"),
         errors: [{ messageId: "missingTypeAnnotations" }],
       },
       {
         name: "forEach modifier is linted",
         options: withConnection(),
         code: p("sql`SELECT id FROM users`.forEach(() => {})"),
-        output: p('sql<{ id: number }[]>`SELECT id FROM users`.forEach(() => {})'),
+        output: p("sql<{ id: number }[]>`SELECT id FROM users`.forEach(() => {})"),
         errors: [{ messageId: "missingTypeAnnotations" }],
       },
       {

@@ -181,6 +181,46 @@ sql\`SELECT \${sql.typed.rect({ x: 13, y: 37, width: 42, height: 80 })}\``,
       'import postgres from "postgres"; const sql = postgres(); sql`COPY users (name, age) TO STDOUT`.readable()',
     output: { sql: "COPY users (name, age) TO STDOUT" },
   },
+  {
+    name: "transaction tag via begin",
+    source:
+      'import postgres from "postgres"; const sql = postgres(); sql.begin((tx) => tx`SELECT 1`)',
+    output: { sql: "SELECT 1" },
+  },
+  {
+    name: "transaction tag via savepoint",
+    source:
+      'import postgres from "postgres"; const sql = postgres(); sql.begin((tx) => tx.savepoint((sp) => sp`SELECT 1`))',
+    output: { sql: "SELECT 1" },
+  },
+  {
+    name: "reserved connection tag",
+    source:
+      'import postgres from "postgres"; const sql = postgres(); async function run() { const reserved = await sql.reserve(); return reserved`SELECT 1`; }',
+    output: { sql: "SELECT 1" },
+  },
+  {
+    // Mirrors postgres.js: the `in` builder maps an empty array's "()" to "(null)".
+    name: "array value helper with empty array",
+    source:
+      'import postgres from "postgres"; const sql = postgres(); sql`SELECT * FROM users WHERE age IN ${sql([])}`',
+    output: { sql: "SELECT * FROM users WHERE age IN (null)" },
+  },
+  {
+    // Mirrors postgres.js: the `values` builder emits "()" for an empty array.
+    name: "values helper with empty array",
+    source:
+      'import postgres from "postgres"; const sql = postgres(); sql`SELECT * FROM (VALUES ${sql([])}) AS data(a)`',
+    output: { sql: "SELECT * FROM (VALUES ()) AS data(a)" },
+  },
+  {
+    // Resolution follows the last-positioned keyword, so a trailing `AS` from an
+    // unrelated CAST selects the `as`/select builder — same as postgres.js.
+    name: "helper resolves via the last keyword (CAST ... AS parity)",
+    source:
+      'import postgres from "postgres"; const sql = postgres(); const row = { status: "active" }; sql`SELECT CAST(created_at AS date), ${sql(row)}`',
+    output: { sql: 'SELECT CAST(created_at AS date), $N AS "status"' },
+  },
 ];
 
 describe("postgres-js plugin", () => {

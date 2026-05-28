@@ -18,7 +18,7 @@
     "build": "unbuild",
     "dev": "unbuild --stub",
     "typecheck": "tsc -b",
-    "test": "vitest --pool=forks --run",
+    "test": "vitest",
     "clean": "rm -rf dist"
   },
   "dependencies": {

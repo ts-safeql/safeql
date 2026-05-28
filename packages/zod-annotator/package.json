@@ -30,7 +30,7 @@
   "scripts": {
     "build": "unbuild",
     "dev": "unbuild --stub",
-    "test": "vitest --run",
+    "test": "vitest",
     "publint": "publint",
     "typecheck": "tsc -b",
     "clean": "rm -rf dist"
