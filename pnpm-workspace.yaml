@@ -4,6 +4,17 @@ packages:
   - "demos/*"
   - "docs"
 
+allowBuilds:
+  # Build/test tooling and the Prisma demo (pnpm prisma generate) need their scripts.
+  '@prisma/client': true
+  '@prisma/engines': true
+  esbuild: true
+  prisma: true
+  # Optional native ws speed-ups: not required (pure-JS fallback) and need a
+  # node-gyp toolchain to compile, so keep them disabled to avoid install breakage.
+  bufferutil: false
+  utf-8-validate: false
+
 catalog:
   "@changesets/cli": "^2.28.1"
   "@eslint/js": "^10.0.1"
@@ -11,6 +22,7 @@ catalog:
   "@typescript-eslint/eslint-plugin": "^8.57.1"
   "@typescript-eslint/parser": "^8.57.1"
   "@typescript-eslint/rule-tester": "^8.57.1"
+  "@typescript-eslint/typescript-estree": "^8.57.1"
   "@typescript-eslint/utils": "^8.57.1"
   "eslint": "^10.0.3"
   "libpg-query": "^17.5.2"
