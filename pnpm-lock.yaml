@@ -434,12 +434,12 @@ importers:
 
   demos/postgresjs-demo:
     dependencies:
-      '@ts-safeql-demos/shared':
-        specifier: workspace:*
-        version: link:../shared
       '@ts-safeql/eslint-plugin':
         specifier: workspace:*
         version: link:../../packages/eslint-plugin
+      '@ts-safeql/plugin-postgres-js':
+        specifier: workspace:*
+        version: link:../../packages/plugins/postgres-js
       '@types/node':
         specifier: 'catalog:'
         version: 24.12.0
@@ -853,6 +853,39 @@ importers:
       publint:
         specifier: 'catalog:'
         version: 0.3.18
+      typescript:
+        specifier: 'catalog:'
+        version: 5.8.2
+      unbuild:
+        specifier: 'catalog:'
+        version: 3.5.0(typescript@5.8.2)(vue@3.5.13(typescript@5.8.2))
+      vitest:
+        specifier: 'catalog:'
+        version: 3.0.9(@types/node@24.12.0)(jiti@2.4.2)(tsx@4.19.3)
+
+  packages/plugins/postgres-js:
+    devDependencies:
+      '@ts-safeql/eslint-plugin':
+        specifier: workspace:*
+        version: link:../../eslint-plugin
+      '@ts-safeql/plugin-utils':
+        specifier: workspace:*
+        version: link:../../plugin-utils
+      '@ts-safeql/test-utils':
+        specifier: workspace:*
+        version: link:../../test-utils
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.12.0
+      '@typescript-eslint/parser':
+        specifier: 'catalog:'
+        version: 8.57.1(eslint@10.0.3(jiti@2.4.2))(typescript@5.8.2)
+      '@typescript-eslint/rule-tester':
+        specifier: 'catalog:'
+        version: 8.57.1(eslint@10.0.3(jiti@2.4.2))(typescript@5.8.2)
+      postgres:
+        specifier: 'catalog:'
+        version: 3.4.7
       typescript:
         specifier: 'catalog:'
         version: 5.8.2

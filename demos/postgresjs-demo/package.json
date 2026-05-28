@@ -6,8 +6,9 @@
     "build": "tsc",
     "watch": "tsc --watch",
     "setup": "tsx src/setup.ts",
-    "lint": "eslint src",
-    "lint!": "eslint src --fix"
+    "lint": "eslint src/supported.ts",
+    "lint:unsupported": "eslint src/unsupported.ts",
+    "lint!": "eslint src/supported.ts --fix"
   },
   "devDependencies": {
     "@eslint/js": "catalog:",
@@ -17,8 +18,8 @@
     "typescript-eslint": "catalog:"
   },
   "dependencies": {
-    "@ts-safeql-demos/shared": "workspace:*",
     "@ts-safeql/eslint-plugin": "workspace:*",
+    "@ts-safeql/plugin-postgres-js": "workspace:*",
     "@types/node": "catalog:",
     "postgres": "catalog:"
   }
