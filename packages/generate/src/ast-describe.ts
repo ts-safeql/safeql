@@ -10,7 +10,7 @@ import {
 } from "./ast-decribe.utils";
 import { ResolvedColumn, SourcesResolver, getSources } from "./ast-get-sources";
 import { PgColRow, PgEnumsMaps, PgTypesMap } from "./generate";
-import { getNonNullableColumns } from "./utils/get-nonnullable-columns";
+import { getNonNullableColumns, getOutputColumnKey } from "./utils/get-nonnullable-columns";
 import {
   FlattenedRelationWithJoins,
   flattenRelationsWithJoinsMap,
@@ -27,6 +27,7 @@ type ASTDescriptionOptions = {
   pgTypes: PgTypesMap;
   pgEnums: PgEnumsMaps;
   pgFns: Map<string, { ts: string; pg: string }>;
+  pgAggregateNames: Set<string>;
   fieldTransform: IdentiferCase | undefined;
   prevSources?: SourcesResolver["sources"];
   cteSelects?: Map<string, LibPgQueryAST.SelectStmt>;
@@ -584,16 +585,152 @@ function getDescribedSubLink({
     return context.toTypeScriptType({ name: "unknown" });
   };
 
+  const name = getOutputColumnKey(alias, { SubLink: node });
+  const nullable = isExprSubLinkNullable({ node, context, columnKey: name });
+  const subLinkType = getSubLinkType();
+
   return [
     {
-      name: alias ?? "exists",
+      name,
       type: resolveType({
         context: context,
-        nullable: node.subLinkType === LibPgQueryAST.SubLinkType.EXPR_SUBLINK,
-        type: getSubLinkType(),
+        nullable,
+        type: nullable ? subLinkType : asNonNullableType(subLinkType),
       }),
     },
   ];
+}
+
+function isExprSubLinkNullable(params: {
+  node: LibPgQueryAST.SubLink;
+  context: ASTDescriptionContext;
+  columnKey: string;
+}): boolean {
+  if (params.node.subLinkType !== LibPgQueryAST.SubLinkType.EXPR_SUBLINK) {
+    return false;
+  }
+
+  const select = params.node.subselect?.SelectStmt;
+
+  if (select === undefined || !producesExactlyOneRow(select, params.context.pgAggregateNames)) {
+    return true;
+  }
+
+  return !params.context.nonNullableColumns.has(params.columnKey);
+}
+
+function producesExactlyOneRow(
+  select: LibPgQueryAST.SelectStmt,
+  aggregateNames: Set<string>,
+): boolean {
+  if (
+    (select.groupClause?.length ?? 0) > 0 ||
+    select.havingClause !== undefined ||
+    select.limitCount !== undefined ||
+    select.limitOffset !== undefined
+  ) {
+    return false;
+  }
+
+  const targets = select.targetList ?? [];
+
+  if (targets.length !== 1) {
+    return false;
+  }
+
+  const target = targets[0]?.ResTarget?.val;
+
+  if (target === undefined) {
+    return false;
+  }
+
+  return (
+    containsAggregate(target, aggregateNames) ||
+    isConstantSingleRowExpression(target) ||
+    (target.CaseExpr !== undefined &&
+      caseExprProducesExactlyOneRow(target.CaseExpr, aggregateNames))
+  );
+}
+
+function caseExprProducesExactlyOneRow(
+  caseExpr: LibPgQueryAST.CaseExpr,
+  aggregateNames: Set<string>,
+): boolean {
+  const branches = [
+    ...caseExpr.args.map((arg) => arg.CaseWhen?.result),
+    caseExpr.defresult,
+  ].filter((node): node is LibPgQueryAST.Node => node !== undefined);
+
+  if (branches.length === 0) {
+    return false;
+  }
+
+  return branches.every(
+    (branch) => containsAggregate(branch, aggregateNames) || isConstantSingleRowExpression(branch),
+  );
+}
+
+function isConstantSingleRowExpression(node: LibPgQueryAST.Node): boolean {
+  if (node.A_Const !== undefined) {
+    return node.A_Const.isnull !== true;
+  }
+
+  if (node.TypeCast?.arg !== undefined) {
+    return isConstantSingleRowExpression(node.TypeCast.arg);
+  }
+
+  if (node.A_Expr !== undefined) {
+    const { lexpr, rexpr } = node.A_Expr;
+    return (
+      (lexpr === undefined || isConstantSingleRowExpression(lexpr)) &&
+      (rexpr === undefined || isConstantSingleRowExpression(rexpr))
+    );
+  }
+
+  return false;
+}
+
+function containsAggregate(node: LibPgQueryAST.Node, aggregateNames: Set<string>): boolean {
+  if (node.TypeCast?.arg !== undefined) {
+    return containsAggregate(node.TypeCast.arg, aggregateNames);
+  }
+
+  if (node.FuncCall !== undefined) {
+    if (node.FuncCall.over !== undefined) {
+      return false;
+    }
+
+    const funcName = node.FuncCall.funcname.at(-1)?.String?.sval?.toLowerCase();
+    return funcName !== undefined && aggregateNames.has(funcName);
+  }
+
+  if (node.A_Expr !== undefined) {
+    return (
+      (node.A_Expr.lexpr !== undefined && containsAggregate(node.A_Expr.lexpr, aggregateNames)) ||
+      (node.A_Expr.rexpr !== undefined && containsAggregate(node.A_Expr.rexpr, aggregateNames))
+    );
+  }
+
+  if (node.CoalesceExpr !== undefined) {
+    return node.CoalesceExpr.args.some((arg) => containsAggregate(arg, aggregateNames));
+  }
+
+  if (node.CaseExpr !== undefined) {
+    if (
+      node.CaseExpr.defresult !== undefined &&
+      containsAggregate(node.CaseExpr.defresult, aggregateNames)
+    ) {
+      return true;
+    }
+
+    return node.CaseExpr.args.some(
+      (arg) =>
+        arg.CaseWhen?.result !== undefined &&
+        containsAggregate(arg.CaseWhen.result, aggregateNames),
+    );
+  }
+
+  return false;
 }
 
 function getDescribedSelectStmt({
@@ -615,6 +752,7 @@ function getDescribedSelectStmt({
     pgTypes: context.pgTypes,
     pgEnums: context.pgEnums,
     pgFns: context.pgFns,
+    pgAggregateNames: context.pgAggregateNames,
     fieldTransform: context.fieldTransform,
     prevSources: context.resolver.sources,
     cteSelects: context.cteSelects,
@@ -670,11 +808,15 @@ function getDescribedArrayExpr({
   context,
   node,
 }: GetDescribedParamsOf<LibPgQueryAST.AArrayExpr>): ASTDescribedColumn[] {
-  const types = mergeDescribedColumnTypes(
-    node.elements
-      .flatMap((node) => getDescribedNode({ alias: undefined, node, context }))
-      .map((x) => x.type),
-  );
+  const elements = node.elements ?? [];
+  const types =
+    elements.length === 0
+      ? context.toTypeScriptType({ name: "unknown" })
+      : mergeDescribedColumnTypes(
+          elements
+            .flatMap((node) => getDescribedNode({ alias: undefined, node, context }))
+            .map((x) => x.type),
+        );
 
   return [
     {
@@ -747,7 +889,9 @@ function getDescribedTypeCast({
     return [];
   }
 
-  const type = context.toTypeScriptType({ name: typeName });
+  const isArrayCast = (node.typeName?.arrayBounds?.length ?? 0) > 0;
+  const baseType = context.toTypeScriptType({ name: typeName });
+  const type: ASTDescribedColumnType = isArrayCast ? { kind: "array", value: baseType } : baseType;
   const innerDescribed = getDescribedNode({ alias, node: node.arg, context }).at(0);
   const nullable = fmap(innerDescribed, (x) => isDescribedColumnNullable(x.type)) ?? true;
 
@@ -1325,6 +1469,7 @@ function getDescribedColumnsFromSelect(params: {
     pgTypes: params.context.pgTypes,
     pgEnums: params.context.pgEnums,
     pgFns: params.context.pgFns,
+    pgAggregateNames: params.context.pgAggregateNames,
     fieldTransform: params.context.fieldTransform,
     prevSources: params.context.resolver.sources,
     cteSelects: params.context.cteSelects,

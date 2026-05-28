@@ -265,6 +265,17 @@ function getTargetName(target: LibPgQueryAST.ResTarget): string {
   return target.name ?? getNodeName(target.val);
 }
 
+export function getOutputColumnKey(
+  alias: string | undefined,
+  value: LibPgQueryAST.Node | undefined,
+): string {
+  if (alias !== undefined) {
+    return alias;
+  }
+
+  return getNodeName(value);
+}
+
 function addColumnRef(nonNullableColumns: Set<string>, node: LibPgQueryAST.Node | undefined) {
   if (node?.ColumnRef?.fields !== undefined) {
     nonNullableColumns.add(concatStringNodes(node.ColumnRef.fields));

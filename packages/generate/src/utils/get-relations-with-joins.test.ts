@@ -130,6 +130,19 @@ const cases: {
       ],
     ],
   },
+  {
+    query: `
+      SELECT t.id
+      FROM all_types t
+      CROSS JOIN json_array_elements(t.json_column) AS v
+    `,
+    expected: [
+      [
+        "all_types",
+        [{ alias: undefined, name: "v", type: LibPgQueryAST.JoinType.JOIN_INNER }],
+      ],
+    ],
+  },
 ];
 
 export const getRelationsWithJoinsTE = flow(
