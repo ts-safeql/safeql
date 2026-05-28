@@ -10,11 +10,7 @@ import {
 } from "./ast-decribe.utils";
 import { ResolvedColumn, SourcesResolver, getSources } from "./ast-get-sources";
 import { PgColRow, PgEnumsMaps, PgTypesMap } from "./generate";
-import {
-  getNonNullableColumns,
-  getOutputColumnKey,
-  unwrapNullableUnionType,
-} from "./utils/get-nonnullable-columns";
+import { getNonNullableColumns, getOutputColumnKey } from "./utils/get-nonnullable-columns";
 import {
   FlattenedRelationWithJoins,
   flattenRelationsWithJoinsMap,
@@ -891,6 +887,25 @@ const pgFnArgAliases: Record<string, string> = {
   float4: "real",
   float8: "double precision",
 };
+
+function unwrapNullableUnionType(
+  type: ASTDescribedColumnType,
+): Extract<ASTDescribedColumnType, { kind: "type" }> | undefined {
+  if (type.kind !== "union") {
+    return undefined;
+  }
+
+  const nonNull = type.value.filter(
+    (member): member is Extract<ASTDescribedColumnType, { kind: "type" }> =>
+      member.kind === "type" && member.value !== "null",
+  );
+
+  if (nonNull.length !== 1) {
+    return undefined;
+  }
+
+  return nonNull[0];
+}
 
 function getDescribedFuncCallByPgFn({
   alias,

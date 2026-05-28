@@ -568,19 +568,3 @@ export function getNonNullableColumns(
 
   return new Set();
 }
-
-export function unwrapNullableUnionType(type: {
-  kind: "union";
-  value: { kind: string; value: string; type: string }[];
-}): { kind: "type"; value: string; type: string } | undefined {
-  const nonNull = type.value.filter(
-    (member): member is { kind: "type"; value: string; type: string } =>
-      member.kind === "type" && member.value !== "null",
-  );
-
-  if (nonNull.length !== 1) {
-    return undefined;
-  }
-
-  return nonNull[0];
-}
