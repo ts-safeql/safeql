@@ -10,7 +10,11 @@ import {
 } from "./ast-decribe.utils";
 import { ResolvedColumn, SourcesResolver, getSources } from "./ast-get-sources";
 import { PgColRow, PgEnumsMaps, PgTypesMap } from "./generate";
-import { getNonNullableColumns, getOutputColumnKey } from "./utils/get-nonnullable-columns";
+import {
+  getNonNullableColumns,
+  getOutputColumnKey,
+  unwrapNullableUnionType,
+} from "./utils/get-nonnullable-columns";
 import {
   FlattenedRelationWithJoins,
   flattenRelationsWithJoinsMap,
@@ -72,7 +76,9 @@ export function getASTDescription(params: ASTDescriptionOptions): {
     };
   }
 
-  const nonNullableColumns = getNonNullableColumns(params.parsed);
+  const nonNullableColumns = getNonNullableColumns(params.parsed, {
+    aggregateNames: params.pgAggregateNames,
+  });
   const relations = flattenRelationsWithJoinsMap(getRelationsWithJoins(params.parsed));
 
   function getTypeByOid(oid: number) {
@@ -542,32 +548,6 @@ function getBaseType(type: ASTDescribedColumnType): ASTDescribedColumnType {
   }
 }
 
-function unwrapNullableUnionType(
-  type: ASTDescribedColumnType,
-): ASTDescribedColumnType | undefined {
-  if (type.kind !== "union") {
-    return undefined;
-  }
-
-  const nonNull = type.value.flatMap((member) => {
-    if (member.kind === "type" && member.value === "null") {
-      return [];
-    }
-
-    if (member.kind === "type") {
-      return [member];
-    }
-
-    return [];
-  });
-
-  if (nonNull.length === 0) {
-    return undefined;
-  }
-
-  return isSingleCell(nonNull) ? nonNull[0] : mergeDescribedColumnTypes(nonNull);
-}
-
 function getDescribedBoolExpr({
   alias,
   context,
@@ -612,8 +592,10 @@ function getDescribedSubLink({
   };
 
   const name = getOutputColumnKey(alias, { SubLink: node });
-  const nullable = isExprSubLinkNullable({ node, context, columnKey: name });
   const subLinkType = getSubLinkType();
+  const nullable =
+    node.subLinkType === LibPgQueryAST.SubLinkType.EXPR_SUBLINK &&
+    !context.nonNullableColumns.has(name);
 
   return [
     {
@@ -625,177 +607,6 @@ function getDescribedSubLink({
       }),
     },
   ];
-}
-
-function isExprSubLinkNullable(params: {
-  node: LibPgQueryAST.SubLink;
-  context: ASTDescriptionContext;
-  columnKey: string;
-}): boolean {
-  if (params.node.subLinkType !== LibPgQueryAST.SubLinkType.EXPR_SUBLINK) {
-    return false;
-  }
-
-  const select = params.node.subselect?.SelectStmt;
-
-  if (select === undefined || !producesExactlyOneRow(select, params.context.pgAggregateNames)) {
-    return true;
-  }
-
-  return !params.context.nonNullableColumns.has(params.columnKey);
-}
-
-function producesExactlyOneRow(
-  select: LibPgQueryAST.SelectStmt,
-  aggregateNames: Set<string>,
-): boolean {
-  if ((select.groupClause?.length ?? 0) > 0 || select.havingClause !== undefined) {
-    return false;
-  }
-
-  if (select.limitOffset !== undefined) {
-    return false;
-  }
-
-  const targets = select.targetList ?? [];
-
-  if (targets.length !== 1) {
-    return false;
-  }
-
-  const target = targets[0]?.ResTarget?.val;
-
-  if (target === undefined) {
-    return false;
-  }
-
-  const isAggregateTarget = containsAggregate(target, aggregateNames);
-
-  if (!isAggregateTarget && select.limitCount !== undefined) {
-    return false;
-  }
-
-  if (isAggregateTarget) {
-    return select.limitCount === undefined || isPositiveLimitCount(select.limitCount);
-  }
-
-  const hasFromClause = (select.fromClause?.length ?? 0) > 0;
-
-  if (hasFromClause || select.whereClause !== undefined) {
-    return false;
-  }
-
-  return (
-    isConstantSingleRowExpression(target) ||
-    (target.CaseExpr !== undefined &&
-      caseExprProducesExactlyOneRow(target.CaseExpr, aggregateNames))
-  );
-}
-
-function caseExprProducesExactlyOneRow(
-  caseExpr: LibPgQueryAST.CaseExpr,
-  aggregateNames: Set<string>,
-): boolean {
-  if (caseExpr.defresult === undefined) {
-    return false;
-  }
-
-  const branches = [...caseExpr.args.map((arg) => arg.CaseWhen?.result), caseExpr.defresult].filter(
-    (node): node is LibPgQueryAST.Node => node !== undefined,
-  );
-
-  if (branches.length === 0) {
-    return false;
-  }
-
-  return branches.every(
-    (branch) => containsAggregate(branch, aggregateNames) || isConstantSingleRowExpression(branch),
-  );
-}
-
-function isConstantSingleRowExpression(node: LibPgQueryAST.Node): boolean {
-  if (node.A_Const !== undefined) {
-    return node.A_Const.isnull !== true;
-  }
-
-  if (node.TypeCast?.arg !== undefined) {
-    return isConstantSingleRowExpression(node.TypeCast.arg);
-  }
-
-  if (node.A_Expr !== undefined) {
-    const { lexpr, rexpr } = node.A_Expr;
-    return (
-      (lexpr === undefined || isConstantSingleRowExpression(lexpr)) &&
-      (rexpr === undefined || isConstantSingleRowExpression(rexpr))
-    );
-  }
-
-  return false;
-}
-
-function isPositiveLimitCount(limitCount: LibPgQueryAST.Node): boolean {
-  const value = getConstantIntegerValue(limitCount);
-
-  return value !== undefined && value > 0;
-}
-
-function getConstantIntegerValue(node: LibPgQueryAST.Node): number | undefined {
-  if (node.A_Const?.ival !== undefined) {
-    const ival = node.A_Const.ival;
-
-    return typeof ival === "number" ? ival : ival.ival;
-  }
-
-  if (node.TypeCast?.arg !== undefined) {
-    return getConstantIntegerValue(node.TypeCast.arg);
-  }
-
-  return undefined;
-}
-
-function containsAggregate(node: LibPgQueryAST.Node, aggregateNames: Set<string>): boolean {
-  if (node.TypeCast?.arg !== undefined) {
-    return containsAggregate(node.TypeCast.arg, aggregateNames);
-  }
-
-  if (node.FuncCall !== undefined) {
-    if (node.FuncCall.over !== undefined) {
-      return false;
-    }
-
-    const funcName = node.FuncCall.funcname.at(-1)?.String?.sval?.toLowerCase();
-    return funcName !== undefined && aggregateNames.has(funcName);
-  }
-
-  if (node.A_Expr !== undefined) {
-    return (
-      (node.A_Expr.lexpr !== undefined && containsAggregate(node.A_Expr.lexpr, aggregateNames)) ||
-      (node.A_Expr.rexpr !== undefined && containsAggregate(node.A_Expr.rexpr, aggregateNames))
-    );
-  }
-
-  if (node.CoalesceExpr !== undefined) {
-    return node.CoalesceExpr.args.some((arg) => containsAggregate(arg, aggregateNames));
-  }
-
-  if (node.CaseExpr !== undefined) {
-    if (
-      node.CaseExpr.defresult !== undefined &&
-      containsAggregate(node.CaseExpr.defresult, aggregateNames)
-    ) {
-      return true;
-    }
-
-    return node.CaseExpr.args.some(
-      (arg) =>
-        (arg.CaseWhen?.expr !== undefined &&
-          containsAggregate(arg.CaseWhen.expr, aggregateNames)) ||
-        (arg.CaseWhen?.result !== undefined &&
-          containsAggregate(arg.CaseWhen.result, aggregateNames)),
-    );
-  }
-
-  return false;
 }
 
 function getDescribedSelectStmt({
@@ -1074,6 +885,13 @@ function getDescribedUnnestFunCall({
   return [{ name, type: unwrap(described.type) }];
 }
 
+const pgFnArgAliases: Record<string, string> = {
+  int4: "integer",
+  int8: "bigint",
+  float4: "real",
+  float8: "double precision",
+};
+
 function getDescribedFuncCallByPgFn({
   alias,
   context,
@@ -1081,7 +899,7 @@ function getDescribedFuncCallByPgFn({
 }: GetDescribedParamsOf<LibPgQueryAST.FuncCall>): ASTDescribedColumn[] {
   const functionName = node.funcname.at(-1)?.String?.sval;
   const name = alias ?? functionName ?? "?column?";
-  const argTypes = (node.args ?? []).flatMap((argNode) => {
+  const pgArgs = (node.args ?? []).flatMap((argNode) => {
     const described = getDescribedNode({ alias: undefined, node: argNode, context }).at(0);
 
     if (described === undefined) {
@@ -1093,43 +911,37 @@ function getDescribedFuncCallByPgFn({
         ? unwrapNullableUnionType(described.type)
         : described.type.kind === "type"
           ? described.type
-          : undefined;
+          : described.type.kind === "literal" && described.type.base.kind === "type"
+            ? described.type.base
+            : undefined;
 
-    if (unwrapped?.kind === "type") {
-      return [{ ts: unwrapped.value, pg: unwrapped.type }];
-    }
-
-    return [];
+    return unwrapped?.kind === "type" ? [unwrapped.type] : [];
   });
-  const args = argTypes.map((arg) => arg.ts);
 
   if (functionName === undefined) {
     return [{ name, type: context.toTypeScriptType({ name: "unknown" }) }];
   }
 
-  let pgFnValue =
-    args.length === 0
+  const pgFnLookupArgs = pgArgs.map((pgArg) => pgFnArgAliases[pgArg] ?? pgArg);
+  const tsArgs = pgArgs.map((pgArg) => context.typesMap.get(pgArg)?.value ?? "unknown");
+
+  const pgFnValue =
+    pgArgs.length === 0
       ? (context.pgFns.get(functionName) ?? context.pgFns.get(`${functionName}(string)`))
-      : (context.pgFns.get(`${functionName}(${args.join(", ")})`) ??
+      : (context.pgFns.get(`${functionName}(${pgFnLookupArgs.join(", ")})`) ??
+        context.pgFns.get(`${functionName}(${pgArgs.join(", ")})`) ??
+        context.pgFns.get(`${functionName}(${tsArgs.join(", ")})`) ??
         context.pgFns.get(`${functionName}(any)`) ??
         context.pgFns.get(`${functionName}(unknown)`));
 
-  if (
-    pgFnValue !== undefined &&
-    argTypes.length > 0 &&
-    (functionName === "max" || functionName === "min")
-  ) {
-    const argPg = argTypes[0].pg;
-    pgFnValue = {
-      ts: context.typesMap.get(argPg)?.value ?? pgFnValue.ts,
-      pg: argPg,
-    };
-  }
+  const tsReturnType = pgFnValue?.pg
+    ? (context.typesMap.get(pgFnValue.pg)?.value ?? pgFnValue.ts)
+    : (pgFnValue?.ts ?? "unknown");
 
   const type = resolveType({
     context: context,
     nullable: !context.nonNullableColumns.has(name),
-    type: { kind: "type", value: pgFnValue?.ts ?? "unknown", type: pgFnValue?.pg ?? "unknown" },
+    type: { kind: "type", value: tsReturnType, type: pgFnValue?.pg ?? "unknown" },
   });
 
   return [{ name, type }];

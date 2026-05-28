@@ -3017,7 +3017,7 @@ test("scalar subquery wrapping sum() over empty rows should be nullable", async 
         {
           kind: "union",
           value: [
-            { kind: "type", value: "string", type: "numeric" },
+            { kind: "type", value: "string", type: "int8" },
             { kind: "type", value: "null", type: "null" },
           ],
         },

@@ -1,5 +1,6 @@
 import { assertNever } from "@ts-safeql/shared";
 import * as LibPgQueryAST from "@ts-safeql/sql-ast";
+import { selectReturnsExactlyOneRow } from "./scalar-subquery-row-count";
 
 // Function names that are always non-nullable.
 const nonNullFunctions: Set<string> = new Set([
@@ -79,6 +80,7 @@ function concatStringNodes(nodes: LibPgQueryAST.Node[] | undefined): string {
 function isColumnNonNullable(
   val: LibPgQueryAST.Node | undefined,
   root: LibPgQueryAST.ParseResult,
+  aggregateNames: Set<string> | undefined,
 ): boolean {
   if (val === undefined) {
     return false;
@@ -102,7 +104,7 @@ function isColumnNonNullable(
   }
 
   if (val.TypeCast?.arg) {
-    return isColumnNonNullable(val.TypeCast.arg, root);
+    return isColumnNonNullable(val.TypeCast.arg, root, aggregateNames);
   }
 
   if (val.SubLink) {
@@ -116,10 +118,25 @@ function isColumnNonNullable(
       case LibPgQueryAST.SubLinkType.ALL_SUBLINK:
       case LibPgQueryAST.SubLinkType.ANY_SUBLINK:
       case LibPgQueryAST.SubLinkType.ROWCOMPARE_SUBLINK:
-      case LibPgQueryAST.SubLinkType.EXPR_SUBLINK:
+      case LibPgQueryAST.SubLinkType.EXPR_SUBLINK: {
+        const innerSelect = val.SubLink.subselect?.SelectStmt;
+
+        if (
+          innerSelect === undefined ||
+          aggregateNames === undefined ||
+          !selectReturnsExactlyOneRow(innerSelect, aggregateNames)
+        ) {
+          return false;
+        }
+
+        const expression = innerSelect.targetList?.[0]?.ResTarget?.val;
+
+        return expression !== undefined && isColumnNonNullable(expression, root, aggregateNames);
+      }
+
       case LibPgQueryAST.SubLinkType.MULTIEXPR_SUBLINK:
       case LibPgQueryAST.SubLinkType.CTE_SUBLINK:
-        return isColumnNonNullable(val.SubLink.subselect, root);
+        return isColumnNonNullable(val.SubLink.subselect, root, aggregateNames);
 
       case LibPgQueryAST.SubLinkType.SUB_LINK_TYPE_UNDEFINED:
       case LibPgQueryAST.SubLinkType.UNRECOGNIZED:
@@ -140,18 +157,19 @@ function isColumnNonNullable(
 
   if (val.A_Expr?.kind === LibPgQueryAST.AExprKind.AEXPR_OP) {
     return (
-      isColumnNonNullable(val.A_Expr.lexpr, root) && isColumnNonNullable(val.A_Expr.rexpr, root)
+      isColumnNonNullable(val.A_Expr.lexpr, root, aggregateNames) &&
+      isColumnNonNullable(val.A_Expr.rexpr, root, aggregateNames)
     );
   }
 
   if (val.CaseExpr) {
     for (const when of val.CaseExpr.args) {
-      if (!isColumnNonNullable(when.CaseWhen?.result, root)) {
+      if (!isColumnNonNullable(when.CaseWhen?.result, root, aggregateNames)) {
         return false;
       }
     }
 
-    if (val.CaseExpr.defresult && !isColumnNonNullable(val.CaseExpr.defresult, root)) {
+    if (val.CaseExpr.defresult && !isColumnNonNullable(val.CaseExpr.defresult, root, aggregateNames)) {
       return false;
     }
 
@@ -180,7 +198,7 @@ function isColumnNonNullable(
 
   if (val.CoalesceExpr) {
     for (const arg of val.CoalesceExpr.args) {
-      if (isColumnNonNullable(arg, root)) {
+      if (isColumnNonNullable(arg, root, aggregateNames)) {
         return true;
       }
     }
@@ -192,9 +210,13 @@ function isColumnNonNullable(
   }
 
   if (val.SelectStmt) {
-    // TODO: maybe we should check the sublink type?
-    const nonNullableColumnsInSubStmt = getNonNullableColumnsInSelectStmt(val.SelectStmt, root);
-    return Array.from(nonNullableColumnsInSubStmt.values()).some(Boolean);
+    const nonNullableColumnsInSubStmt = getNonNullableColumnsInSelectStmt(
+      val.SelectStmt,
+      root,
+      aggregateNames,
+    );
+
+    return nonNullableColumnsInSubStmt.size > 0;
   }
 
   return false;
@@ -309,6 +331,7 @@ function addNonNullableColumnsFromSubselect(
   nonNullableColumns: Set<string>,
   node: LibPgQueryAST.Node,
   root: LibPgQueryAST.ParseResult,
+  aggregateNames: Set<string> | undefined,
 ) {
   const select = node.RangeSubselect?.subquery?.SelectStmt;
 
@@ -316,7 +339,7 @@ function addNonNullableColumnsFromSubselect(
     return;
   }
 
-  for (const name of getNonNullableColumnsInSelectStmt(select, root)) {
+  for (const name of getNonNullableColumnsInSelectStmt(select, root, aggregateNames)) {
     nonNullableColumns.add(name);
   }
 }
@@ -326,9 +349,10 @@ function addNonNullableColumnsFromFromNode(
   node: LibPgQueryAST.Node,
   root: LibPgQueryAST.ParseResult,
   isNullable: boolean,
+  aggregateNames: Set<string> | undefined,
 ) {
   if (!isNullable) {
-    addNonNullableColumnsFromSubselect(nonNullableColumns, node, root);
+    addNonNullableColumnsFromSubselect(nonNullableColumns, node, root, aggregateNames);
   }
 
   const joinExpr = node.JoinExpr;
@@ -347,11 +371,23 @@ function addNonNullableColumnsFromFromNode(
       }
 
       if (joinExpr.larg !== undefined) {
-        addNonNullableColumnsFromFromNode(nonNullableColumns, joinExpr.larg, root, isNullable);
+        addNonNullableColumnsFromFromNode(
+          nonNullableColumns,
+          joinExpr.larg,
+          root,
+          isNullable,
+          aggregateNames,
+        );
       }
 
       if (joinExpr.rarg !== undefined) {
-        addNonNullableColumnsFromFromNode(nonNullableColumns, joinExpr.rarg, root, isNullable);
+        addNonNullableColumnsFromFromNode(
+          nonNullableColumns,
+          joinExpr.rarg,
+          root,
+          isNullable,
+          aggregateNames,
+        );
       }
 
       break;
@@ -360,22 +396,46 @@ function addNonNullableColumnsFromFromNode(
     case LibPgQueryAST.JoinType.JOIN_ANTI:
     case LibPgQueryAST.JoinType.JOIN_UNIQUE_OUTER:
       if (joinExpr.larg !== undefined) {
-        addNonNullableColumnsFromFromNode(nonNullableColumns, joinExpr.larg, root, isNullable);
+        addNonNullableColumnsFromFromNode(
+          nonNullableColumns,
+          joinExpr.larg,
+          root,
+          isNullable,
+          aggregateNames,
+        );
       }
 
       if (joinExpr.rarg !== undefined) {
-        addNonNullableColumnsFromFromNode(nonNullableColumns, joinExpr.rarg, root, true);
+        addNonNullableColumnsFromFromNode(
+          nonNullableColumns,
+          joinExpr.rarg,
+          root,
+          true,
+          aggregateNames,
+        );
       }
 
       break;
 
     case LibPgQueryAST.JoinType.JOIN_RIGHT:
       if (joinExpr.larg !== undefined) {
-        addNonNullableColumnsFromFromNode(nonNullableColumns, joinExpr.larg, root, true);
+        addNonNullableColumnsFromFromNode(
+          nonNullableColumns,
+          joinExpr.larg,
+          root,
+          true,
+          aggregateNames,
+        );
       }
 
       if (joinExpr.rarg !== undefined) {
-        addNonNullableColumnsFromFromNode(nonNullableColumns, joinExpr.rarg, root, isNullable);
+        addNonNullableColumnsFromFromNode(
+          nonNullableColumns,
+          joinExpr.rarg,
+          root,
+          isNullable,
+          aggregateNames,
+        );
       }
 
       break;
@@ -383,11 +443,23 @@ function addNonNullableColumnsFromFromNode(
     case LibPgQueryAST.JoinType.JOIN_FULL:
     case LibPgQueryAST.JoinType.UNRECOGNIZED:
       if (joinExpr.larg !== undefined) {
-        addNonNullableColumnsFromFromNode(nonNullableColumns, joinExpr.larg, root, true);
+        addNonNullableColumnsFromFromNode(
+          nonNullableColumns,
+          joinExpr.larg,
+          root,
+          true,
+          aggregateNames,
+        );
       }
 
       if (joinExpr.rarg !== undefined) {
-        addNonNullableColumnsFromFromNode(nonNullableColumns, joinExpr.rarg, root, true);
+        addNonNullableColumnsFromFromNode(
+          nonNullableColumns,
+          joinExpr.rarg,
+          root,
+          true,
+          aggregateNames,
+        );
       }
 
       break;
@@ -419,6 +491,7 @@ function addNonNullableTargetAliases(
 function getNonNullableColumnsInSelectStmt(
   stmt: LibPgQueryAST.SelectStmt,
   root: LibPgQueryAST.ParseResult,
+  aggregateNames: Set<string> | undefined,
 ): Set<string> {
   const nonNullableColumns = new Set<string>();
 
@@ -435,7 +508,7 @@ function getNonNullableColumnsInSelectStmt(
       targetNames.add(getTargetName(target.ResTarget));
     }
 
-    if (target.ResTarget && isColumnNonNullable(target.ResTarget.val, root)) {
+    if (target.ResTarget && isColumnNonNullable(target.ResTarget.val, root, aggregateNames)) {
       nonNullableColumns.add(getTargetName(target.ResTarget));
     }
   }
@@ -473,7 +546,7 @@ function getNonNullableColumnsInSelectStmt(
   }
 
   for (const from of stmt.fromClause ?? []) {
-    addNonNullableColumnsFromFromNode(nonNullableColumns, from, root, false);
+    addNonNullableColumnsFromFromNode(nonNullableColumns, from, root, false, aggregateNames);
   }
 
   addNonNullableTargetAliases(nonNullableColumns, targetList);
@@ -481,12 +554,33 @@ function getNonNullableColumnsInSelectStmt(
   return nonNullableColumns;
 }
 
-export function getNonNullableColumns(root: LibPgQueryAST.ParseResult): Set<string> {
+export function getNonNullableColumns(
+  root: LibPgQueryAST.ParseResult,
+  options?: { aggregateNames?: Set<string> },
+): Set<string> {
+  const aggregateNames = options?.aggregateNames;
+
   for (const stmt of root.stmts) {
     if (stmt.stmt?.SelectStmt) {
-      return getNonNullableColumnsInSelectStmt(stmt.stmt.SelectStmt, root);
+      return getNonNullableColumnsInSelectStmt(stmt.stmt.SelectStmt, root, aggregateNames);
     }
   }
 
   return new Set();
+}
+
+export function unwrapNullableUnionType(type: {
+  kind: "union";
+  value: { kind: string; value: string; type: string }[];
+}): { kind: "type"; value: string; type: string } | undefined {
+  const nonNull = type.value.filter(
+    (member): member is { kind: "type"; value: string; type: string } =>
+      member.kind === "type" && member.value !== "null",
+  );
+
+  if (nonNull.length !== 1) {
+    return undefined;
+  }
+
+  return nonNull[0];
 }

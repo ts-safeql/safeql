@@ -184,11 +184,6 @@ async function generate(
     },
   });
 
-  function byReturnType(a: PgFnRow, b: PgFnRow) {
-    const priority = ["numeric", "int8"];
-    return priority.indexOf(a.returnType) - priority.indexOf(b.returnType);
-  }
-
   const functionsMap = await getOrSetFromMapWithEnabled({
     shouldCache: cacheMetadata,
     map: cache.functions,
@@ -197,16 +192,28 @@ async function generate(
       const map: FunctionsMap = new Map();
 
       for (const [functionName, signatures] of pgFnsByName.entries()) {
-        for (const signature of signatures.sort(byReturnType)) {
+        for (const signature of signatures) {
+          if (signature.arguments.some((arg) => arg.includes("ORDER BY"))) {
+            continue;
+          }
+
           const tsArgs = signature.arguments.map((arg) => {
             return typesMap.get(arg)?.value ?? "unknown";
           });
-
           const tsReturnType = typesMap.get(signature.returnType)?.value ?? signature.returnType;
+          const entry = { ts: tsReturnType, pg: signature.returnType };
 
-          const key = tsArgs.length === 0 ? functionName : `${functionName}(${tsArgs.join(", ")})`;
+          const pgKey =
+            signature.arguments.length === 0
+              ? functionName
+              : `${functionName}(${signature.arguments.join(", ")})`;
+          const tsKey = tsArgs.length === 0 ? functionName : `${functionName}(${tsArgs.join(", ")})`;
 
-          map.set(key, { ts: tsReturnType, pg: signature.returnType });
+          map.set(pgKey, entry);
+
+          if (tsKey !== pgKey) {
+            map.set(tsKey, entry);
+          }
         }
       }
 
