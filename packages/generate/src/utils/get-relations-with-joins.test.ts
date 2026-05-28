@@ -137,10 +137,7 @@ const cases: {
       CROSS JOIN json_array_elements(t.json_column) AS v
     `,
     expected: [
-      [
-        "all_types",
-        [{ alias: undefined, name: "v", type: LibPgQueryAST.JoinType.JOIN_INNER }],
-      ],
+      ["all_types", [{ alias: undefined, name: "v", type: LibPgQueryAST.JoinType.JOIN_INNER }]],
     ],
   },
 ];

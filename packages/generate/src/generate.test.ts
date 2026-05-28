@@ -2981,7 +2981,7 @@ test("scalar subquery wrapping max() should be nullable", async () => {
         {
           kind: "union",
           value: [
-            { kind: "type", value: "string", type: "int8" },
+            { kind: "type", value: "string", type: "text" },
             { kind: "type", value: "null", type: "null" },
           ],
         },
@@ -3080,21 +3080,10 @@ test("scalar subquery with HAVING should be nullable even when wrapping count()"
   });
 });
 
-test("scalar subquery with LIMIT should be nullable even when wrapping count()", async () => {
+test("scalar subquery with LIMIT wrapping count() should be non-nullable", async () => {
   await testQuery({
     query: `SELECT (SELECT count(*)::int FROM caregiver LIMIT 1) AS c`,
-    expected: [
-      [
-        "c",
-        {
-          kind: "union",
-          value: [
-            { kind: "type", value: "number", type: "int4" },
-            { kind: "type", value: "null", type: "null" },
-          ],
-        },
-      ],
-    ],
+    expected: [["c", { kind: "type", value: "number", type: "int4" }]],
   });
 });
 
@@ -3127,10 +3116,7 @@ test("ARRAY[]::int[] should infer empty integer array", async () => {
   await testQuery({
     query: `SELECT ARRAY[]::int[] AS empty_ints`,
     expected: [
-      [
-        "empty_ints",
-        { kind: "array", value: { kind: "type", value: "number", type: "int4" } },
-      ],
+      ["empty_ints", { kind: "array", value: { kind: "type", value: "number", type: "int4" } }],
     ],
   });
 });
@@ -3248,5 +3234,54 @@ test("scalar subquery selecting a constant should be non-nullable", async () => 
         },
       ],
     ],
+  });
+});
+
+test("scalar subquery with constant and WHERE false should be nullable", async () => {
+  await testQuery({
+    query: `SELECT (SELECT 1 WHERE false) AS n`,
+    expected: [
+      [
+        "n",
+        {
+          kind: "union",
+          value: [
+            { kind: "literal", value: "1", base: { kind: "type", value: "number", type: "int4" } },
+            { kind: "type", value: "null", type: "null" },
+          ],
+        },
+      ],
+    ],
+  });
+});
+
+test("scalar subquery with constant FROM table WHERE false should be nullable", async () => {
+  await testQuery({
+    query: `SELECT (SELECT 1 FROM caregiver WHERE false) AS n`,
+    expected: [
+      [
+        "n",
+        {
+          kind: "union",
+          value: [
+            { kind: "literal", value: "1", base: { kind: "type", value: "number", type: "int4" } },
+            { kind: "type", value: "null", type: "null" },
+          ],
+        },
+      ],
+    ],
+  });
+});
+
+test("scalar subquery with aggregate in CASE WHEN should be non-nullable", async () => {
+  await testQuery({
+    query: normalizeIndent`
+      SELECT (
+        SELECT CASE WHEN count(*) > 0 THEN 1 ELSE 0 END
+        FROM caregiver
+        WHERE false
+      ) AS c
+    `,
+    expected: [["c", { kind: "type", value: "number", type: "int4" }]],
   });
 });

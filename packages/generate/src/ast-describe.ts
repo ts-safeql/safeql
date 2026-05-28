@@ -623,12 +623,11 @@ function producesExactlyOneRow(
   select: LibPgQueryAST.SelectStmt,
   aggregateNames: Set<string>,
 ): boolean {
-  if (
-    (select.groupClause?.length ?? 0) > 0 ||
-    select.havingClause !== undefined ||
-    select.limitCount !== undefined ||
-    select.limitOffset !== undefined
-  ) {
+  if ((select.groupClause?.length ?? 0) > 0 || select.havingClause !== undefined) {
+    return false;
+  }
+
+  if (select.limitOffset !== undefined) {
     return false;
   }
 
@@ -644,8 +643,23 @@ function producesExactlyOneRow(
     return false;
   }
 
+  const isAggregateTarget = containsAggregate(target, aggregateNames);
+
+  if (!isAggregateTarget && select.limitCount !== undefined) {
+    return false;
+  }
+
+  if (isAggregateTarget) {
+    return true;
+  }
+
+  const hasFromClause = (select.fromClause?.length ?? 0) > 0;
+
+  if (hasFromClause || select.whereClause !== undefined) {
+    return false;
+  }
+
   return (
-    containsAggregate(target, aggregateNames) ||
     isConstantSingleRowExpression(target) ||
     (target.CaseExpr !== undefined &&
       caseExprProducesExactlyOneRow(target.CaseExpr, aggregateNames))
@@ -656,10 +670,9 @@ function caseExprProducesExactlyOneRow(
   caseExpr: LibPgQueryAST.CaseExpr,
   aggregateNames: Set<string>,
 ): boolean {
-  const branches = [
-    ...caseExpr.args.map((arg) => arg.CaseWhen?.result),
-    caseExpr.defresult,
-  ].filter((node): node is LibPgQueryAST.Node => node !== undefined);
+  const branches = [...caseExpr.args.map((arg) => arg.CaseWhen?.result), caseExpr.defresult].filter(
+    (node): node is LibPgQueryAST.Node => node !== undefined,
+  );
 
   if (branches.length === 0) {
     return false;
@@ -725,8 +738,10 @@ function containsAggregate(node: LibPgQueryAST.Node, aggregateNames: Set<string>
 
     return node.CaseExpr.args.some(
       (arg) =>
-        arg.CaseWhen?.result !== undefined &&
-        containsAggregate(arg.CaseWhen.result, aggregateNames),
+        (arg.CaseWhen?.expr !== undefined &&
+          containsAggregate(arg.CaseWhen.expr, aggregateNames)) ||
+        (arg.CaseWhen?.result !== undefined &&
+          containsAggregate(arg.CaseWhen.result, aggregateNames)),
     );
   }
 
@@ -1016,26 +1031,39 @@ function getDescribedFuncCallByPgFn({
 }: GetDescribedParamsOf<LibPgQueryAST.FuncCall>): ASTDescribedColumn[] {
   const functionName = node.funcname.at(-1)?.String?.sval;
   const name = alias ?? functionName ?? "?column?";
-  const args = (node.args ?? []).flatMap((node) => {
-    const described = getDescribedNode({ alias: undefined, node, context }).at(0);
+  const argTypes = (node.args ?? []).flatMap((argNode) => {
+    const described = getDescribedNode({ alias: undefined, node: argNode, context }).at(0);
 
     if (described?.type.kind === "type") {
-      return [described.type.value];
+      return [{ ts: described.type.value, pg: described.type.type }];
     }
 
     return [];
   });
+  const args = argTypes.map((arg) => arg.ts);
 
   if (functionName === undefined) {
     return [{ name, type: context.toTypeScriptType({ name: "unknown" }) }];
   }
 
-  const pgFnValue =
+  let pgFnValue =
     args.length === 0
       ? (context.pgFns.get(functionName) ?? context.pgFns.get(`${functionName}(string)`))
       : (context.pgFns.get(`${functionName}(${args.join(", ")})`) ??
         context.pgFns.get(`${functionName}(any)`) ??
         context.pgFns.get(`${functionName}(unknown)`));
+
+  if (
+    pgFnValue !== undefined &&
+    argTypes.length > 0 &&
+    (functionName === "max" || functionName === "min")
+  ) {
+    const argPg = argTypes[0].pg;
+    pgFnValue = {
+      ts: context.typesMap.get(argPg)?.value ?? pgFnValue.ts,
+      pg: argPg,
+    };
+  }
 
   const type = resolveType({
     context: context,
@@ -1583,7 +1611,7 @@ function asNonNullableType(type: ASTDescribedColumnType): ASTDescribedColumnType
         return filtered[0];
       }
 
-      return { kind: "union", value: filtered };
+      return normalizeLiteralUnion({ kind: "union", value: filtered });
     }
     case "type":
       return type.value === "null" ? { kind: "type", value: "unknown", type: "unknown" } : type;
