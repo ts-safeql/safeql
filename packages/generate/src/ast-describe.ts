@@ -10,7 +10,7 @@ import {
 } from "./ast-decribe.utils";
 import { ResolvedColumn, SourcesResolver, getSources } from "./ast-get-sources";
 import { PgColRow, PgEnumsMaps, PgTypesMap } from "./generate";
-import { getNonNullableColumns } from "./utils/get-nonnullable-columns";
+import { getNonNullableColumns, getOutputColumnKey } from "./utils/get-nonnullable-columns";
 import {
   FlattenedRelationWithJoins,
   flattenRelationsWithJoinsMap,
@@ -27,6 +27,7 @@ type ASTDescriptionOptions = {
   pgTypes: PgTypesMap;
   pgEnums: PgEnumsMaps;
   pgFns: Map<string, { ts: string; pg: string }>;
+  pgAggregateNames: Set<string>;
   fieldTransform: IdentiferCase | undefined;
   prevSources?: SourcesResolver["sources"];
   cteSelects?: Map<string, LibPgQueryAST.SelectStmt>;
@@ -71,7 +72,9 @@ export function getASTDescription(params: ASTDescriptionOptions): {
     };
   }
 
-  const nonNullableColumns = getNonNullableColumns(params.parsed);
+  const nonNullableColumns = getNonNullableColumns(params.parsed, {
+    aggregateNames: params.pgAggregateNames,
+  });
   const relations = flattenRelationsWithJoinsMap(getRelationsWithJoins(params.parsed));
 
   function getTypeByOid(oid: number) {
@@ -584,13 +587,19 @@ function getDescribedSubLink({
     return context.toTypeScriptType({ name: "unknown" });
   };
 
+  const name = getOutputColumnKey(alias, { SubLink: node });
+  const subLinkType = getSubLinkType();
+  const nullable =
+    node.subLinkType === LibPgQueryAST.SubLinkType.EXPR_SUBLINK &&
+    !context.nonNullableColumns.has(name);
+
   return [
     {
-      name: alias ?? "exists",
+      name,
       type: resolveType({
         context: context,
-        nullable: node.subLinkType === LibPgQueryAST.SubLinkType.EXPR_SUBLINK,
-        type: getSubLinkType(),
+        nullable,
+        type: nullable ? subLinkType : asNonNullableType(subLinkType),
       }),
     },
   ];
@@ -615,6 +624,7 @@ function getDescribedSelectStmt({
     pgTypes: context.pgTypes,
     pgEnums: context.pgEnums,
     pgFns: context.pgFns,
+    pgAggregateNames: context.pgAggregateNames,
     fieldTransform: context.fieldTransform,
     prevSources: context.resolver.sources,
     cteSelects: context.cteSelects,
@@ -670,11 +680,15 @@ function getDescribedArrayExpr({
   context,
   node,
 }: GetDescribedParamsOf<LibPgQueryAST.AArrayExpr>): ASTDescribedColumn[] {
-  const types = mergeDescribedColumnTypes(
-    node.elements
-      .flatMap((node) => getDescribedNode({ alias: undefined, node, context }))
-      .map((x) => x.type),
-  );
+  const elements = node.elements ?? [];
+  const types =
+    elements.length === 0
+      ? context.toTypeScriptType({ name: "unknown" })
+      : mergeDescribedColumnTypes(
+          elements
+            .flatMap((node) => getDescribedNode({ alias: undefined, node, context }))
+            .map((x) => x.type),
+        );
 
   return [
     {
@@ -747,7 +761,9 @@ function getDescribedTypeCast({
     return [];
   }
 
-  const type = context.toTypeScriptType({ name: typeName });
+  const isArrayCast = (node.typeName?.arrayBounds?.length ?? 0) > 0;
+  const baseType = context.toTypeScriptType({ name: typeName });
+  const type: ASTDescribedColumnType = isArrayCast ? { kind: "array", value: baseType } : baseType;
   const innerDescribed = getDescribedNode({ alias, node: node.arg, context }).at(0);
   const nullable = fmap(innerDescribed, (x) => isDescribedColumnNullable(x.type)) ?? true;
 
@@ -865,6 +881,32 @@ function getDescribedUnnestFunCall({
   return [{ name, type: unwrap(described.type) }];
 }
 
+const pgFnArgAliases: Record<string, string> = {
+  int4: "integer",
+  int8: "bigint",
+  float4: "real",
+  float8: "double precision",
+};
+
+function unwrapNullableUnionType(
+  type: ASTDescribedColumnType,
+): Extract<ASTDescribedColumnType, { kind: "type" }> | undefined {
+  if (type.kind !== "union") {
+    return undefined;
+  }
+
+  const nonNull = type.value.filter(
+    (member): member is Extract<ASTDescribedColumnType, { kind: "type" }> =>
+      member.kind === "type" && member.value !== "null",
+  );
+
+  if (nonNull.length !== 1) {
+    return undefined;
+  }
+
+  return nonNull[0];
+}
+
 function getDescribedFuncCallByPgFn({
   alias,
   context,
@@ -872,31 +914,49 @@ function getDescribedFuncCallByPgFn({
 }: GetDescribedParamsOf<LibPgQueryAST.FuncCall>): ASTDescribedColumn[] {
   const functionName = node.funcname.at(-1)?.String?.sval;
   const name = alias ?? functionName ?? "?column?";
-  const args = (node.args ?? []).flatMap((node) => {
-    const described = getDescribedNode({ alias: undefined, node, context }).at(0);
+  const pgArgs = (node.args ?? []).flatMap((argNode) => {
+    const described = getDescribedNode({ alias: undefined, node: argNode, context }).at(0);
 
-    if (described?.type.kind === "type") {
-      return [described.type.value];
+    if (described === undefined) {
+      return [];
     }
 
-    return [];
+    const unwrapped =
+      described.type.kind === "union"
+        ? unwrapNullableUnionType(described.type)
+        : described.type.kind === "type"
+          ? described.type
+          : described.type.kind === "literal" && described.type.base.kind === "type"
+            ? described.type.base
+            : undefined;
+
+    return unwrapped?.kind === "type" ? [unwrapped.type] : [];
   });
 
   if (functionName === undefined) {
     return [{ name, type: context.toTypeScriptType({ name: "unknown" }) }];
   }
 
+  const pgFnLookupArgs = pgArgs.map((pgArg) => pgFnArgAliases[pgArg] ?? pgArg);
+  const tsArgs = pgArgs.map((pgArg) => context.typesMap.get(pgArg)?.value ?? "unknown");
+
   const pgFnValue =
-    args.length === 0
+    pgArgs.length === 0
       ? (context.pgFns.get(functionName) ?? context.pgFns.get(`${functionName}(string)`))
-      : (context.pgFns.get(`${functionName}(${args.join(", ")})`) ??
+      : (context.pgFns.get(`${functionName}(${pgFnLookupArgs.join(", ")})`) ??
+        context.pgFns.get(`${functionName}(${pgArgs.join(", ")})`) ??
+        context.pgFns.get(`${functionName}(${tsArgs.join(", ")})`) ??
         context.pgFns.get(`${functionName}(any)`) ??
         context.pgFns.get(`${functionName}(unknown)`));
+
+  const tsReturnType = pgFnValue?.pg
+    ? (context.typesMap.get(pgFnValue.pg)?.value ?? pgFnValue.ts)
+    : (pgFnValue?.ts ?? "unknown");
 
   const type = resolveType({
     context: context,
     nullable: !context.nonNullableColumns.has(name),
-    type: { kind: "type", value: pgFnValue?.ts ?? "unknown", type: pgFnValue?.pg ?? "unknown" },
+    type: { kind: "type", value: tsReturnType, type: pgFnValue?.pg ?? "unknown" },
   });
 
   return [{ name, type }];
@@ -1325,6 +1385,7 @@ function getDescribedColumnsFromSelect(params: {
     pgTypes: params.context.pgTypes,
     pgEnums: params.context.pgEnums,
     pgFns: params.context.pgFns,
+    pgAggregateNames: params.context.pgAggregateNames,
     fieldTransform: params.context.fieldTransform,
     prevSources: params.context.resolver.sources,
     cteSelects: params.context.cteSelects,
@@ -1438,7 +1499,7 @@ function asNonNullableType(type: ASTDescribedColumnType): ASTDescribedColumnType
         return filtered[0];
       }
 
-      return { kind: "union", value: filtered };
+      return normalizeLiteralUnion({ kind: "union", value: filtered });
     }
     case "type":
       return type.value === "null" ? { kind: "type", value: "unknown", type: "unknown" } : type;
