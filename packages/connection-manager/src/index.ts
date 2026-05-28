@@ -84,7 +84,7 @@ async function getOrCreateFromPlugins(
 ): Promise<ConnectionPayload> {
   let connection;
   try {
-    connection = await pluginManager.resolveConnection(plugins, projectDir);
+    connection = pluginManager.resolveConnection(plugins, projectDir);
   } catch (error) {
     throw PluginError.from("plugin-resolution")(error);
   }

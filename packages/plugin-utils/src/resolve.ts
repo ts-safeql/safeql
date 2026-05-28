@@ -12,12 +12,11 @@ export type ResolvedConnection = {
 export class PluginManager {
   private readonly pluginCache = new Map<string, SafeQLPlugin>();
 
-  async resolveConnection(
+  resolveConnection(
     descriptors: PluginDescriptor[],
     projectDir: string,
-  ): Promise<ResolvedConnection | undefined> {
-    const plugins = descriptors.map((d) => this.resolveOne(d, projectDir));
-    return this.pickConnection(plugins);
+  ): ResolvedConnection | undefined {
+    return this.pickConnection(this.resolvePluginsSync(descriptors, projectDir));
   }
 
   getCachedConnection(
@@ -31,7 +30,6 @@ export class PluginManager {
     return this.pickConnection(plugins);
   }
 
-  /** Synchronous — for use in the main ESLint thread (onTarget/onExpression hooks). */
   resolvePluginsSync(descriptors: PluginDescriptor[], projectDir: string): SafeQLPlugin[] {
     return descriptors.map((d) => this.resolveOneSync(d, projectDir));
   }
@@ -74,10 +72,6 @@ export class PluginManager {
     const plugin = this.extractPlugin(descriptor, mod);
     this.pluginCache.set(key, plugin);
     return plugin;
-  }
-
-  private resolveOne(descriptor: PluginDescriptor, projectDir: string): SafeQLPlugin {
-    return this.resolveOneSync(descriptor, projectDir);
   }
 
   private loadModuleSync(packageName: string, projectDir: string): unknown {

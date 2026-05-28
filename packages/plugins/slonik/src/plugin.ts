@@ -164,18 +164,27 @@ function isSlonikSymbol(checker: ts.TypeChecker, symbol: ts.Symbol | undefined):
   const candidates = getSymbolCandidates(checker, symbol);
   if (candidates.some((candidate) => isImportedFromModule(candidate, "slonik"))) return true;
 
+  // Re-exports (e.g. `export { sql } from "slonik"`) leave the import chain
+  // detached from user code, so fall back to inspecting the declaration's
+  // source file. Require the file to live inside a `node_modules/slonik` tree
+  // so user files under e.g. `src/slonik/` don't trigger false positives.
   return candidates.some((candidate) =>
     (candidate.declarations ?? []).some((declaration) =>
-      path.normalize(declaration.getSourceFile().fileName).split(path.sep).includes("slonik"),
+      isSlonikPackageFile(declaration.getSourceFile().fileName),
     ),
   );
 }
 
+function isSlonikPackageFile(fileName: string): boolean {
+  const parts = path.normalize(fileName).split(path.sep);
+  for (let i = 0; i < parts.length - 1; i++) {
+    if (parts[i] === "node_modules" && parts[i + 1] === "slonik") return true;
+  }
+  return false;
+}
+
 function isFragmentTokenType(context: ExpressionContext): boolean {
-  if (
-    context.tsTypeText.includes("FragmentSqlToken") ||
-    context.tsTypeText.includes("SqlFragmentToken")
-  ) {
+  if (context.tsTypeText.includes("FragmentSqlToken")) {
     return true;
   }
 
