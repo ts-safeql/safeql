@@ -88,7 +88,7 @@ section("sql.uuid", () => {
 
 section("sql.array", () => {
   // typed array
-  pool.one(sql.type(z.object({ a: z.number().nullable() }))`
+  pool.one(sql.type(z.object({ a: z.array(z.number()).nullable() }))`
     SELECT ${sql.array([1, 2, 3], "int4")} AS a
   `);
 
