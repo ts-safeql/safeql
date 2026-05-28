@@ -109,10 +109,9 @@ function caseExpressionAlwaysOneRow(
     return false;
   }
 
-  const branches = [
-    ...caseExpr.args.map((arg) => arg.CaseWhen?.result),
-    caseExpr.defresult,
-  ].filter((node): node is LibPgQueryAST.Node => node !== undefined);
+  const branches = [...caseExpr.args.map((arg) => arg.CaseWhen?.result), caseExpr.defresult].filter(
+    (node): node is LibPgQueryAST.Node => node !== undefined,
+  );
 
   return branches.every(
     (branch) => expressionContainsAggregate(branch, aggregateNames) || expressionIsConstant(branch),

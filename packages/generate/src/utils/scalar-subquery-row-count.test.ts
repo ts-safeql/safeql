@@ -66,9 +66,6 @@ test("constant with FROM may return zero rows", async () => {
 
 test("CASE without ELSE is not guaranteed one row", async () => {
   expect(
-    selectReturnsExactlyOneRow(
-      await parseSelect("SELECT CASE WHEN false THEN 1 END"),
-      aggregates,
-    ),
+    selectReturnsExactlyOneRow(await parseSelect("SELECT CASE WHEN false THEN 1 END"), aggregates),
   ).toBe(false);
 });

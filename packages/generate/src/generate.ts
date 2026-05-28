@@ -207,7 +207,8 @@ async function generate(
             signature.arguments.length === 0
               ? functionName
               : `${functionName}(${signature.arguments.join(", ")})`;
-          const tsKey = tsArgs.length === 0 ? functionName : `${functionName}(${tsArgs.join(", ")})`;
+          const tsKey =
+            tsArgs.length === 0 ? functionName : `${functionName}(${tsArgs.join(", ")})`;
 
           map.set(pgKey, entry);
 

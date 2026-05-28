@@ -169,7 +169,10 @@ function isColumnNonNullable(
       }
     }
 
-    if (val.CaseExpr.defresult && !isColumnNonNullable(val.CaseExpr.defresult, root, aggregateNames)) {
+    if (
+      val.CaseExpr.defresult &&
+      !isColumnNonNullable(val.CaseExpr.defresult, root, aggregateNames)
+    ) {
       return false;
     }
 
