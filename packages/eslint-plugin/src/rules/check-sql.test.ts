@@ -13,9 +13,11 @@ import { afterAll, beforeAll, describe, it } from "vitest";
 import rules from ".";
 import { RuleOptionConnection, RuleOptions } from "./RuleOptions";
 
+const RULE_TEST_TIMEOUT_MS = 10_000;
+
 RuleTester.describe = describe;
-RuleTester.it = it;
-RuleTester.itOnly = it.only;
+RuleTester.it = (name, fn) => it(name, fn, RULE_TEST_TIMEOUT_MS);
+RuleTester.itOnly = (name, fn) => it.only(name, fn, RULE_TEST_TIMEOUT_MS);
 RuleTester.afterAll = afterAll;
 
 const ruleTester = new RuleTester({
@@ -208,6 +210,30 @@ RuleTester.describe("check-sql", () => {
     withTag: {
       databaseUrl: `postgres://postgres:postgres@localhost:5432/${databaseName}`,
       targets: [{ tag: "sql" }],
+      keepAlive: false,
+    },
+    withPluginSourcemap: {
+      databaseUrl: `postgres://postgres:postgres@localhost:5432/${databaseName}`,
+      plugins: [
+        {
+          package: path.resolve(__dirname, "./ts-fixture/sourcemap-plugin.ts"),
+          config: {},
+        },
+      ],
+      keepAlive: false,
+    },
+    withPluginTargetPriority: {
+      databaseUrl: `postgres://postgres:postgres@localhost:5432/${databaseName}`,
+      plugins: [
+        {
+          package: path.resolve(__dirname, "./ts-fixture/skip-target-plugin.ts"),
+          config: {},
+        },
+        {
+          package: path.resolve(__dirname, "./ts-fixture/sourcemap-plugin.ts"),
+          config: {},
+        },
+      ],
       keepAlive: false,
     },
     withMemberTag: {
@@ -963,14 +989,23 @@ RuleTester.describe("check-sql", () => {
     invalid: [],
   });
 
+  ruleTester.run("pg type to ts type check (inline type)", rules["check-sql"], {
+    valid: typeColumnTsTypeEntries.map(([colName, colType]) => ({
+      name: `select ${colName} from table as ${colType} (using type reference)`,
+      options: withConnection(connections.withTag),
+      code: `sql<{ ${colName}: ${colType} }>\`select ${colName} from all_types\``,
+    })),
+    invalid: [],
+  });
+
   ruleTester.run("position", rules["check-sql"], {
     valid: [
       {
         name: "control",
-        options: withConnection(connections.base),
+        options: withConnection(connections.withTag),
         code: `
           function run(cert1: "HHA" | "RN", cert2: "LPN" | "CNA") {
-            return sql<{ id: number }[]>\`
+            return sql<{ id: number }>\`
               select id
               from caregiver
               where true 
@@ -984,13 +1019,13 @@ RuleTester.describe("check-sql", () => {
       },
     ],
     invalid: [
-      invalidPositionTestCase({
+      invalidQueryAt({
         code: "sql`select idd from caregiver`",
         error: 'column "idd" does not exist',
         line: 1,
         columns: [12, 15],
       }),
-      invalidPositionTestCase({
+      invalidQueryAt({
         code: normalizeIndent`
           sql\`
             select
@@ -1003,7 +1038,7 @@ RuleTester.describe("check-sql", () => {
         line: 5,
         columns: [5, 15],
       }),
-      invalidPositionTestCase({
+      invalidQueryAt({
         code: normalizeIndent`
           function run(expr1: "HHA" | "RN", expr2: "LPN" | "CNN") {
             sql\`
@@ -1022,7 +1057,7 @@ RuleTester.describe("check-sql", () => {
         line: 9,
         columns: [27, 35],
       }),
-      invalidPositionTestCase({
+      invalidQueryAt({
         code: normalizeIndent`
           function run(cert1: "HHA" | "RNA") {
             return sql\`select id from caregiver where certification = \${cert1}\`
@@ -1032,7 +1067,7 @@ RuleTester.describe("check-sql", () => {
         line: 2,
         columns: [61, 69],
       }),
-      invalidPositionTestCase({
+      invalidQueryAt({
         code: normalizeIndent`
           function run(cert: "HHA" | "RN'") {
             return sql\`select id from caregiver where certification = \${cert}\`
@@ -1042,13 +1077,13 @@ RuleTester.describe("check-sql", () => {
         line: 2,
         columns: [61, 68],
       }),
-      invalidPositionTestCase({
+      invalidQueryAt({
         code: "sql`select id, id from caregiver`",
         error: `Duplicate columns: caregiver.id, caregiver.id`,
         line: 1,
         columns: [12, 14],
       }),
-      invalidPositionTestCase({
+      invalidQueryAt({
         code: "sql`select id sele, certification sele from caregiver`",
         error: `Duplicate columns: caregiver.id (alias: sele), caregiver.certification (alias: sele)`,
         line: 1,
@@ -1057,12 +1092,80 @@ RuleTester.describe("check-sql", () => {
     ],
   });
 
-  ruleTester.run("pg type to ts type check (inline type)", rules["check-sql"], {
-    valid: typeColumnTsTypeEntries.map(([colName, colType]) => ({
-      name: `select ${colName} from table as ${colType} (using type reference)`,
-      options: withConnection(connections.withTag),
-      code: `sql<{ ${colName}: ${colType} }>\`select ${colName} from all_types\``,
-    })),
+  ruleTester.run("plugin position", rules["check-sql"], {
+    valid: [],
+    invalid: [
+      invalidQueryAt({
+        connection: connections.withPluginSourcemap,
+        code: normalizeIndent`
+          declare function sql(strings: TemplateStringsArray, ...values: unknown[]): unknown;
+          declare function ident(value: string): unknown;
+
+          sql\`SELECT 1 FROM \${ident("missing_person")}\`;
+        `,
+        error: 'relation "missing_person" does not exist',
+        line: 3,
+        columns: [19, 45],
+      }),
+      invalidQueryAt({
+        connection: connections.withPluginSourcemap,
+        code: normalizeIndent`
+          declare function sql(strings: TemplateStringsArray, ...values: unknown[]): unknown;
+          declare function ident(value: string): unknown;
+
+          sql\`SELECT id FROM \${ident("caregiver")} WHERE nonexistent = 1\`;
+        `,
+        error: 'column "nonexistent" does not exist',
+        line: 3,
+        columns: [48, 59],
+      }),
+      invalidQueryAt({
+        connection: connections.withPluginSourcemap,
+        code: normalizeIndent`
+          declare function sql(strings: TemplateStringsArray, ...values: unknown[]): unknown;
+          declare function unnest2(): unknown;
+
+          sql\`
+            SELECT bar
+            FROM \${unnest2()} AS foo(bar, baz)
+            WHERE nope = 1
+          \`;
+        `,
+        error: 'column "nope" does not exist',
+        line: 6,
+        columns: [9, 13],
+      }),
+      invalidQueryAt({
+        connection: connections.withPluginSourcemap,
+        code: normalizeIndent`
+          declare function sql(strings: TemplateStringsArray, ...values: unknown[]): unknown;
+          declare function jsonb(value: unknown): unknown;
+
+          sql\`
+            SELECT \${jsonb([1, 2, 3])}::jsonb ->> 0 AS p
+            UNION
+            SELE2CT \${jsonb([1, "f", 3])}::jsonb ->> 0 AS p
+          \`;
+        `,
+        error: 'syntax error at or near "SELE2CT"',
+        line: 6,
+        columns: [3, 10],
+      }),
+    ],
+  });
+
+  ruleTester.run("plugin priority", rules["check-sql"], {
+    valid: [
+      {
+        name: "first target plugin match wins",
+        options: [{ connections: [connections.withPluginTargetPriority] }],
+        code: normalizeIndent`
+          declare function sql(strings: TemplateStringsArray, ...values: unknown[]): unknown;
+
+          sql\`TOTAL GARBAGE\`;
+        `,
+      },
+    ],
     invalid: [],
   });
 
@@ -2102,31 +2205,6 @@ RuleTester.describe("check-sql", () => {
     ],
   });
 
-  function invalidPositionTestCase(params: {
-    only?: boolean;
-    line: number;
-    columns: [number, number];
-    error: string;
-    code: string;
-  }): InvalidTestCase<keyof (typeof rules)["check-sql"]["meta"]["messages"], RuleOptions> {
-    return {
-      name: `${params.line}:[${params.columns[0]}:${params.columns[1]}] - ${params.error}`,
-      only: params.only ?? false,
-      options: withConnection(connections.withTag),
-      code: params.code,
-      errors: [
-        {
-          messageId: "invalidQuery",
-          data: { error: params.error },
-          line: params.line,
-          endLine: params.line,
-          column: params.columns[0],
-          endColumn: params.columns[1],
-        },
-      ],
-    };
-  }
-
   ruleTester.run("local classes", rules["check-sql"], {
     valid: [
       {
@@ -2366,4 +2444,36 @@ RuleTester.describe("check-sql", () => {
       },
     ],
   });
+
+  function invalidQueryAt({
+    line,
+    columns,
+    error,
+    code,
+    connection,
+  }: {
+    line: number;
+    columns: [number, number];
+    error: string;
+    code: string;
+    connection?: RuleOptionConnection;
+  }): InvalidTestCase<keyof (typeof rules)["check-sql"]["meta"]["messages"], RuleOptions> {
+    const [column, endColumn] = columns;
+
+    return {
+      name: `${line}:[${column}:${endColumn}] - ${error}`,
+      options: withConnection(connection ?? connections.withTag),
+      code,
+      errors: [
+        {
+          messageId: "invalidQuery",
+          data: { error },
+          line,
+          endLine: line,
+          column,
+          endColumn,
+        },
+      ],
+    };
+  }
 });

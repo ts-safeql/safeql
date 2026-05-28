@@ -43,7 +43,7 @@
     "typescript": "catalog:",
     "unbuild": "catalog:",
     "vitest": "catalog:",
-    "zod": "^4.1.12"
+    "zod": "^4.3.6"
   },
   "dependencies": {
     "@ts-safeql/plugin-utils": "workspace:*"

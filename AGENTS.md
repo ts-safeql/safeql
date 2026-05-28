@@ -18,3 +18,4 @@ pnpm --filter <pkg> test -- --run   # single package tests
 ## References
  - [Creating a New Package](.agents/docs/creating-package.md)
  - [Authoring a Plugin](.agents/docs/authoring-plugin.md)
+ - [Coding Guidelines](.agents/docs/coding-guidelines.md)
