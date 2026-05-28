@@ -542,6 +542,32 @@ function getBaseType(type: ASTDescribedColumnType): ASTDescribedColumnType {
   }
 }
 
+function unwrapNullableUnionType(
+  type: ASTDescribedColumnType,
+): ASTDescribedColumnType | undefined {
+  if (type.kind !== "union") {
+    return undefined;
+  }
+
+  const nonNull = type.value.flatMap((member) => {
+    if (member.kind === "type" && member.value === "null") {
+      return [];
+    }
+
+    if (member.kind === "type") {
+      return [member];
+    }
+
+    return [];
+  });
+
+  if (nonNull.length === 0) {
+    return undefined;
+  }
+
+  return isSingleCell(nonNull) ? nonNull[0] : mergeDescribedColumnTypes(nonNull);
+}
+
 function getDescribedBoolExpr({
   alias,
   context,
@@ -650,7 +676,7 @@ function producesExactlyOneRow(
   }
 
   if (isAggregateTarget) {
-    return true;
+    return select.limitCount === undefined || isPositiveLimitCount(select.limitCount);
   }
 
   const hasFromClause = (select.fromClause?.length ?? 0) > 0;
@@ -670,6 +696,10 @@ function caseExprProducesExactlyOneRow(
   caseExpr: LibPgQueryAST.CaseExpr,
   aggregateNames: Set<string>,
 ): boolean {
+  if (caseExpr.defresult === undefined) {
+    return false;
+  }
+
   const branches = [...caseExpr.args.map((arg) => arg.CaseWhen?.result), caseExpr.defresult].filter(
     (node): node is LibPgQueryAST.Node => node !== undefined,
   );
@@ -701,6 +731,26 @@ function isConstantSingleRowExpression(node: LibPgQueryAST.Node): boolean {
   }
 
   return false;
+}
+
+function isPositiveLimitCount(limitCount: LibPgQueryAST.Node): boolean {
+  const value = getConstantIntegerValue(limitCount);
+
+  return value !== undefined && value > 0;
+}
+
+function getConstantIntegerValue(node: LibPgQueryAST.Node): number | undefined {
+  if (node.A_Const?.ival !== undefined) {
+    const ival = node.A_Const.ival;
+
+    return typeof ival === "number" ? ival : ival.ival;
+  }
+
+  if (node.TypeCast?.arg !== undefined) {
+    return getConstantIntegerValue(node.TypeCast.arg);
+  }
+
+  return undefined;
 }
 
 function containsAggregate(node: LibPgQueryAST.Node, aggregateNames: Set<string>): boolean {
@@ -1034,8 +1084,19 @@ function getDescribedFuncCallByPgFn({
   const argTypes = (node.args ?? []).flatMap((argNode) => {
     const described = getDescribedNode({ alias: undefined, node: argNode, context }).at(0);
 
-    if (described?.type.kind === "type") {
-      return [{ ts: described.type.value, pg: described.type.type }];
+    if (described === undefined) {
+      return [];
+    }
+
+    const unwrapped =
+      described.type.kind === "union"
+        ? unwrapNullableUnionType(described.type)
+        : described.type.kind === "type"
+          ? described.type
+          : undefined;
+
+    if (unwrapped?.kind === "type") {
+      return [{ ts: unwrapped.value, pg: unwrapped.type }];
     }
 
     return [];

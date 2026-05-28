@@ -3087,6 +3087,60 @@ test("scalar subquery with LIMIT wrapping count() should be non-nullable", async
   });
 });
 
+test("scalar subquery with LIMIT 0 wrapping count() should be nullable", async () => {
+  await testQuery({
+    query: `SELECT (SELECT count(*)::int FROM caregiver LIMIT 0) AS c`,
+    expected: [
+      [
+        "c",
+        {
+          kind: "union",
+          value: [
+            { kind: "type", value: "number", type: "int4" },
+            { kind: "type", value: "null", type: "null" },
+          ],
+        },
+      ],
+    ],
+  });
+});
+
+test("max() on nullable column should resolve argument type", async () => {
+  await testQuery({
+    query: `SELECT max(nullable_col) AS m FROM test_nullability`,
+    expected: [
+      [
+        "m",
+        {
+          kind: "union",
+          value: [
+            { kind: "type", value: "string", type: "text" },
+            { kind: "type", value: "null", type: "null" },
+          ],
+        },
+      ],
+    ],
+  });
+});
+
+test("scalar subquery with CASE without ELSE should be nullable", async () => {
+  await testQuery({
+    query: `SELECT (SELECT CASE WHEN false THEN 1 END) AS n`,
+    expected: [
+      [
+        "n",
+        {
+          kind: "union",
+          value: [
+            { kind: "literal", value: "1", base: { kind: "type", value: "number", type: "int4" } },
+            { kind: "type", value: "null", type: "null" },
+          ],
+        },
+      ],
+    ],
+  });
+});
+
 test("scalar subquery selecting a column should be nullable", async () => {
   await testQuery({
     query: `SELECT (SELECT id FROM caregiver LIMIT 1) AS id`,
