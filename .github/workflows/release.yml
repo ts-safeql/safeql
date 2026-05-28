@@ -12,9 +12,9 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     permissions:
-      contents: write # push the "Version Packages" PR branch and create git tags/releases
-      pull-requests: write # open/update the "Version Packages" PR
-      id-token: write # OIDC token for npm trusted publishing + provenance
+      contents: write
+      pull-requests: write
+      id-token: write # npm trusted publishing (OIDC)
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v6
@@ -33,6 +33,4 @@ jobs:
           version: pnpm run version
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # OIDC trusted publishing replaces NPM_TOKEN. Provenance is generated
-          # automatically; this makes the intent explicit (changesets does not pass --provenance).
           NPM_CONFIG_PROVENANCE: true
