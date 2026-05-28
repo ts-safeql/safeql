@@ -73,6 +73,7 @@ type Cache = {
       pgColsByTableOidCache: Map<number, PgColRow[]>;
       pgColsBySchemaAndTableName: Map<string, Map<string, PgColRow[]>>;
       pgFnsByName: Map<string, PgFnRow[]>;
+      pgAggregateNames: Set<string>;
       pgTypeExprMap: Map<string, Map<string, Map<string, string>>>;
     }
   >;
@@ -131,6 +132,7 @@ async function generate(
     pgTypes,
     pgEnums,
     pgFnsByName,
+    pgAggregateNames,
     pgTypeExprMap,
   } = await getOrSetFromMapWithEnabled({
     shouldCache: cacheMetadata,
@@ -182,11 +184,6 @@ async function generate(
     },
   });
 
-  function byReturnType(a: PgFnRow, b: PgFnRow) {
-    const priority = ["numeric", "int8"];
-    return priority.indexOf(a.returnType) - priority.indexOf(b.returnType);
-  }
-
   const functionsMap = await getOrSetFromMapWithEnabled({
     shouldCache: cacheMetadata,
     map: cache.functions,
@@ -195,16 +192,29 @@ async function generate(
       const map: FunctionsMap = new Map();
 
       for (const [functionName, signatures] of pgFnsByName.entries()) {
-        for (const signature of signatures.sort(byReturnType)) {
+        for (const signature of signatures) {
+          if (signature.arguments.some((arg) => arg.includes("ORDER BY"))) {
+            continue;
+          }
+
           const tsArgs = signature.arguments.map((arg) => {
             return typesMap.get(arg)?.value ?? "unknown";
           });
-
           const tsReturnType = typesMap.get(signature.returnType)?.value ?? signature.returnType;
+          const entry = { ts: tsReturnType, pg: signature.returnType };
 
-          const key = tsArgs.length === 0 ? functionName : `${functionName}(${tsArgs.join(", ")})`;
+          const pgKey =
+            signature.arguments.length === 0
+              ? functionName
+              : `${functionName}(${signature.arguments.join(", ")})`;
+          const tsKey =
+            tsArgs.length === 0 ? functionName : `${functionName}(${tsArgs.join(", ")})`;
 
-          map.set(key, { ts: tsReturnType, pg: signature.returnType });
+          map.set(pgKey, entry);
+
+          if (tsKey !== pgKey) {
+            map.set(tsKey, entry);
+          }
         }
       }
 
@@ -270,6 +280,7 @@ async function generate(
       pgTypes: pgTypes,
       pgEnums: pgEnums,
       pgFns: functionsMap,
+      pgAggregateNames,
       typeExprMap: pgTypeExprMap,
       fieldTransform: params.fieldTransform,
     });
@@ -332,6 +343,7 @@ async function getDatabaseMetadata(sql: Sql) {
   const pgCols = await getPgCols(sql);
   const pgEnums = await getPgEnums(sql);
   const pgFns = await getPgFunctions(sql);
+  const pgAggregateNames = await getPgAggregateFunctionNames(sql);
   const pgColsByTableOidCache = groupBy(pgCols, "tableOid");
   const pgColsBySchemaAndTableName = groupBy(pgCols, "schemaName", "tableName");
   const pgFnsByName = groupBy(pgFns, "name");
@@ -344,6 +356,7 @@ async function getDatabaseMetadata(sql: Sql) {
     pgColsByTableOidCache,
     pgColsBySchemaAndTableName,
     pgFnsByName,
+    pgAggregateNames,
     pgTypeExprMap,
   };
 }
@@ -647,6 +660,16 @@ export interface PgFnRow {
   name: string;
   arguments: string[];
   returnType: string;
+}
+
+async function getPgAggregateFunctionNames(sql: Sql): Promise<Set<string>> {
+  const rows = await sql<{ name: string }[]>`
+      SELECT DISTINCT proname AS name
+      FROM pg_catalog.pg_proc
+      WHERE prokind = 'a'
+  `;
+
+  return new Set(rows.map((row) => row.name));
 }
 
 async function getPgFunctions(sql: Sql) {

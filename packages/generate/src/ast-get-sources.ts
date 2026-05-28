@@ -162,7 +162,7 @@ export function getSources({
       sourcesArr.push(...getNodeColumnAndSources(node.JoinExpr.rarg));
     }
 
-    if (node.RangeSubselect?.subquery?.SelectStmt?.fromClause !== undefined) {
+    if (node.RangeSubselect?.subquery?.SelectStmt !== undefined) {
       const combinedPrevSources = new Map([
         ...(prevSources?.entries() ?? []),
         ...sourcesArr.map((x) => [x.name, x] as const),

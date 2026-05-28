@@ -32,7 +32,11 @@ function recursiveGetJoinName(joinExpr: LibPgQueryAST.JoinExpr): string | undefi
     return recursiveGetJoinName(joinExpr.rarg.JoinExpr);
   }
 
-  return joinExpr.rarg?.RangeVar?.relname ?? joinExpr.rarg?.RangeSubselect?.alias?.aliasname;
+  return (
+    joinExpr.rarg?.RangeVar?.relname ??
+    joinExpr.rarg?.RangeSubselect?.alias?.aliasname ??
+    joinExpr.rarg?.RangeFunction?.alias?.aliasname
+  );
 }
 
 function recursiveTraverseJoins(

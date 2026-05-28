@@ -6,10 +6,13 @@ import parser from "libpg-query";
 import { test } from "vitest";
 import { getNonNullableColumns } from "./get-nonnullable-columns";
 
+const testAggregates = new Set(["count", "sum", "max", "min", "avg", "array_agg"]);
+
 const cases: {
   query: string;
   expected: string[];
   only?: boolean;
+  aggregateNames?: Set<string>;
 }[] = [
   { query: `SELECT 1`, expected: ["?column?"] },
   { query: `SELECT 2 as x`, expected: ["x"] },
@@ -46,7 +49,17 @@ const cases: {
   { query: `SELECT ARRAY[null]`, expected: ["array"] },
   { query: `SELECT ARRAY(SELECT 1)`, expected: ["array"] },
   { query: `SELECT ARRAY(SELECT tbl.col FROM tbl WHERE tbl.col IS NOT NULL)`, expected: ["array"] },
-  { query: `SELECT (SELECT 1 AS X)`, expected: ["x"] },
+  { query: `SELECT (SELECT 1 AS X)`, expected: ["x"], aggregateNames: testAggregates },
+  {
+    query: `SELECT (SELECT count(*) FROM caregiver) AS c`,
+    expected: ["c"],
+    aggregateNames: testAggregates,
+  },
+  {
+    query: `SELECT (SELECT count(*) FROM caregiver GROUP BY id) AS c`,
+    expected: [],
+    aggregateNames: testAggregates,
+  },
   { query: `SELECT a, b FROM tbl WHERE b IS NOT NULL`, expected: ["b"] },
   { query: `SELECT a, b FROM tbl WHERE b IS NOT NULL AND a IS NOT NULL`, expected: ["b", "a"] },
   {
@@ -78,18 +91,19 @@ const cases: {
   { query: `SELECT tbl.col FROM tbl WHERE tbl.col IS NOT NULL`, expected: ["tbl.col"] },
 ];
 
-export const getNonNullableColumnsTE = flow(
-  parser.parse,
-  taskEither.tryCatchK(identity, InternalError.to),
-  taskEither.map(getNonNullableColumns),
-  taskEither.map((set) => Array.from(set)),
-);
+const getNonNullableColumnsTE = (aggregateNames?: Set<string>) =>
+  flow(
+    parser.parse,
+    taskEither.tryCatchK(identity, InternalError.to),
+    taskEither.map((parsed) => getNonNullableColumns(parsed, { aggregateNames })),
+    taskEither.map((set) => Array.from(set)),
+  );
 
-for (const { query, expected, only } of cases) {
+for (const { query, expected, only, aggregateNames } of cases) {
   const tester = only ? test.only : test;
   tester(`get non-nullable columns: ${query}`, async () => {
     return pipe(
-      getNonNullableColumnsTE(query),
+      getNonNullableColumnsTE(aggregateNames)(query),
       taskEither.match(
         (error) => assert.fail(error.message),
         (result) => assert.deepEqual(result, expected),
