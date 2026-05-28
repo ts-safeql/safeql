@@ -349,7 +349,8 @@ function unwrapTypeScriptExpression(node: ts.Node): ts.Node {
     ts.isParenthesizedExpression(node) ||
     ts.isNonNullExpression(node) ||
     ts.isSatisfiesExpression(node) ||
-    ts.isTypeAssertionExpression(node)
+    ts.isTypeAssertionExpression(node) ||
+    ts.isAwaitExpression(node)
   ) {
     return unwrapTypeScriptExpression(node.expression);
   }
