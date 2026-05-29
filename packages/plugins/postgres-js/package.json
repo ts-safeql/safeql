@@ -2,6 +2,15 @@
   "name": "@ts-safeql/plugin-postgres-js",
   "version": "4.3.0",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ts-safeql/safeql.git",
+    "directory": "packages/plugins/postgres-js"
+  },
+  "files": [
+    "dist",
+    "package.json"
+  ],
   "type": "module",
   "types": "dist/index.d.ts",
   "module": "dist/index.mjs",
