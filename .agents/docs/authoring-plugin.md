@@ -5,6 +5,7 @@
 - [ ] Create a new package under `packages/plugins/<name>/` (see [creating a package](creating-package.md))
 - [ ] Add `@ts-safeql/plugin-utils` as a dependency
 - [ ] Add `postgres` as a dependency (if using `createConnection`)
+- [ ] Add `@typescript-eslint/utils` as a devDependency if you import `TSESTree`/`ParserServices` types
 - [ ] Default-export a `definePlugin()` result
 - [ ] Add tests under `src/plugin.test.ts` and `src/plugin.integration.test.ts`
 - [ ] Add a demo under `demos/plugin-<name>/`
