@@ -140,6 +140,24 @@ const cases: {
       ["all_types", [{ alias: undefined, name: "v", type: LibPgQueryAST.JoinType.JOIN_INNER }]],
     ],
   },
+  {
+    // Base relation is a subselect, so `relName` falls back to its alias.
+    query: `
+      SELECT a.x, b.y, c.z
+      FROM (SELECT 1 AS x) a
+      CROSS JOIN (SELECT 1 AS y) b
+      CROSS JOIN (SELECT 1 AS z) c
+    `,
+    expected: [
+      [
+        "a",
+        [
+          { alias: undefined, name: "b", type: LibPgQueryAST.JoinType.JOIN_INNER },
+          { alias: undefined, name: "c", type: LibPgQueryAST.JoinType.JOIN_INNER },
+        ],
+      ],
+    ],
+  },
 ];
 
 export const getRelationsWithJoinsTE = flow(

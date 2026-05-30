@@ -2924,6 +2924,21 @@ test("derived table with CROSS JOIN json_array_elements should not throw", async
   });
 });
 
+test("subselect base relation cross joined with subselects should not throw", async () => {
+  await testQuery({
+    query: normalizeIndent`
+      SELECT t.total, u.cnt
+      FROM (SELECT count(*)::int AS total FROM caregiver) t
+      CROSS JOIN (SELECT count(*)::int AS cnt FROM agency) u
+      CROSS JOIN (SELECT count(*)::int AS num FROM caregiver_agency) s
+    `,
+    expected: [
+      ["total", { kind: "type", value: "number", type: "int4" }],
+      ["cnt", { kind: "type", value: "number", type: "int4" }],
+    ],
+  });
+});
+
 test("LEFT JOIN LATERAL with empty array constructor should infer nullable text array", async () => {
   await testQuery({
     query: normalizeIndent`
