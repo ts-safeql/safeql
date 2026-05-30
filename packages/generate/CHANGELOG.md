@@ -1,5 +1,11 @@
 # @ts-safeql/generate
 
+## 5.2.1
+
+### Patch Changes
+
+- db93d38: Fix `Internal error: relName is undefined` when the base (leftmost) relation in a join is a subquery (e.g. `FROM (SELECT ...) t CROSS JOIN ...`).
+
 ## 5.2.0
 
 ### Patch Changes
