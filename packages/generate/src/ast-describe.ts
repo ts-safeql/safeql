@@ -335,6 +335,13 @@ function getDescribedAExpr({
   const name = alias ?? "?column?";
 
   if (node.lexpr === undefined && node.rexpr !== undefined) {
+    // `|/` (square root) and `||/` (cube root) always yield double precision in
+    // PostgreSQL, regardless of the operand type.
+    const prefixOperator = concatStringNodes(node.name);
+    if (prefixOperator === "|/" || prefixOperator === "||/") {
+      return [{ name, type: { kind: "type", value: "number", type: "float8" } }];
+    }
+
     const described = getDescribedNode({ alias, node: node.rexpr, context }).at(0);
     const type = fmap(described, (x) => getBaseType(x.type));
 
