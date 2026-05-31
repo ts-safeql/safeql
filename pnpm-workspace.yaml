@@ -34,4 +34,4 @@ catalog:
   "typescript": "^5.8.2"
   "typescript-eslint": "^8.57.1"
   "unbuild": "^3.5.0"
-  "vitest": "^3.0.9"
+  "vitest": "^4.1.0"

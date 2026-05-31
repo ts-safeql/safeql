@@ -51,12 +51,12 @@ const cases: {
   { query: `SELECT ARRAY(SELECT tbl.col FROM tbl WHERE tbl.col IS NOT NULL)`, expected: ["array"] },
   { query: `SELECT (SELECT 1 AS X)`, expected: ["x"], aggregateNames: testAggregates },
   {
-    query: `SELECT (SELECT count(*) FROM caregiver) AS c`,
+    query: `SELECT (SELECT count(*) FROM member) AS c`,
     expected: ["c"],
     aggregateNames: testAggregates,
   },
   {
-    query: `SELECT (SELECT count(*) FROM caregiver GROUP BY id) AS c`,
+    query: `SELECT (SELECT count(*) FROM member GROUP BY id) AS c`,
     expected: [],
     aggregateNames: testAggregates,
   },

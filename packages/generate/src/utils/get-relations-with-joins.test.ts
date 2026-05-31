@@ -22,7 +22,7 @@ const cases: {
   {
     query: `
       SELECT *
-      FROM caregiver
+      FROM member
     `,
     expected: [],
   },
@@ -30,28 +30,28 @@ const cases: {
     query: `
     SELECT *
     FROM
-      caregiver
-        LEFT JOIN agency ON caregiver.id = agency.id
+      member
+        LEFT JOIN team ON member.id = team.id
     `,
     expected: [
-      ["caregiver", [{ alias: undefined, name: "agency", type: LibPgQueryAST.JoinType.JOIN_LEFT }]],
+      ["member", [{ alias: undefined, name: "team", type: LibPgQueryAST.JoinType.JOIN_LEFT }]],
     ],
   },
   {
     query: `
       SELECT
-        caregiver.id as caregiver_id,
-        caregiver_agency.id as assoc_id
-      FROM caregiver
-        LEFT JOIN caregiver_agency ON caregiver.id = caregiver_agency.caregiver_id
-        LEFT JOIN agency ON caregiver_agency.agency_id = agency.id
+        member.id as member_id,
+        member_team.id as assoc_id
+      FROM member
+        LEFT JOIN member_team ON member.id = member_team.member_id
+        LEFT JOIN team ON member_team.team_id = team.id
     `,
     expected: [
       [
-        "caregiver",
+        "member",
         [
-          { alias: undefined, name: "caregiver_agency", type: LibPgQueryAST.JoinType.JOIN_LEFT },
-          { alias: undefined, name: "agency", type: LibPgQueryAST.JoinType.JOIN_LEFT },
+          { alias: undefined, name: "member_team", type: LibPgQueryAST.JoinType.JOIN_LEFT },
+          { alias: undefined, name: "team", type: LibPgQueryAST.JoinType.JOIN_LEFT },
         ],
       ],
     ],

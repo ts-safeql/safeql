@@ -18,7 +18,7 @@ async function parseSelect(query: string) {
 test("aggregate without GROUP BY always returns one row", async () => {
   expect(
     selectReturnsExactlyOneRow(
-      await parseSelect("SELECT count(*) FROM caregiver WHERE false"),
+      await parseSelect("SELECT count(*) FROM member WHERE false"),
       aggregates,
     ),
   ).toBe(true);
@@ -27,7 +27,7 @@ test("aggregate without GROUP BY always returns one row", async () => {
 test("aggregate with GROUP BY may return zero rows", async () => {
   expect(
     selectReturnsExactlyOneRow(
-      await parseSelect("SELECT count(*) FROM caregiver GROUP BY id"),
+      await parseSelect("SELECT count(*) FROM member GROUP BY id"),
       aggregates,
     ),
   ).toBe(false);
@@ -36,7 +36,7 @@ test("aggregate with GROUP BY may return zero rows", async () => {
 test("aggregate with LIMIT 0 returns zero rows", async () => {
   expect(
     selectReturnsExactlyOneRow(
-      await parseSelect("SELECT count(*)::int FROM caregiver LIMIT 0"),
+      await parseSelect("SELECT count(*)::int FROM member LIMIT 0"),
       aggregates,
     ),
   ).toBe(false);
@@ -45,7 +45,7 @@ test("aggregate with LIMIT 0 returns zero rows", async () => {
 test("aggregate with positive LIMIT still returns one row", async () => {
   expect(
     selectReturnsExactlyOneRow(
-      await parseSelect("SELECT count(*)::int FROM caregiver LIMIT 1"),
+      await parseSelect("SELECT count(*)::int FROM member LIMIT 1"),
       aggregates,
     ),
   ).toBe(true);
@@ -57,10 +57,7 @@ test("constant without FROM returns one row", async () => {
 
 test("constant with FROM may return zero rows", async () => {
   expect(
-    selectReturnsExactlyOneRow(
-      await parseSelect("SELECT 1 FROM caregiver WHERE false"),
-      aggregates,
-    ),
+    selectReturnsExactlyOneRow(await parseSelect("SELECT 1 FROM member WHERE false"), aggregates),
   ).toBe(false);
 });
 
