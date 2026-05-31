@@ -335,6 +335,29 @@ function getDescribedAExpr({
   const name = alias ?? "?column?";
 
   if (node.lexpr === undefined && node.rexpr !== undefined) {
+    // `|/` (square root) and `||/` (cube root) always yield double precision in
+    // PostgreSQL regardless of the operand type, but return NULL on NULL input.
+    const prefixOperator = concatStringNodes(node.name);
+    if (prefixOperator === "|/" || prefixOperator === "||/") {
+      const operandType = getDescribedNode({ alias, node: node.rexpr, context }).at(0)?.type;
+      const operandIsNullable =
+        operandType !== undefined &&
+        ((operandType.kind === "type" && operandType.value === "null") ||
+          (operandType.kind === "union" &&
+            operandType.value.some((member) => member.kind === "type" && member.value === "null")));
+
+      return [
+        {
+          name,
+          type: resolveType({
+            context,
+            nullable: !context.nonNullableColumns.has(name) && operandIsNullable,
+            type: context.toTypeScriptType({ name: "float8" }),
+          }),
+        },
+      ];
+    }
+
     const described = getDescribedNode({ alias, node: node.rexpr, context }).at(0);
     const type = fmap(described, (x) => getBaseType(x.type));
 

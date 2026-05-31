@@ -14,5 +14,9 @@ export default defineConfig({
     watch: false,
     testTimeout: 30_000,
     hookTimeout: 30_000,
+    // vitest v4 trimmed `**/dist/**` from the default `exclude`, so built test
+    // files (present after `turbo` builds in CI) get collected and re-run from
+    // dist. Restore the exclusion so only `src` test files run.
+    exclude: ["**/node_modules/**", "**/dist/**", "**/.git/**"],
   },
 });
