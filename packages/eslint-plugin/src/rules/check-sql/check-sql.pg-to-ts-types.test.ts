@@ -5,7 +5,7 @@ const { connections, withConnection } = setupCheckSqlRuleTester();
 
 ruleTester.run("pg type to ts type check (inline type)", checkSqlRule, {
   valid: typeColumnTsTypeEntries.map(([colName, colType]) => ({
-    name: `select ${colName} from table as ${colType} (using type reference)`,
+    name: `select ${colName} from table as ${colType} (inline type)`,
     options: withConnection(connections.withTag),
     code: `sql<{ ${colName}: ${colType} }>\`select ${colName} from all_types\``,
   })),

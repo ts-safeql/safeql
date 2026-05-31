@@ -8,7 +8,13 @@ export default async function setup({ provide }: TestProject) {
     postgresUrl: GENERATE_POSTGRES_URL,
   });
 
-  await runMigrations(testDatabase.sql);
+  try {
+    await runMigrations(testDatabase.sql);
+  } catch (error) {
+    await testDatabase.sql.end();
+    await testDatabase.drop();
+    throw error;
+  }
   await testDatabase.sql.end();
 
   provide("generateDatabaseUrl", testDatabase.databaseUrl);

@@ -3,16 +3,21 @@ import type { TestProject } from "vitest/node";
 import { CHECK_SQL_POSTGRES_URL, runCheckSqlMigrations } from "./check-sql.migrations";
 
 export default async function setup({ provide }: TestProject) {
-  const databaseName = generateTestDatabaseName();
   const testDatabase = await setupTestDatabase({
-    databaseName: databaseName,
+    databaseName: generateTestDatabaseName(),
     postgresUrl: CHECK_SQL_POSTGRES_URL,
   });
 
-  await runCheckSqlMigrations(testDatabase.sql);
+  try {
+    await runCheckSqlMigrations(testDatabase.sql);
+  } catch (error) {
+    await testDatabase.sql.end();
+    await testDatabase.drop();
+    throw error;
+  }
   await testDatabase.sql.end();
 
-  provide("checkSqlDatabaseName", databaseName);
+  provide("checkSqlDatabaseUrl", testDatabase.databaseUrl);
 
   return async () => {
     await testDatabase.drop();

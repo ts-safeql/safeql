@@ -7,11 +7,15 @@ import { RuleOptionConnection, RuleOptions } from "../RuleOptions";
 
 declare module "vitest" {
   interface ProvidedContext {
-    checkSqlDatabaseName: string;
+    checkSqlDatabaseUrl: string;
   }
 }
 
-const RULE_TEST_TIMEOUT_MS = 10_000;
+// Each split test file runs in its own fork, so the first rule test in every
+// file pays a cold start (TS projectService init + first DB introspection).
+// Under parallel CI load that can exceed 10s, so allow the same headroom as the
+// shared hook/test timeout.
+const RULE_TEST_TIMEOUT_MS = 30_000;
 
 RuleTester.describe = describe;
 RuleTester.it = (name, fn) => it(name, fn, RULE_TEST_TIMEOUT_MS);
@@ -35,9 +39,7 @@ export const ruleTester = new RuleTester({
   settings: {},
 });
 
-function createConnections(databaseName: string) {
-  const databaseUrl = `postgres://postgres:postgres@localhost:5432/${databaseName}`;
-
+function createConnections(databaseUrl: string) {
   return {
     base: {
       databaseUrl,
@@ -121,7 +123,7 @@ export function withConnection(
 }
 
 export function setupCheckSqlRuleTester() {
-  const connections = createConnections(inject("checkSqlDatabaseName"));
+  const connections = createConnections(inject("checkSqlDatabaseUrl"));
 
   function invalidQueryAt({
     line,
