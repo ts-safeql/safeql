@@ -349,6 +349,24 @@ test("||/ 27 => number", async () => {
   });
 });
 
+test("|/ NULL is nullable", async () => {
+  await testQuery({
+    query: `SELECT |/ NULL`,
+    expected: [
+      [
+        "?column?",
+        {
+          kind: "union",
+          value: [
+            { kind: "type", value: "number", type: "float8" },
+            { kind: "type", value: "null", type: "null" },
+          ],
+        },
+      ],
+    ],
+  });
+});
+
 test("|/ of a nullable column is nullable", async () => {
   await testQuery({
     schema: `CREATE TABLE test_sqrt (n DOUBLE PRECISION);`,
