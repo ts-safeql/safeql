@@ -388,6 +388,42 @@ function getPgTypeFromTsTypeUnion(params: {
   return E.right(firstStrategy);
 }
 
+function getPgTypeFromTsTypeIntersection(params: {
+  types: ts.Type[];
+  checker: ts.TypeChecker;
+  options: RuleOptionConnection;
+}): E.Either<string, PgTypeStrategy | null> {
+  const { types, checker, options } = params;
+
+  // A branded type intersects a base type with marker members that exist only in TypeScript
+  // (e.g. `{ __brand: "ID" }`). Keep the members that map to a Postgres type — the bases the
+  // value is assignable to — and drop the markers, which don't map. Unlike a union, an
+  // unmappable member is expected here (it's a marker), so it is skipped rather than fatal.
+  const strategies: PgTypeStrategy[] = [];
+
+  for (const member of types) {
+    const result = checkType({ checker, type: member, options });
+    if (E.isRight(result) && result.right !== null) {
+      strategies.push(result.right);
+    }
+  }
+
+  if (strategies.length === 0) {
+    const typesStr = types.map((t) => checker.typeToString(t)).join(" & ");
+    return E.left(`No PostgreSQL type could be inferred for the intersection: ${typesStr}`);
+  }
+
+  const casts = [...new Set(strategies.map((strategy) => strategy.cast))];
+
+  if (casts.length > 1) {
+    return E.left(
+      `Intersection types must result in the same PostgreSQL type (found ${casts.join(", ")})`,
+    );
+  }
+
+  return E.right(strategies[0]);
+}
+
 type PgTypeStrategy =
   | { kind: "cast"; cast: string }
   | { kind: "literal"; value: string; cast: string }
@@ -481,6 +517,10 @@ function checkType(params: {
   if (override) {
     const [pgType] = override;
     return E.right({ kind: "cast", cast: isArray ? `${pgType}[]` : pgType });
+  }
+
+  if (type.isIntersection()) {
+    return getPgTypeFromTsTypeIntersection({ types: type.types, checker, options });
   }
 
   const enumType = TSUtils.getEnumKind(type);
