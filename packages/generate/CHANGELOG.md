@@ -1,5 +1,7 @@
 # @ts-safeql/generate
 
+## 5.2.2
+
 ## 5.2.1
 
 ### Patch Changes
