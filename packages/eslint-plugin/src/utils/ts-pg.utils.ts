@@ -609,6 +609,12 @@ function checkType(params: {
     return E.right({ kind: "literal", value: `${type.value}`, cast: "int" });
   }
 
+  // Template-literal types (`${number}`) and string-mapping types (`Uppercase<string>`) are strings
+  // at runtime → `text`. This also resolves branded `Money` (its `${number}` base now lands here).
+  if (type.flags & (ts.TypeFlags.TemplateLiteral | ts.TypeFlags.StringMapping)) {
+    return E.right({ kind: "cast", cast: isArray ? "text[]" : "text" });
+  }
+
   // Handle union types
   if (type.isUnion()) {
     return pipe(
