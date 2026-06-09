@@ -16,6 +16,9 @@ export const TSUtils = {
   isTsTypeReference(type: ts.Type): type is ts.TypeReference {
     return TSUtils.isTsObjectType(type) && type.objectFlags === ts.ObjectFlags.Reference;
   },
+  isTsTupleType(checker: ts.TypeChecker, type: ts.Type): type is ts.TypeReference {
+    return checker.isTupleType(type);
+  },
   isTsArrayUnionType(
     checker: ts.TypeChecker,
     type: ts.Type,
