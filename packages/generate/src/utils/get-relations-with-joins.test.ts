@@ -13,10 +13,13 @@ const cases: {
   expected: [
     string,
     {
-      alias: string | undefined;
-      type: LibPgQueryAST.JoinType;
-      name: string;
-    }[],
+      relAlias: string | undefined;
+      joins: {
+        alias: string | undefined;
+        type: LibPgQueryAST.JoinType;
+        name: string;
+      }[];
+    },
   ][];
 }[] = [
   {
@@ -34,7 +37,13 @@ const cases: {
         LEFT JOIN team ON member.id = team.id
     `,
     expected: [
-      ["member", [{ alias: undefined, name: "team", type: LibPgQueryAST.JoinType.JOIN_LEFT }]],
+      [
+        "member",
+        {
+          relAlias: undefined,
+          joins: [{ alias: undefined, name: "team", type: LibPgQueryAST.JoinType.JOIN_LEFT }],
+        },
+      ],
     ],
   },
   {
@@ -49,10 +58,13 @@ const cases: {
     expected: [
       [
         "member",
-        [
-          { alias: undefined, name: "member_team", type: LibPgQueryAST.JoinType.JOIN_LEFT },
-          { alias: undefined, name: "team", type: LibPgQueryAST.JoinType.JOIN_LEFT },
-        ],
+        {
+          relAlias: undefined,
+          joins: [
+            { alias: undefined, name: "member_team", type: LibPgQueryAST.JoinType.JOIN_LEFT },
+            { alias: undefined, name: "team", type: LibPgQueryAST.JoinType.JOIN_LEFT },
+          ],
+        },
       ],
     ],
   },
@@ -76,21 +88,27 @@ const cases: {
     expected: [
       [
         "a",
-        [
-          { alias: undefined, name: "w", type: LibPgQueryAST.JoinType.JOIN_FULL },
-          { alias: undefined, name: "x", type: LibPgQueryAST.JoinType.JOIN_INNER },
-          { alias: undefined, name: "y", type: LibPgQueryAST.JoinType.JOIN_LEFT },
-          { alias: undefined, name: "z", type: LibPgQueryAST.JoinType.JOIN_RIGHT },
-        ],
+        {
+          relAlias: undefined,
+          joins: [
+            { alias: undefined, name: "w", type: LibPgQueryAST.JoinType.JOIN_FULL },
+            { alias: undefined, name: "x", type: LibPgQueryAST.JoinType.JOIN_INNER },
+            { alias: undefined, name: "y", type: LibPgQueryAST.JoinType.JOIN_LEFT },
+            { alias: undefined, name: "z", type: LibPgQueryAST.JoinType.JOIN_RIGHT },
+          ],
+        },
       ],
       [
         "b",
-        [
-          { alias: undefined, name: "w", type: LibPgQueryAST.JoinType.JOIN_FULL },
-          { alias: undefined, name: "x", type: LibPgQueryAST.JoinType.JOIN_INNER },
-          { alias: undefined, name: "y", type: LibPgQueryAST.JoinType.JOIN_LEFT },
-          { alias: undefined, name: "z", type: LibPgQueryAST.JoinType.JOIN_RIGHT },
-        ],
+        {
+          relAlias: undefined,
+          joins: [
+            { alias: undefined, name: "w", type: LibPgQueryAST.JoinType.JOIN_FULL },
+            { alias: undefined, name: "x", type: LibPgQueryAST.JoinType.JOIN_INNER },
+            { alias: undefined, name: "y", type: LibPgQueryAST.JoinType.JOIN_LEFT },
+            { alias: undefined, name: "z", type: LibPgQueryAST.JoinType.JOIN_RIGHT },
+          ],
+        },
       ],
     ],
   },
@@ -105,11 +123,14 @@ const cases: {
     expected: [
       [
         "tbl",
-        [
-          { alias: undefined, name: "subselect1", type: LibPgQueryAST.JoinType.JOIN_LEFT },
-          { alias: undefined, name: "subselect2", type: LibPgQueryAST.JoinType.JOIN_LEFT },
-          { alias: undefined, name: "subselect3", type: LibPgQueryAST.JoinType.JOIN_LEFT },
-        ],
+        {
+          relAlias: undefined,
+          joins: [
+            { alias: undefined, name: "subselect1", type: LibPgQueryAST.JoinType.JOIN_LEFT },
+            { alias: undefined, name: "subselect2", type: LibPgQueryAST.JoinType.JOIN_LEFT },
+            { alias: undefined, name: "subselect3", type: LibPgQueryAST.JoinType.JOIN_LEFT },
+          ],
+        },
       ],
     ],
   },
@@ -126,7 +147,10 @@ const cases: {
     expected: [
       [
         "parent_table",
-        [{ alias: undefined, name: "latest", type: LibPgQueryAST.JoinType.JOIN_LEFT }],
+        {
+          relAlias: undefined,
+          joins: [{ alias: undefined, name: "latest", type: LibPgQueryAST.JoinType.JOIN_LEFT }],
+        },
       ],
     ],
   },
@@ -137,7 +161,13 @@ const cases: {
       CROSS JOIN json_array_elements(t.json_column) AS v
     `,
     expected: [
-      ["all_types", [{ alias: undefined, name: "v", type: LibPgQueryAST.JoinType.JOIN_INNER }]],
+      [
+        "all_types",
+        {
+          relAlias: "t",
+          joins: [{ alias: undefined, name: "v", type: LibPgQueryAST.JoinType.JOIN_INNER }],
+        },
+      ],
     ],
   },
   {
@@ -151,10 +181,13 @@ const cases: {
     expected: [
       [
         "a",
-        [
-          { alias: undefined, name: "b", type: LibPgQueryAST.JoinType.JOIN_INNER },
-          { alias: undefined, name: "c", type: LibPgQueryAST.JoinType.JOIN_INNER },
-        ],
+        {
+          relAlias: undefined,
+          joins: [
+            { alias: undefined, name: "b", type: LibPgQueryAST.JoinType.JOIN_INNER },
+            { alias: undefined, name: "c", type: LibPgQueryAST.JoinType.JOIN_INNER },
+          ],
+        },
       ],
     ],
   },

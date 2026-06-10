@@ -424,6 +424,53 @@ function getPgTypeFromTsTypeIntersection(params: {
   return E.right(strategies[0]);
 }
 
+function getPgTypeFromTsTypeTuple(params: {
+  type: ts.TypeReference;
+  checker: ts.TypeChecker;
+  options: RuleOptionConnection;
+}): E.Either<string, PgTypeStrategy | null> {
+  const { type, checker, options } = params;
+
+  // A tuple (`NonEmptyArray<T>` = `[T, ...T[]]`) has no Postgres type, but its elements share one.
+  // Resolve each via `checkType` (so branded elements still map) and return it as `T[]`, like an
+  // array. An unmappable element is fatal here, unlike an intersection marker (which is skipped).
+  const elementTypes = checker.getTypeArguments(type);
+
+  if (elementTypes.length === 0) {
+    return E.left("Empty tuple types have no corresponding PostgreSQL type");
+  }
+
+  const strategies: PgTypeStrategy[] = [];
+
+  for (const elementType of elementTypes) {
+    const result = checkType({ checker, type: elementType, options });
+    if (E.isLeft(result)) {
+      return result;
+    }
+    if (result.right !== null) {
+      strategies.push(result.right);
+    }
+  }
+
+  if (strategies.length === 0) {
+    return E.left("Unsupported tuple type (only null)");
+  }
+
+  const casts = [...new Set(strategies.map((strategy) => strategy.cast))];
+
+  if (casts.length > 1) {
+    return E.left(
+      `Tuple types must result in the same PostgreSQL type (found ${casts.join(", ")})`,
+    );
+  }
+
+  const elementCast = strategies[0].cast;
+  return E.right({
+    kind: "cast",
+    cast: elementCast.endsWith("[]") ? elementCast : `${elementCast}[]`,
+  });
+}
+
 type PgTypeStrategy =
   | { kind: "cast"; cast: string }
   | { kind: "literal"; value: string; cast: string }
@@ -550,12 +597,22 @@ function checkType(params: {
     }
   }
 
+  if (TSUtils.isTsTupleType(checker, type)) {
+    return getPgTypeFromTsTypeTuple({ type, checker, options });
+  }
+
   if (type.isStringLiteral()) {
     return E.right({ kind: "literal", value: `'${type.value}'`, cast: "text" });
   }
 
   if (type.isNumberLiteral()) {
     return E.right({ kind: "literal", value: `${type.value}`, cast: "int" });
+  }
+
+  // Template-literal types (`${number}`) and string-mapping types (`Uppercase<string>`) are strings
+  // at runtime → `text`. This also resolves branded `Money` (its `${number}` base now lands here).
+  if (type.flags & (ts.TypeFlags.TemplateLiteral | ts.TypeFlags.StringMapping)) {
+    return E.right({ kind: "cast", cast: isArray ? "text[]" : "text" });
   }
 
   // Handle union types
