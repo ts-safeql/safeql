@@ -368,11 +368,9 @@ async function getDatabaseMetadata(sql: Sql) {
 }
 
 /**
- * PostgreSQL does not propagate NOT NULL constraints through views — every view
- * column reports `attnotnull = false` regardless of its underlying source column.
- * To recover nullability we look *through* the view: fetch each view/matview's
- * definition, parse it, and resolve its output columns against their underlying
- * sources to learn which are provably non-null (see ast-get-sources).
+ * Parsed view/matview bodies, keyed by schema then view name. PostgreSQL reports every
+ * view column as nullable, so we look through these definitions to recover non-nullability
+ * (see ast-get-sources).
  */
 export type PgViewsBySchemaAndName = Map<string, Map<string, LibPgQueryAST.SelectStmt>>;
 
@@ -393,22 +391,16 @@ async function getPgViews(sql: Sql): Promise<PgViewsBySchemaAndName> {
           JOIN pg_namespace ON pg_namespace.oid = pg_class.relnamespace
       WHERE
           pg_class.relkind IN ('v', 'm')
+          AND pg_namespace.nspname NOT IN ('pg_catalog', 'information_schema')
   `;
+
+  const parsedRows = await Promise.all(
+    rows.map(async (row) => ({ row, select: await parseViewSelect(row.definition) })),
+  );
 
   const map: PgViewsBySchemaAndName = new Map();
 
-  for (const row of rows) {
-    let select: LibPgQueryAST.SelectStmt | undefined;
-
-    try {
-      const parsed = await parser.parse(row.definition);
-      select = parsed.stmts[0]?.stmt?.SelectStmt;
-    } catch {
-      // An unparseable definition is left out of the map so its columns keep the
-      // conservative nullable default rather than producing an unsound NOT NULL.
-      select = undefined;
-    }
-
+  for (const { row, select } of parsedRows) {
     if (select === undefined) {
       continue;
     }
@@ -419,6 +411,14 @@ async function getPgViews(sql: Sql): Promise<PgViewsBySchemaAndName> {
   }
 
   return map;
+}
+
+// Unparseable definitions resolve to `undefined`, leaving their columns nullable.
+function parseViewSelect(definition: string): Promise<LibPgQueryAST.SelectStmt | undefined> {
+  return parser
+    .parse(definition)
+    .then((parsed) => parsed.stmts[0]?.stmt?.SelectStmt)
+    .catch(() => undefined);
 }
 
 type ColumnAnalysisResult = {

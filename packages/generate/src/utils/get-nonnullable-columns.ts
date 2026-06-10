@@ -78,18 +78,17 @@ function concatStringNodes(nodes: LibPgQueryAST.Node[] | undefined): string {
 }
 
 /**
- * `resolveColumnRefNonNull` lets a caller answer whether a bare column reference
- * is non-null using knowledge this function lacks on its own (e.g. a view body's
- * base-table NOT NULL constraints). When provided, it is consulted for ColumnRef
- * nodes so expression columns like `a || b` over NOT NULL columns are inferred
- * non-null. It is threaded through the recursion so it applies to nested operands.
+ * `resolveColumnRefNonNull` lets the caller decide whether a column ref is non-null from
+ * knowledge this function lacks (e.g. a view body's base-table NOT NULL constraints).
  */
-export function isColumnNonNullable(
-  val: LibPgQueryAST.Node | undefined,
-  root: LibPgQueryAST.ParseResult,
-  aggregateNames: Set<string> | undefined,
-  resolveColumnRefNonNull?: (columnRef: LibPgQueryAST.ColumnRef) => boolean,
-): boolean {
+export function isColumnNonNullable(params: {
+  val: LibPgQueryAST.Node | undefined;
+  root: LibPgQueryAST.ParseResult;
+  aggregateNames: Set<string> | undefined;
+  resolveColumnRefNonNull: ((columnRef: LibPgQueryAST.ColumnRef) => boolean) | undefined;
+}): boolean {
+  const { val, root, aggregateNames, resolveColumnRefNonNull } = params;
+
   if (val === undefined) {
     return false;
   }
@@ -112,7 +111,12 @@ export function isColumnNonNullable(
   }
 
   if (val.TypeCast?.arg) {
-    return isColumnNonNullable(val.TypeCast.arg, root, aggregateNames, resolveColumnRefNonNull);
+    return isColumnNonNullable({
+      val: val.TypeCast.arg,
+      root,
+      aggregateNames,
+      resolveColumnRefNonNull,
+    });
   }
 
   if (val.SubLink) {
@@ -139,12 +143,26 @@ export function isColumnNonNullable(
 
         const expression = innerSelect.targetList?.[0]?.ResTarget?.val;
 
-        return expression !== undefined && isColumnNonNullable(expression, root, aggregateNames);
+        // The subquery has its own scope, so the outer resolveColumnRefNonNull does not apply.
+        return (
+          expression !== undefined &&
+          isColumnNonNullable({
+            val: expression,
+            root,
+            aggregateNames,
+            resolveColumnRefNonNull: undefined,
+          })
+        );
       }
 
       case LibPgQueryAST.SubLinkType.MULTIEXPR_SUBLINK:
       case LibPgQueryAST.SubLinkType.CTE_SUBLINK:
-        return isColumnNonNullable(val.SubLink.subselect, root, aggregateNames);
+        return isColumnNonNullable({
+          val: val.SubLink.subselect,
+          root,
+          aggregateNames,
+          resolveColumnRefNonNull: undefined,
+        });
 
       case LibPgQueryAST.SubLinkType.SUB_LINK_TYPE_UNDEFINED:
       case LibPgQueryAST.SubLinkType.UNRECOGNIZED:
@@ -165,28 +183,41 @@ export function isColumnNonNullable(
 
   if (val.A_Expr?.kind === LibPgQueryAST.AExprKind.AEXPR_OP) {
     return (
-      isColumnNonNullable(val.A_Expr.lexpr, root, aggregateNames, resolveColumnRefNonNull) &&
-      isColumnNonNullable(val.A_Expr.rexpr, root, aggregateNames, resolveColumnRefNonNull)
+      isColumnNonNullable({
+        val: val.A_Expr.lexpr,
+        root,
+        aggregateNames,
+        resolveColumnRefNonNull,
+      }) &&
+      isColumnNonNullable({ val: val.A_Expr.rexpr, root, aggregateNames, resolveColumnRefNonNull })
     );
   }
 
   if (val.CaseExpr) {
+    // A CASE with no ELSE clause is implicitly `ELSE NULL`, so it can always return NULL.
+    if (val.CaseExpr.defresult === undefined) {
+      return false;
+    }
+
     for (const when of val.CaseExpr.args) {
       if (
-        !isColumnNonNullable(when.CaseWhen?.result, root, aggregateNames, resolveColumnRefNonNull)
+        !isColumnNonNullable({
+          val: when.CaseWhen?.result,
+          root,
+          aggregateNames,
+          resolveColumnRefNonNull,
+        })
       ) {
         return false;
       }
     }
 
-    if (
-      val.CaseExpr.defresult &&
-      !isColumnNonNullable(val.CaseExpr.defresult, root, aggregateNames, resolveColumnRefNonNull)
-    ) {
-      return false;
-    }
-
-    return true;
+    return isColumnNonNullable({
+      val: val.CaseExpr.defresult,
+      root,
+      aggregateNames,
+      resolveColumnRefNonNull,
+    });
   }
 
   if (val.ColumnRef) {
@@ -215,7 +246,7 @@ export function isColumnNonNullable(
 
   if (val.CoalesceExpr) {
     for (const arg of val.CoalesceExpr.args) {
-      if (isColumnNonNullable(arg, root, aggregateNames, resolveColumnRefNonNull)) {
+      if (isColumnNonNullable({ val: arg, root, aggregateNames, resolveColumnRefNonNull })) {
         return true;
       }
     }
@@ -525,7 +556,15 @@ function getNonNullableColumnsInSelectStmt(
       targetNames.add(getTargetName(target.ResTarget));
     }
 
-    if (target.ResTarget && isColumnNonNullable(target.ResTarget.val, root, aggregateNames)) {
+    if (
+      target.ResTarget &&
+      isColumnNonNullable({
+        val: target.ResTarget.val,
+        root,
+        aggregateNames,
+        resolveColumnRefNonNull: undefined,
+      })
+    ) {
       nonNullableColumns.add(getTargetName(target.ResTarget));
     }
   }

@@ -1,6 +1,10 @@
 import * as LibPgQueryAST from "@ts-safeql/sql-ast";
 import { PgColRow, PgViewsBySchemaAndName } from "./generate";
-import { getNonNullableColumns, isColumnNonNullable } from "./utils/get-nonnullable-columns";
+import {
+  getNonNullableColumns,
+  getOutputColumnKey,
+  isColumnNonNullable,
+} from "./utils/get-nonnullable-columns";
 import {
   FlattenedRelationWithJoins,
   flattenRelationsWithJoinsMap,
@@ -22,13 +26,6 @@ type TableSelectSource = {
   original: string;
   alias?: string;
   columns: Map<string, ResolvedColumn>;
-  /**
-   * For views only: the set of output column names that the view's definition
-   * proves non-null (e.g. they pass through a NOT NULL base column from a
-   * non-nullable side of a join). PostgreSQL reports all view columns as
-   * nullable, so this lets us *upgrade* them without ever risking an unsound
-   * NOT NULL — anything we can't prove keeps its conservative nullable default.
-   */
   nonNullableViewColumns?: Set<string>;
 };
 
@@ -52,10 +49,6 @@ type SourcesOptions = {
   pgViewsBySchemaAndName: PgViewsBySchemaAndName;
   pgAggregateNames: Set<string>;
   relations: FlattenedRelationWithJoins[];
-  /**
-   * Schema-qualified names of views currently being expanded, used to guard
-   * against self-referential / recursive views looping forever.
-   */
   visitedViews?: Set<string>;
 };
 
@@ -69,6 +62,8 @@ export function getSources({
   relations,
   visitedViews,
 }: SourcesOptions) {
+  const nonNullableViewColumnsCache = new Map<string, Set<string> | undefined>();
+
   const tableToSchema = new Map<string, string>();
 
   const publicCols = pgColsBySchemaAndTableName.get("public");
@@ -167,9 +162,6 @@ export function getSources({
         name: tableName,
         alias: node.RangeVar.alias?.aliasname,
         columns: new Map(),
-        // If this relation is a view, look *through* its definition to recover
-        // which of its (catalog-nullable) columns are actually non-null. Falls
-        // back to plain table resolution for non-views and unanalyzable views.
         nonNullableViewColumns: getNonNullableViewColumns({ schemaName, viewName: realTableName }),
       };
 
@@ -447,27 +439,14 @@ export function getSources({
     return { column: col, isNotNull: isNonNullable };
   }
 
-  /**
-   * Looks through a view's definition to find which of its output columns are
-   * provably non-null, using the same inference applied to any query so it
-   * honors base-table NOT NULL, joins, WHERE IS NOT NULL, expressions, set
-   * operations, and nested views. Anything it cannot prove (function sources,
-   * unparseable bodies, ...) keeps PostgreSQL's conservative nullable default,
-   * so it never produces an unsound NOT NULL.
-   */
-  function getNonNullableViewColumns(params: {
-    schemaName: string;
-    viewName: string;
-  }): Set<string> | undefined {
-    const viewSelect = pgViewsBySchemaAndName.get(params.schemaName)?.get(params.viewName);
+  function computeNonNullableViewColumns(
+    viewKey: string,
+    schemaName: string,
+    viewName: string,
+  ): Set<string> | undefined {
+    const viewSelect = pgViewsBySchemaAndName.get(schemaName)?.get(viewName);
 
-    if (viewSelect === undefined) {
-      return undefined;
-    }
-
-    const viewKey = `${params.schemaName}.${params.viewName}`;
-
-    if (visitedViews?.has(viewKey)) {
+    if (viewSelect === undefined || visitedViews?.has(viewKey)) {
       return undefined;
     }
 
@@ -483,11 +462,25 @@ export function getSources({
     return nonNullable;
   }
 
+  function getNonNullableViewColumns(params: {
+    schemaName: string;
+    viewName: string;
+  }): Set<string> | undefined {
+    const viewKey = `${params.schemaName}.${params.viewName}`;
+
+    if (nonNullableViewColumnsCache.has(viewKey)) {
+      return nonNullableViewColumnsCache.get(viewKey);
+    }
+
+    const result = computeNonNullableViewColumns(viewKey, params.schemaName, params.viewName);
+    nonNullableViewColumnsCache.set(viewKey, result);
+    return result;
+  }
+
   /**
-   * Per-output-column non-null analysis of a view body. Set operations are
-   * combined by position: a column is non-null only when every branch proves it
-   * non-null (sound for UNION/INTERSECT/EXCEPT, conservative for the latter two).
-   * Output names come from the leftmost branch, matching PostgreSQL.
+   * Per-column non-null analysis of a view body. A set-operation column is non-null
+   * only if every branch proves it (sound for UNION/INTERSECT, conservative for EXCEPT);
+   * output names come from the leftmost branch, matching PostgreSQL.
    */
   function analyzeSelectNonNull(
     select: LibPgQueryAST.SelectStmt,
@@ -533,9 +526,6 @@ export function getSources({
       visitedViews: visited,
     });
 
-    // Backs the expression analyzer with this branch's own source nullability
-    // (base-table NOT NULL, join nullability, nested views) — knowledge it
-    // cannot derive from the expression structure alone.
     const resolveColumnRefNonNull = (columnRef: LibPgQueryAST.ColumnRef): boolean => {
       const fields = columnRef.fields ?? [];
       const names = fields.map((f) => f.String?.sval).filter((s): s is string => s !== undefined);
@@ -577,13 +567,13 @@ export function getSources({
       }
 
       return {
-        name: resTarget.name,
-        isNotNull: isColumnNonNullable(
-          resTarget.val,
-          parsed,
-          pgAggregateNames,
+        name: getOutputColumnKey(resTarget.name, resTarget.val),
+        isNotNull: isColumnNonNullable({
+          val: resTarget.val,
+          root: parsed,
+          aggregateNames: pgAggregateNames,
           resolveColumnRefNonNull,
-        ),
+        }),
       };
     });
   }

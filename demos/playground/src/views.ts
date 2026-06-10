@@ -1,6 +1,14 @@
 import { sql } from "./sql";
 
 async function run() {
+  try {
+    await runQueries();
+  } finally {
+    await sql.end();
+  }
+}
+
+async function runQueries() {
   const aggregateRows = await sql<{ sum: number | null }[]>`
     SELECT sum(episode_count)::int FROM season;
   `;
@@ -28,8 +36,9 @@ async function run() {
     nullableBioRows,
     materializedRows,
   });
-
-  sql.end();
 }
 
-run();
+run().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});

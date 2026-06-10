@@ -38,6 +38,14 @@ test("select aliased NOT NULL column from a view should be non-nullable", async 
   });
 });
 
+test("view with an unaliased NOT NULL expression should keep its derived name non-nullable", async () => {
+  await testQuery({
+    schema: `CREATE VIEW v_count AS SELECT count(*) FROM member`,
+    query: `SELECT count FROM v_count`,
+    expected: [["count", { kind: "type", value: "string", type: "int8" }]],
+  });
+});
+
 test("view with LEFT JOIN should keep the inner side non-null and outer side nullable", async () => {
   await testQuery({
     schema: `
