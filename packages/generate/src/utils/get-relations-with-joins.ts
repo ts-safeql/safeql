@@ -7,7 +7,7 @@ interface Join {
   alias?: string;
 }
 
-export type RelationsWithJoinsMap = Map<string, Join[]>;
+export type RelationsWithJoinsMap = Map<string, { relAlias: string | undefined; joins: Join[] }>;
 
 export function getRelationsWithJoins(parsed: LibPgQueryAST.ParseResult): RelationsWithJoinsMap {
   const results: RelationsWithJoinsMap = new Map();
@@ -19,8 +19,8 @@ export function getRelationsWithJoins(parsed: LibPgQueryAST.ParseResult): Relati
 
   for (const fromClause of stmt.stmt.SelectStmt.fromClause) {
     if (fromClause.JoinExpr !== undefined) {
-      const { relName, joins } = recursiveTraverseJoins([], fromClause.JoinExpr);
-      results.set(relName, joins);
+      const { relName, relAlias, joins } = recursiveTraverseJoins([], fromClause.JoinExpr);
+      results.set(relName, { relAlias, joins });
     }
   }
 
@@ -44,6 +44,7 @@ function recursiveTraverseJoins(
   joinExpr: LibPgQueryAST.JoinExpr,
 ): {
   relName: string;
+  relAlias: string | undefined;
   joins: Join[];
 } {
   const joinName = recursiveGetJoinName(joinExpr);
@@ -71,15 +72,18 @@ function recursiveTraverseJoins(
     joinExpr.rarg?.RangeSubselect?.alias?.aliasname ??
     joinExpr.rarg?.RangeFunction?.alias?.aliasname;
 
+  const relAlias = joinExpr.larg?.RangeVar?.alias?.aliasname;
+
   if (relName === undefined) {
     throw new Error("relName is undefined");
   }
 
-  return { relName, joins: [join, ...joins] };
+  return { relName, relAlias, joins: [join, ...joins] };
 }
 
 export interface FlattenedRelationWithJoins {
   relName: string;
+  relAlias: string | undefined;
   alias: string | undefined;
   joinType: LibPgQueryAST.JoinType;
   joinRelName: string;
@@ -90,9 +94,15 @@ export function flattenRelationsWithJoinsMap(
 ): FlattenedRelationWithJoins[] {
   const result: FlattenedRelationWithJoins[] = [];
 
-  relationsWithJoinsMap.forEach((joins, relName) => {
+  relationsWithJoinsMap.forEach(({ relAlias, joins }, relName) => {
     joins.forEach((join) => {
-      result.push({ relName, joinType: join.type, joinRelName: join.name, alias: join.alias });
+      result.push({
+        relName,
+        relAlias,
+        joinType: join.type,
+        joinRelName: join.name,
+        alias: join.alias,
+      });
     });
   });
 
@@ -142,7 +152,9 @@ function hasNullableBaseRelation(
   relationName: string,
 ): boolean {
   return relations.some(
-    (relation) => relation.relName === relationName && isNullableBaseRelation(relation.joinType),
+    (relation) =>
+      (relation.relName === relationName || relation.relAlias === relationName) &&
+      isNullableBaseRelation(relation.joinType),
   );
 }
 
