@@ -9,6 +9,7 @@ import {
   QuerySourceMapEntry,
   toCase,
 } from "@ts-safeql/shared";
+import * as LibPgQueryAST from "@ts-safeql/sql-ast";
 import { either } from "fp-ts";
 import * as parser from "libpg-query";
 import postgres from "postgres";
@@ -72,6 +73,7 @@ type Cache = {
       pgEnums: PgEnumsMaps;
       pgColsByTableOidCache: Map<number, PgColRow[]>;
       pgColsBySchemaAndTableName: Map<string, Map<string, PgColRow[]>>;
+      pgViewsBySchemaAndName: PgViewsBySchemaAndName;
       pgFnsByName: Map<string, PgFnRow[]>;
       pgAggregateNames: Set<string>;
       pgTypeExprMap: Map<string, Map<string, Map<string, string>>>;
@@ -129,6 +131,7 @@ async function generate(
   const {
     pgColsByTableOidCache,
     pgColsBySchemaAndTableName,
+    pgViewsBySchemaAndName,
     pgTypes,
     pgEnums,
     pgFnsByName,
@@ -277,6 +280,7 @@ async function generate(
       typesMap: typesMap,
       overridenColumnTypesMap: overridenColumnTypesMap,
       pgColsBySchemaAndTableName: pgColsBySchemaAndTableName,
+      pgViewsBySchemaAndName: pgViewsBySchemaAndName,
       pgTypes: pgTypes,
       pgEnums: pgEnums,
       pgFns: functionsMap,
@@ -346,6 +350,7 @@ async function getDatabaseMetadata(sql: Sql) {
   const pgAggregateNames = await getPgAggregateFunctionNames(sql);
   const pgColsByTableOidCache = groupBy(pgCols, "tableOid");
   const pgColsBySchemaAndTableName = groupBy(pgCols, "schemaName", "tableName");
+  const pgViewsBySchemaAndName = await getPgViews(sql);
   const pgFnsByName = groupBy(pgFns, "name");
   const pgTypeExprMap = await getPgTypeExprMap(sql);
 
@@ -355,10 +360,65 @@ async function getDatabaseMetadata(sql: Sql) {
     pgEnums,
     pgColsByTableOidCache,
     pgColsBySchemaAndTableName,
+    pgViewsBySchemaAndName,
     pgFnsByName,
     pgAggregateNames,
     pgTypeExprMap,
   };
+}
+
+/**
+ * PostgreSQL does not propagate NOT NULL constraints through views — every view
+ * column reports `attnotnull = false` regardless of its underlying source column.
+ * To recover nullability we look *through* the view: fetch each view/matview's
+ * definition, parse it, and resolve its output columns against their underlying
+ * sources to learn which are provably non-null (see ast-get-sources).
+ */
+export type PgViewsBySchemaAndName = Map<string, Map<string, LibPgQueryAST.SelectStmt>>;
+
+interface PgViewRow {
+  schemaName: string;
+  viewName: string;
+  definition: string;
+}
+
+async function getPgViews(sql: Sql): Promise<PgViewsBySchemaAndName> {
+  const rows = await sql<PgViewRow[]>`
+      SELECT
+          pg_namespace.nspname AS "schemaName",
+          pg_class.relname AS "viewName",
+          pg_get_viewdef(pg_class.oid) AS "definition"
+      FROM
+          pg_class
+          JOIN pg_namespace ON pg_namespace.oid = pg_class.relnamespace
+      WHERE
+          pg_class.relkind IN ('v', 'm')
+  `;
+
+  const map: PgViewsBySchemaAndName = new Map();
+
+  for (const row of rows) {
+    let select: LibPgQueryAST.SelectStmt | undefined;
+
+    try {
+      const parsed = await parser.parse(row.definition);
+      select = parsed.stmts[0]?.stmt?.SelectStmt;
+    } catch {
+      // An unparseable definition is left out of the map so its columns keep the
+      // conservative nullable default rather than producing an unsound NOT NULL.
+      select = undefined;
+    }
+
+    if (select === undefined) {
+      continue;
+    }
+
+    const schemaViews = map.get(row.schemaName) ?? new Map<string, LibPgQueryAST.SelectStmt>();
+    schemaViews.set(row.viewName, select);
+    map.set(row.schemaName, schemaViews);
+  }
+
+  return map;
 }
 
 type ColumnAnalysisResult = {
