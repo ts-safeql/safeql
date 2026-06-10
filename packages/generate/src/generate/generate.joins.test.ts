@@ -80,6 +80,65 @@ test("select with right join should return all cols from the other table as null
   });
 });
 
+test("select with right join and aliased base relation should return base cols as nullable", async () => {
+  await testQuery({
+    query: `
+        SELECT
+            m.id as member_id,
+            mt.id as assoc_id
+        FROM member m
+            RIGHT JOIN member_team mt ON m.id = mt.member_id
+    `,
+    expected: [
+      [
+        "member_id",
+        {
+          kind: "union",
+          value: [
+            { kind: "type", value: "number", type: "int4" },
+            { kind: "type", value: "null", type: "null" },
+          ],
+        },
+      ],
+      ["assoc_id", { kind: "type", value: "number", type: "int4" }],
+    ],
+  });
+});
+
+test("select with full join and aliased relations should return all cols as nullable", async () => {
+  await testQuery({
+    query: `
+        SELECT
+            m.id as member_id,
+            mt.id as assoc_id
+        FROM member m
+            FULL JOIN member_team mt ON m.id = mt.member_id
+    `,
+    expected: [
+      [
+        "member_id",
+        {
+          kind: "union",
+          value: [
+            { kind: "type", value: "number", type: "int4" },
+            { kind: "type", value: "null", type: "null" },
+          ],
+        },
+      ],
+      [
+        "assoc_id",
+        {
+          kind: "union",
+          value: [
+            { kind: "type", value: "number", type: "int4" },
+            { kind: "type", value: "null", type: "null" },
+          ],
+        },
+      ],
+    ],
+  });
+});
+
 test("select with full join should return all cols as nullable", async () => {
   await testQuery({
     query: `
