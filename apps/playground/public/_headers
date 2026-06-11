@@ -1,0 +1,6 @@
+# Cross-origin isolation is required for SharedArrayBuffer (the Atomics bridge to the DB worker).
+# Netlify / Cloudflare Pages read this file; Vercel uses vercel.json; the dev/preview servers
+# get the same headers from the crossOriginIsolation plugin in vite.config.ts.
+/*
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp

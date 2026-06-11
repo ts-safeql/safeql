@@ -1,6 +1,7 @@
 packages:
   - "packages/*"
   - "packages/plugins/*"
+  - "apps/*"
   - "demos/*"
   - "docs"
 
