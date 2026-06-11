@@ -9,7 +9,7 @@ import {
   isTuple,
 } from "./ast-decribe.utils";
 import { ResolvedColumn, SourcesResolver, getSources } from "./ast-get-sources";
-import { PgColRow, PgEnumsMaps, PgTypesMap } from "./generate";
+import { PgColRow, PgEnumsMaps, PgTypesMap, PgViewsBySchemaAndName } from "./generate";
 import { getNonNullableColumns, getOutputColumnKey } from "./utils/get-nonnullable-columns";
 import {
   FlattenedRelationWithJoins,
@@ -24,6 +24,7 @@ type ASTDescriptionOptions = {
   typeExprMap: Map<string, Map<string, Map<string, string>>>;
   overridenColumnTypesMap: Map<string, Map<string, string>>;
   pgColsBySchemaAndTableName: Map<string, Map<string, PgColRow[]>>;
+  pgViewsBySchemaAndName: PgViewsBySchemaAndName;
   pgTypes: PgTypesMap;
   pgEnums: PgEnumsMaps;
   pgFns: Map<string, { ts: string; pg: string }>;
@@ -116,6 +117,8 @@ export function getASTDescription(params: ASTDescriptionOptions): {
       prevSources: params.prevSources,
       nonNullableColumns: nonNullableColumns,
       pgColsBySchemaAndTableName: params.pgColsBySchemaAndTableName,
+      pgViewsBySchemaAndName: params.pgViewsBySchemaAndName,
+      pgAggregateNames: params.pgAggregateNames,
     }),
     select: select,
     resolved: new WeakMap(),
@@ -644,6 +647,7 @@ function getDescribedSelectStmt({
     typeExprMap: context.typeExprMap,
     overridenColumnTypesMap: context.overridenColumnTypesMap,
     pgColsBySchemaAndTableName: context.pgColsBySchemaAndTableName,
+    pgViewsBySchemaAndName: context.pgViewsBySchemaAndName,
     pgTypes: context.pgTypes,
     pgEnums: context.pgEnums,
     pgFns: context.pgFns,
@@ -1405,6 +1409,7 @@ function getDescribedColumnsFromSelect(params: {
     typeExprMap: params.context.typeExprMap,
     overridenColumnTypesMap: params.context.overridenColumnTypesMap,
     pgColsBySchemaAndTableName: params.context.pgColsBySchemaAndTableName,
+    pgViewsBySchemaAndName: params.context.pgViewsBySchemaAndName,
     pgTypes: params.context.pgTypes,
     pgEnums: params.context.pgEnums,
     pgFns: params.context.pgFns,

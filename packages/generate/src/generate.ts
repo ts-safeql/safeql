@@ -9,6 +9,7 @@ import {
   QuerySourceMapEntry,
   toCase,
 } from "@ts-safeql/shared";
+import * as LibPgQueryAST from "@ts-safeql/sql-ast";
 import { either } from "fp-ts";
 import * as parser from "libpg-query";
 import postgres from "postgres";
@@ -72,6 +73,7 @@ type Cache = {
       pgEnums: PgEnumsMaps;
       pgColsByTableOidCache: Map<number, PgColRow[]>;
       pgColsBySchemaAndTableName: Map<string, Map<string, PgColRow[]>>;
+      pgViewsBySchemaAndName: PgViewsBySchemaAndName;
       pgFnsByName: Map<string, PgFnRow[]>;
       pgAggregateNames: Set<string>;
       pgTypeExprMap: Map<string, Map<string, Map<string, string>>>;
@@ -129,6 +131,7 @@ async function generate(
   const {
     pgColsByTableOidCache,
     pgColsBySchemaAndTableName,
+    pgViewsBySchemaAndName,
     pgTypes,
     pgEnums,
     pgFnsByName,
@@ -277,6 +280,7 @@ async function generate(
       typesMap: typesMap,
       overridenColumnTypesMap: overridenColumnTypesMap,
       pgColsBySchemaAndTableName: pgColsBySchemaAndTableName,
+      pgViewsBySchemaAndName: pgViewsBySchemaAndName,
       pgTypes: pgTypes,
       pgEnums: pgEnums,
       pgFns: functionsMap,
@@ -346,6 +350,7 @@ async function getDatabaseMetadata(sql: Sql) {
   const pgAggregateNames = await getPgAggregateFunctionNames(sql);
   const pgColsByTableOidCache = groupBy(pgCols, "tableOid");
   const pgColsBySchemaAndTableName = groupBy(pgCols, "schemaName", "tableName");
+  const pgViewsBySchemaAndName = await getPgViews(sql);
   const pgFnsByName = groupBy(pgFns, "name");
   const pgTypeExprMap = await getPgTypeExprMap(sql);
 
@@ -355,10 +360,65 @@ async function getDatabaseMetadata(sql: Sql) {
     pgEnums,
     pgColsByTableOidCache,
     pgColsBySchemaAndTableName,
+    pgViewsBySchemaAndName,
     pgFnsByName,
     pgAggregateNames,
     pgTypeExprMap,
   };
+}
+
+/**
+ * Parsed view/matview bodies, keyed by schema then view name. PostgreSQL reports every
+ * view column as nullable, so we look through these definitions to recover non-nullability
+ * (see ast-get-sources).
+ */
+export type PgViewsBySchemaAndName = Map<string, Map<string, LibPgQueryAST.SelectStmt>>;
+
+interface PgViewRow {
+  schemaName: string;
+  viewName: string;
+  definition: string;
+}
+
+async function getPgViews(sql: Sql): Promise<PgViewsBySchemaAndName> {
+  const rows = await sql<PgViewRow[]>`
+      SELECT
+          pg_namespace.nspname AS "schemaName",
+          pg_class.relname AS "viewName",
+          pg_get_viewdef(pg_class.oid) AS "definition"
+      FROM
+          pg_class
+          JOIN pg_namespace ON pg_namespace.oid = pg_class.relnamespace
+      WHERE
+          pg_class.relkind IN ('v', 'm')
+          AND pg_namespace.nspname NOT IN ('pg_catalog', 'information_schema')
+  `;
+
+  const parsedRows = await Promise.all(
+    rows.map(async (row) => ({ row, select: await parseViewSelect(row.definition) })),
+  );
+
+  const map: PgViewsBySchemaAndName = new Map();
+
+  for (const { row, select } of parsedRows) {
+    if (select === undefined) {
+      continue;
+    }
+
+    const schemaViews = map.get(row.schemaName) ?? new Map<string, LibPgQueryAST.SelectStmt>();
+    schemaViews.set(row.viewName, select);
+    map.set(row.schemaName, schemaViews);
+  }
+
+  return map;
+}
+
+// Unparseable definitions resolve to `undefined`, leaving their columns nullable.
+function parseViewSelect(definition: string): Promise<LibPgQueryAST.SelectStmt | undefined> {
+  return parser
+    .parse(definition)
+    .then((parsed) => parsed.stmts[0]?.stmt?.SelectStmt)
+    .catch(() => undefined);
 }
 
 type ColumnAnalysisResult = {

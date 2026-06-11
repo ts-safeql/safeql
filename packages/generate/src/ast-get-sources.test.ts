@@ -26,6 +26,8 @@ describe("getSources", () => {
       relations,
       nonNullableColumns: new Set<string>(),
       pgColsBySchemaAndTableName,
+      pgViewsBySchemaAndName: new Map(),
+      pgAggregateNames: new Set<string>(),
     });
 
     const prevSources = new Map([
@@ -38,6 +40,8 @@ describe("getSources", () => {
       prevSources,
       nonNullableColumns: new Set<string>(),
       pgColsBySchemaAndTableName,
+      pgViewsBySchemaAndName: new Map(),
+      pgAggregateNames: new Set<string>(),
     });
 
     expect(resolver.sources.get("foo")?.kind).toBe("subselect");

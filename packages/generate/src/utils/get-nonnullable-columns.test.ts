@@ -32,6 +32,7 @@ const cases: {
   { query: `SELECT 10 - 2`, expected: ["?column?"] },
   { query: `SELECT 10 + 2`, expected: ["?column?"] },
   { query: `SELECT CASE WHEN true THEN 1 ELSE 0 END`, expected: ["case"] },
+  { query: `SELECT CASE WHEN true THEN 1 END`, expected: [] },
   { query: `SELECT tbl.col LIKE 'abc%' AS col_like FROM tbl`, expected: ["col_like"] },
   { query: `SELECT tbl.col NOT LIKE 'abc%' AS col_not_like FROM tbl`, expected: ["col_not_like"] },
   { query: `SELECT CASE WHEN 1 = 1 THEN 1 ELSE 0 END`, expected: ["case"] },

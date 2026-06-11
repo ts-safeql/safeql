@@ -1,7 +1,14 @@
 import * as LibPgQueryAST from "@ts-safeql/sql-ast";
-import { PgColRow } from "./generate";
+import { PgColRow, PgViewsBySchemaAndName } from "./generate";
+import {
+  getNonNullableColumns,
+  getOutputColumnKey,
+  isColumnNonNullable,
+} from "./utils/get-nonnullable-columns";
 import {
   FlattenedRelationWithJoins,
+  flattenRelationsWithJoinsMap,
+  getRelationsWithJoins,
   isRelationNullableDueToJoin,
 } from "./utils/get-relations-with-joins";
 
@@ -19,6 +26,7 @@ type TableSelectSource = {
   original: string;
   alias?: string;
   columns: Map<string, ResolvedColumn>;
+  nonNullableViewColumns?: Set<string>;
 };
 
 type CteSubselectSource = {
@@ -38,7 +46,10 @@ type SourcesOptions = {
   prevSources?: Map<string, SelectSource>;
   nonNullableColumns: Set<string>;
   pgColsBySchemaAndTableName: Map<string, Map<string, PgColRow[]>>;
+  pgViewsBySchemaAndName: PgViewsBySchemaAndName;
+  pgAggregateNames: Set<string>;
   relations: FlattenedRelationWithJoins[];
+  visitedViews?: Set<string>;
 };
 
 export function getSources({
@@ -46,8 +57,13 @@ export function getSources({
   prevSources,
   nonNullableColumns,
   pgColsBySchemaAndTableName,
+  pgViewsBySchemaAndName,
+  pgAggregateNames,
   relations,
+  visitedViews,
 }: SourcesOptions) {
+  const nonNullableViewColumnsCache = new Map<string, Set<string> | undefined>();
+
   const tableToSchema = new Map<string, string>();
 
   const publicCols = pgColsBySchemaAndTableName.get("public");
@@ -77,9 +93,12 @@ export function getSources({
 
       const resolver = getSources({
         pgColsBySchemaAndTableName,
+        pgViewsBySchemaAndName,
+        pgAggregateNames,
         prevSources,
         nonNullableColumns,
         relations,
+        visitedViews,
         select: cte.CommonTableExpr.ctequery.SelectStmt,
       });
 
@@ -143,6 +162,7 @@ export function getSources({
         name: tableName,
         alias: node.RangeVar.alias?.aliasname,
         columns: new Map(),
+        nonNullableViewColumns: getNonNullableViewColumns({ schemaName, viewName: realTableName }),
       };
 
       for (const col of tableColsArray) {
@@ -174,7 +194,10 @@ export function getSources({
         sources: getSources({
           nonNullableColumns,
           pgColsBySchemaAndTableName,
+          pgViewsBySchemaAndName,
+          pgAggregateNames,
           relations,
+          visitedViews,
           prevSources: combinedPrevSources,
           select: node.RangeSubselect.subquery.SelectStmt,
         }),
@@ -409,9 +432,150 @@ export function getSources({
       nonNullableColumns.has(col.colName) ||
       nonNullableColumns.has(`${source.name}.${col.colName}`);
     const isNotNullInTable = col.colNotNull;
-    const isNonNullable = isNotNullBasedOnAST || (isNotNullInTable && !isNullableDueToRelation);
+    const isNotNullInView = source.nonNullableViewColumns?.has(col.colName) ?? false;
+    const isNonNullable =
+      isNotNullBasedOnAST || ((isNotNullInTable || isNotNullInView) && !isNullableDueToRelation);
 
     return { column: col, isNotNull: isNonNullable };
+  }
+
+  function computeNonNullableViewColumns(
+    viewKey: string,
+    schemaName: string,
+    viewName: string,
+  ): Set<string> | undefined {
+    const viewSelect = pgViewsBySchemaAndName.get(schemaName)?.get(viewName);
+
+    if (viewSelect === undefined || visitedViews?.has(viewKey)) {
+      return undefined;
+    }
+
+    const childVisited = new Set([...(visitedViews ?? []), viewKey]);
+    const nonNullable = new Set<string>();
+
+    for (const { name, isNotNull } of analyzeSelectNonNull(viewSelect, childVisited)) {
+      if (isNotNull && name !== undefined) {
+        nonNullable.add(name);
+      }
+    }
+
+    return nonNullable;
+  }
+
+  function getNonNullableViewColumns(params: {
+    schemaName: string;
+    viewName: string;
+  }): Set<string> | undefined {
+    const viewKey = `${params.schemaName}.${params.viewName}`;
+
+    if (nonNullableViewColumnsCache.has(viewKey)) {
+      return nonNullableViewColumnsCache.get(viewKey);
+    }
+
+    const result = computeNonNullableViewColumns(viewKey, params.schemaName, params.viewName);
+    nonNullableViewColumnsCache.set(viewKey, result);
+    return result;
+  }
+
+  /**
+   * Per-column non-null analysis of a view body. A set-operation column is non-null
+   * only if every branch proves it (sound for UNION/INTERSECT, conservative for EXCEPT);
+   * output names come from the leftmost branch, matching PostgreSQL.
+   */
+  function analyzeSelectNonNull(
+    select: LibPgQueryAST.SelectStmt,
+    visited: Set<string>,
+  ): { name: string | undefined; isNotNull: boolean }[] {
+    const { op, larg, rarg } = select;
+
+    if (
+      op !== undefined &&
+      op !== LibPgQueryAST.SetOperation.SETOP_NONE &&
+      larg !== undefined &&
+      rarg !== undefined
+    ) {
+      const left = analyzeSelectNonNull(larg, visited);
+      const right = analyzeSelectNonNull(rarg, visited);
+
+      return left.map((column, index) => ({
+        name: column.name,
+        isNotNull: column.isNotNull && (right[index]?.isNotNull ?? false),
+      }));
+    }
+
+    return analyzePlainSelectNonNull(select, visited);
+  }
+
+  function analyzePlainSelectNonNull(
+    select: LibPgQueryAST.SelectStmt,
+    visited: Set<string>,
+  ): { name: string | undefined; isNotNull: boolean }[] {
+    const parsed: LibPgQueryAST.ParseResult = {
+      version: 0,
+      stmts: [{ stmt: { SelectStmt: select }, stmtLocation: 0, stmtLen: 0 }],
+    };
+
+    const resolver = getSources({
+      pgColsBySchemaAndTableName,
+      pgViewsBySchemaAndName,
+      pgAggregateNames,
+      select,
+      prevSources: undefined,
+      nonNullableColumns: getNonNullableColumns(parsed, { aggregateNames: pgAggregateNames }),
+      relations: flattenRelationsWithJoinsMap(getRelationsWithJoins(parsed)),
+      visitedViews: visited,
+    });
+
+    const resolveColumnRefNonNull = (columnRef: LibPgQueryAST.ColumnRef): boolean => {
+      const fields = columnRef.fields ?? [];
+      const names = fields.map((f) => f.String?.sval).filter((s): s is string => s !== undefined);
+
+      if (names.length === 0 || names.length !== fields.length) {
+        return false;
+      }
+
+      const resolved =
+        names.length === 1
+          ? resolver.getNestedResolvedTargetField({ kind: "unknown", field: names[0] })
+          : resolver.getNestedResolvedTargetField({
+              kind: "column",
+              table: names[names.length - 2],
+              column: names[names.length - 1],
+            });
+
+      return resolved?.isNotNull ?? false;
+    };
+
+    return (select.targetList ?? []).map((target) => {
+      const resTarget = target.ResTarget;
+
+      if (resTarget === undefined) {
+        return { name: undefined, isNotNull: false };
+      }
+
+      const columnRef = resTarget.val?.ColumnRef;
+
+      if (columnRef !== undefined) {
+        const names = (columnRef.fields ?? [])
+          .map((f) => f.String?.sval)
+          .filter((s): s is string => s !== undefined);
+
+        return {
+          name: resTarget.name ?? names[names.length - 1],
+          isNotNull: resolveColumnRefNonNull(columnRef),
+        };
+      }
+
+      return {
+        name: getOutputColumnKey(resTarget.name, resTarget.val),
+        isNotNull: isColumnNonNullable({
+          val: resTarget.val,
+          root: parsed,
+          aggregateNames: pgAggregateNames,
+          resolveColumnRefNonNull,
+        }),
+      };
+    });
   }
 
   return {

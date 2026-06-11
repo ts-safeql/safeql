@@ -49,7 +49,7 @@ CREATE TABLE episode (
     id SERIAL PRIMARY KEY,
     title TEXT NOT NULL,
     description TEXT,
-    season_id INT REFERENCES season(id) ON DELETE CASCADE,
+    season_id INT NOT NULL REFERENCES season(id) ON DELETE CASCADE,
     episode_number INTEGER NOT NULL,
     release_date DATE,
     run_time_minutes FLOAT,
