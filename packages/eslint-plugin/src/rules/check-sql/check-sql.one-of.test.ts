@@ -24,6 +24,42 @@ ruleTester.run("one-of transformation", checkSqlRule, {
         `,
     },
     {
+      name: "select where with a trailing cast (must not apply the IN-rewrite over a ::cast)",
+      options: withConnection(connections.withTag),
+      code: normalizeIndent`
+          function union(cert: "owner" | "admin") {
+            return sql\`SELECT FROM member WHERE role = \${cert}::role\`
+          }
+        `,
+    },
+    {
+      name: "join on context with a trailing cast",
+      options: withConnection(connections.withTag),
+      code: normalizeIndent`
+          function union(cert: "owner" | "admin") {
+            return sql\`SELECT FROM member c JOIN role_metadata ct ON c.role = \${cert}::role\`
+          }
+        `,
+    },
+    {
+      name: "having context with a trailing cast",
+      options: withConnection(connections.withTag),
+      code: normalizeIndent`
+          function union(cert: "owner" | "admin") {
+            return sql\`SELECT FROM member GROUP BY role HAVING role = \${cert}::role\`
+          }
+        `,
+    },
+    {
+      name: "whitespace between the parameter and the trailing cast",
+      options: withConnection(connections.withTag),
+      code: normalizeIndent`
+          function union(cert: "owner" | "admin") {
+            return sql\`SELECT FROM member WHERE role = \${cert} ::role\`
+          }
+        `,
+    },
+    {
       name: "join context",
       options: withConnection(connections.withTag),
       code: normalizeIndent`
