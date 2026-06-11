@@ -126,8 +126,13 @@ export function mapTemplateLiteralToQueryText(
 
     const escapePgValue = (text: string) => text.replace(/'/g, "''");
 
+    // `col = ${param}` becomes `col IN (...)`, so a trailing `::cast` would land on a boolean
+    // ("cannot cast type boolean to ..."); skip the rewrite and let the `$n::cast` path carry it.
+    const isFollowedByCast = /^\s*::/.test(quasi.quasis[quasiIdx + 1]?.value.raw ?? "");
+
     if (
       pgTypeValue.kind === "one-of" &&
+      !isFollowedByCast &&
       $queryText.trimEnd().endsWith("=") &&
       isLastQueryContextOneOf($queryText, ["SELECT", "ON", "WHERE", "WHEN", "HAVING", "RETURNING"])
     ) {
