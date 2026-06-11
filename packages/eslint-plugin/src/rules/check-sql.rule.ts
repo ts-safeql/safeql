@@ -45,6 +45,7 @@ import {
   getFinalResolvedTargetString,
   getResolvedTargetComparableString,
   getResolvedTargetString,
+  normalizeAnyForComparison,
   reportBaseError,
   reportDuplicateColumns,
   reportIncorrectTypeAnnotations,
@@ -651,15 +652,19 @@ function getResolvedTargetsEquality(params: {
     };
   }
 
+  // Normalized values are only used for the equality check below; the originals
+  // are returned unchanged for the error message.
+  const normalized = normalizeAnyForComparison(params.expected, params.generated);
+
   let expectedString = getResolvedTargetComparableString({
-    target: params.expected,
+    target: normalized.expected,
     nullAsOptional: false,
     nullAsUndefined: false,
     inferLiterals: params.inferLiterals,
   });
 
   let generatedString = getResolvedTargetComparableString({
-    target: params.generated,
+    target: normalized.generated,
     nullAsOptional: params.nullAsOptional,
     nullAsUndefined: params.nullAsUndefined,
     inferLiterals: params.inferLiterals,

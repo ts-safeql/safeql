@@ -472,6 +472,15 @@ function getDescribedAExpr({
 
   const getType = (): ASTDescribedColumnType | undefined => {
     const nullable = getNullable();
+
+    // `->>` and `#>>` always return `text` in PostgreSQL. Resolve them directly
+    // rather than via the operand-keyed lookup below, which misses when the left
+    // operand's type is imprecise (e.g. `unknown` from `jsonb_array_elements`)
+    // and would otherwise collapse the expression to `unknown`.
+    if (operator === "->>" || operator === "#>>") {
+      return resolveType({ context, nullable, type: context.toTypeScriptType({ name: "text" }) });
+    }
+
     const [dleft, doperator, dright] = downcast();
 
     const type =

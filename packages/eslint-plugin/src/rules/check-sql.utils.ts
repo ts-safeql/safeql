@@ -396,6 +396,126 @@ function unique<T>(array: T[]): T[] {
   return Array.from(new Set(array));
 }
 
+/**
+ * `json`/`jsonb` columns are generated as `any`, and `any` is a TypeScript
+ * wildcard — assignable to and from every type — so any concrete annotation on
+ * such a column is valid. A textual comparison would reject it, so we normalize
+ * an `any` on either side to compatible before comparing.
+ *
+ * The expected and generated trees are the same shape but distinct types;
+ * `ComparableTarget` is the common shape both widen into, keeping the
+ * normalization a single cast-free recursion.
+ */
+type ComparableTarget =
+  | { kind: "type"; value: string }
+  | { kind: "literal"; value: string; base: ComparableTarget }
+  | { kind: "union"; value: ComparableTarget[] }
+  | { kind: "array"; value: ComparableTarget; syntax?: "array-type" | "type-reference" }
+  | { kind: "object"; value: [string, ComparableTarget][] };
+
+const ANY: ComparableTarget = { kind: "type", value: "any" };
+
+const isAny = (target: ComparableTarget): boolean =>
+  target.kind === "type" && target.value === "any";
+
+/** In TypeScript `any | T` is just `any`, so collapse any union containing `any`. */
+function collapseAny(target: ComparableTarget): ComparableTarget {
+  switch (target.kind) {
+    case "type":
+      return target;
+    case "literal":
+      return { kind: "literal", value: target.value, base: collapseAny(target.base) };
+    case "array":
+      return { kind: "array", value: collapseAny(target.value), syntax: target.syntax };
+    case "object":
+      return {
+        kind: "object",
+        value: target.value.map(([key, v]): [string, ComparableTarget] => [key, collapseAny(v)]),
+      };
+    case "union": {
+      const members = target.value.map(collapseAny);
+      return members.some(isAny) ? ANY : { kind: "union", value: members };
+    }
+  }
+}
+
+/**
+ * Where either side is `any`, set both positions to `any` so they serialize
+ * identically. Mismatched shapes are returned as-is for the regular textual
+ * comparison, so a genuine mismatch is never hidden.
+ */
+function alignAny(
+  expected: ComparableTarget,
+  generated: ComparableTarget,
+): [ComparableTarget, ComparableTarget] {
+  if (isAny(expected) || isAny(generated)) return [ANY, ANY];
+  if (expected.kind !== generated.kind) return [expected, generated];
+
+  if (expected.kind === "array" && generated.kind === "array") {
+    const [e, g] = alignAny(expected.value, generated.value);
+    return [
+      { kind: "array", value: e, syntax: expected.syntax },
+      { kind: "array", value: g, syntax: generated.syntax },
+    ];
+  }
+
+  if (expected.kind === "object" && generated.kind === "object") {
+    const generatedByKey = new Map(generated.value);
+    const aligned = new Map(generated.value);
+
+    const expectedEntries = expected.value.map(([key, value]): [string, ComparableTarget] => {
+      const counterpart = generatedByKey.get(key);
+      if (counterpart === undefined) return [key, value];
+
+      const [e, g] = alignAny(value, counterpart);
+      aligned.set(key, g);
+      return [key, e];
+    });
+
+    return [
+      { kind: "object", value: expectedEntries },
+      { kind: "object", value: [...aligned] },
+    ];
+  }
+
+  if (expected.kind === "union" && generated.kind === "union") {
+    // Members have no inherent order, so pair each expected member with the first
+    // unpaired generated member of the same kind. This reaches an `any` nested
+    // inside a member (e.g. `{ data: any }[] | null`); unpaired members stay as-is
+    // and the full union is still compared textually, so no real mismatch is masked.
+    const generatedMembers = [...generated.value];
+    const paired = new Set<number>();
+
+    const expectedMembers = expected.value.map((member) => {
+      const match = generatedMembers.findIndex((g, i) => !paired.has(i) && g.kind === member.kind);
+      if (match === -1) return member;
+
+      paired.add(match);
+      const [e, g] = alignAny(member, generatedMembers[match]);
+      generatedMembers[match] = g;
+      return e;
+    });
+
+    return [
+      { kind: "union", value: expectedMembers },
+      { kind: "union", value: generatedMembers },
+    ];
+  }
+
+  return [expected, generated];
+}
+
+export function normalizeAnyForComparison(
+  expected: ExpectedResolvedTarget,
+  generated: ResolvedTarget,
+): { expected: ComparableTarget; generated: ComparableTarget } {
+  const [alignedExpected, alignedGenerated] = alignAny(
+    collapseAny(expected),
+    collapseAny(generated),
+  );
+  return { expected: alignedExpected, generated: alignedGenerated };
+}
+
 export function getResolvedTargetComparableString(params: {
   target: ExpectedResolvedTarget | ResolvedTarget;
   nullAsOptional: boolean;
