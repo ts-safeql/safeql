@@ -428,6 +428,65 @@ test("select jsonb_agg(tbl) from (subselect) tbl", async () => {
   });
 });
 
+test("select jsonb_agg(jsonb_build_object(const, jsonb->>, const, ARRAY[jsonb->>])) from jsonb_array_elements subquery", async () => {
+  await testQuery({
+    query: `
+      SELECT
+        jsonb_agg(
+          jsonb_build_object(
+            'key', label->>'key',
+            'values', ARRAY[label->>'value']
+          )
+        ) AS entries
+      FROM (
+             SELECT jsonb_array_elements('[]'::jsonb) AS label
+           ) subquery
+    `,
+    expected: [
+      [
+        "entries",
+        {
+          kind: "union",
+          value: [
+            {
+              kind: "array",
+              value: {
+                kind: "object",
+                value: [
+                  [
+                    "key",
+                    {
+                      kind: "union",
+                      value: [
+                        { kind: "type", value: "string", type: "text" },
+                        { kind: "type", value: "null", type: "null" },
+                      ],
+                    },
+                  ],
+                  [
+                    "values",
+                    {
+                      kind: "array",
+                      value: {
+                        kind: "union",
+                        value: [
+                          { kind: "type", value: "string", type: "text" },
+                          { kind: "type", value: "null", type: "null" },
+                        ],
+                      },
+                    },
+                  ],
+                ],
+              },
+            },
+            { kind: "type", value: "null", type: "null" },
+          ],
+        },
+      ],
+    ],
+  });
+});
+
 test("select jsonb_agg(table with nullable column)", async () => {
   await testQuery({
     query: `select jsonb_agg(test_jsonb) FROM test_jsonb`,

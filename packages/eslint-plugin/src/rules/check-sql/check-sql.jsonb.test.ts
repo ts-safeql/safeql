@@ -90,6 +90,24 @@ ruleTester.run("json(b)", checkSqlRule, {
         `,
     },
     {
+      name: "json/b: jsonb column (any) should be compatible with a Record<string, T> annotation",
+      options: withConnection(connections.withTag),
+      code: `
+          type Metadata = { id: number };
+          const rows = await sql<{ jsonb_col: Record<string, Metadata> }>\`SELECT jsonb_col FROM test_jsonb\`;
+        `,
+    },
+    {
+      name: "json/b: any nested inside a union member should be compatible with a concrete annotation",
+      options: withConnection(connections.withTag),
+      code: `
+          type Metadata = { id: number };
+          const rows = await sql<{ agg: { data: Record<string, Metadata> }[] | null }>\`
+            SELECT jsonb_agg(jsonb_build_object('data', jsonb_col)) AS agg FROM test_jsonb
+          \`;
+        `,
+    },
+    {
       name: "json/b: fieldTransform camel should apply to jsonb_build_object keys",
       options: withConnection(connections.withTag, {
         targets: [{ tag: "sql", fieldTransform: "camel" }],
