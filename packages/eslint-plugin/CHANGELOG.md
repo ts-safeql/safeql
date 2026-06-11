@@ -1,5 +1,17 @@
 # @ts-safeql/eslint-plugin
 
+## 5.3.0
+
+### Patch Changes
+
+- 96549f6: Resolve template-literal types (and branded `Money`) to `text` when used as query parameters.
+
+  A template-literal type such as `` `${number}` `` or `` `${string}` `` is a string at runtime but had no corresponding PostgreSQL type, so passing one as a parameter required a manual cast or an `overrides.types` entry. `checkType` now maps any template-literal type to `text` (and an array of them to `text[]`), mirroring how a plain `string` is handled. This also fixes branded `Money` (`` `${number}` & { __brand: "Money" } ``): the intersection branch resolves each member through `checkType`, and the `` `${number}` `` base now resolves to `text`, so the whole intersection maps to `text` with no change to the intersection helper. Intrinsic string-mapping types (`Uppercase<string>`, etc.) resolve to `text` as well, and an explicit `overrides.types` entry still takes precedence. Passing a template-literal value where an incompatible column type is expected is still reported, and a template-literal intersected with a conflicting base type (e.g. `` `${number}` `` & Date) is rejected.
+
+- 96549f6: Resolve tuple types to their element type when used as query parameters.
+
+  A tuple such as `NonEmptyArray<T>` (`[T, ...T[]]`) has no corresponding PostgreSQL type, so passing one as a parameter forced a manual `as T[]` cast, a `[...spread]`, or an `overrides.types` entry. `checkType` now resolves each element type of a tuple and, when they agree, maps the tuple to that element type's array (`T[]`) — mirroring how a real array is handled. Element resolution recurses, so branded elements like `NonEmptyArray<ID>` still map to `text[]`. An empty tuple, an all-null tuple, or a heterogeneous tuple whose elements map to conflicting PostgreSQL types is rejected, and an explicit `overrides.types` entry still takes precedence.
+
 ## 5.2.2
 
 ### Patch Changes
