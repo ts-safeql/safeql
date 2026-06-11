@@ -1,5 +1,14 @@
 # @ts-safeql/generate
 
+## 5.3.1
+
+### Patch Changes
+
+- 99d16d6: Fix two JSON-related typing edge cases in SafeQL:
+
+  - In `@ts-safeql/generate`, infer `->>` and `#>>` as `text` even when the left side type is not fully known, preventing generated `unknown` types inside JSON object/array expressions.
+  - In `@ts-safeql/eslint-plugin`, treat `any` as a wildcard during expected/generated comparison so JSON columns typed as `any` no longer produce false mismatches against concrete annotations.
+
 ## 5.3.0
 
 ### Minor Changes
