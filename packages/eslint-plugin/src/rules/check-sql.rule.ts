@@ -681,9 +681,7 @@ function getResolvedTargetsEquality(params: {
   expectedString = expectedString.replace(/'/g, '"');
   generatedString = generatedString.replace(/'/g, '"');
 
-  expectedString = expectedString.split(", ").sort().join(", ");
-  generatedString = generatedString.split(", ").sort().join(", ");
-
+  // The comparable form is already canonical, so no further reordering is needed.
   if (params.transform !== undefined) {
     generatedString = transformTypes(generatedString, params.transform);
   }
