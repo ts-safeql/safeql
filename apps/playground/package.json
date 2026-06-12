@@ -1,0 +1,36 @@
+{
+  "name": "@ts-safeql/playground",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc -b && vite build",
+    "preview": "vite preview",
+    "typecheck": "vue-tsc -b"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.5.1",
+    "@shikijs/monaco": "^4.2.0",
+    "@ts-safeql/eslint-plugin": "workspace:*",
+    "@ts-safeql/generate": "workspace:*",
+    "@ts-safeql/shared": "workspace:*",
+    "@ts-safeql/sql-ast": "workspace:*",
+    "@typescript-eslint/parser": "catalog:",
+    "eslint": "catalog:",
+    "eslint-linter-browserify": "^10.4.1",
+    "fp-ts": "^2.16.9",
+    "libpg-query": "catalog:",
+    "monaco-editor": "^0.55.1",
+    "shiki": "^4.2.0",
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@vitejs/plugin-vue": "^5.2.3",
+    "postgres": "catalog:",
+    "typescript": "catalog:",
+    "vite": "^6.4.3",
+    "vue-tsc": "^2.2.8"
+  }
+}

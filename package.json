@@ -19,7 +19,8 @@
     "clean": "pnpm run --parallel --filter './packages/**' clean",
     "release": "pnpm build --filter='./packages/**' -- --declaration && pnpm publint && changeset publish",
     "version": "changeset version && pnpm i --frozen-lockfile=false",
-    "setup": "pnpm run --parallel setup"
+    "setup": "pnpm run --parallel setup",
+    "playground": "pnpm --filter @ts-safeql/playground dev"
   },
   "workspaces": [
     "packages/**",
