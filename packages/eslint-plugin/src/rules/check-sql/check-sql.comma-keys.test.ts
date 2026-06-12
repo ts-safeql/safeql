@@ -2,13 +2,8 @@ import { checkSqlRule, ruleTester, setupCheckSqlRuleTester } from "./check-sql.t
 
 const { connections, withConnection } = setupCheckSqlRuleTester();
 
-// Regression: a materialized view exposing computed columns whose quoted aliases
-// contain ", " (e.g. `"admins, active %"`), queried through a wrapper with a
-// `transform: "{type}[]"`. The equality check used to `split(", ").sort()` the
-// serialized types, which shattered such keys; because the transform appends the
-// array suffix to the generated side only — after the split — the `[]` landed in
-// a different position on each side and an identical shape was reported as a
-// mismatch (with an Expected/Actual that rendered identically).
+// Regression: column names containing ", " must compare correctly, including
+// through a `transform: "{type}[]"`.
 const target = {
   wrapper: "conn.query",
   transform: "{type}[]" as const,

@@ -127,9 +127,7 @@ export function runCheckSqlMigrations<TTypes extends Record<string, unknown>>(sq
       colname TIMESTAMPTZ
     );
 
-    -- Mirrors a real-world materialized view: computed FLOAT columns whose
-    -- quoted aliases contain ", ", grouped per key. Used to verify that such
-    -- column names compare correctly against their annotation.
+    -- Computed columns whose quoted aliases contain ", ".
     CREATE MATERIALIZED VIEW member_role_ratio AS
       SELECT
         member.id AS member_id,
