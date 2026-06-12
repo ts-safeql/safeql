@@ -126,5 +126,26 @@ export function runCheckSqlMigrations<TTypes extends Record<string, unknown>>(sq
     CREATE TABLE test_nullable_timestamptz (
       colname TIMESTAMPTZ
     );
+
+    -- Mirrors a real-world materialized view: computed FLOAT columns whose
+    -- quoted aliases contain ", ", grouped per key. Used to verify that such
+    -- column names compare correctly against their annotation.
+    CREATE MATERIALIZED VIEW member_role_ratio AS
+      SELECT
+        member.id AS member_id,
+        (
+          COUNT(*) FILTER (WHERE role = 'admin')::FLOAT /
+          (
+            CASE COUNT(*)::FLOAT WHEN 0 THEN 1 ELSE COUNT(*)::FLOAT END
+          )
+        ) * 100 AS "admins, active %",
+        (
+          COUNT(*) FILTER (WHERE role = 'viewer')::FLOAT /
+          (
+            CASE COUNT(*)::FLOAT WHEN 0 THEN 1 ELSE COUNT(*)::FLOAT END
+          )
+        ) * 100 AS "viewers, inactive %"
+      FROM member
+      GROUP BY member.id;
 `);
 }

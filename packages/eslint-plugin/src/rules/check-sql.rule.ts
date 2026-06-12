@@ -681,9 +681,12 @@ function getResolvedTargetsEquality(params: {
   expectedString = expectedString.replace(/'/g, '"');
   generatedString = generatedString.replace(/'/g, '"');
 
-  expectedString = expectedString.split(", ").sort().join(", ");
-  generatedString = generatedString.split(", ").sort().join(", ");
-
+  // `getResolvedTargetComparableString` already emits a canonical form (object
+  // entries and union members are sorted internally), so no further reordering
+  // is needed here. A previous `split(", ").sort()` pass shattered column names
+  // containing ", " (e.g. a quoted alias like `"resolved, open %"`) and, together
+  // with a transform applied only to the generated side, moved the array suffix to
+  // a different position on each side — reporting a mismatch between identical shapes.
   if (params.transform !== undefined) {
     generatedString = transformTypes(generatedString, params.transform);
   }
