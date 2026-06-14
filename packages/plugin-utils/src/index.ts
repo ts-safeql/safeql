@@ -2,6 +2,20 @@ import type { ParserServices, TSESLint, TSESTree } from "@typescript-eslint/util
 import type ts from "typescript";
 import type { Sql } from "postgres";
 
+export type QuerySourceMapEntry = {
+  original: {
+    start: number;
+    end: number;
+    text: string;
+  };
+  generated: {
+    start: number;
+    end: number;
+    text: string;
+  };
+  offset: number;
+};
+
 export interface ExpressionContext {
   precedingSQL: string;
   checker: ts.TypeChecker;
@@ -13,6 +27,71 @@ export interface ExpressionContext {
 export interface TargetContext {
   checker: ts.TypeChecker;
   parser: ParserServices;
+}
+
+export interface ResolveQueryContext {
+  checker: ts.TypeChecker;
+  parser: ParserServices;
+  precedingSQL: string;
+  tsNode: ts.Node;
+  tsType: ts.Type;
+  tsTypeText: string;
+}
+
+export interface ResolvedSchemaColumn {
+  /** Column name as declared in the schema type (the rule matches it against the
+   * DB column name after applying `fieldTransform`). */
+  name: string;
+  /** The column's SELECT type, with any library-specific column wrappers
+   * already unwrapped. */
+  type: ts.Type;
+  /** Anchor node for resolving {@link type} via the checker. */
+  typeNode: ts.Node;
+  /** Where to report drift for this column. */
+  reportNode: TSESTree.Node;
+}
+
+export interface ResolvedSchemaTable {
+  /** Table name as declared in the schema type (matched against the DB table name). */
+  name: string;
+  /** Where to report table-level drift. */
+  reportNode: TSESTree.Node;
+  columns: ResolvedSchemaColumn[];
+}
+
+export interface ResolvedSchemaType {
+  tables: ResolvedSchemaTable[];
+}
+
+export interface SchemaTypeContext {
+  checker: ts.TypeChecker;
+  parser: ParserServices;
+  sourceFile: ts.SourceFile;
+  /** The configured schema type to locate (e.g. `"Database"`). */
+  typeName: string;
+}
+
+export type ResolvedQuery = {
+  kind: "sql";
+  text: string;
+  sourcemaps: QuerySourceMapEntry[];
+  expectedType?: ts.Node;
+};
+
+/**
+ * Passed to a plugin's {@link SafeQLPlugin.migrate} hook. Describes the
+ * freshly-created, empty shadow database that the project's migrations should
+ * be applied to.
+ */
+export interface MigrateContext {
+  /** Connection URL of the shadow database. */
+  databaseUrl: string;
+  /** postgres.js client already connected to the shadow database. */
+  sql: Sql;
+  /** Absolute path to the migrations directory (`projectDir` + `migrationsDir`). */
+  migrationsDir: string;
+  /** Absolute path to the consuming project. */
+  projectDir: string;
 }
 
 /**
@@ -32,6 +111,16 @@ export interface SafeQLPlugin {
   };
 
   /**
+   * Apply the project's migrations to a freshly-created shadow database.
+   *
+   * When present, this replaces SafeQL's built-in `.sql` file runner for
+   * `migrationsDir` connections, letting an ORM or migration tool run
+   * migrations its own way. Called once, when the shadow database is first
+   * created. Throw to surface a migration failure as a lint error.
+   */
+  migrate?(context: MigrateContext): Promise<void>;
+
+  /**
    * Called for every `TaggedTemplateExpression` in the file.
    *
    * @returns `TargetMatch` to check this tag as SQL,
@@ -42,6 +131,23 @@ export interface SafeQLPlugin {
     node: TSESTree.TaggedTemplateExpression;
     context: TargetContext;
   }): TargetMatch | false | undefined;
+
+  /**
+   * Non-tag query entrypoint (e.g. builder chains). When provided, SafeQL calls
+   * `resolveQuery` for selected AST nodes and expects SQL to run through the normal
+   * validation pipeline.
+   * Rule-only hook: this runs in the checker process and may use the TS checker.
+   */
+  queryNodeKinds?: Array<"TaggedTemplateExpression" | "CallExpression">;
+  resolveQuery?(params: ResolveQueryContext): ResolvedQuery | "skip";
+
+  /**
+   * Locate and interpret the project's schema type (e.g. a generated `Database`
+   * type) for schema-drift validation (`check-schema`).
+   * Rule-only hook: runs in the checker process and returns checker-bound nodes
+   * (never serialized to the worker — the drift diff runs rule-side).
+   */
+  resolveSchemaType?(params: SchemaTypeContext): ResolvedSchemaType | undefined;
 
   /**
    * Called for each interpolated expression inside a matched template.
@@ -222,3 +328,6 @@ export function definePlugin<TConfig extends Record<string, unknown> = {}>(
 }
 
 export { PluginManager } from "./resolve";
+
+/** Shared TypeScript-AST toolkit for plugins (symbol origin, static evaluation, unwrapping). */
+export * as ast from "./ast";
