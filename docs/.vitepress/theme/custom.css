@@ -2,7 +2,7 @@
    SafeQL docs theme — aligned with the landing page's design language.
    (Landing is the source of truth: near-black surfaces, Geist + Geist Mono,
    a restrained steel-blue accent, subtle white-alpha lines, sharp 4px corners.)
-   Docs are forced dark (config: appearance: 'force-dark') to match.
+   Docs default to dark to match (config: appearance: 'dark'); the nav toggle still allows light.
    ===================================================================== */
 
 :root {

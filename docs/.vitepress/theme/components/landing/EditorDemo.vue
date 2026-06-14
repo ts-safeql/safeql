@@ -35,13 +35,16 @@ let gsapReady = false;
 let morphReady = false;
 let started = false;
 let autoPos = 0;
+// cross-fade the next scene entry instead of morphing — used for the auto loop
+// wrap and stepper jumps, where a morph would run the code backwards
+let fadeNext = false;
 
 const H0_A = "function getUsers() {\n  return sql`\n    SELECT idd FROM users\n  `;\n}";
 const H0_B = "function getUsers() {\n  return sql`\n    SELECT id FROM users\n  `;\n}";
-const H1_A = "function getUsers() {\n  return sql`\n    SELECT id, email FROM users\n  `;\n}";
-const H1_B = "function getUsers() {\n  return sql<{ id: number; email: string }>`\n    SELECT id, email FROM users\n  `;\n}";
-const H2_A = "function getUsers() {\n  return sql<{ id: string }>`\n    SELECT id FROM users\n  `;\n}";
-const H2_B = "function getUsers() {\n  return sql<{ id: number }>`\n    SELECT id FROM users\n  `;\n}";
+const H1_A = "function getUsers() {\n  return sql`\n    SELECT id FROM users\n  `;\n}";
+const H1_B = "function getUsers() {\n  return sql<{ id: number }>`\n    SELECT id FROM users\n  `;\n}";
+const H2_A = "function getUsers() {\n  return sql<{ id: number; email: number }>`\n    SELECT id, email FROM users\n  `;\n}";
+const H2_B = "function getUsers() {\n  return sql<{ id: number; email: string }>`\n    SELECT id, email FROM users\n  `;\n}";
 
 const A1_A = "function postStats() {\n  return sql<{ author_id: number; posts: number }>`\n    SELECT author_id, count(*) AS posts\n    FROM posts\n    GROUP BY status\n  `;\n}";
 const A1_B = "function postStats() {\n  return sql<{ author_id: number; posts: number }>`\n    SELECT author_id, count(*) AS posts\n    FROM posts\n    GROUP BY author_id\n  `;\n}";
@@ -79,7 +82,7 @@ const SCENES = [
     label: "Auto-fixes types",
     file: "users.ts",
     code: H2_A,
-    acts: [{ t: "error", find: ["string", 1], msg: "incorrect type annotation — expected <b>number</b>", hold: 2.4, fix: H2_B, clear: true }],
+    acts: [{ t: "error", find: ["number", 2], msg: "incorrect type for <b>email</b> — expected <b>string</b>", hold: 2.4, fix: H2_B, clear: true }],
   },
   {
     file: "stats.ts",
@@ -282,7 +285,9 @@ function buildScene(i, gsap) {
   setErr(0);
   const enter = () => { srcCode.value = s.code; fileLabel.value = s.file; setErr(0); };
   const t = gsap.timeline({ defaults: { ease: "power2.out" } });
-  if (started && !props.auto) {
+  const fade = (started && !props.auto) || fadeNext;
+  fadeNext = false;
+  if (fade) {
     t.to(code.value, { opacity: 0, duration: 0.3 })
       .add(enter)
       .to({}, { duration: 0.72 })
@@ -323,6 +328,7 @@ function play() {
     if (!visible) return;
     if (props.auto) {
       autoPos++;
+      if (autoPos % props.cycle.length === 0) fadeNext = true;
       gap = gsapRef.delayedCall(0.12, play);
     } else {
       emit("done");
@@ -337,6 +343,7 @@ function restart() {
 }
 function jumpAuto(k) {
   if (!props.auto) return;
+  fadeNext = true;
   autoPos = k;
   restart();
 }

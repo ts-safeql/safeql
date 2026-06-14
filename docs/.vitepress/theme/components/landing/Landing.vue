@@ -6,7 +6,6 @@ import EditorDemo from "./EditorDemo.vue";
 
 const { site } = useData();
 
-const libraries = ["Prisma", "Kysely", "node-postgres", "Postgres.js", "Sequelize", "Slonik", "Drizzle", "@vercel/postgres"];
 
 const AGENT_PROMPT = `Set up SafeQL in my project — it's an ESLint plugin that type-checks raw SQL against my real PostgreSQL schema.
 
@@ -514,17 +513,6 @@ html:not(.dark) .landing {
 @media (prefers-reduced-motion: reduce) {
   .ticker-track { animation: none; }
 }
-.clients {
-  margin-top: 44px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px 24px;
-  font-family: var(--mono);
-  font-size: 13px;
-  color: var(--faint);
-}
-.client { white-space: nowrap; }
-
 .foot {
   border-top: 1px solid var(--line-soft);
   padding: 36px 0;
@@ -595,14 +583,6 @@ html:not(.dark) .landing {
   .how-grid {
     grid-template-columns: 1fr;
     gap: 24px;
-  }
-}
-@media (max-width: 600px) {
-  .topnav a:not(.nav-cta) {
-    display: none;
-  }
-  .topnav a:nth-last-child(2) {
-    display: inline;
   }
 }
 </style>
