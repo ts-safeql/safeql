@@ -1,8 +1,8 @@
 <script setup>
 import { shallowRef, onMounted, computed } from "vue";
 import { useData } from "vitepress";
-import { ShikiMagicMove } from "shiki-magic-move/vue";
-import "shiki-magic-move/style.css";
+import { ShikiMagicMove } from "@shikijs/magic-move/vue";
+import "@shikijs/magic-move/style.css";
 import { getHighlighter } from "./highlighter";
 
 defineProps({
