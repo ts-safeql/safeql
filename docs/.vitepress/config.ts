@@ -4,6 +4,19 @@ import { tabsMarkdownPlugin } from "vitepress-plugin-tabs";
 export default defineConfig({
   title: "SafeQL",
   description: "Write SQL queries with confidence!",
+  appearance: "dark",
+
+  head: [
+    ["link", { rel: "preconnect", href: "https://fonts.googleapis.com" }],
+    ["link", { rel: "preconnect", href: "https://fonts.gstatic.com", crossorigin: "" }],
+    [
+      "link",
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600&display=swap",
+      },
+    ],
+  ],
   markdown: {
     theme: {
       dark: "material-theme-ocean",
@@ -24,7 +37,7 @@ export default defineConfig({
     editLink: {
       pattern: "https://github.com/ts-safeql/safeql/tree/main/docs/:path",
     },
-    logo: "/ts-logo.svg",
+    logo: "/safeql-logo.svg",
     sidebar: [
       {
         text: "Guide",
@@ -125,8 +138,8 @@ export default defineConfig({
         link: "https://github.com/ts-safeql/safeql",
       },
       {
-        icon: "twitter",
-        link: "https://twitter.com/CoEliya",
+        icon: "x",
+        link: "https://x.com/CoEliya",
       },
     ],
   },

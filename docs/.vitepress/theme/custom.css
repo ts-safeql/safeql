@@ -1,17 +1,81 @@
+/* =====================================================================
+   SafeQL docs theme — aligned with the landing page's design language.
+   (Landing is the source of truth: near-black surfaces, Geist + Geist Mono,
+   a restrained steel-blue accent, subtle white-alpha lines, sharp 4px corners.)
+   Docs are forced dark (config: appearance: 'force-dark') to match.
+   ===================================================================== */
+
+:root {
+  --vp-font-family-base: "Geist", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --vp-font-family-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace;
+}
+
+.dark {
+  /* surfaces — match the landing's --bg / panels */
+  --vp-c-bg: #0a0a0b;
+  --vp-c-bg-alt: #0e0e10;
+  --vp-c-bg-soft: #141416;
+  --vp-c-bg-elv: #161618;
+
+  /* text — landing --text / --muted / --faint */
+  --vp-c-text-1: #ececed;
+  --vp-c-text-2: #9a9aa1;
+  --vp-c-text-3: #66666d;
+
+  /* lines — subtle white-alpha, like the landing */
+  --vp-c-border: rgba(255, 255, 255, 0.12);
+  --vp-c-divider: rgba(255, 255, 255, 0.07);
+  --vp-c-gutter: #0a0a0b;
+  --vp-c-default-soft: rgba(255, 255, 255, 0.05);
+
+  /* brand — the landing's steel-blue accent */
+  --vp-c-brand-1: #9bb2d6;
+  --vp-c-brand-2: #b6c7e4;
+  --vp-c-brand-3: #6e88b0;
+  --vp-c-brand-soft: rgba(124, 152, 192, 0.14);
+
+  /* code surface — match the IDE on the landing */
+  --vp-code-block-bg: #131316;
+  --vp-code-bg: rgba(255, 255, 255, 0.06);
+
+  /* primary buttons read light-on-dark like the landing's CTA */
+  --vp-button-brand-border: transparent;
+  --vp-button-brand-text: #0a0a0b;
+  --vp-button-brand-bg: #ececed;
+  --vp-button-brand-hover-border: transparent;
+  --vp-button-brand-hover-text: #0a0a0b;
+  --vp-button-brand-hover-bg: #ffffff;
+  --vp-button-brand-active-border: transparent;
+  --vp-button-brand-active-text: #0a0a0b;
+  --vp-button-brand-active-bg: #d4d4d8;
+}
+
+/* sharp corners to match the landing (--r: 4px) instead of VitePress' pills/8px */
+.VPButton {
+  border-radius: 4px;
+}
+.vp-doc div[class*="language-"],
+.vp-doc .vp-code-group,
+.vp-doc .custom-block,
+.VPNavScreenMenuGroup,
+.DocSearch-Button {
+  border-radius: 4px;
+}
+
+/* ===== existing code-line highlight helpers ===== */
 .line.highlighted.error {
   --vp-code-line-highlight-color: var(--vp-c-red-dimm-2);
 }
 
 .line.highlighted.error span {
-    --shiki-light: var(--vp-c-danger-1) !important;
-    --shiki-dark: var(--vp-c-danger-1) !important;
+  --shiki-light: var(--vp-c-danger-1) !important;
+  --shiki-dark: var(--vp-c-danger-1) !important;
 }
-
 
 .success .line.highlighted {
   --vp-code-line-highlight-color: var(--vp-c-green-soft) !important;
 }
 
 .success .line.highlighted span {
-    color: var(--vp-c-green-1) !important;
+  color: var(--vp-c-green-1) !important;
 }
