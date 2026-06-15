@@ -102,6 +102,7 @@ export function createGenerator() {
 
   return {
     generate: (params: GenerateParams) => generate(params, cache),
+    introspectSchema: (params: IntrospectSchemaParams) => introspectSchema(params, cache),
     dropCacheKey: (cacheKey: CacheKey) => cache.base.delete(cacheKey),
     clearCache: () => {
       cache.base.clear();
@@ -144,47 +145,16 @@ async function generate(
     value: () => getDatabaseMetadata(sql),
   });
 
-  const typesMap = await getOrSetFromMapWithEnabled({
+  const typesMap = await resolveTypesMap({
+    overrides: params.overrides,
+    cache,
     shouldCache: cacheMetadata,
-    map: cache.overrides.types,
-    key: JSON.stringify(params.overrides?.types),
-    value: () => {
-      const map: TypesMap = new Map([["array", { override: false, value: "array" }]]);
-
-      for (const [key, value] of defaultTypesMap.entries()) {
-        map.set(key, { override: false, value });
-      }
-
-      for (const [k, v] of Object.entries(params.overrides?.types ?? {})) {
-        map.set(k, { override: true, value: typeof v === "string" ? v : v.return });
-      }
-
-      return map;
-    },
   });
 
-  const overridenColumnTypesMap = await getOrSetFromMapWithEnabled({
+  const overridenColumnTypesMap = await resolveColumnOverridesMap({
+    overrides: params.overrides,
+    cache,
     shouldCache: cacheMetadata,
-    map: cache.overrides.columns,
-    key: JSON.stringify(params.overrides?.columns),
-    value: () => {
-      const map: Map<string, Map<string, string>> = new Map();
-
-      for (const [colPath, type] of Object.entries(params.overrides?.columns ?? {})) {
-        const [table, column] = colPath.split(".");
-
-        if (table === undefined || column === undefined) {
-          throw new Error(`Invalid override column key: ${colPath}. Expected format: table.column`);
-        }
-
-        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-        map.has(table)
-          ? map.get(table)?.set(column, type)
-          : map.set(table, new Map([[column, type]]));
-      }
-
-      return map;
-    },
   });
 
   const functionsMap = await getOrSetFromMapWithEnabled({
@@ -340,6 +310,185 @@ async function generate(
 
     throw e;
   }
+}
+
+function resolveTypesMap(params: {
+  overrides: GenerateParams["overrides"];
+  cache: Cache;
+  shouldCache: boolean;
+}): Promise<TypesMap> {
+  return getOrSetFromMapWithEnabled({
+    shouldCache: params.shouldCache,
+    map: params.cache.overrides.types,
+    key: JSON.stringify(params.overrides?.types),
+    value: () => {
+      const map: TypesMap = new Map([["array", { override: false, value: "array" }]]);
+
+      for (const [key, value] of defaultTypesMap.entries()) {
+        map.set(key, { override: false, value });
+      }
+
+      for (const [k, v] of Object.entries(params.overrides?.types ?? {})) {
+        map.set(k, { override: true, value: typeof v === "string" ? v : v.return });
+      }
+
+      return map;
+    },
+  });
+}
+
+function resolveColumnOverridesMap(params: {
+  overrides: GenerateParams["overrides"];
+  cache: Cache;
+  shouldCache: boolean;
+}): Promise<Map<string, Map<string, string>>> {
+  return getOrSetFromMapWithEnabled({
+    shouldCache: params.shouldCache,
+    map: params.cache.overrides.columns,
+    key: JSON.stringify(params.overrides?.columns),
+    value: () => {
+      const map: Map<string, Map<string, string>> = new Map();
+
+      for (const [colPath, type] of Object.entries(params.overrides?.columns ?? {})) {
+        const [table, column] = colPath.split(".");
+
+        if (table === undefined || column === undefined) {
+          throw new Error(`Invalid override column key: ${colPath}. Expected format: table.column`);
+        }
+
+        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+        map.has(table)
+          ? map.get(table)?.set(column, type)
+          : map.set(table, new Map([[column, type]]));
+      }
+
+      return map;
+    },
+  });
+}
+
+/** Schemas never relevant to a user's `Database` type. */
+const SYSTEM_SCHEMAS = new Set(["pg_catalog", "information_schema", "pg_toast"]);
+
+export interface SchemaIntrospectionTable {
+  schemaName: string;
+  tableName: string;
+  /** Per-column resolved targets, identical to what `check-sql` produces. */
+  columns: ResolvedTargetEntry[];
+}
+
+export interface SchemaIntrospectionResult {
+  tables: SchemaIntrospectionTable[];
+}
+
+export interface IntrospectSchemaParams {
+  sql: Sql;
+  cacheKey: CacheKey;
+  cacheMetadata?: boolean;
+  fieldTransform: IdentiferCase | undefined;
+  overrides?: GenerateParams["overrides"];
+  /**
+   * Schemas to include. When omitted, every non-system schema is introspected.
+   * System schemas (`pg_catalog`, `information_schema`, `pg_toast`, `pg_temp*`)
+   * are always excluded.
+   */
+  schemas?: string[];
+  /** Table names to exclude (e.g. a migration bookkeeping table). */
+  excludeTables?: string[];
+}
+
+/**
+ * Introspect the database schema and resolve each table's columns into the same
+ * `ResolvedTarget`s that `generate` produces for a query — so a schema-drift
+ * check can diff a user's `Database` type against the live DB using the exact
+ * same equality. Reuses the shared metadata cache keyed by `cacheKey`.
+ */
+async function introspectSchema(
+  params: IntrospectSchemaParams,
+  cache: Cache,
+): Promise<SchemaIntrospectionResult> {
+  const { sql, cacheKey, cacheMetadata = true } = params;
+
+  const { pgCols, pgTypes, pgEnums, pgColsBySchemaAndTableName } = await getOrSetFromMapWithEnabled(
+    {
+      shouldCache: cacheMetadata,
+      map: cache.base,
+      key: cacheKey,
+      value: () => getDatabaseMetadata(sql),
+    },
+  );
+
+  const typesMap = await resolveTypesMap({
+    overrides: params.overrides,
+    cache,
+    shouldCache: cacheMetadata,
+  });
+  const overridenColumnTypesMap = await resolveColumnOverridesMap({
+    overrides: params.overrides,
+    cache,
+    shouldCache: cacheMetadata,
+  });
+
+  const includeSchemas = params.schemas !== undefined ? new Set(params.schemas) : undefined;
+  const excludeTables = new Set(params.excludeTables ?? []);
+
+  const visibleCols = pgCols.filter((col) => {
+    if (SYSTEM_SCHEMAS.has(col.schemaName) || col.schemaName.startsWith("pg_temp")) {
+      return false;
+    }
+    if (includeSchemas !== undefined && !includeSchemas.has(col.schemaName)) {
+      return false;
+    }
+    if (excludeTables.has(col.tableName)) {
+      return false;
+    }
+    return true;
+  });
+
+  const byTable = groupBy(visibleCols, "schemaName", "tableName");
+  const tables: SchemaIntrospectionTable[] = [];
+
+  for (const [schemaName, tablesInSchema] of byTable.entries()) {
+    for (const [tableName, cols] of tablesInSchema.entries()) {
+      const columns: ColumnAnalysisResult[] = cols
+        .slice()
+        .sort((a, b) => a.colNum - b.colNum)
+        .map(
+          (col): ColumnAnalysisResult => ({
+            // No query describe in schema mode: synthesize the `described` column
+            // so the introspection branch of `getResolvedTargetEntry` runs
+            // (astDescribed = undefined).
+            described: {
+              name: col.colName,
+              type: col.colTypeOid,
+              table: col.tableOid,
+              number: col.colNum,
+            },
+            astDescribed: undefined,
+            introspected: col,
+            isNonNullableBasedOnAST: false,
+          }),
+        );
+
+      const context: GenerateContext = {
+        columns,
+        pgTypes,
+        pgEnums,
+        relationsWithJoins: [],
+        overrides: { types: typesMap, columns: overridenColumnTypesMap },
+        pgColsBySchemaAndTableName,
+        fieldTransform: params.fieldTransform,
+      };
+
+      tables.push({
+        schemaName,
+        tableName,
+        columns: getTypedColumnEntries({ context }).value,
+      });
+    }
+  }
+
+  return { tables };
 }
 
 async function getDatabaseMetadata(sql: Sql) {
@@ -709,6 +858,7 @@ async function getPgCols(sql: Sql) {
           AND pg_class.relnamespace = pg_namespace.oid
           AND pg_attribute.attnum >= 1
       ORDER BY
+          pg_namespace.nspname,
           pg_class.relname,
           pg_attribute.attnum
   `;

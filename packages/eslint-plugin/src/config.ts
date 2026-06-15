@@ -21,6 +21,8 @@ export default {
       },
       rules: {
         "@ts-safeql/check-sql": ["error", { useConfigFile: true }],
+        // No-op unless a connection declares a `schema`.
+        "@ts-safeql/check-schema": ["error", { useConfigFile: true }],
       },
     } satisfies FlatConfig.Config,
 
@@ -33,6 +35,8 @@ export default {
       },
       rules: {
         "@ts-safeql/check-sql": ["error", { connections }],
+        // No-op unless a connection declares a `schema`.
+        "@ts-safeql/check-schema": ["error", { connections }],
       },
     }),
   },

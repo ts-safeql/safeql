@@ -1,12 +1,11 @@
 import { createRequire } from "module";
 import path from "path";
 import { E, pipe } from "../utils/fp-ts";
-import { RuleContext } from "./check-sql.rule";
-import { Config, Options, UserConfigFile, zConfig } from "./RuleOptions";
+import { Config, Options, RuleOptions, UserConfigFile, zConfig } from "./RuleOptions";
 import { InvalidConfigError } from "@ts-safeql/shared";
 
 export function getConfigFromFileWithContext(params: {
-  context: RuleContext;
+  context: { options: RuleOptions };
   projectDir: string;
 }): Config {
   const options = params.context.options[0];

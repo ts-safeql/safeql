@@ -2,10 +2,11 @@ import { ParserServices, TSESTree } from "@typescript-eslint/utils";
 import ts from "typescript";
 
 type GetResolvedTargetByTypeNodeParams = {
-  typeNode: TSESTree.TypeNode;
+  typeNode?: TSESTree.TypeNode;
   parser: ParserServices;
   checker: ts.TypeChecker;
   reservedTypes: Set<string>;
+  anchorNode?: ts.Node;
 };
 
 export type ExpectedResolvedTarget =
@@ -31,21 +32,26 @@ const PRIMITIVES = {
 export function getResolvedTargetByTypeNode(
   params: GetResolvedTargetByTypeNodeParams,
 ): ExpectedResolvedTarget {
+  if (!params.typeNode) {
+    return { kind: "type", value: "unknown" };
+  }
+
+  const typeNode = params.typeNode;
   const typeText = params.parser.esTreeNodeToTSNodeMap.get(params.typeNode).getText();
 
   if (isReservedType(typeText, params.reservedTypes)) {
     return { kind: "type", value: typeText };
   }
 
-  switch (params.typeNode.type) {
+  switch (typeNode.type) {
     case TSESTree.AST_NODE_TYPES.TSLiteralType:
-      return handleLiteralType(params.typeNode);
+      return handleLiteralType(typeNode);
 
     case TSESTree.AST_NODE_TYPES.TSUnionType:
       return {
         kind: "union",
-        value: params.typeNode.types.map((type) =>
-          getResolvedTargetByTypeNode({ ...params, typeNode: type }),
+        value: typeNode.types.map((type) =>
+          getResolvedTargetByTypeNode({ ...params, typeNode: type as TSESTree.TypeNode }),
         ),
       };
 
@@ -56,26 +62,45 @@ export function getResolvedTargetByTypeNode(
       return { kind: "type", value: "undefined" };
 
     case TSESTree.AST_NODE_TYPES.TSTypeLiteral:
-      return handleTypeLiteral(params.typeNode, params);
+      return handleTypeLiteral(typeNode, params);
 
     case TSESTree.AST_NODE_TYPES.TSTypeReference:
-      return handleTypeReference(params.typeNode, params);
+      return handleTypeReference(typeNode, params);
 
     case TSESTree.AST_NODE_TYPES.TSIntersectionType:
-      return handleIntersectionType(params.typeNode, params);
+      return handleIntersectionType(typeNode, params);
 
     case TSESTree.AST_NODE_TYPES.TSArrayType:
       return {
         kind: "array",
         value: getResolvedTargetByTypeNode({
           ...params,
-          typeNode: params.typeNode.elementType,
+          typeNode: typeNode.elementType,
         }),
       };
 
     default:
       return { kind: "type", value: typeText };
   }
+}
+
+export interface GetResolvedTargetByTypeParams {
+  type: ts.Type;
+  checker: ts.TypeChecker;
+  parser: ParserServices;
+  reservedTypes: Set<string>;
+  anchorNode?: ts.Node;
+}
+
+export function getResolvedTargetByType(
+  params: GetResolvedTargetByTypeParams,
+): ExpectedResolvedTarget {
+  return resolveTypeFromType(params.type, {
+    checker: params.checker,
+    parser: params.parser,
+    reservedTypes: params.reservedTypes,
+    anchorNode: params.anchorNode,
+  });
 }
 
 function isReservedType(typeText: string, reservedTypes: Set<string>): boolean {
@@ -307,16 +332,66 @@ function extractObjectProperties(
   type: ts.Type,
   params: GetResolvedTargetByTypeNodeParams,
 ): ExpectedResolvedTarget {
+  const typeLocation = toTypeScriptNode({
+    parser: params.parser,
+    node: params.typeNode ?? params.anchorNode,
+  });
+
+  if (typeLocation === undefined) {
+    return { kind: "object", value: [] };
+  }
+
   const properties = type.getProperties().map((property): ExpectedResolvedTargetEntry => {
     const key = property.escapedName.toString();
-    const propType = params.checker.getTypeOfSymbolAtLocation(
-      property,
-      params.parser.esTreeNodeToTSNodeMap.get(params.typeNode),
-    );
+    const propType = params.checker.getTypeOfSymbolAtLocation(property, typeLocation);
 
     const resolvedType = resolveType(propType, params);
     return [key, resolvedType];
   });
 
   return { kind: "object", value: properties };
+}
+
+function resolveTypeFromType(
+  type: ts.Type,
+  params: Omit<GetResolvedTargetByTypeParams, "type"> & {
+    typeNode?: TSESTree.TypeNode | ts.Node;
+    anchorNode?: ts.Node;
+  },
+): ExpectedResolvedTarget {
+  const typeLocation = toTypeScriptNode({
+    parser: params.parser,
+    node: params.typeNode ?? params.anchorNode,
+  });
+
+  if (!typeLocation) {
+    return resolveType(type, {
+      parser: params.parser,
+      checker: params.checker,
+      reservedTypes: params.reservedTypes,
+    });
+  }
+
+  return resolveType(type, {
+    parser: params.parser,
+    checker: params.checker,
+    reservedTypes: params.reservedTypes,
+    anchorNode: typeLocation,
+  });
+}
+
+function toTypeScriptNode(params: {
+  parser: ParserServices;
+  node?: TSESTree.Node | ts.Node;
+}): ts.Node | undefined {
+  if (params.node === undefined) {
+    return undefined;
+  }
+
+  const node = params.node;
+  if ("kind" in node) {
+    return node as ts.Node;
+  }
+
+  return params.parser.esTreeNodeToTSNodeMap.get(node as TSESTree.Node);
 }

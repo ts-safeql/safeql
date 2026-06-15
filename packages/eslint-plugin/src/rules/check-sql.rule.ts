@@ -3,6 +3,7 @@ import {
   PluginManager,
   type PluginResolvedTarget,
   type SafeQLPlugin,
+  type QuerySourceMapEntry,
   type TargetContext,
   type TargetMatch,
 } from "@ts-safeql/plugin-utils";
@@ -21,11 +22,13 @@ import { ESTreeUtils } from "../utils";
 import { E, J, flow, pipe } from "../utils/fp-ts";
 import {
   ExpectedResolvedTarget,
+  getResolvedTargetByType,
   getResolvedTargetByTypeNode,
 } from "../utils/get-resolved-target-by-type-node";
 import { isInEditorEnv } from "../utils/is-in-editor";
 import { memoize } from "../utils/memoize";
 import { locateNearestPackageJsonDir } from "../utils/node.utils";
+import { hasParserServicesWithTypeInformation } from "../utils/parser-services";
 import { mapTemplateLiteralToQueryText } from "../utils/ts-pg.utils";
 import { workers } from "../workers";
 import { WorkerError, WorkerResult } from "../workers/check-sql.worker";
@@ -44,8 +47,8 @@ import {
   TypeTransformer,
   getFinalResolvedTargetString,
   getResolvedTargetComparableString,
+  getResolvedTargetsEquality,
   getResolvedTargetString,
-  normalizeAnyForComparison,
   reportBaseError,
   reportDuplicateColumns,
   reportIncorrectTypeAnnotations,
@@ -55,7 +58,6 @@ import {
   reportMissingTypeAnnotations,
   reportPostgresError,
   shouldLintFile,
-  transformTypes,
 } from "./check-sql.utils";
 import z from "zod";
 
@@ -78,10 +80,26 @@ interface PluginContext {
   targetMatch: TargetMatch | false | undefined;
 }
 
+type CheckNode = TSESTree.Node;
+
+type TerminalCallQuery = {
+  text: string;
+  sourcemaps: QuerySourceMapEntry[];
+  expectedType?: ts.Node;
+};
+
+const terminalBuilderMethods = new Set([
+  "execute",
+  "executeTakeFirst",
+  "executeTakeFirstOrThrow",
+  "compile",
+  "stream",
+]);
+
 function check(params: {
   context: RuleContext;
   config: Config;
-  tag: TSESTree.TaggedTemplateExpression;
+  tag: CheckNode;
   projectDir: string;
 }) {
   const connections = Array.isArray(params.config.connections)
@@ -92,32 +110,142 @@ function check(params: {
     const plugins = resolveConnectionPlugins(rawConnection, params.projectDir);
     const connection = applyPluginDefaults(rawConnection, plugins);
     const targetCtx = plugins.length > 0 ? getTargetContext(params.context) : undefined;
-    const targetMatch = resolvePluginTargetMatch(plugins, params.tag, targetCtx);
+    const targetMatch =
+      params.tag.type === "TaggedTemplateExpression"
+        ? resolvePluginTargetMatch(plugins, params.tag, targetCtx)
+        : undefined;
     const pluginCtx: PluginContext = { plugins, targetMatch };
 
     const targets = connection.targets ?? [];
 
+    if (params.tag.type === "CallExpression" && !isTerminalBuilderCall(params.tag)) {
+      continue;
+    }
+
     if (targets.length === 0 && targetMatch) {
       reportCheck({
         ...params,
+        tag: params.tag,
         connection,
         target: {
           tag: { regex: ".*" },
           skipTypeAnnotations: targetMatch.skipTypeAnnotations,
         },
         pluginCtx,
-        baseNode: params.tag.tag,
-        typeParameter: params.tag.typeArguments,
+        baseNode: getBaseNodeFromCheckNode(params.tag),
+        typeParameter:
+          params.tag.type === "TaggedTemplateExpression" ? params.tag.typeArguments : undefined,
       });
-      continue;
+    }
+
+    if (targets.length === 0 && params.tag.type === "CallExpression") {
+      const query = resolveQueryFromPlugins({
+        node: params.tag,
+        plugins,
+        context: params.context,
+      });
+
+      if (query === undefined) {
+        continue;
+      }
+
+      // A builder query resolves to a single SQL string regardless of connection
+      // (there is no tag/target to match on), so it is validated against the
+      // first connection whose plugins resolve it — one query yields one report.
+      return reportCheck({
+        context: params.context,
+        projectDir: params.projectDir,
+        connection,
+        tag: params.tag,
+        target: {
+          tag: { regex: ".*" },
+        },
+        baseNode: getBaseNodeFromCheckNode(params.tag),
+        typeParameter: params.tag.typeArguments,
+        query,
+      });
     }
 
     if (targets.length > 0) {
       for (const target of targets) {
-        checkConnection({ ...params, connection, target, pluginCtx });
+        if (params.tag.type === "TaggedTemplateExpression") {
+          checkConnection({ ...params, tag: params.tag, connection, target, pluginCtx });
+        }
       }
     }
   }
+}
+
+function isTerminalBuilderCall(node: TSESTree.CallExpression) {
+  if (node.callee.type !== "MemberExpression") {
+    return false;
+  }
+
+  if (node.callee.computed) {
+    return false;
+  }
+
+  return (
+    ESTreeUtils.isIdentifier(node.callee.property) &&
+    terminalBuilderMethods.has(node.callee.property.name)
+  );
+}
+
+function getBaseNodeFromCheckNode(node: CheckNode): TSESTree.Node {
+  if (node.type === "TaggedTemplateExpression") {
+    return node.tag;
+  }
+
+  if (node.type === "CallExpression") {
+    return node.callee;
+  }
+
+  return node;
+}
+
+function resolveQueryFromPlugins(params: {
+  node: TSESTree.Node;
+  plugins: SafeQLPlugin[];
+  context: RuleContext;
+}): TerminalCallQuery | undefined {
+  const targetCtx = getTargetContext(params.context);
+  if (targetCtx === undefined) {
+    return undefined;
+  }
+
+  const tsNode = targetCtx.parser.esTreeNodeToTSNodeMap.get(params.node);
+  if (!tsNode) {
+    return undefined;
+  }
+
+  const tsType = targetCtx.checker.getTypeAtLocation(tsNode);
+
+  for (const plugin of params.plugins) {
+    if (!plugin.queryNodeKinds?.includes("CallExpression") || !plugin.resolveQuery) {
+      continue;
+    }
+
+    const result = plugin.resolveQuery({
+      checker: targetCtx.checker,
+      parser: targetCtx.parser,
+      precedingSQL: "",
+      tsNode,
+      tsType,
+      tsTypeText: targetCtx.checker.typeToString(tsType),
+    });
+
+    if (result === "skip" || result === undefined) {
+      continue;
+    }
+
+    return {
+      text: result.text,
+      sourcemaps: result.sourcemaps,
+      expectedType: result.expectedType,
+    };
+  }
+
+  return undefined;
 }
 
 function isTagMemberValid(
@@ -309,15 +437,27 @@ function reportPluginTypeCheck(params: {
 
 function reportCheck(params: {
   context: RuleContext;
-  tag: TSESTree.TaggedTemplateExpression;
+  tag: CheckNode;
   connection: RuleOptionConnection;
   target: ConnectionTarget;
   projectDir: string;
-  typeParameter: TSESTree.TSTypeParameterInstantiation | undefined;
-  baseNode: TSESTree.BaseNode;
+  typeParameter?: TSESTree.TSTypeParameterInstantiation;
+  baseNode: TSESTree.Node;
+  query?: TerminalCallQuery;
   pluginCtx?: PluginContext;
 }) {
-  const { context, tag, connection, target, projectDir, typeParameter, baseNode } = params;
+  const {
+    context,
+    tag,
+    connection,
+    target,
+    projectDir,
+    typeParameter,
+    baseNode,
+    query: overrideQuery,
+  } = params;
+  const queryTypeParameter = typeParameter;
+  const queryExpectedType = overrideQuery?.expectedType;
 
   if (fatalError !== undefined) {
     const hint = isInEditorEnv()
@@ -343,14 +483,18 @@ function reportCheck(params: {
         : E.right(parser.program.getTypeChecker());
     }),
     E.bindW("query", ({ parser, checker }) =>
-      mapTemplateLiteralToQueryText(
-        tag.quasi,
-        parser,
-        checker,
-        params.connection,
-        params.context.sourceCode,
-        params.pluginCtx?.plugins,
-      ),
+      overrideQuery !== undefined
+        ? E.right(overrideQuery)
+        : tag.type === "TaggedTemplateExpression"
+          ? mapTemplateLiteralToQueryText(
+              tag.quasi,
+              parser,
+              checker,
+              params.connection,
+              params.context.sourceCode,
+              params.pluginCtx?.plugins,
+            )
+          : E.right(null),
     ),
     E.bindW("result", ({ query }) => {
       if (query === null) {
@@ -397,13 +541,13 @@ function reportCheck(params: {
         const pluginTypeCheck =
           params.pluginCtx?.targetMatch && params.pluginCtx.targetMatch.typeCheck;
 
-        if (pluginTypeCheck && result.output) {
+        if (pluginTypeCheck && result.output && tag.type === "TaggedTemplateExpression") {
           return reportPluginTypeCheck({
-            context: context,
-            tag: tag,
-            connection: connection,
-            checker: checker,
-            parser: parser,
+            context,
+            tag,
+            connection,
+            checker,
+            parser,
             output: result.output,
             typeCheck: pluginTypeCheck,
           });
@@ -413,28 +557,6 @@ function reportCheck(params: {
 
         if (shouldSkipTypeAnnotations) {
           return;
-        }
-
-        const isMissingTypeAnnotations = typeParameter === undefined;
-
-        if (isMissingTypeAnnotations) {
-          if (result.output === null) {
-            return;
-          }
-
-          return reportMissingTypeAnnotations({
-            tag: tag,
-            context: context,
-            baseNode: baseNode,
-            actual: getFinalResolvedTargetString({
-              target: result.output,
-              nullAsOptional: nullAsOptional ?? false,
-              nullAsUndefined: nullAsUndefined ?? false,
-              transform: target.transform,
-              inferLiterals: connection.inferLiterals ?? defaultInferLiteralOptions,
-            }),
-            enforceType: connection.enforceType,
-          });
         }
 
         const reservedTypes = memoize({
@@ -454,9 +576,41 @@ function reportCheck(params: {
           },
         });
 
+        // Builder queries whose terminal call takes no `<T>` infer their row type
+        // from the builder's own schema, so there is no annotation/result-type
+        // check here. The plugin only resolves these when they embed raw `sql`,
+        // which `describe` above has already validated. (A terminal that *does*
+        // accept `<T>` falls through to the annotation model below.)
+        if (tag.type === "CallExpression" && !calleeAcceptsTypeArgument(tag, checker, parser)) {
+          return;
+        }
+
+        const isMissingTypeAnnotations = queryTypeParameter === undefined;
+
+        if (isMissingTypeAnnotations) {
+          if (result.output === null) {
+            return;
+          }
+
+          return reportMissingTypeAnnotations({
+            tag: tag,
+            context: context,
+            baseNode: baseNode,
+            actual: getFinalResolvedTargetString({
+              target: result.output,
+              nullAsOptional: connection.nullAsOptional ?? false,
+              nullAsUndefined: connection.nullAsUndefined ?? false,
+              transform: target.transform,
+              inferLiterals: connection.inferLiterals ?? defaultInferLiteralOptions,
+            }),
+            enforceType: connection.enforceType,
+          });
+        }
+
         const typeAnnotationState = getTypeAnnotationState({
           generated: result.output,
-          typeParameter: typeParameter,
+          typeParameter: queryTypeParameter,
+          expectedType: queryExpectedType,
           transform: target.transform,
           checker: checker,
           parser: parser,
@@ -469,14 +623,14 @@ function reportCheck(params: {
         if (typeAnnotationState === "INVALID") {
           return reportInvalidTypeAnnotations({
             context: context,
-            typeParameter: typeParameter,
+            typeParameter: queryTypeParameter,
           });
         }
 
         if (!typeAnnotationState.isEqual) {
           return reportIncorrectTypeAnnotations({
             context,
-            typeParameter: typeParameter,
+            typeParameter: queryTypeParameter,
             expected: fmap(typeAnnotationState.expected, (expected) =>
               getResolvedTargetString({
                 target: expected,
@@ -502,10 +656,26 @@ function reportCheck(params: {
   );
 }
 
-function hasParserServicesWithTypeInformation(
-  parser: Partial<ParserServices> | undefined,
-): parser is ParserServicesWithTypeInformation {
-  return parser !== undefined && parser.program !== null;
+/**
+ * Whether the terminal method being called declares its own type parameter
+ * (e.g. `execute<T>(): Promise<T>`). If so, the result type is driven by an
+ * explicit `<T>` annotation (use the annotation model); if not
+ * (`execute(): Promise<O[]>`), the row type is inferred from the receiver.
+ */
+function calleeAcceptsTypeArgument(
+  node: TSESTree.CallExpression,
+  checker: ts.TypeChecker,
+  parser: ParserServicesWithTypeInformation,
+): boolean {
+  const tsCall = parser.esTreeNodeToTSNodeMap.get(node);
+  if (tsCall === undefined || !ts.isCallExpression(tsCall)) {
+    return false;
+  }
+
+  return checker
+    .getTypeAtLocation(tsCall.expression)
+    .getCallSignatures()
+    .some((signature) => (signature.getTypeParameters()?.length ?? 0) > 0);
 }
 
 function checkConnectionByTagExpression(params: {
@@ -584,7 +754,8 @@ function checkConnectionByWrapperExpression(params: {
 
 type GetTypeAnnotationStateParams = {
   generated: ResolvedTarget | null;
-  typeParameter: TSESTree.TSTypeParameterInstantiation;
+  typeParameter?: TSESTree.TSTypeParameterInstantiation;
+  expectedType?: TSESTree.TypeNode | ts.Node;
   transform?: TypeTransformer;
   parser: ParserServices;
   checker: ts.TypeChecker;
@@ -604,19 +775,19 @@ function getTypeAnnotationState({
   nullAsOptional,
   nullAsUndefined,
   inferLiterals,
+  expectedType,
 }: GetTypeAnnotationStateParams) {
-  if (typeParameter.params.length !== 1) {
-    return "INVALID" as const;
-  }
-
-  const typeNode = typeParameter.params[0];
-
-  const expected = getResolvedTargetByTypeNode({
+  const expected = getExpectedTarget({
+    expectedType: expectedType ?? typeParameter?.params.at(0) ?? undefined,
     checker,
     parser,
-    typeNode,
     reservedTypes,
+    forceTypeNode: typeParameter !== undefined,
   });
+
+  if (expected === null) {
+    return "INVALID" as const;
+  }
 
   return getResolvedTargetsEquality({
     expected,
@@ -628,69 +799,66 @@ function getTypeAnnotationState({
   });
 }
 
-function getResolvedTargetsEquality(params: {
-  expected: ExpectedResolvedTarget | null;
-  generated: ResolvedTarget | null;
-  nullAsOptional: boolean;
-  nullAsUndefined: boolean;
-  inferLiterals: InferLiteralsOption;
-  transform?: TypeTransformer;
-}) {
-  if (params.expected === null && params.generated === null) {
-    return {
-      isEqual: true,
-      expected: params.expected,
-      generated: params.generated,
-    };
+function getExpectedTarget({
+  expectedType,
+  checker,
+  parser,
+  reservedTypes,
+  forceTypeNode = false,
+}: {
+  expectedType?: TSESTree.TypeNode | ts.Node;
+  checker: ts.TypeChecker;
+  parser: ParserServices;
+  reservedTypes: Set<string>;
+  forceTypeNode?: boolean;
+}): ExpectedResolvedTarget | null {
+  if (expectedType === undefined) {
+    return null;
   }
 
-  if (params.expected === null || params.generated === null) {
-    return {
-      isEqual: false,
-      expected: params.expected,
-      generated: params.generated,
-    };
+  if (forceTypeNode) {
+    if (isTSESTreeTypeNode(expectedType)) {
+      return getResolvedTargetByTypeNode({
+        checker,
+        parser,
+        typeNode: expectedType,
+        reservedTypes,
+      });
+    }
+
+    return null;
   }
 
-  // Normalized values are only used for the equality check below; the originals
-  // are returned unchanged for the error message.
-  const normalized = normalizeAnyForComparison(params.expected, params.generated);
-
-  let expectedString = getResolvedTargetComparableString({
-    target: normalized.expected,
-    nullAsOptional: false,
-    nullAsUndefined: false,
-    inferLiterals: params.inferLiterals,
+  const expectedTypeNode = getTsNodeFromExpectedType(expectedType, parser);
+  const expectedTypeType = checker.getTypeAtLocation(expectedTypeNode);
+  return getResolvedTargetByType({
+    checker,
+    parser,
+    reservedTypes,
+    type: expectedTypeType,
+    anchorNode: expectedTypeNode,
   });
+}
 
-  let generatedString = getResolvedTargetComparableString({
-    target: normalized.generated,
-    nullAsOptional: params.nullAsOptional,
-    nullAsUndefined: params.nullAsUndefined,
-    inferLiterals: params.inferLiterals,
-  });
-
-  if (expectedString === null || generatedString === null) {
-    return {
-      isEqual: false,
-      expected: params.expected,
-      generated: params.generated,
-    };
+function getTsNodeFromExpectedType(
+  expectedType: TSESTree.TypeNode | ts.Node,
+  parser: ParserServices,
+): ts.Node {
+  if (isTypeScriptNode(expectedType)) {
+    return expectedType;
   }
 
-  expectedString = expectedString.replace(/'/g, '"');
-  generatedString = generatedString.replace(/'/g, '"');
+  return parser.esTreeNodeToTSNodeMap.get(expectedType);
+}
 
-  // The comparable form is already canonical, so no further reordering is needed.
-  if (params.transform !== undefined) {
-    generatedString = transformTypes(generatedString, params.transform);
-  }
+// `kind` is the reliable discriminator: it's unique to TypeScript AST nodes,
+// whereas a `ts.Node` can also carry a `type` property.
+function isTSESTreeTypeNode(value: TSESTree.TypeNode | ts.Node): value is TSESTree.TypeNode {
+  return !("kind" in value);
+}
 
-  return {
-    isEqual: expectedString === generatedString,
-    expected: params.expected,
-    generated: params.generated,
-  };
+function isTypeScriptNode(value: TSESTree.TypeNode | ts.Node): value is ts.Node {
+  return "kind" in value;
 }
 
 const createRule = ESLintUtils.RuleCreator(() => `https://github.com/ts-safeql/safeql`)<
@@ -729,6 +897,13 @@ export default createRule({
     return {
       TaggedTemplateExpression(tag) {
         check({ context, tag, config, projectDir });
+      },
+      CallExpression(node) {
+        if (!isTerminalBuilderCall(node)) {
+          return;
+        }
+
+        check({ context, tag: node, config, projectDir });
       },
     };
   },
