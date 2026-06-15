@@ -63,6 +63,7 @@ export default defineConfig({
         text: "Advanced",
         items: [
           { text: "Plugin API", link: "/guide/plugins" },
+          { text: "Extending to other ORMs", link: "/plugins/extending-to-other-orms" },
           { text: "Incremental adoption", link: "/advanced/incremental-adoption" },
         ],
       },
