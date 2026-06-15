@@ -1,0 +1,25 @@
+{
+  "name": "@ts-safeql-demos/plugin-kysely",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "lint": "eslint src"
+  },
+  "devDependencies": {
+    "@eslint/js": "catalog:",
+    "@types/node": "catalog:",
+    "@types/pg": "^8.11.10",
+    "eslint": "catalog:",
+    "kysely": "^0.28.2",
+    "pg": "^8.13.1",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:"
+  },
+  "dependencies": {
+    "@ts-safeql/eslint-plugin": "workspace:*",
+    "@ts-safeql/plugin-kysely": "workspace:*"
+  }
+}
