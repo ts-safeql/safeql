@@ -144,47 +144,16 @@ async function generate(
     value: () => getDatabaseMetadata(sql),
   });
 
-  const typesMap = await getOrSetFromMapWithEnabled({
+  const typesMap = await resolveTypesMap({
+    overrides: params.overrides,
+    cache,
     shouldCache: cacheMetadata,
-    map: cache.overrides.types,
-    key: JSON.stringify(params.overrides?.types),
-    value: () => {
-      const map: TypesMap = new Map([["array", { override: false, value: "array" }]]);
-
-      for (const [key, value] of defaultTypesMap.entries()) {
-        map.set(key, { override: false, value });
-      }
-
-      for (const [k, v] of Object.entries(params.overrides?.types ?? {})) {
-        map.set(k, { override: true, value: typeof v === "string" ? v : v.return });
-      }
-
-      return map;
-    },
   });
 
-  const overridenColumnTypesMap = await getOrSetFromMapWithEnabled({
+  const overridenColumnTypesMap = await resolveColumnOverridesMap({
+    overrides: params.overrides,
+    cache,
     shouldCache: cacheMetadata,
-    map: cache.overrides.columns,
-    key: JSON.stringify(params.overrides?.columns),
-    value: () => {
-      const map: Map<string, Map<string, string>> = new Map();
-
-      for (const [colPath, type] of Object.entries(params.overrides?.columns ?? {})) {
-        const [table, column] = colPath.split(".");
-
-        if (table === undefined || column === undefined) {
-          throw new Error(`Invalid override column key: ${colPath}. Expected format: table.column`);
-        }
-
-        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-        map.has(table)
-          ? map.get(table)?.set(column, type)
-          : map.set(table, new Map([[column, type]]));
-      }
-
-      return map;
-    },
   });
 
   const functionsMap = await getOrSetFromMapWithEnabled({
@@ -340,6 +309,61 @@ async function generate(
 
     throw e;
   }
+}
+
+function resolveTypesMap(params: {
+  overrides: GenerateParams["overrides"];
+  cache: Cache;
+  shouldCache: boolean;
+}): Promise<TypesMap> {
+  return getOrSetFromMapWithEnabled({
+    shouldCache: params.shouldCache,
+    map: params.cache.overrides.types,
+    key: JSON.stringify(params.overrides?.types),
+    value: () => {
+      const map: TypesMap = new Map([["array", { override: false, value: "array" }]]);
+
+      for (const [key, value] of defaultTypesMap.entries()) {
+        map.set(key, { override: false, value });
+      }
+
+      for (const [k, v] of Object.entries(params.overrides?.types ?? {})) {
+        map.set(k, { override: true, value: typeof v === "string" ? v : v.return });
+      }
+
+      return map;
+    },
+  });
+}
+
+function resolveColumnOverridesMap(params: {
+  overrides: GenerateParams["overrides"];
+  cache: Cache;
+  shouldCache: boolean;
+}): Promise<Map<string, Map<string, string>>> {
+  return getOrSetFromMapWithEnabled({
+    shouldCache: params.shouldCache,
+    map: params.cache.overrides.columns,
+    key: JSON.stringify(params.overrides?.columns),
+    value: () => {
+      const map: Map<string, Map<string, string>> = new Map();
+
+      for (const [colPath, type] of Object.entries(params.overrides?.columns ?? {})) {
+        const [table, column] = colPath.split(".");
+
+        if (table === undefined || column === undefined) {
+          throw new Error(`Invalid override column key: ${colPath}. Expected format: table.column`);
+        }
+
+        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+        map.has(table)
+          ? map.get(table)?.set(column, type)
+          : map.set(table, new Map([[column, type]]));
+      }
+
+      return map;
+    },
+  });
 }
 
 async function getDatabaseMetadata(sql: Sql) {
@@ -709,6 +733,7 @@ async function getPgCols(sql: Sql) {
           AND pg_class.relnamespace = pg_namespace.oid
           AND pg_attribute.attnum >= 1
       ORDER BY
+          pg_namespace.nspname,
           pg_class.relname,
           pg_attribute.attnum
   `;

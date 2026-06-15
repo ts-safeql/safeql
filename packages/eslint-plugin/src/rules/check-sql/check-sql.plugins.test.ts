@@ -74,7 +74,7 @@ ruleTester.run("plugin priority", checkSqlRule, {
           declare function sql(strings: TemplateStringsArray, ...values: unknown[]): unknown;
 
           sql\`TOTAL GARBAGE\`;
-        `,
+      `,
     },
   ],
   invalid: [],
