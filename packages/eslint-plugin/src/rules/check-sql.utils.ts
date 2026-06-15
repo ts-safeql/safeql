@@ -105,7 +105,7 @@ export function reportInvalidQueryError(params: {
 
 export function reportBaseError(params: {
   context: RuleContext;
-  tag: TSESTree.TaggedTemplateExpression;
+  tag: TSESTree.Node;
   error: WorkerError;
   hint?: string;
 }) {
@@ -123,7 +123,7 @@ export function reportBaseError(params: {
 }
 
 export function reportInvalidConfig(params: {
-  tag: TSESTree.TaggedTemplateExpression;
+  tag: TSESTree.Node;
   context: RuleContext;
   error: InvalidConfigError;
 }) {
@@ -132,7 +132,7 @@ export function reportInvalidConfig(params: {
   return context.report({
     node: tag,
     messageId: "invalidQuery",
-    loc: context.sourceCode.getLocFromIndex(tag.quasi.range[0]),
+    loc: context.sourceCode.getLocFromIndex(getNodeStartOffset(tag)),
     data: {
       error: error.message,
     },
@@ -140,7 +140,7 @@ export function reportInvalidConfig(params: {
 }
 
 export function reportDuplicateColumns(params: {
-  tag: TSESTree.TaggedTemplateExpression;
+  tag: TSESTree.Node;
   context: RuleContext;
   error: DuplicateColumnsError;
 }) {
@@ -164,7 +164,7 @@ export function reportDuplicateColumns(params: {
 
 export function reportPostgresError(params: {
   context: RuleContext;
-  tag: TSESTree.TaggedTemplateExpression;
+  tag: TSESTree.Node;
   error: PostgresError;
 }) {
   const { context, tag, error } = params;
@@ -187,8 +187,8 @@ export function reportPostgresError(params: {
 
 export function reportMissingTypeAnnotations(params: {
   context: RuleContext;
-  tag: TSESTree.TaggedTemplateExpression;
-  baseNode: TSESTree.BaseNode;
+  tag: TSESTree.Node;
+  baseNode: TSESTree.Node;
   actual: string;
   enforceType?: EnforceTypeOption;
 }) {
@@ -260,7 +260,7 @@ export function getDatabaseName(params: {
   return `safeql_${projectUnderscoreName}_${hash}`;
 }
 
-export function shouldLintFile(params: RuleContext) {
+export function shouldLintFile(params: { filename: string }) {
   const fileName = params.filename;
 
   for (const extension of ["ts", "tsx", "mts", "mtsx"]) {
@@ -579,6 +579,71 @@ export function getResolvedTargetComparableString(params: {
   }
 }
 
+export function getResolvedTargetsEquality(params: {
+  expected: ExpectedResolvedTarget | null;
+  generated: ResolvedTarget | null;
+  nullAsOptional: boolean;
+  nullAsUndefined: boolean;
+  inferLiterals: InferLiteralsOption;
+  transform?: TypeTransformer;
+}) {
+  if (params.expected === null && params.generated === null) {
+    return {
+      isEqual: true,
+      expected: params.expected,
+      generated: params.generated,
+    };
+  }
+
+  if (params.expected === null || params.generated === null) {
+    return {
+      isEqual: false,
+      expected: params.expected,
+      generated: params.generated,
+    };
+  }
+
+  // Normalized values are only used for the equality check below; the originals
+  // are returned unchanged for the error message.
+  const normalized = normalizeAnyForComparison(params.expected, params.generated);
+
+  let expectedString = getResolvedTargetComparableString({
+    target: normalized.expected,
+    nullAsOptional: false,
+    nullAsUndefined: false,
+    inferLiterals: params.inferLiterals,
+  });
+
+  let generatedString = getResolvedTargetComparableString({
+    target: normalized.generated,
+    nullAsOptional: params.nullAsOptional,
+    nullAsUndefined: params.nullAsUndefined,
+    inferLiterals: params.inferLiterals,
+  });
+
+  if (expectedString === null || generatedString === null) {
+    return {
+      isEqual: false,
+      expected: params.expected,
+      generated: params.generated,
+    };
+  }
+
+  expectedString = expectedString.replace(/'/g, '"');
+  generatedString = generatedString.replace(/'/g, '"');
+
+  // The comparable form is already canonical, so no further reordering is needed.
+  if (params.transform !== undefined) {
+    generatedString = transformTypes(generatedString, params.transform);
+  }
+
+  return {
+    isEqual: expectedString === generatedString,
+    expected: params.expected,
+    generated: params.generated,
+  };
+}
+
 export function getResolvedTargetString(params: {
   target: ExpectedResolvedTarget | ResolvedTarget;
   nullAsUndefined: boolean;
@@ -664,7 +729,7 @@ interface GetWordRangeInPositionParams {
     position: number;
     sourcemaps: QuerySourceMapEntry[];
   };
-  tag: TSESTree.TaggedTemplateExpression;
+  tag: TSESTree.Node;
   sourceCode: Readonly<SourceCode>;
 }
 
@@ -686,7 +751,7 @@ function getQueryErrorPosition({ error, tag, sourceCode }: GetWordRangeInPositio
   const syntaxErrorToken = error.message.match(/syntax error at or near "([^"]+)"/)?.[1];
 
   if (syntaxErrorToken) {
-    const templateText = sourceCode.text.slice(tag.quasi.range[0], tag.quasi.range[1]);
+    const templateText = sourceCode.text.slice(getNodeStartOffset(tag), tag.range[1]);
     const tokenIndex = findNearestMatchIndex(templateText, syntaxErrorToken, sourceRange[0]);
 
     if (tokenIndex !== undefined) {
@@ -743,13 +808,14 @@ function findNearestMatchIndex(text: string, searchText: string, position: numbe
 }
 
 function getSourceLocation(
-  tag: TSESTree.TaggedTemplateExpression,
+  tag: TSESTree.Node,
   sourceCode: Readonly<SourceCode>,
   range: [number, number],
   extendToWord = false,
 ): TSESTree.SourceLocation {
-  const start = sourceCode.getLocFromIndex(tag.quasi.range[0] + range[0]);
-  const end = sourceCode.getLocFromIndex(tag.quasi.range[0] + range[1]);
+  const tagStart = getNodeStartOffset(tag);
+  const start = sourceCode.getLocFromIndex(tagStart + range[0]);
+  const end = sourceCode.getLocFromIndex(tagStart + range[1]);
 
   if (!extendToWord) {
     return { start, end };
@@ -765,4 +831,8 @@ function getSourceLocation(
       column: end.column + wordLength,
     },
   };
+}
+
+function getNodeStartOffset(node: TSESTree.Node) {
+  return "quasi" in node ? node.quasi.range[0] : node.range[0];
 }

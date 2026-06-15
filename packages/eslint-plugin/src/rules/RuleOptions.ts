@@ -116,6 +116,25 @@ const zBaseSchema = z.object({
    * When used alone, at least one plugin must provide `createConnection`.
    */
   plugins: z.array(zPluginDescriptor).optional(),
+
+  /**
+   * Opt in to schema-drift validation (`check-schema`): diff a declared schema
+   * type (e.g. a generated `Database` type) against the live database.
+   * Requires a plugin that implements `resolveSchemaType`.
+   */
+  schema: z
+    .object({
+      /** Name of the schema type to verify (e.g. `"Database"`). */
+      type: z.string(),
+      /**
+       * How DB column names map to the type's property names. Required when the
+       * type is camelCase over a snake_case database.
+       */
+      fieldTransform: z.enum(["snake", "pascal", "camel", "screaming snake"]).optional(),
+      /** Table names to ignore (e.g. migration bookkeeping tables). */
+      excludeTables: z.array(z.string()).optional(),
+    })
+    .optional(),
 });
 
 export const zConnectionMigration = z.object({

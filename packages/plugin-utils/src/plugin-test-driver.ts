@@ -9,18 +9,34 @@ import type { SafeQLPlugin } from "./index";
 export interface PluginTestDriverOptions {
   plugin: SafeQLPlugin;
   projectDir: string;
+  /**
+   * Terminal method names that mark a builder `CallExpression` as the query to
+   * resolve via `toBuilderSQL`. Defaults to the common set; override for an ORM
+   * with different terminals.
+   */
+  terminalMethods?: string[];
 }
 
 export type ToSQLResult = { sql: string } | { skipped: true };
 
+const DEFAULT_TERMINAL_METHODS = [
+  "execute",
+  "executeTakeFirst",
+  "executeTakeFirstOrThrow",
+  "compile",
+  "stream",
+];
+
 export class PluginTestDriver {
   private readonly plugin: SafeQLPlugin;
+  private readonly terminalMethods: Set<string>;
   private readonly tmpDir: string;
   private readonly testFilePath: string;
   private readonly tsconfigPath: string;
 
   constructor(options: PluginTestDriverOptions) {
     this.plugin = options.plugin;
+    this.terminalMethods = new Set(options.terminalMethods ?? DEFAULT_TERMINAL_METHODS);
 
     this.tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "safeql-hook-test-"));
     this.testFilePath = path.join(this.tmpDir, "test.ts");
@@ -77,7 +93,10 @@ export class PluginTestDriver {
     let taggedTemplate: TSESTree.TaggedTemplateExpression | undefined;
     if (this.plugin.onTarget) {
       for (const t of allTemplates) {
-        const result = this.plugin.onTarget({ node: t, context: { checker, parser: services } });
+        const result = this.plugin.onTarget({
+          node: t,
+          context: { checker, parser: services },
+        });
         if (result !== undefined && result !== false) {
           taggedTemplate = t;
         }
@@ -89,6 +108,63 @@ export class PluginTestDriver {
     }
 
     return { sql: this.buildSQL(taggedTemplate, checker, nodeMap) };
+  }
+
+  /**
+   * Drive the rule-only `resolveQuery` hook over the outermost terminal-method
+   * `CallExpression` in `source` (e.g. `db.selectFrom(...).execute()`). Mirrors
+   * how the eslint rule invokes the hook, so a plugin's builder path can be
+   * unit-tested without a real database.
+   */
+  toBuilderSQL(source: string): ToSQLResult {
+    fs.writeFileSync(this.testFilePath, source);
+
+    const { ast, services } = parser.parseForESLint(source, {
+      filePath: this.testFilePath,
+      project: this.tsconfigPath,
+      loc: true,
+      range: true,
+      comment: false,
+      jsxPragma: null,
+    });
+
+    const checker = services.program?.getTypeChecker();
+    const nodeMap = services.esTreeNodeToTSNodeMap;
+
+    setParentPointers(ast);
+
+    if (!checker || !this.plugin.resolveQuery) {
+      return { skipped: true };
+    }
+
+    const calls = findAllCallExpressions(ast);
+    const terminal = calls.find((call) => this.isTerminalCallExpression(call));
+    if (!terminal) {
+      throw new Error("No terminal builder CallExpression found in source");
+    }
+
+    const tsNode = nodeMap.get(terminal);
+    const tsType = checker.getTypeAtLocation(tsNode);
+
+    const result = this.plugin.resolveQuery({
+      checker,
+      parser: services,
+      precedingSQL: "",
+      tsNode,
+      tsType,
+      tsTypeText: checker.typeToString(tsType),
+    });
+
+    return result === "skip" ? { skipped: true } : { sql: result.text };
+  }
+
+  private isTerminalCallExpression(node: TSESTree.CallExpression): boolean {
+    return (
+      node.callee.type === "MemberExpression" &&
+      !node.callee.computed &&
+      node.callee.property.type === "Identifier" &&
+      this.terminalMethods.has(node.callee.property.name)
+    );
   }
 
   private buildSQL(
@@ -165,6 +241,18 @@ function findAllTaggedTemplates(node: TSESTree.Node): TSESTree.TaggedTemplateExp
   }
 
   forEachChild(node, (child) => results.push(...findAllTaggedTemplates(child)));
+
+  return results;
+}
+
+function findAllCallExpressions(node: TSESTree.Node): TSESTree.CallExpression[] {
+  const results: TSESTree.CallExpression[] = [];
+
+  if (node.type === "CallExpression") {
+    results.push(node);
+  }
+
+  forEachChild(node, (child) => results.push(...findAllCallExpressions(child)));
 
   return results;
 }

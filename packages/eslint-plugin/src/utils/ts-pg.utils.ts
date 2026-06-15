@@ -4,7 +4,7 @@ import {
   normalizeIndent,
   QuerySourceMapEntry,
 } from "@ts-safeql/shared";
-import type { SafeQLPlugin } from "@ts-safeql/plugin-utils";
+import { type SafeQLPlugin } from "@ts-safeql/plugin-utils";
 import { InvalidQueryError } from "../errors";
 import { TSESTreeToTSNode } from "@typescript-eslint/typescript-estree";
 import { ParserServices, TSESLint, TSESTree } from "@typescript-eslint/utils";
@@ -610,7 +610,7 @@ function checkType(params: {
   }
 
   // Template-literal types (`${number}`) and string-mapping types (`Uppercase<string>`) are strings
-  // at runtime → `text`. This also resolves branded `Money` (its `${number}` base now lands here).
+  // at runtime → `text`. Branded types like `Money` resolve here via their `${number}` base.
   if (type.flags & (ts.TypeFlags.TemplateLiteral | ts.TypeFlags.StringMapping)) {
     return E.right({ kind: "cast", cast: isArray ? "text[]" : "text" });
   }
