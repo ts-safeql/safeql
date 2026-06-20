@@ -52,6 +52,12 @@ export function createConnectionManager() {
     ) => {
       return getOrCreateFromPlugins(plugins, connectionMap, pluginManager, projectDir);
     },
+    resolveMigrate: (
+      plugins: Array<{ package: string; config?: Record<string, unknown> }>,
+      projectDir: string,
+    ) => {
+      return pluginManager.resolveMigrate(plugins, projectDir);
+    },
     close: (strategy: ConnectionStrategy) => {
       return closeConnection(strategy, connectionMap, pluginManager);
     },

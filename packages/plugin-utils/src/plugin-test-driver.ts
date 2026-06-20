@@ -4,7 +4,7 @@ import path from "path";
 import parser from "@typescript-eslint/parser";
 import type ts from "typescript";
 import type { ParserServices, TSESTree } from "@typescript-eslint/utils";
-import type { SafeQLPlugin } from "./index";
+import { matchesQueryNodeSelector, type SafeQLPlugin } from "./index";
 
 export interface PluginTestDriverOptions {
   plugin: SafeQLPlugin;
@@ -77,7 +77,10 @@ export class PluginTestDriver {
     let taggedTemplate: TSESTree.TaggedTemplateExpression | undefined;
     if (this.plugin.onTarget) {
       for (const t of allTemplates) {
-        const result = this.plugin.onTarget({ node: t, context: { checker, parser: services } });
+        const result = this.plugin.onTarget({
+          node: t,
+          context: { checker, parser: services },
+        });
         if (result !== undefined && result !== false) {
           taggedTemplate = t;
         }
@@ -89,6 +92,54 @@ export class PluginTestDriver {
     }
 
     return { sql: this.buildSQL(taggedTemplate, checker, nodeMap) };
+  }
+
+  toBuilderSQL(source: string): ToSQLResult {
+    fs.writeFileSync(this.testFilePath, source);
+
+    const { ast, services } = parser.parseForESLint(source, {
+      filePath: this.testFilePath,
+      project: this.tsconfigPath,
+      loc: true,
+      range: true,
+      comment: false,
+      jsxPragma: null,
+    });
+
+    const checker = services.program?.getTypeChecker();
+    const nodeMap = services.esTreeNodeToTSNodeMap;
+
+    setParentPointers(ast);
+
+    if (!checker || !this.plugin.resolveQuery) {
+      return { skipped: true };
+    }
+
+    const calls = findAllCallExpressions(ast);
+    const terminal = calls.find((call) => this.isTerminalCallExpression(call));
+    if (!terminal) {
+      throw new Error("No terminal builder CallExpression found in source");
+    }
+
+    const tsNode = nodeMap.get(terminal);
+    const tsType = checker.getTypeAtLocation(tsNode);
+
+    const result = this.plugin.resolveQuery({
+      checker,
+      parser: services,
+      precedingSQL: "",
+      tsNode,
+      tsType,
+      tsTypeText: checker.typeToString(tsType),
+    });
+
+    return result === "skip" ? { skipped: true } : { sql: result.text };
+  }
+
+  private isTerminalCallExpression(node: TSESTree.CallExpression): boolean {
+    return (this.plugin.queryNodeKinds ?? []).some((selector) =>
+      matchesQueryNodeSelector(node, selector),
+    );
   }
 
   private buildSQL(
@@ -165,6 +216,18 @@ function findAllTaggedTemplates(node: TSESTree.Node): TSESTree.TaggedTemplateExp
   }
 
   forEachChild(node, (child) => results.push(...findAllTaggedTemplates(child)));
+
+  return results;
+}
+
+function findAllCallExpressions(node: TSESTree.Node): TSESTree.CallExpression[] {
+  const results: TSESTree.CallExpression[] = [];
+
+  if (node.type === "CallExpression") {
+    results.push(node);
+  }
+
+  forEachChild(node, (child) => results.push(...findAllCallExpressions(child)));
 
   return results;
 }
