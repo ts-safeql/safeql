@@ -2,6 +2,20 @@ import type { ParserServices, TSESLint, TSESTree } from "@typescript-eslint/util
 import type ts from "typescript";
 import type { Sql } from "postgres";
 
+export type QuerySourceMapEntry = {
+  original: {
+    start: number;
+    end: number;
+    text: string;
+  };
+  generated: {
+    start: number;
+    end: number;
+    text: string;
+  };
+  offset: number;
+};
+
 export interface ExpressionContext {
   precedingSQL: string;
   checker: ts.TypeChecker;
@@ -15,41 +29,91 @@ export interface TargetContext {
   parser: ParserServices;
 }
 
-/**
- * The object returned by a plugin's `setup` function (plus `name`).
- * Each property is an optional hook into SafeQL's analysis pipeline.
- */
+export interface ResolveQueryContext {
+  checker: ts.TypeChecker;
+  parser: ParserServices;
+  precedingSQL: string;
+  tsNode: ts.Node;
+  // Supplied lazily by the core; a resolver that gates syntactically and never reads them
+  // pays no checker cost.
+  readonly tsType: ts.Type;
+  readonly tsTypeText: string;
+}
+
+// Declarative selector for a non-tag query node. The core matches these syntactically and
+// never interprets what the names mean, so no library vocabulary leaks into the engine.
+// `callee.property.nameIn` admits a non-computed member call whose method name is listed;
+// omit it to admit every CallExpression (the plugin must then disown via `resolveQuery` "skip").
+export type QueryNodeSelector =
+  | { kind: "CallExpression"; callee?: { property?: { nameIn: string[] } } }
+  | { kind: "TaggedTemplateExpression" };
+
+export function matchesQueryNodeSelector(
+  node: TSESTree.Node,
+  selector: QueryNodeSelector,
+): boolean {
+  if (selector.kind === "TaggedTemplateExpression") {
+    return node.type === "TaggedTemplateExpression";
+  }
+
+  if (node.type !== "CallExpression") {
+    return false;
+  }
+
+  const nameIn = selector.callee?.property?.nameIn;
+  if (nameIn === undefined) {
+    return true;
+  }
+
+  return (
+    node.callee.type === "MemberExpression" &&
+    !node.callee.computed &&
+    node.callee.property.type === "Identifier" &&
+    nameIn.includes(node.callee.property.name)
+  );
+}
+
+export type ResolvedQuery = {
+  kind: "sql";
+  text: string;
+  sourcemaps: QuerySourceMapEntry[];
+};
+
+// The freshly-created, empty shadow database to apply the project's migrations to.
+export interface MigrateContext {
+  databaseUrl: string;
+  sql: Sql;
+  migrationsDir: string;
+  projectDir: string;
+}
+
+// The object a plugin's `setup` returns (plus `name`); each property is an optional pipeline hook.
 export interface SafeQLPlugin {
   name: string;
 
-  /** Deep-merged into the connection config. User-provided values always win. */
+  // Deep-merged into the connection config; user-provided values win.
   connectionDefaults?: Record<string, unknown>;
 
   createConnection?: {
-    /** Stable identifier for connection deduplication. Same key reuses the existing connection. */
+    // Same key reuses an existing connection.
     cacheKey: string;
     handler(): Promise<Sql>;
   };
 
-  /**
-   * Called for every `TaggedTemplateExpression` in the file.
-   *
-   * @returns `TargetMatch` to check this tag as SQL,
-   *          `false` to skip it,
-   *          `undefined` to defer to the next plugin or SafeQL's default matching.
-   */
+  // Apply project migrations to the shadow DB, replacing the built-in `.sql` runner. Throw to surface failures.
+  migrate?(context: MigrateContext): Promise<void>;
+
+  // Returns a TargetMatch to check the tag, `false` to skip, `undefined` to defer.
   onTarget?(params: {
     node: TSESTree.TaggedTemplateExpression;
     context: TargetContext;
   }): TargetMatch | false | undefined;
 
-  /**
-   * Called for each interpolated expression inside a matched template.
-   *
-   * @returns A SQL fragment (use `$N` as the positional placeholder),
-   *          `false` to skip the entire query,
-   *          `undefined` to use SafeQL's default `$N::type` behaviour.
-   */
+  // Non-tag query entrypoint (e.g. builder chains). Rule-only hook (runs in the checker process).
+  queryNodeKinds?: QueryNodeSelector[];
+  resolveQuery?(params: ResolveQueryContext): ResolvedQuery | "skip";
+
+  // Per interpolated expression: a SQL fragment (`$N` placeholder), `false` to skip, `undefined` for default `$N::type`.
   onExpression?(params: {
     node: TSESTree.Expression;
     context: ExpressionContext;
@@ -63,14 +127,7 @@ export type PluginResolvedTarget =
   | { kind: "array"; value: PluginResolvedTarget }
   | { kind: "object"; value: [string, PluginResolvedTarget][] };
 
-/**
- * Checks whether `actual` (DB-resolved type) is assignable to `expected`
- * (user-declared type, e.g. from a Zod schema) using TypeScript semantics.
- *
- * @param actual   - What the query actually returns.
- * @param expected - What the plugin or user declared.
- * @returns `true` when `actual` is assignable to `expected`.
- */
+// Whether `actual` (DB-resolved) is assignable to `expected` (user-declared) under TypeScript semantics.
 export function isAssignableTo(
   actual: PluginResolvedTarget,
   expected: PluginResolvedTarget,
@@ -128,46 +185,36 @@ function isLiteralOfType(literalValue: string, typeName: string): boolean {
   return false;
 }
 
-/** Passed to a plugin's {@link TargetMatch.typeCheck} after the query is resolved against the database. */
 export interface TypeCheckContext {
   node: TSESTree.TaggedTemplateExpression;
-  /** What the query actually returns (DB-resolved columns). */
   output: PluginResolvedTarget;
   checker: ts.TypeChecker;
   parser: ParserServices;
   sourceCode: Readonly<TSESLint.SourceCode>;
-  /** Normalises a target into a stable string, respecting `nullAsOptional` / `nullAsUndefined`. */
   getComparableString(target: PluginResolvedTarget): string;
 }
 
-/**
- * Returned by {@link TargetMatch.typeCheck} when the types do not match.
- * Return `undefined` from `typeCheck` when the types are correct.
- */
+// Return from `typeCheck` only on mismatch (`undefined` when types are correct).
 export interface TypeCheckReport {
   message: string;
-  /** Defaults to the tag expression when omitted. */
   node?: TSESTree.Node;
-  /** When provided, ESLint will offer an auto-fix replacing `node` with `text`. */
   fix?: { node: TSESTree.Node; text: string };
 }
 
 export interface TargetMatch {
   skipTypeAnnotations?: boolean;
-  /** When set, SafeQL delegates type comparison to the plugin instead of the built-in check. */
+  // When set, SafeQL delegates type comparison to the plugin.
   typeCheck?: (ctx: TypeCheckContext) => TypeCheckReport | undefined;
 }
 
-/** Serialisable descriptor produced by the config helper and consumed by the worker. */
 export interface PluginDescriptor {
   package: string;
   config?: Record<string, unknown>;
 }
 
 export interface DefinePluginOptions<TConfig> {
-  /** Prefixed with `safeql-plugin-` automatically. */
+  // Prefixed with `safeql-plugin-` automatically.
   name: string;
-  /** npm package name. Used to resolve the plugin in the worker. */
   package: string;
   setup: (config: TConfig) => Omit<SafeQLPlugin, "name">;
 }
@@ -178,31 +225,7 @@ export type SafeQLPluginExport<TConfig> = ({} extends TConfig
   factory: (config: TConfig) => SafeQLPlugin;
 };
 
-/**
- * Define a SafeQL plugin. The returned function is both the user-facing config
- * helper and (via `.factory`) the worker-side plugin constructor.
- *
- * @example
- * ```ts
- * // my-plugin/src/index.ts
- * export default definePlugin<MyConfig>({
- *   name: "my-db",
- *   package: "safeql-plugin-my-db",
- *   setup(config) {
- *     return {
- *       createConnection: {
- *         cacheKey: `my-db://${config.host}`,
- *         async handler() { return postgres(config.host); },
- *       },
- *     };
- *   },
- * });
- *
- * // eslint.config.js
- * import myDb from "safeql-plugin-my-db";
- * plugins: [myDb({ host: "localhost" })]
- * ```
- */
+// The returned function is both the user-facing config helper and (via `.factory`) the worker-side constructor.
 export function definePlugin<TConfig extends Record<string, unknown> = {}>(
   options: DefinePluginOptions<TConfig>,
 ): SafeQLPluginExport<TConfig> {
@@ -222,3 +245,5 @@ export function definePlugin<TConfig extends Record<string, unknown> = {}>(
 }
 
 export { PluginManager } from "./resolve";
+
+export * as ast from "./ast";
