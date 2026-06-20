@@ -53,6 +53,9 @@ jobs:
           PGDATABASE: postgres
       - run: pnpm build
       - run: pnpm typecheck
-      - run: pnpm lint
+      # `lint` and `test` parse SQL via libpg-query in synckit workers; spawning many in parallel
+      # on a cold run exhausts native resources and aborts (`v8::ToLocalChecked Empty MaybeLocal`).
+      # Call turbo directly so `--concurrency` is turbo's flag, not forwarded to eslint/vitest.
+      - run: pnpm exec turbo run lint --concurrency=1
       - run: pnpm format
-      - run: pnpm test
+      - run: pnpm exec turbo run test --concurrency=2
