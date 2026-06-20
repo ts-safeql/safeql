@@ -34,6 +34,9 @@ jobs:
     env:
       TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
       TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+      # Cold runs build/lint/test every package fresh; the default V8 heap is too small for the
+      # largest TypeScript programs and aborts with `v8::ToLocalChecked Empty MaybeLocal`.
+      NODE_OPTIONS: "--max-old-space-size=4096"
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v6
