@@ -34,9 +34,6 @@ jobs:
     env:
       TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
       TURBO_TEAM: ${{ vars.TURBO_TEAM }}
-      # Cold runs build/lint/test every package fresh; the default V8 heap is too small for the
-      # largest TypeScript programs and aborts with `v8::ToLocalChecked Empty MaybeLocal`.
-      NODE_OPTIONS: "--max-old-space-size=4096"
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v6
@@ -53,9 +50,6 @@ jobs:
           PGDATABASE: postgres
       - run: pnpm build
       - run: pnpm typecheck
-      # `lint` and `test` parse SQL via libpg-query in synckit workers; spawning many in parallel
-      # on a cold run exhausts native resources and aborts (`v8::ToLocalChecked Empty MaybeLocal`).
-      # Call turbo directly so `--concurrency` is turbo's flag, not forwarded to eslint/vitest.
-      - run: pnpm exec turbo run lint --concurrency=1
+      - run: pnpm lint
       - run: pnpm format
-      - run: pnpm exec turbo run test --concurrency=2
+      - run: pnpm test
