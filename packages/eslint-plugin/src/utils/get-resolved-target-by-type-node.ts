@@ -1,5 +1,6 @@
 import { ParserServices, TSESTree } from "@typescript-eslint/utils";
-import ts from "typescript";
+import type * as ts from "typescript";
+import { TS } from "../ts";
 
 type GetResolvedTargetByTypeNodeParams = {
   typeNode?: TSESTree.TypeNode;
@@ -236,12 +237,12 @@ function getPrimitiveType(type: ts.Type, typeAsString: string): ExpectedResolved
   }
 
   const flagMap = {
-    [ts.TypeFlags.String]: "string",
-    [ts.TypeFlags.Number]: "number",
-    [ts.TypeFlags.Boolean]: "boolean",
-    [ts.TypeFlags.Null]: "null",
-    [ts.TypeFlags.Undefined]: "undefined",
-    [ts.TypeFlags.Any]: "any",
+    [TS.TypeFlags.String]: "string",
+    [TS.TypeFlags.Number]: "number",
+    [TS.TypeFlags.Boolean]: "boolean",
+    [TS.TypeFlags.Null]: "null",
+    [TS.TypeFlags.Undefined]: "undefined",
+    [TS.TypeFlags.Any]: "any",
   } as const;
 
   return flagMap[type.flags as keyof typeof flagMap]
@@ -321,7 +322,7 @@ function handleObjectType(
     return { kind: "type", value: type.symbol.name };
   }
 
-  if (type.flags === ts.TypeFlags.Object) {
+  if (type.flags === TS.TypeFlags.Object) {
     return extractObjectProperties(type, params);
   }
 

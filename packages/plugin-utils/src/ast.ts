@@ -1,5 +1,6 @@
 import path from "path";
-import ts from "typescript";
+import type * as ts from "typescript";
+import { TS } from "./ts";
 
 export * as estree from "./ast-estree";
 
@@ -10,12 +11,12 @@ export const UNRESOLVED = Symbol("unresolved");
 export function unwrap(params: { node: ts.Node }): ts.Node {
   const { node } = params;
   if (
-    ts.isAsExpression(node) ||
-    ts.isParenthesizedExpression(node) ||
-    ts.isNonNullExpression(node) ||
-    ts.isSatisfiesExpression(node) ||
-    ts.isTypeAssertionExpression(node) ||
-    ts.isAwaitExpression(node)
+    TS.isAsExpression(node) ||
+    TS.isParenthesizedExpression(node) ||
+    TS.isNonNullExpression(node) ||
+    TS.isSatisfiesExpression(node) ||
+    TS.isTypeAssertionExpression(node) ||
+    TS.isAwaitExpression(node)
   ) {
     return unwrap({ node: node.expression });
   }
@@ -25,9 +26,9 @@ export function unwrap(params: { node: ts.Node }): ts.Node {
 
 export function getRootIdentifier(params: { node: ts.Node }): ts.Identifier | undefined {
   const node = unwrap(params);
-  if (ts.isIdentifier(node)) return node;
-  if (ts.isPropertyAccessExpression(node)) return getRootIdentifier({ node: node.expression });
-  if (ts.isCallExpression(node)) return getRootIdentifier({ node: node.expression });
+  if (TS.isIdentifier(node)) return node;
+  if (TS.isPropertyAccessExpression(node)) return getRootIdentifier({ node: node.expression });
+  if (TS.isCallExpression(node)) return getRootIdentifier({ node: node.expression });
   return undefined;
 }
 
@@ -82,21 +83,21 @@ function evaluateStaticValue(
 
   const expression = unwrap({ node });
 
-  if (ts.isStringLiteralLike(expression)) return expression.text;
-  if (ts.isNumericLiteral(expression)) return Number(expression.text);
-  if (ts.isBigIntLiteral(expression)) return BigInt(expression.text.replace(/n$/, ""));
-  if (expression.kind === ts.SyntaxKind.TrueKeyword) return true;
-  if (expression.kind === ts.SyntaxKind.FalseKeyword) return false;
-  if (expression.kind === ts.SyntaxKind.NullKeyword) return null;
+  if (TS.isStringLiteralLike(expression)) return expression.text;
+  if (TS.isNumericLiteral(expression)) return Number(expression.text);
+  if (TS.isBigIntLiteral(expression)) return BigInt(expression.text.replace(/n$/, ""));
+  if (expression.kind === TS.SyntaxKind.TrueKeyword) return true;
+  if (expression.kind === TS.SyntaxKind.FalseKeyword) return false;
+  if (expression.kind === TS.SyntaxKind.NullKeyword) return null;
 
-  if (ts.isPrefixUnaryExpression(expression) && expression.operator === ts.SyntaxKind.MinusToken) {
+  if (TS.isPrefixUnaryExpression(expression) && expression.operator === TS.SyntaxKind.MinusToken) {
     const operand = evaluateStaticValue(expression.operand, checker, visited);
     if (typeof operand === "number") return -operand;
     if (typeof operand === "bigint") return -operand;
     return UNRESOLVED;
   }
 
-  if (ts.isIdentifier(expression)) {
+  if (TS.isIdentifier(expression)) {
     const symbol = resolveAliasedSymbol({
       checker,
       symbol: checker.getSymbolAtLocation(expression),
@@ -113,10 +114,10 @@ function evaluateStaticValue(
     );
   }
 
-  if (ts.isArrayLiteralExpression(expression)) {
+  if (TS.isArrayLiteralExpression(expression)) {
     const values: StaticValue[] = [];
     for (const element of expression.elements) {
-      if (ts.isSpreadElement(element)) return UNRESOLVED;
+      if (TS.isSpreadElement(element)) return UNRESOLVED;
       const value = evaluateStaticValue(element, checker, visited);
       if (value === UNRESOLVED) return UNRESOLVED;
       values.push(value);
@@ -139,11 +140,11 @@ export function findInitializer(params: {
   });
 
   for (const declaration of resolved?.declarations ?? []) {
-    if (ts.isVariableDeclaration(declaration) && declaration.initializer) {
+    if (TS.isVariableDeclaration(declaration) && declaration.initializer) {
       return declaration.initializer;
     }
 
-    if (ts.isBindingElement(declaration)) {
+    if (TS.isBindingElement(declaration)) {
       const bound = getBindingInitializer({ element: declaration });
       if (bound) return bound;
       if (declaration.initializer) return declaration.initializer;
@@ -162,11 +163,11 @@ export function getBindingInitializer(params: {
   const source = getBindingSource(element.parent);
   if (!source) return undefined;
 
-  if (ts.isObjectBindingPattern(element.parent)) {
+  if (TS.isObjectBindingPattern(element.parent)) {
     return resolveObjectBindingElementInitializer(element, source);
   }
 
-  if (ts.isArrayBindingPattern(element.parent)) {
+  if (TS.isArrayBindingPattern(element.parent)) {
     return resolveArrayBindingElementInitializer(element, source);
   }
 
@@ -176,8 +177,8 @@ export function getBindingInitializer(params: {
 export function getMethodName(params: { node: ts.Node }): string | undefined {
   const current = unwrap(params);
 
-  if (ts.isPropertyAccessExpression(current)) return current.name.text;
-  if (ts.isCallExpression(current) && ts.isPropertyAccessExpression(current.expression)) {
+  if (TS.isPropertyAccessExpression(current)) return current.name.text;
+  if (TS.isCallExpression(current) && TS.isPropertyAccessExpression(current.expression)) {
     return current.expression.name.text;
   }
 
@@ -188,7 +189,7 @@ export function getStringLiterals(params: { nodes: readonly ts.Node[] }): string
   const parts: string[] = [];
 
   for (const node of params.nodes) {
-    if (!ts.isStringLiteralLike(node)) return undefined;
+    if (!TS.isStringLiteralLike(node)) return undefined;
     parts.push(node.text);
   }
 
@@ -198,8 +199,8 @@ export function getStringLiterals(params: { nodes: readonly ts.Node[] }): string
 function getBindingSource(pattern: ts.BindingPattern): ts.Expression | undefined {
   const owner = pattern.parent;
 
-  if (ts.isVariableDeclaration(owner)) return owner.initializer;
-  if (ts.isBindingElement(owner)) return getBindingInitializer({ element: owner });
+  if (TS.isVariableDeclaration(owner)) return owner.initializer;
+  if (TS.isBindingElement(owner)) return getBindingInitializer({ element: owner });
 
   return undefined;
 }
@@ -208,48 +209,48 @@ function resolveObjectBindingElementInitializer(
   element: ts.BindingElement,
   source: ts.Expression,
 ): ts.Expression | undefined {
-  if (!ts.isObjectLiteralExpression(source)) return undefined;
+  if (!TS.isObjectLiteralExpression(source)) return undefined;
 
   const propertyName = getPropertyName({ node: element.propertyName ?? element.name });
   if (!propertyName) return undefined;
 
   const property = source.properties.find(
     (candidate): candidate is ts.PropertyAssignment | ts.ShorthandPropertyAssignment =>
-      (ts.isPropertyAssignment(candidate) || ts.isShorthandPropertyAssignment(candidate)) &&
+      (TS.isPropertyAssignment(candidate) || TS.isShorthandPropertyAssignment(candidate)) &&
       getPropertyName({ node: candidate.name }) === propertyName,
   );
 
   if (!property) return undefined;
-  return ts.isPropertyAssignment(property) ? property.initializer : property.name;
+  return TS.isPropertyAssignment(property) ? property.initializer : property.name;
 }
 
 function resolveArrayBindingElementInitializer(
   element: ts.BindingElement,
   source: ts.Expression,
 ): ts.Expression | undefined {
-  if (!ts.isArrayLiteralExpression(source)) return undefined;
+  if (!TS.isArrayLiteralExpression(source)) return undefined;
 
   const index = element.parent.elements.indexOf(element);
   if (index < 0) return undefined;
 
   const value = source.elements[index];
-  return value && !ts.isOmittedExpression(value) && !ts.isSpreadElement(value) ? value : undefined;
+  return value && !TS.isOmittedExpression(value) && !TS.isSpreadElement(value) ? value : undefined;
 }
 
 export function getPropertyName(params: {
   node: ts.PropertyName | ts.BindingName;
 }): string | undefined {
   const { node } = params;
-  if (ts.isIdentifier(node) || ts.isPrivateIdentifier(node)) return node.text;
-  if (ts.isStringLiteralLike(node) || ts.isNumericLiteral(node)) return node.text;
+  if (TS.isIdentifier(node) || TS.isPrivateIdentifier(node)) return node.text;
+  if (TS.isStringLiteralLike(node) || TS.isNumericLiteral(node)) return node.text;
   return undefined;
 }
 
 export function getMemberNames(params: { node: ts.Node }): string[] {
   const expression = unwrap(params);
 
-  if (ts.isIdentifier(expression)) return [expression.text];
-  if (ts.isPropertyAccessExpression(expression)) {
+  if (TS.isIdentifier(expression)) return [expression.text];
+  if (TS.isPropertyAccessExpression(expression)) {
     return [...getMemberNames({ node: expression.expression }), expression.name.text];
   }
 
@@ -262,7 +263,7 @@ export function resolveAliasedSymbol(params: {
 }): ts.Symbol | undefined {
   const { checker, symbol } = params;
   if (!symbol) return undefined;
-  return symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
+  return symbol.flags & TS.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
 }
 
 export function getSymbolCandidates(params: {
@@ -277,11 +278,11 @@ export function getSymbolCandidates(params: {
 function isImportedFromModule(symbol: ts.Symbol, moduleName: string): boolean {
   return (symbol.declarations ?? []).some((declaration) => {
     let current: ts.Node | undefined = declaration;
-    while (current && !ts.isImportDeclaration(current)) current = current.parent;
+    while (current && !TS.isImportDeclaration(current)) current = current.parent;
 
     return (
       current?.moduleSpecifier !== undefined &&
-      ts.isStringLiteralLike(current.moduleSpecifier) &&
+      TS.isStringLiteralLike(current.moduleSpecifier) &&
       current.moduleSpecifier.text === moduleName
     );
   });

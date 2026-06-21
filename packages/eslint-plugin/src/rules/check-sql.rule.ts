@@ -19,7 +19,8 @@ import {
 } from "@typescript-eslint/utils";
 import { JSONSchema4 } from "@typescript-eslint/utils/json-schema";
 import { match } from "ts-pattern";
-import ts from "typescript";
+import type * as ts from "typescript";
+import { TS } from "../ts";
 import { ESTreeUtils } from "../utils";
 import { E, J, flow, pipe } from "../utils/fp-ts";
 import {
@@ -687,7 +688,7 @@ function calleeAcceptsTypeArgument(
   parser: ParserServicesWithTypeInformation,
 ): boolean {
   const tsCall = parser.esTreeNodeToTSNodeMap.get(node);
-  if (tsCall === undefined || !ts.isCallExpression(tsCall)) {
+  if (tsCall === undefined || !TS.isCallExpression(tsCall)) {
     return false;
   }
 
