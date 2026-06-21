@@ -11,7 +11,7 @@ import {
 } from "@ts-safeql/shared";
 import * as LibPgQueryAST from "@ts-safeql/sql-ast";
 import { either } from "fp-ts";
-import * as parser from "libpg-query";
+import { createRequire } from "node:module";
 import postgres from "postgres";
 import { ASTDescribedColumn, getASTDescription } from "./ast-describe";
 import { ColType } from "./utils/colTypes";
@@ -20,6 +20,8 @@ import {
   isTableNullableDueToJoin,
 } from "./utils/get-relations-with-joins";
 import { isParsedInsertResult, validateInsertResult } from "./utils/validate-insert";
+
+const parser = createRequire(import.meta.url)("libpg-query") as typeof import("libpg-query");
 
 type JSToPostgresTypeMap = Record<string, unknown>;
 type Sql = postgres.Sql<JSToPostgresTypeMap>;

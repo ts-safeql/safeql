@@ -8,7 +8,9 @@ import { type SafeQLPlugin } from "@ts-safeql/plugin-utils";
 import { InvalidQueryError } from "../errors";
 import { TSESTreeToTSNode } from "@typescript-eslint/typescript-estree";
 import { ParserServices, TSESLint, TSESTree } from "@typescript-eslint/utils";
-import ts, { TypeChecker } from "typescript";
+import type * as ts from "typescript";
+import type { TypeChecker } from "typescript";
+import { TS } from "../ts";
 import { RuleOptionConnection } from "../rules/RuleOptions";
 import { E, pipe } from "./fp-ts";
 import { TSUtils } from "./ts.utils";
@@ -320,14 +322,14 @@ const tsTypeToPgTypeMap: Record<string, string> = {
 };
 
 const tsFlagToPgTypeMap: Record<number, string> = {
-  [ts.TypeFlags.String]: "text",
-  [ts.TypeFlags.Number]: "int",
-  [ts.TypeFlags.Boolean]: "boolean",
-  [ts.TypeFlags.BigInt]: "bigint",
-  [ts.TypeFlags.NumberLiteral]: "int",
-  [ts.TypeFlags.StringLiteral]: "text",
-  [ts.TypeFlags.BooleanLiteral]: "boolean",
-  [ts.TypeFlags.BigIntLiteral]: "bigint",
+  [TS.TypeFlags.String]: "text",
+  [TS.TypeFlags.Number]: "int",
+  [TS.TypeFlags.Boolean]: "boolean",
+  [TS.TypeFlags.BigInt]: "bigint",
+  [TS.TypeFlags.NumberLiteral]: "int",
+  [TS.TypeFlags.StringLiteral]: "text",
+  [TS.TypeFlags.BooleanLiteral]: "boolean",
+  [TS.TypeFlags.BigIntLiteral]: "bigint",
 };
 
 function getPgTypeFromTsTypeUnion(params: {
@@ -336,13 +338,13 @@ function getPgTypeFromTsTypeUnion(params: {
   options: RuleOptionConnection;
 }): E.Either<string, PgTypeStrategy | null> {
   const { types, checker, options } = params;
-  const nonNullTypes = types.filter((t) => (t.flags & ts.TypeFlags.Null) === 0);
+  const nonNullTypes = types.filter((t) => (t.flags & TS.TypeFlags.Null) === 0);
 
   if (nonNullTypes.length === 0) {
     return E.right(null);
   }
 
-  const isStringLiterals = nonNullTypes.every((t) => t.flags & ts.TypeFlags.StringLiteral);
+  const isStringLiterals = nonNullTypes.every((t) => t.flags & TS.TypeFlags.StringLiteral);
 
   if (isStringLiterals) {
     return E.right({
@@ -484,7 +486,7 @@ function getPgTypeFromTsType(params: {
 }): E.Either<string, PgTypeStrategy | null> {
   const { checker, node, type, options } = params;
 
-  if (node.kind === ts.SyntaxKind.ConditionalExpression) {
+  if (node.kind === TS.SyntaxKind.ConditionalExpression) {
     const whenTrue = checkType({
       checker,
       type: checker.getTypeAtLocation(node.whenTrue),
@@ -539,7 +541,7 @@ function checkType(params: {
 }): E.Either<string, PgTypeStrategy | null> {
   const { checker, type, options } = params;
 
-  if (type.flags & ts.TypeFlags.Null) {
+  if (type.flags & TS.TypeFlags.Null) {
     return E.right(null);
   }
 
@@ -611,7 +613,7 @@ function checkType(params: {
 
   // Template-literal types (`${number}`) and string-mapping types (`Uppercase<string>`) are strings
   // at runtime → `text`. Branded types like `Money` resolve here via their `${number}` base.
-  if (type.flags & (ts.TypeFlags.TemplateLiteral | ts.TypeFlags.StringMapping)) {
+  if (type.flags & (TS.TypeFlags.TemplateLiteral | TS.TypeFlags.StringMapping)) {
     return E.right({ kind: "cast", cast: isArray ? "text[]" : "text" });
   }
 

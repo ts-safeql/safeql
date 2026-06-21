@@ -16,24 +16,29 @@ export type ToSQLResult = { sql: string } | { skipped: true };
 export class PluginTestDriver {
   private readonly plugin: SafeQLPlugin;
   private readonly tmpDir: string;
-  private readonly testFilePath: string;
-  private readonly tsconfigPath: string;
+  private parseCount = 0;
 
   constructor(options: PluginTestDriverOptions) {
     this.plugin = options.plugin;
 
     this.tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "safeql-hook-test-"));
-    this.testFilePath = path.join(this.tmpDir, "test.ts");
-    this.tsconfigPath = path.join(this.tmpDir, "tsconfig.json");
 
     const srcNodeModules = path.join(options.projectDir, "node_modules");
     const dstNodeModules = path.join(this.tmpDir, "node_modules");
     if (fs.existsSync(srcNodeModules) && !fs.existsSync(dstNodeModules)) {
       fs.symlinkSync(srcNodeModules, dstNodeModules);
     }
+  }
 
+  private parse(source: string): ReturnType<typeof parser.parseForESLint> {
+    const id = this.parseCount++;
+    const fileName = `test-${id}.ts`;
+    const filePath = path.join(this.tmpDir, fileName);
+    const tsconfigPath = path.join(this.tmpDir, `tsconfig-${id}.json`);
+
+    fs.writeFileSync(filePath, source);
     fs.writeFileSync(
-      this.tsconfigPath,
+      tsconfigPath,
       JSON.stringify({
         compilerOptions: {
           strict: true,
@@ -43,22 +48,22 @@ export class PluginTestDriver {
           esModuleInterop: true,
           skipLibCheck: true,
         },
-        include: ["test.ts"],
+        include: [fileName],
       }),
     );
-  }
 
-  toSQL(source: string): ToSQLResult {
-    fs.writeFileSync(this.testFilePath, source);
-
-    const { ast, services } = parser.parseForESLint(source, {
-      filePath: this.testFilePath,
-      project: this.tsconfigPath,
+    return parser.parseForESLint(source, {
+      filePath,
+      project: tsconfigPath,
       loc: true,
       range: true,
       comment: false,
       jsxPragma: null,
     });
+  }
+
+  toSQL(source: string): ToSQLResult {
+    const { ast, services } = this.parse(source);
 
     const checker = services.program?.getTypeChecker();
     const nodeMap = services.esTreeNodeToTSNodeMap;
@@ -95,16 +100,7 @@ export class PluginTestDriver {
   }
 
   toBuilderSQL(source: string): ToSQLResult {
-    fs.writeFileSync(this.testFilePath, source);
-
-    const { ast, services } = parser.parseForESLint(source, {
-      filePath: this.testFilePath,
-      project: this.tsconfigPath,
-      loc: true,
-      range: true,
-      comment: false,
-      jsxPragma: null,
-    });
+    const { ast, services } = this.parse(source);
 
     const checker = services.program?.getTypeChecker();
     const nodeMap = services.esTreeNodeToTSNodeMap;
