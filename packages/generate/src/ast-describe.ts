@@ -459,7 +459,7 @@ function getDescribedAExpr({
           name,
           type: resolveType({
             context,
-            nullable: true,
+            nullable: !context.nonNullableColumns.has(name),
             type: context.toTypeScriptType({ name: "bool" }),
           }),
         },
@@ -1270,15 +1270,8 @@ function resTargetMatchesColumn(
 }
 
 function getAliasOrColumnRefName(target: LibPgQueryAST.ResTarget): string | undefined {
-  if (target.name !== undefined) {
-    return target.name;
-  }
-
-  if (target.val?.ColumnRef === undefined) {
-    return undefined;
-  }
-
-  return target.val.ColumnRef.fields?.at(-1)?.String?.sval;
+  const name = getOutputColumnKey(target.name, target.val);
+  return name === "?column?" ? undefined : name;
 }
 
 function getContextForColumnRef(

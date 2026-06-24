@@ -92,6 +92,20 @@ test("select from cte with coalesce", async () => {
   });
 });
 
+test("select unaliased coalesce expression through cte", async () => {
+  await testQuery({
+    query: `
+      WITH t AS (
+        SELECT coalesce(first_name, 'unknown')
+        FROM member
+      )
+      SELECT t.coalesce
+      FROM t
+    `,
+    expected: [["coalesce", { kind: "type", type: "text", value: "string" }]],
+  });
+});
+
 test("left join nullable column stays nullable through cte", async () => {
   await testQuery({
     query: `
