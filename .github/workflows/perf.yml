@@ -1,0 +1,98 @@
+name: Performance
+
+# Runs the generate() benchmark on the PR branch AND the base branch on the SAME
+# runner, then compares. Absolute timings vary ~3x across runners, so only the
+# same-runner relative delta is trustworthy — this never uses an absolute threshold.
+
+on:
+  pull_request:
+    paths:
+      - "packages/generate/**"
+      - "packages/eslint-plugin/**"
+      - ".github/workflows/perf.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: perf-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.17.0
+          cache: "pnpm"
+
+      - name: Benchmark PR
+        run: |
+          pnpm install
+          pnpm build --filter='./packages/**'
+          pnpm --filter @ts-safeql/generate bench "$GITHUB_WORKSPACE/pr.json"
+
+      - name: Checkout base
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: base
+          persist-credentials: false
+
+      - name: Benchmark base (same harness, base library code)
+        run: |
+          # Use the PR's benchmark harness against the base branch's generate source,
+          # so any delta reflects library changes — not harness changes.
+          rm -rf base/packages/generate/bench
+          cp -r packages/generate/bench base/packages/generate/bench
+          cd base
+          pnpm install
+          pnpm build --filter='./packages/**'
+          # ensure the bench script exists even if base predates it
+          node -e "const p=require('./packages/generate/package.json'); p.scripts.bench=p.scripts.bench||'tsx bench/bench.mts'; require('fs').writeFileSync('./packages/generate/package.json', JSON.stringify(p,null,2))"
+          pnpm --filter @ts-safeql/generate bench "$GITHUB_WORKSPACE/base.json"
+
+      - name: Compare
+        id: compare
+        run: |
+          set -o pipefail
+          node packages/generate/bench/compare.mjs base.json pr.json 25 | tee perf-summary.md
+
+      - name: Comment on PR
+        if: always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            if (!fs.existsSync('perf-summary.md')) return;
+            const body = fs.readFileSync('perf-summary.md', 'utf8');
+            const marker = '<!-- safeql-perf -->';
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const { data: comments } = await github.rest.issues.listComments({ owner, repo, issue_number });
+            const existing = comments.find((c) => c.body?.includes(marker));
+            const fullBody = `${marker}\n${body}`;
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body: fullBody });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body: fullBody });
+            }
