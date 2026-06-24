@@ -283,8 +283,17 @@ async function generate(
   };
 
   try {
-    const result = await sql.unsafe(query.text, [], { prepare: true }).describe();
-    const parsed = await parser.parse(query.text);
+    // describe (DB round-trip) and parse (WASM CPU) both depend only on the query
+    // text, so run them together — the parse hides under the round-trip. The
+    // Postgres error is checked first so it stays authoritative over a parse error.
+    const [describeOutcome, parseOutcome] = await Promise.allSettled([
+      sql.unsafe(query.text, [], { prepare: true }).describe(),
+      parser.parse(query.text),
+    ]);
+    if (describeOutcome.status === "rejected") throw describeOutcome.reason;
+    if (parseOutcome.status === "rejected") throw parseOutcome.reason;
+    const result = describeOutcome.value;
+    const parsed = parseOutcome.value;
 
     if (isParsedInsertResult(parsed)) {
       validateInsertResult(parsed, pgColsBySchemaAndTableName, query);
