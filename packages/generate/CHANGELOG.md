@@ -1,5 +1,30 @@
 # @ts-safeql/generate
 
+## 5.4.0
+
+### Minor Changes
+
+- 4aa9ca9: Add `@ts-safeql/plugin-kysely`, a first-class Kysely integration for SafeQL.
+
+  The plugin validates Kysely raw `sql` templates and, when `kysely({ builder: true })` is enabled,
+  raw SQL fragments inside Kysely query-builder chains. Pure Kysely builder queries stay covered by
+  Kysely's own types; SafeQL focuses on the raw SQL it can reconstruct statically.
+
+  Kysely TypeScript migrations can now build the shadow database used during validation, so SafeQL
+  checks your queries against the schema your migrations actually produce — no separate database
+  setup required.
+
+  The shared plugin API now supports custom migration runners and non-template query resolution.
+  Those hooks keep the ESLint rule generic while letting plugins teach SafeQL how each SQL library
+  represents queries.
+
+### Patch Changes
+
+- da3eae3: Speed up query type generation. Queries that are linted repeatedly (watch mode, CI runs, or the same query reused across files) are now much faster, and per-query cost no longer grows with the size of your database schema.
+- 4f56bd9: Fix SQL type inference for nullable booleans, CTEs, and subselects.
+
+  Nullable boolean expressions (for example `CASE WHEN … THEN col = 1 ELSE NULL END`) now infer `boolean | null` instead of being dropped. Columns selected through CTEs or subselects keep the nullability from their defining query, including after `LEFT JOIN`. Column references inside those scopes also resolve against the selected output name, not only an explicit alias.
+
 ## 5.3.2
 
 ## 5.3.1
