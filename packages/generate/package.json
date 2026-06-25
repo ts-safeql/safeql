@@ -32,6 +32,7 @@
     "build": "unbuild",
     "dev": "unbuild --stub",
     "test": "vitest",
+    "bench": "tsx bench/bench.mts",
     "lint": "eslint src",
     "lint!": "eslint src --fix",
     "publint": "publint",
