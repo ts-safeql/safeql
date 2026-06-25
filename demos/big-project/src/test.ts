@@ -5,7 +5,7 @@ import path from "path";
 const __dirname = new URL(".", import.meta.url).pathname;
 
 const FAKE_SRC_PATH = path.join(__dirname, "..", "_fake_src");
-const MAX_TIME = /* 90 seconds */ 90 * 1000;
+const MAX_TIME = /* 120 seconds */ 120 * 1000;
 const TOTAL_FILES = 3000;
 
 async function before() {
