@@ -92,6 +92,51 @@ test("select from cte with coalesce", async () => {
   });
 });
 
+test("select unaliased coalesce expression through cte", async () => {
+  await testQuery({
+    query: `
+      WITH t AS (
+        SELECT coalesce(first_name, 'unknown')
+        FROM member
+      )
+      SELECT t.coalesce
+      FROM t
+    `,
+    expected: [["coalesce", { kind: "type", type: "text", value: "string" }]],
+  });
+});
+
+test("left join nullable column stays nullable through cte", async () => {
+  await testQuery({
+    query: `
+      WITH
+        selected_records AS (
+          SELECT
+            pg_description.description
+          FROM
+            pg_class
+            LEFT JOIN pg_description ON FALSE
+        )
+      SELECT
+        selected_records.description
+      FROM
+        selected_records
+    `,
+    expected: [
+      [
+        "description",
+        {
+          kind: "union",
+          value: [
+            { kind: "type", value: "string", type: "text" },
+            { kind: "type", value: "null", type: "null" },
+          ],
+        },
+      ],
+    ],
+  });
+});
+
 test("multiple with statements that depend on each other", async () => {
   await testQuery({
     query: `
