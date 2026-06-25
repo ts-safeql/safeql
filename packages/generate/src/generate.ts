@@ -86,7 +86,74 @@ type Cache = {
     columns: Map<string, Map<string, Map<string, string>>>;
   };
   functions: Map<string, FunctionsMap>;
+  results: Map<CacheKey, Map<string, CachedQueryResult>>;
 };
+
+type CachedQueryResult = Pick<GenerateResult, "output" | "unknownColumns" | "stmt">;
+
+const MAX_RESULT_CACHE_ENTRIES = 5_000;
+
+function stableStringify(value: unknown): string {
+  if (value === undefined) {
+    return "undefined";
+  }
+  if (value === null || typeof value !== "object") {
+    return JSON.stringify(value) ?? "null";
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map(stableStringify).join(",")}]`;
+  }
+  const entries = Object.entries(value)
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([key, val]) => `${JSON.stringify(key)}:${stableStringify(val)}`);
+  return `{${entries.join(",")}}`;
+}
+
+function getResultCacheForKey(cache: Cache, cacheKey: CacheKey): Map<string, CachedQueryResult> {
+  let map = cache.results.get(cacheKey);
+  if (map === undefined) {
+    map = new Map();
+    cache.results.set(cacheKey, map);
+  }
+  return map;
+}
+
+function getCachedResult(
+  cache: Map<string, CachedQueryResult>,
+  key: string,
+): CachedQueryResult | undefined {
+  const hit = cache.get(key);
+  if (hit !== undefined) {
+    cache.delete(key);
+    cache.set(key, hit); // bump recency
+  }
+  return hit;
+}
+
+function deepFreeze<T>(value: T): T {
+  if (value !== null && typeof value === "object" && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const child of Object.values(value)) {
+      deepFreeze(child);
+    }
+  }
+  return value;
+}
+
+function setCachedResult(
+  cache: Map<string, CachedQueryResult>,
+  key: string,
+  value: CachedQueryResult,
+): void {
+  cache.delete(key); // bump recency
+  cache.set(key, deepFreeze(value));
+  if (cache.size > MAX_RESULT_CACHE_ENTRIES) {
+    const oldest = cache.keys().next().value;
+    if (oldest !== undefined) {
+      cache.delete(oldest);
+    }
+  }
+}
 
 function createEmptyCache(): Cache {
   return {
@@ -96,6 +163,7 @@ function createEmptyCache(): Cache {
       columns: new Map(),
     },
     functions: new Map(),
+    results: new Map(),
   };
 }
 
@@ -104,12 +172,17 @@ export function createGenerator() {
 
   return {
     generate: (params: GenerateParams) => generate(params, cache),
-    dropCacheKey: (cacheKey: CacheKey) => cache.base.delete(cacheKey),
+    dropCacheKey: (cacheKey: CacheKey) => {
+      cache.base.delete(cacheKey);
+      cache.results.delete(cacheKey);
+      cache.functions.clear();
+    },
     clearCache: () => {
       cache.base.clear();
       cache.overrides.types.clear();
       cache.overrides.columns.clear();
       cache.functions.clear();
+      cache.results.clear();
     },
   };
 }
@@ -196,16 +269,44 @@ async function generate(
     },
   });
 
+  const resultKey = stableStringify([
+    params.fieldTransform ?? null,
+    params.overrides ?? null,
+    query.text,
+  ]);
+  const resultCache = cacheMetadata ? getResultCacheForKey(cache, cacheKey) : undefined;
+
+  const cached = resultCache !== undefined ? getCachedResult(resultCache, resultKey) : undefined;
+  if (cached !== undefined) {
+    return either.right({ ...cached, query });
+  }
+
+  const cacheResult = (value: CachedQueryResult): CachedQueryResult => {
+    if (resultCache !== undefined) {
+      setCachedResult(resultCache, resultKey, value);
+    }
+    return value;
+  };
+
   try {
-    const result = await sql.unsafe(query.text, [], { prepare: true }).describe();
-    const parsed = await parser.parse(query.text);
+    const [describeOutcome, parseOutcome] = await Promise.allSettled([
+      sql.unsafe(query.text, [], { prepare: true }).describe(),
+      parser.parse(query.text),
+    ]);
+    if (describeOutcome.status === "rejected") throw describeOutcome.reason;
+    if (parseOutcome.status === "rejected") throw parseOutcome.reason;
+    const result = describeOutcome.value;
+    const parsed = parseOutcome.value;
 
     if (isParsedInsertResult(parsed)) {
       validateInsertResult(parsed, pgColsBySchemaAndTableName, query);
     }
 
     if (result.columns === undefined || result.columns === null || result.columns.length === 0) {
-      return either.right({ output: null, unknownColumns: [], stmt: result, query: query });
+      return either.right({
+        ...cacheResult({ output: null, unknownColumns: [], stmt: result }),
+        query,
+      });
     }
 
     const duplicateCols = result.columns.filter((col, index) =>
@@ -289,11 +390,13 @@ async function generate(
     };
 
     return either.right({
-      output: getTypedColumnEntries({ context }),
-      unknownColumns: columns
-        .filter((x) => x.astDescribed === undefined)
-        .map((x) => x.described.name),
-      stmt: result,
+      ...cacheResult({
+        output: getTypedColumnEntries({ context }),
+        unknownColumns: columns
+          .filter((x) => x.astDescribed === undefined)
+          .map((x) => x.described.name),
+        stmt: result,
+      }),
       query: query,
     });
   } catch (e) {
