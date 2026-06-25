@@ -1,8 +1,8 @@
-# @ts-safeql/connection-manager
+# @ts-safeql/plugin-kysely
 
-## 4.2.4
+## 0.1.0
 
-### Patch Changes
+### Minor Changes
 
 - 4aa9ca9: Add `@ts-safeql/plugin-kysely`, a first-class Kysely integration for SafeQL.
 
@@ -17,29 +17,3 @@
   The shared plugin API now supports custom migration runners and non-template query resolution.
   Those hooks keep the ESLint rule generic while letting plugins teach SafeQL how each SQL library
   represents queries.
-
-- Updated dependencies [4aa9ca9]
-  - @ts-safeql/plugin-utils@5.2.0
-
-## 4.2.3
-
-### Patch Changes
-
-- Updated dependencies [4568532]
-  - @ts-safeql/plugin-utils@5.1.0
-
-## 4.2.2
-
-### Patch Changes
-
-- Updated dependencies [71d63b5]
-  - @ts-safeql/plugin-utils@5.0.1
-
-## 4.2.1
-
-### Patch Changes
-
-- Updated dependencies [00b9904]
-- Updated dependencies [acd33af]
-  - @ts-safeql/plugin-utils@5.0.0
-  - @ts-safeql/shared@5.0.0
