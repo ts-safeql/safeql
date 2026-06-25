@@ -64,26 +64,6 @@ export function getSources({
 }: SourcesOptions) {
   const nonNullableViewColumnsCache = new Map<string, Set<string> | undefined>();
 
-  const tableToSchema = new Map<string, string>();
-
-  const publicCols = pgColsBySchemaAndTableName.get("public");
-
-  if (publicCols) {
-    for (const tableName of publicCols.keys()) {
-      tableToSchema.set(tableName, "public");
-    }
-  }
-
-  for (const [schemaName, cols] of pgColsBySchemaAndTableName) {
-    if (schemaName === "public") break;
-
-    for (const tableName of cols.keys()) {
-      if (!tableToSchema.has(tableName)) {
-        tableToSchema.set(tableName, schemaName);
-      }
-    }
-  }
-
   function getSelectAnalysis(select: LibPgQueryAST.SelectStmt) {
     const parsed: LibPgQueryAST.ParseResult = {
       version: 0,

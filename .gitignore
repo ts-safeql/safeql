@@ -6,3 +6,4 @@ generated
 .env
 .env.local
 .DS_Store
+packages/*/bench/.fixture/
