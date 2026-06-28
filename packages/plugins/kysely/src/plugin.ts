@@ -22,6 +22,7 @@ import {
   type TargetMatch,
 } from "@ts-safeql/plugin-utils";
 import ts from "typescript";
+import { createBuilderTypeCheck, type TypedBuilderFragment } from "./builder-type-check";
 import { migrate } from "./migrate";
 
 type KyselyPluginConfig = {
@@ -168,7 +169,7 @@ function resolveBuilderQuery(
   const sourceFile = tsNode.getSourceFile();
   const chain = tsNode.expression;
 
-  const state: RenderState = { hasEmbeddedSql: false, fragments: [] };
+  const state: RenderState = { hasEmbeddedSql: false, fragments: [], typedFragments: [] };
   const compileText = buildBuilderCompileText(chain, context.checker, sourceFile, state);
   if (compileText === undefined) {
     return skipBuilderQuery(
@@ -196,6 +197,9 @@ function resolveBuilderQuery(
     kind: "sql",
     text: resultSql,
     sourcemaps: buildBuilderSourcemaps({ state, resultSql, tsNode, sourceFile }),
+    ...(state.typedFragments.length > 0
+      ? { typeCheck: createBuilderTypeCheck(state.typedFragments) }
+      : {}),
   };
 }
 
@@ -338,6 +342,7 @@ function createBuilderContext(): Record<string, unknown> {
 interface RenderState {
   hasEmbeddedSql: boolean;
   fragments: Array<{ start: number; end: number }>;
+  typedFragments: TypedBuilderFragment[];
 }
 
 function buildBuilderCompileText(
@@ -374,7 +379,7 @@ function renderBuilderChain(
 
   // A statically-constructed Kysely plugin, e.g. `.withPlugin(new CamelCasePlugin())`.
   if (ts.isNewExpression(unwrapped)) {
-    return renderPluginConstruction(unwrapped, checker, sourceFile);
+    return renderPluginConstruction(unwrapped, checker);
   }
 
   if (ts.isPropertyAccessExpression(unwrapped)) {
@@ -411,7 +416,6 @@ function renderBuilderChain(
 function renderPluginConstruction(
   node: ts.NewExpression,
   checker: ts.TypeChecker,
-  sourceFile: ts.SourceFile,
 ): string | undefined {
   if (!ts.isIdentifier(node.expression) || !allowedBuilderPlugins.has(node.expression.text)) {
     return undefined;
@@ -518,7 +522,7 @@ function renderArgumentValue(
   }
 
   if (ts.isNewExpression(unwrapped)) {
-    return renderPluginConstruction(unwrapped, checker, sourceFile);
+    return renderPluginConstruction(unwrapped, checker);
   }
 
   const value = ast.getStaticValue({ node: unwrapped, checker: checker });
@@ -559,6 +563,12 @@ function renderSqlExpressionChain(
   if (isKyselySqlTaggedTemplate(u, checker)) {
     state.hasEmbeddedSql = true;
     state.fragments.push({ start: u.getStart(sourceFile), end: u.getEnd() });
+
+    const typedFragment = classifyTypedFragment(u, checker);
+    if (typedFragment !== undefined) {
+      state.typedFragments.push(typedFragment);
+    }
+
     return renderEmbeddedSqlFragment(u.template, checker, sourceFile);
   }
 
@@ -757,6 +767,103 @@ function buildTemplateSQL(
   }
 
   return sql;
+}
+
+function classifyTypedFragment(
+  node: ts.TaggedTemplateExpression,
+  checker: ts.TypeChecker,
+): TypedBuilderFragment | undefined {
+  if (node.typeArguments === undefined || node.typeArguments.length === 0) {
+    return undefined;
+  }
+
+  const alias = getSelectionAlias(node, checker);
+  if (alias !== undefined) {
+    return { kind: "column", alias, tag: node };
+  }
+
+  if (isConditionFragment(node)) {
+    return { kind: "condition", tag: node };
+  }
+
+  return undefined;
+}
+
+// Climb the transparent wrappers (parens, `as`, `!`) the render path also sees through, so a
+// wrapped `sql<T>` fragment — `.where((sql`...`))`, `(sql`...`).as("x")` — classifies like a bare one.
+function climbTransparentWrappers(node: ts.Node): ts.Node {
+  let current = node;
+  while (
+    current.parent &&
+    (ts.isParenthesizedExpression(current.parent) ||
+      ts.isAsExpression(current.parent) ||
+      ts.isNonNullExpression(current.parent)) &&
+    current.parent.expression === current
+  ) {
+    current = current.parent;
+  }
+  return current;
+}
+
+function isConditionFragment(node: ts.TaggedTemplateExpression): boolean {
+  let current = climbTransparentWrappers(node);
+  let parent = current.parent;
+
+  while (parent && ts.isPropertyAccessExpression(parent) && parent.expression === current) {
+    current = parent;
+    parent = parent.parent;
+  }
+
+  if (!parent || !ts.isCallExpression(parent)) {
+    return false;
+  }
+
+  // Only the single-argument expression form — `.where(sql`...`)` — is itself the boolean
+  // condition. In the binary form `.where(lhs, op, rhs)` a fragment is an operand, not the
+  // condition, so its `<T>` must not be forced to `boolean`.
+  const isSoleArgument =
+    parent.arguments.length === 1 &&
+    (parent.arguments[0] === current || ast.unwrap({ node: parent.arguments[0] }) === node);
+  if (!isSoleArgument) {
+    return false;
+  }
+
+  const callee = parent.expression;
+  if (!ts.isPropertyAccessExpression(callee)) {
+    return false;
+  }
+
+  return whereLikeMethods.has(callee.name.text);
+}
+
+function getSelectionAlias(
+  node: ts.TaggedTemplateExpression,
+  checker: ts.TypeChecker,
+): string | undefined {
+  // `sql<T>`...`.as("alias")` — the template is the receiver of `.as`.
+  const fragment = climbTransparentWrappers(node);
+  const asAccess = fragment.parent;
+  if (
+    !asAccess ||
+    !ts.isPropertyAccessExpression(asAccess) ||
+    asAccess.expression !== fragment ||
+    asAccess.name.text !== "as"
+  ) {
+    return undefined;
+  }
+
+  const asCall = asAccess.parent;
+  if (!asCall || !ts.isCallExpression(asCall) || asCall.expression !== asAccess) {
+    return undefined;
+  }
+
+  const aliasArg = asCall.arguments[0];
+  if (aliasArg === undefined) {
+    return undefined;
+  }
+
+  const alias = ast.getStaticValue({ node: aliasArg, checker: checker });
+  return typeof alias === "string" ? alias : undefined;
 }
 
 function isFragmentUsage(tsNode: ts.TaggedTemplateExpression): boolean {

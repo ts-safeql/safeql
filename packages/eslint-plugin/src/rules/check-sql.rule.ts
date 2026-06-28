@@ -2,7 +2,10 @@ import { ResolvedTarget } from "@ts-safeql/generate";
 import {
   PluginManager,
   matchesQueryNodeSelector,
+  type IncorrectTypeAnnotationReport,
   type PluginResolvedTarget,
+  type ResolvedQueryTypeCheckContext,
+  type ResolvedQueryTypeCheckResult,
   type QueryNodeSelector,
   type SafeQLPlugin,
   type QuerySourceMapEntry,
@@ -87,6 +90,9 @@ type CheckNode = TSESTree.Node;
 type TerminalCallQuery = {
   text: string;
   sourcemaps: QuerySourceMapEntry[];
+  typeCheck?: (
+    ctx: ResolvedQueryTypeCheckContext,
+  ) => readonly ResolvedQueryTypeCheckResult[] | undefined;
 };
 
 function check(params: {
@@ -271,6 +277,7 @@ function resolveQueryFromPlugins(params: {
     return {
       text: result.text,
       sourcemaps: result.sourcemaps,
+      typeCheck: result.typeCheck,
     };
   }
 
@@ -401,6 +408,18 @@ function resolvePluginTargetMatch(
   return undefined;
 }
 
+function makeGetComparableString(
+  connection: RuleOptionConnection,
+): (target: PluginResolvedTarget) => string {
+  return (target) =>
+    getResolvedTargetComparableString({
+      target: target as ExpectedResolvedTarget,
+      nullAsOptional: connection.nullAsOptional ?? false,
+      nullAsUndefined: connection.nullAsUndefined ?? false,
+      inferLiterals: connection.inferLiterals ?? defaultInferLiteralOptions,
+    });
+}
+
 function reportPluginTypeCheck(params: {
   context: RuleContext;
   tag: TSESTree.TaggedTemplateExpression;
@@ -412,30 +431,51 @@ function reportPluginTypeCheck(params: {
 }): void {
   const { context, tag, connection, checker, parser, output, typeCheck } = params;
 
-  const nullAsOptional = connection.nullAsOptional ?? false;
-  const nullAsUndefined = connection.nullAsUndefined ?? false;
-  const enforceType = connection.enforceType ?? "fix";
-
-  const report = typeCheck({
+  const result = typeCheck({
     node: tag,
     output,
     checker,
     parser,
     sourceCode: context.sourceCode,
-    getComparableString: (target) =>
-      getResolvedTargetComparableString({
-        target: target as ExpectedResolvedTarget,
-        nullAsOptional,
-        nullAsUndefined,
-        inferLiterals: connection.inferLiterals ?? defaultInferLiteralOptions,
-      }),
+    getComparableString: makeGetComparableString(connection),
   });
 
-  if (!report) return;
+  if (result) {
+    reportTypeCheckResult({ context, connection, result, defaultNode: tag.tag });
+  }
+}
 
-  const reportNode = report.node ?? tag.tag;
-  const reportData = { error: report.message };
-  const reportFixData = report.fix;
+function isIncorrectTypeAnnotationReport(
+  result: ResolvedQueryTypeCheckResult,
+): result is IncorrectTypeAnnotationReport {
+  return "kind" in result && result.kind === "incorrect-type-annotation";
+}
+
+// Dispatches whatever a plugin's `typeCheck` returns: a structured annotation mismatch routes
+// through the core's standard incorrect-annotation report; a free-form report becomes a plugin error.
+function reportTypeCheckResult(params: {
+  context: RuleContext;
+  connection: RuleOptionConnection;
+  result: ResolvedQueryTypeCheckResult;
+  defaultNode: TSESTree.Node;
+}): void {
+  const { context, connection, result, defaultNode } = params;
+
+  if (isIncorrectTypeAnnotationReport(result)) {
+    return reportIncorrectTypeAnnotations({
+      context,
+      typeParameter: result.typeParameter,
+      expected: result.expected,
+      actual: result.actual,
+      enforceType: connection.enforceType,
+    });
+  }
+
+  const enforceType = connection.enforceType ?? "fix";
+
+  const reportNode = result.node ?? defaultNode;
+  const reportData = { error: result.message };
+  const reportFixData = result.fix;
   const reportFix = reportFixData
     ? (fixer: TSESLint.RuleFixer) => fixer.replaceText(reportFixData.node, reportFixData.text)
     : undefined;
@@ -512,7 +552,7 @@ function reportCheck(params: {
     }),
     E.bindW("query", ({ parser, checker }) =>
       overrideQuery !== undefined
-        ? E.right(overrideQuery)
+        ? E.right({ text: overrideQuery.text, sourcemaps: overrideQuery.sourcemaps })
         : tag.type === "TaggedTemplateExpression"
           ? mapTemplateLiteralToQueryText(
               tag.quasi,
@@ -605,10 +645,19 @@ function reportCheck(params: {
         });
 
         // A terminal taking no `<T>` infers its row type from the builder's own
-        // schema, so it needs no annotation check; only the embedded raw `sql`
-        // (validated above) matters. A `<T>` terminal falls through below.
+        // schema; any embedded type checks are delegated to the plugin via
+        // `ResolvedQuery.typeCheck`.
         if (tag.type === "CallExpression" && !calleeAcceptsTypeArgument(tag, checker, parser)) {
-          return;
+          return reportResolvedQueryTypeCheck({
+            context,
+            connection,
+            tag,
+            output: result.output,
+            typeCheck: overrideQuery?.typeCheck,
+            checker,
+            parser,
+            reservedTypes,
+          });
         }
 
         const isMissingTypeAnnotations = queryTypeParameter === undefined;
@@ -681,7 +730,45 @@ function reportCheck(params: {
   );
 }
 
-// True when the terminal declares its own `<T>` (annotation model); false when the row type comes from the receiver.
+function reportResolvedQueryTypeCheck(params: {
+  context: RuleContext;
+  connection: RuleOptionConnection;
+  tag: TSESTree.CallExpression;
+  output: ResolvedTarget | null;
+  typeCheck?: (
+    ctx: ResolvedQueryTypeCheckContext,
+  ) => readonly ResolvedQueryTypeCheckResult[] | undefined;
+  checker: ts.TypeChecker;
+  parser: ParserServices;
+  reservedTypes: Set<string>;
+}): void {
+  const { context, connection, tag, output, typeCheck, checker, parser, reservedTypes } = params;
+
+  if (typeCheck === undefined) {
+    return;
+  }
+
+  const results = typeCheck({
+    terminal: tag,
+    output: output as PluginResolvedTarget | null,
+    checker,
+    parser,
+    sourceCode: context.sourceCode,
+    getComparableString: makeGetComparableString(connection),
+    resolveExpectedType: (typeNode) =>
+      getResolvedTargetByTypeNode({
+        checker,
+        parser,
+        typeNode,
+        reservedTypes,
+      }) as PluginResolvedTarget | null,
+  });
+
+  for (const result of results ?? []) {
+    reportTypeCheckResult({ context, connection, result, defaultNode: tag });
+  }
+}
+
 function calleeAcceptsTypeArgument(
   node: TSESTree.CallExpression,
   checker: ts.TypeChecker,

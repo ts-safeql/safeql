@@ -73,11 +73,40 @@ export function matchesQueryNodeSelector(
   );
 }
 
-export type ResolvedQuery = {
+// Passed to `ResolvedQuery.typeCheck`, the deferred check the core runs once the query's row
+// type is known. A builder plugin uses it to validate the `<T>` a user wrote on an embedded
+// `sql` fragment against the type the database actually produced.
+export interface ResolvedQueryTypeCheckContext {
+  terminal: TSESTree.CallExpression;
+  output: PluginResolvedTarget | null;
+  checker: ts.TypeChecker;
+  parser: ParserServices;
+  sourceCode: Readonly<TSESLint.SourceCode>;
+  getComparableString(target: PluginResolvedTarget): string;
+  // Resolve a user-written `<T>` into the same shape the database output uses, so the two are comparable.
+  resolveExpectedType(typeNode: TSESTree.TypeNode): PluginResolvedTarget | null;
+}
+
+// A wrong `<T>` annotation. The core renders it like any other incorrect annotation: its
+// standard message plus an autofix that rewrites the type parameter to `actual`.
+export interface IncorrectTypeAnnotationReport {
+  kind: "incorrect-type-annotation";
+  typeParameter: TSESTree.TSTypeParameterInstantiation;
+  expected: string | null;
+  actual: string | null;
+}
+
+export type ResolvedQueryTypeCheckResult = TypeCheckReport | IncorrectTypeAnnotationReport;
+
+export interface ResolvedQuery {
   kind: "sql";
   text: string;
   sourcemaps: QuerySourceMapEntry[];
-};
+  // A query can embed several fragments, so the check reports one result per problem (none → `undefined`).
+  typeCheck?: (
+    ctx: ResolvedQueryTypeCheckContext,
+  ) => readonly ResolvedQueryTypeCheckResult[] | undefined;
+}
 
 // The freshly-created, empty shadow database to apply the project's migrations to.
 export interface MigrateContext {
