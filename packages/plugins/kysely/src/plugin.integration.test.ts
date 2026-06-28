@@ -122,6 +122,12 @@ RuleTester.describe("kysely integration — sql tag", () => {
         output: k("sql<{ id: number }>`SELECT id FROM person`"),
         errors: [{ messageId: "incorrectTypeAnnotations" }],
       },
+      {
+        name: "unknown column in an insert squiggles the column, not the relation",
+        options: withConnection(),
+        code: k("sql`INSERT INTO person (nope) VALUES ('x')`"),
+        errors: [{ messageId: "invalidQuery", line: 1, column: 94, endLine: 1, endColumn: 98 }],
+      },
     ],
   });
 });
@@ -193,6 +199,12 @@ RuleTester.describe("kysely integration — builder embedded sql (opt-in)", () =
         name TEXT NOT NULL,
         bio TEXT
       );
+
+      CREATE TABLE pet (
+        id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+        owner_id INTEGER REFERENCES person(id),
+        name TEXT NOT NULL
+      );
     `);
   });
 
@@ -206,7 +218,7 @@ RuleTester.describe("kysely integration — builder embedded sql (opt-in)", () =
   // builder (no raw sql) is left to Kysely's own types.
   const kSql = (code: string) =>
     `import { Kysely, sql, type SqlBool } from "kysely";
-interface DB { person: { id: number; first_name: string; name: string; bio: string | null } }
+interface DB { person: { id: number; first_name: string; name: string; bio: string | null }; pet: { id: number; owner_id: number | null; name: string } }
 declare const db: Kysely<DB>;
 ${code}`;
 
@@ -321,22 +333,44 @@ db.selectFrom("person").select(sql\`\${sql.ref(col)}\`.as("x")).execute();`,
         ],
       },
       {
-        name: "nonexistent column in embedded sql is detected (squiggle on the fragment)",
+        name: "nonexistent column in embedded sql squiggles the offending identifier",
         options: withBuilderConnection(databaseName),
         code: kSql(
           `db.selectFrom("person").select(sql<string>\`upper(nonexistent)\`.as("x")).execute();`,
         ),
-        // The error must land on the embedded `sql` fragment, not a misplaced
-        // offset in the compiled SQL.
-        errors: [{ messageId: "invalidQuery", line: 4, column: 32 }],
+        errors: [{ messageId: "invalidQuery", line: 4, column: 50, endLine: 4, endColumn: 61 }],
       },
       {
-        name: "invalid function in embedded sql is detected (squiggle on the fragment)",
+        name: "invalid function in embedded sql squiggles the function name",
         options: withBuilderConnection(databaseName),
         code: kSql(
           `db.selectFrom("person").select("id").where(sql<SqlBool>\`bogus_fn(id)\`).execute();`,
         ),
-        errors: [{ messageId: "invalidQuery", line: 4, column: 44 }],
+        errors: [{ messageId: "invalidQuery", line: 4, column: 57, endLine: 4, endColumn: 65 }],
+      },
+      {
+        name: "unknown table in embedded sql squiggles the table reference",
+        options: withBuilderConnection(databaseName),
+        code: kSql(
+          `db.selectFrom("person").select("id").where(sql<SqlBool>\`other.id is not null\`).execute();`,
+        ),
+        errors: [{ messageId: "invalidQuery", line: 4, column: 57, endLine: 4, endColumn: 62 }],
+      },
+      {
+        name: "unknown qualified column in embedded sql squiggles the column reference",
+        options: withBuilderConnection(databaseName),
+        code: kSql(
+          `db.selectFrom("person").select(sql<boolean>\`person.bio2 is not null\`.as("c")).execute();`,
+        ),
+        errors: [{ messageId: "invalidQuery", line: 4, column: 45, endLine: 4, endColumn: 56 }],
+      },
+      {
+        name: "recurring identifier squiggles the occurrence inside the failing fragment",
+        options: withBuilderConnection(databaseName),
+        code: kSql(
+          `db.selectFrom("person").innerJoin("pet", "person.id", "pet.id").select(sql<SqlBool>\`CASE WHEN2 pet.name = 'x' THEN true ELSE NULL END\`.as("flag")).execute();`,
+        ),
+        errors: [{ messageId: "invalidQuery", line: 4, column: 96, endLine: 4, endColumn: 99 }],
       },
     ],
   });

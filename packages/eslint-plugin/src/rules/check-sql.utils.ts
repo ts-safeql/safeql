@@ -755,18 +755,28 @@ function getQueryErrorPosition({ error, tag, sourceCode }: GetWordRangeInPositio
       ]
     : getSourceRange(position, sourceMaps);
 
-  const syntaxErrorToken = error.message.match(/syntax error at or near "([^"]+)"/)?.[1];
+  const errorToken = extractErrorToken(error.message);
 
-  if (syntaxErrorToken) {
+  if (errorToken !== undefined) {
     const templateText = sourceCode.text.slice(getNodeStartOffset(tag), tag.range[1]);
-    const tokenIndex = findNearestMatchIndex(templateText, syntaxErrorToken, sourceRange[0]);
+
+    const [fragmentStart, fragmentEnd] = matchingSourceMap
+      ? [
+          matchingSourceMap.original.start,
+          matchingSourceMap.original.start + matchingSourceMap.original.text.length,
+        ]
+      : [0, templateText.length];
+
+    const tokenIndex = findNearestMatchIndex(
+      templateText.slice(fragmentStart, fragmentEnd),
+      errorToken,
+      sourceRange[0] - fragmentStart,
+    );
 
     if (tokenIndex !== undefined) {
+      const start = fragmentStart + tokenIndex;
       return {
-        sourceLocation: getSourceLocation(tag, sourceCode, [
-          tokenIndex,
-          tokenIndex + syntaxErrorToken.length,
-        ]),
+        sourceLocation: getSourceLocation(tag, sourceCode, [start, start + errorToken.length]),
       };
     }
   }
@@ -779,6 +789,27 @@ function getQueryErrorPosition({ error, tag, sourceCode }: GetWordRangeInPositio
       matchingSourceMap === undefined,
     ),
   };
+}
+
+const ERROR_TOKEN_PATTERNS: RegExp[] = [
+  /syntax error at or near "([^"]+)"/,
+  /column "?([^\s"]+)"? of relation "[^"]+" does not exist/,
+  /column "?([^\s"]+)"? does not exist/,
+  /relation "([^"]+)" does not exist/,
+  /type "([^"]+)" does not exist/,
+  /missing FROM-clause entry for table "([^"]+)"/,
+  /function ([\w.]+)\(/,
+];
+
+function extractErrorToken(message: string): string | undefined {
+  for (const pattern of ERROR_TOKEN_PATTERNS) {
+    const token = message.match(pattern)?.[1];
+    if (token !== undefined) {
+      return token;
+    }
+  }
+
+  return undefined;
 }
 
 function getSourceRange(position: number, sourceMaps: QuerySourceMapEntry[]): [number, number] {
