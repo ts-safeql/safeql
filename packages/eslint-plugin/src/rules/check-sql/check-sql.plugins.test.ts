@@ -16,7 +16,7 @@ ruleTester.run("plugin position", checkSqlRule, {
         `,
       error: 'relation "missing_person" does not exist',
       line: 3,
-      columns: [19, 45],
+      columns: [28, 42],
     }),
     invalidQueryAt({
       connection: connections.withPluginSourcemap,
