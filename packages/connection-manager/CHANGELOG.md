@@ -1,5 +1,12 @@
 # @ts-safeql/connection-manager
 
+## 4.2.5
+
+### Patch Changes
+
+- Updated dependencies [09fcf97]
+  - @ts-safeql/plugin-utils@5.3.0
+
 ## 4.2.4
 
 ### Patch Changes

@@ -1,5 +1,17 @@
 # @ts-safeql/eslint-plugin
 
+## 5.4.1
+
+### Patch Changes
+
+- 09fcf97: Validate the `<T>` annotation on raw `sql` fragments embedded in Kysely query-builder chains.
+
+  SafeQL now checks that annotation against the type the database returns and autofixes it on a mismatch. A selection like ``sql<number>`name || bio`.as("credit_line")`` whose column is `string` gets flagged; a ``.where(sql<number>`bio is not null`)`` condition gets corrected to `boolean`. Conditions accept both `SqlBool` and `boolean`, and fragments wrapped in parentheses or `as` are checked like bare ones.
+
+- 21e97b3: Point invalid-query errors at the offending identifier. When Postgres reports an unknown column, table, relation, type, or function, the squiggle now lands on that specific token instead of the whole query — most noticeably for Kysely builder chains, where the error previously underlined the entire embedded `sql` fragment.
+- Updated dependencies [09fcf97]
+  - @ts-safeql/plugin-utils@5.3.0
+
 ## 5.4.0
 
 ### Minor Changes
