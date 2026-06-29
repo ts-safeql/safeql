@@ -20,7 +20,7 @@ export function builderSelectExpr() {
 export function builderAggregate() {
   return db
     .selectFrom("person")
-    .select(sql<number>`count(*)`.as("total"))
+    .select(sql<string>`count(*)`.as("total"))
     .execute();
 }
 

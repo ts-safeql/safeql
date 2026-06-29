@@ -1,9 +1,10 @@
+import type { ParserServices, TSESLint } from "@typescript-eslint/utils";
 import type ts from "typescript";
-import type { ParserServices } from "@typescript-eslint/utils";
 
 import type {
   QuerySourceMapEntry,
   ResolvedQuery,
+  ResolvedQueryTypeCheckContext,
   SafeQLPlugin,
   ResolveQueryContext,
   QueryNodeSelector,
@@ -55,6 +56,17 @@ const _testPlugin: SafeQLPlugin = {
   },
 };
 
+const _typeCheckContext: ResolvedQueryTypeCheckContext = {
+  terminal: {} as ResolvedQueryTypeCheckContext["terminal"],
+  output: null,
+  checker: {} as ts.TypeChecker,
+  parser: {} as ParserServices,
+  sourceCode: {} as TSESLint.SourceCode,
+  getComparableString: () => "string",
+  resolveExpectedType: () => null,
+};
+
 void _assertResolvedQueryType;
+void _typeCheckContext;
 void _queryContext;
 void _testPlugin;

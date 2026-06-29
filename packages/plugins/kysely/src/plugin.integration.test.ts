@@ -225,6 +225,27 @@ ${code}`;
         code: kSql(`db.selectFrom("person").select("id").where(sql\`bio is not null\`).execute();`),
       },
       {
+        name: "embedded raw sql in .where() with SqlBool is validated",
+        options: withBuilderConnection(databaseName),
+        code: kSql(
+          `db.selectFrom("person").select("id").where(sql<SqlBool>\`bio is not null\`).execute();`,
+        ),
+      },
+      {
+        name: "embedded raw sql in .where() with boolean is validated",
+        options: withBuilderConnection(databaseName),
+        code: kSql(
+          `db.selectFrom("person").select("id").where(sql<boolean>\`bio is not null\`).execute();`,
+        ),
+      },
+      {
+        name: "typed fragment used as a binary where operand is not forced to boolean",
+        options: withBuilderConnection(databaseName),
+        code: kSql(
+          `db.selectFrom("person").select("id").where(sql<number>\`length(name)\`, ">", 3).execute();`,
+        ),
+      },
+      {
         name: "value interpolation in embedded sql is a bound param",
         options: withBuilderConnection(databaseName),
         code: kSql(
@@ -252,6 +273,53 @@ db.selectFrom("person").select(sql\`\${sql.ref(col)}\`.as("x")).execute();`,
       },
     ],
     invalid: [
+      {
+        name: "wrong column type in embedded sql select is detected",
+        options: withBuilderConnection(databaseName),
+        code: kSql(
+          `db.selectFrom("person").select(sql<number>\`name || ' — ' || coalesce(bio, 'uncredited')\`.as("credit_line")).execute();`,
+        ),
+        output: kSql(
+          `db.selectFrom("person").select(sql<string>\`name || ' — ' || coalesce(bio, 'uncredited')\`.as("credit_line")).execute();`,
+        ),
+        errors: [{ messageId: "incorrectTypeAnnotations", line: 4, column: 36 }],
+      },
+      {
+        name: "wrong type in embedded sql where is detected",
+        options: withBuilderConnection(databaseName),
+        code: kSql(
+          `db.selectFrom("person").select("id").where(sql<number>\`bio is not null\`).execute();`,
+        ),
+        output: kSql(
+          `db.selectFrom("person").select("id").where(sql<boolean>\`bio is not null\`).execute();`,
+        ),
+        errors: [{ messageId: "incorrectTypeAnnotations", line: 4, column: 48 }],
+      },
+      {
+        name: "wrong type in a parenthesized embedded sql fragment is detected",
+        options: withBuilderConnection(databaseName),
+        code: kSql(
+          `db.selectFrom("person").select((sql<number>\`upper(first_name)\`).as("shout")).execute();`,
+        ),
+        output: kSql(
+          `db.selectFrom("person").select((sql<string>\`upper(first_name)\`).as("shout")).execute();`,
+        ),
+        errors: [{ messageId: "incorrectTypeAnnotations", line: 4, column: 37 }],
+      },
+      {
+        name: "every wrong typed fragment in a query is reported",
+        options: withBuilderConnection(databaseName),
+        code: kSql(
+          `db.selectFrom("person").select([sql<number>\`upper(first_name)\`.as("a"), sql<number>\`upper(name)\`.as("b")]).execute();`,
+        ),
+        output: kSql(
+          `db.selectFrom("person").select([sql<string>\`upper(first_name)\`.as("a"), sql<string>\`upper(name)\`.as("b")]).execute();`,
+        ),
+        errors: [
+          { messageId: "incorrectTypeAnnotations" },
+          { messageId: "incorrectTypeAnnotations" },
+        ],
+      },
       {
         name: "nonexistent column in embedded sql is detected (squiggle on the fragment)",
         options: withBuilderConnection(databaseName),
