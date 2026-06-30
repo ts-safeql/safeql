@@ -1,5 +1,12 @@
 # @ts-safeql/plugin-auth-aws
 
+## 4.3.4
+
+### Patch Changes
+
+- Updated dependencies [09fcf97]
+  - @ts-safeql/plugin-utils@5.3.0
+
 ## 4.3.3
 
 ### Patch Changes
