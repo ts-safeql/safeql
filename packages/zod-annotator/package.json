@@ -8,6 +8,10 @@
     "url": "git+https://github.com/ts-safeql/safeql.git",
     "directory": "packages/zod-annotator"
   },
+  "homepage": "https://github.com/ts-safeql/safeql/tree/main/packages/zod-annotator",
+  "bugs": {
+    "url": "https://github.com/ts-safeql/safeql/issues"
+  },
   "files": [
     "dist",
     "package.json"
