@@ -31,6 +31,7 @@
   "devDependencies": {
     "@changesets/cli": "catalog:",
     "@eslint/js": "catalog:",
+    "drizzle-orm": "^0.45.2",
     "prettier": "catalog:",
     "turbo": "catalog:",
     "typescript": "catalog:",
