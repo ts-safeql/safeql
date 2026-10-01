@@ -1,5 +1,11 @@
 # @ts-safeql/plugin-utils
 
+## 5.3.1
+
+### Patch Changes
+
+- 070ecf7: Support TypeScript 6. The `typescript` peer dependency now accepts `^5.0.0 || ^6.0.0`, so installing SafeQL alongside TypeScript 6 no longer reports an unmet peer.
+
 ## 5.3.0
 
 ### Minor Changes

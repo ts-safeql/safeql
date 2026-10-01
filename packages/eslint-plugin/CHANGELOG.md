@@ -1,5 +1,12 @@
 # @ts-safeql/eslint-plugin
 
+## 5.4.2
+
+### Patch Changes
+
+- Updated dependencies [070ecf7]
+  - @ts-safeql/plugin-utils@5.3.1
+
 ## 5.4.1
 
 ### Patch Changes
