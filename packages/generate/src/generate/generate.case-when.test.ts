@@ -127,6 +127,32 @@ test("select case when expr is not null else is not null", async () => {
   });
 });
 
+test("select nullable boolean case expression", async () => {
+  await testQuery({
+    query: `
+      SELECT
+        CASE
+          WHEN TRUE THEN records.value = 1
+          ELSE NULL
+        END AS result
+      FROM
+        (VALUES (1)) AS records (value)
+    `,
+    expected: [
+      [
+        "result",
+        {
+          kind: "union",
+          value: [
+            { kind: "type", value: "boolean", type: "bool" },
+            { kind: "type", value: "null", type: "null" },
+          ],
+        },
+      ],
+    ],
+  });
+});
+
 test("select count(1) + count(1)", async () => {
   await testQuery({
     query: `SELECT count(1) + count(1)`,

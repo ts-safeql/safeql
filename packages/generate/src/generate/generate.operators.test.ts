@@ -108,6 +108,16 @@ test("'foo' LIKE 'f%' => boolean", async () => {
   });
 });
 
+test("like on unresolved operand honors nonNullableColumns", async () => {
+  await testQuery({
+    query: `
+      SELECT records.value LIKE '1' AS result
+      FROM (VALUES ('1')) AS records (value)
+    `,
+    expected: [["result", { kind: "type", value: "boolean", type: "bool" }]],
+  });
+});
+
 test("'foo' NOT LIKE 'f%' => boolean", async () => {
   await testQuery({
     query: `SELECT 'foo' NOT LIKE 'f%'`,

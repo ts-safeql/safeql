@@ -1,6 +1,6 @@
 {
   "name": "@ts-safeql/plugin-utils",
-  "version": "5.1.0",
+  "version": "5.3.0",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -56,7 +56,7 @@
   },
   "peerDependencies": {
     "@typescript-eslint/utils": "^8.0.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0 || ^6.0.0"
   },
   "peerDependenciesMeta": {
     "@typescript-eslint/utils": {

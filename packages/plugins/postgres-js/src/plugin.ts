@@ -1,5 +1,5 @@
 import type { TSESTree } from "@typescript-eslint/utils";
-import { definePlugin, type TargetContext, type TargetMatch } from "@ts-safeql/plugin-utils";
+import { ast, definePlugin, type TargetContext, type TargetMatch } from "@ts-safeql/plugin-utils";
 import ts from "typescript";
 
 export default definePlugin({
@@ -66,7 +66,7 @@ function buildTypeScriptExpressionSQL(
   checker: ts.TypeChecker,
   precedingSQL: string,
 ): string | false | undefined {
-  const expression = unwrapTypeScriptExpression(node);
+  const expression = ast.unwrap({ node: node });
 
   if (
     ts.isTaggedTemplateExpression(expression) &&
@@ -76,7 +76,7 @@ function buildTypeScriptExpressionSQL(
   }
 
   if (ts.isIdentifier(expression)) {
-    const initializer = findTypeScriptInitializer(expression, checker);
+    const initializer = ast.findInitializer({ identifier: expression, checker: checker });
 
     if (!initializer) {
       return undefined;
@@ -229,7 +229,7 @@ function getTypeScriptStaticValue(
     return unresolvedValue;
   }
 
-  const expression = unwrapTypeScriptExpression(node);
+  const expression = ast.unwrap({ node: node });
 
   if (ts.isStringLiteral(expression) || ts.isNoSubstitutionTemplateLiteral(expression)) {
     return expression.text;
@@ -260,7 +260,7 @@ function getTypeScriptStaticValue(
       return undefined;
     }
 
-    const initializer = findTypeScriptInitializer(expression, checker);
+    const initializer = ast.findInitializer({ identifier: expression, checker: checker });
 
     if (!initializer) {
       return unresolvedValue;
@@ -317,7 +317,7 @@ function getTypeScriptStaticValue(
       return unresolvedValue;
     }
 
-    const key = getTypeScriptPropertyName(property.name);
+    const key = ast.getPropertyName({ node: property.name });
 
     if (!key) {
       return unresolvedValue;
@@ -335,35 +335,12 @@ function getTypeScriptStaticValue(
   return entries;
 }
 
-function getTypeScriptPropertyName(node: ts.PropertyName): string | undefined {
-  if (ts.isIdentifier(node) || ts.isStringLiteral(node) || ts.isNumericLiteral(node)) {
-    return node.text;
-  }
-
-  return undefined;
-}
-
-function unwrapTypeScriptExpression(node: ts.Node): ts.Node {
-  if (
-    ts.isAsExpression(node) ||
-    ts.isParenthesizedExpression(node) ||
-    ts.isNonNullExpression(node) ||
-    ts.isSatisfiesExpression(node) ||
-    ts.isTypeAssertionExpression(node) ||
-    ts.isAwaitExpression(node)
-  ) {
-    return unwrapTypeScriptExpression(node.expression);
-  }
-
-  return node;
-}
-
 function isTypeScriptNestedFragment(node: ts.TaggedTemplateExpression): boolean {
   return ts.isTemplateSpan(node.parent);
 }
 
 function isTypeScriptPostgresTag(node: ts.Node, checker: ts.TypeChecker): boolean {
-  const rootIdentifier = getTypeScriptRootIdentifier(node);
+  const rootIdentifier = ast.getRootIdentifier({ node });
 
   if (!rootIdentifier) {
     return false;
@@ -373,7 +350,7 @@ function isTypeScriptPostgresTag(node: ts.Node, checker: ts.TypeChecker): boolea
 }
 
 function isTypeScriptPostgresHelperCall(node: ts.CallExpression, checker: ts.TypeChecker): boolean {
-  const rootIdentifier = getTypeScriptRootIdentifier(node.expression);
+  const rootIdentifier = ast.getRootIdentifier({ node: node.expression });
 
   if (!rootIdentifier) {
     return false;
@@ -383,51 +360,19 @@ function isTypeScriptPostgresHelperCall(node: ts.CallExpression, checker: ts.Typ
 }
 
 function isTypeScriptTypedHelperCall(node: ts.CallExpression): boolean {
-  return getTypeScriptMemberNames(node.expression).includes("typed");
+  return ast.getMemberNames({ node: node.expression }).includes("typed");
 }
 
 function isTypeScriptUnsafeHelperCall(node: ts.CallExpression): boolean {
-  const memberNames = getTypeScriptMemberNames(node.expression);
+  const memberNames = ast.getMemberNames({ node: node.expression });
   return memberNames[memberNames.length - 1] === "unsafe";
-}
-
-function getTypeScriptMemberNames(node: ts.Node): string[] {
-  const expression = unwrapTypeScriptExpression(node);
-
-  if (ts.isIdentifier(expression)) {
-    return [expression.text];
-  }
-
-  if (ts.isPropertyAccessExpression(expression)) {
-    return [...getTypeScriptMemberNames(expression.expression), expression.name.text];
-  }
-
-  return [];
-}
-
-function getTypeScriptRootIdentifier(node: ts.Node): ts.Identifier | undefined {
-  const expression = unwrapTypeScriptExpression(node);
-
-  if (ts.isIdentifier(expression)) {
-    return expression;
-  }
-
-  if (ts.isPropertyAccessExpression(expression)) {
-    return getTypeScriptRootIdentifier(expression.expression);
-  }
-
-  if (ts.isCallExpression(expression)) {
-    return getTypeScriptRootIdentifier(expression.expression);
-  }
-
-  return undefined;
 }
 
 function isTypeScriptPostgresSqlIdentifier(
   identifier: ts.Identifier,
   checker: ts.TypeChecker,
 ): boolean {
-  const initializer = findTypeScriptInitializer(identifier, checker);
+  const initializer = ast.findInitializer({ identifier: identifier, checker: checker });
 
   if (initializer && isTypeScriptPostgresSqlInitializer(initializer, checker)) {
     return true;
@@ -457,7 +402,7 @@ function hasTypeScriptPostgresSymbol(type: ts.Type, checker: ts.TypeChecker): bo
   );
 
   for (const symbol of symbols) {
-    if (!isSymbolFromModule(checker, symbol, "postgres")) {
+    if (!ast.isSymbolImportedFrom({ checker, symbol, moduleName: "postgres" })) {
       continue;
     }
 
@@ -470,7 +415,7 @@ function hasTypeScriptPostgresSymbol(type: ts.Type, checker: ts.TypeChecker): bo
 }
 
 function isTypeScriptPostgresSqlInitializer(node: ts.Node, checker: ts.TypeChecker): boolean {
-  const expression = unwrapTypeScriptExpression(node);
+  const expression = ast.unwrap({ node: node });
 
   if (ts.isIdentifier(expression)) {
     return isTypeScriptPostgresSqlIdentifier(expression, checker);
@@ -480,13 +425,13 @@ function isTypeScriptPostgresSqlInitializer(node: ts.Node, checker: ts.TypeCheck
     return false;
   }
 
-  const rootIdentifier = getTypeScriptRootIdentifier(expression.expression);
+  const rootIdentifier = ast.getRootIdentifier({ node: expression.expression });
 
   if (!rootIdentifier) {
     return false;
   }
 
-  if (isTypeScriptIdentifierFromModule(rootIdentifier, checker, "postgres")) {
+  if (ast.isImportedFrom({ node: rootIdentifier, checker, moduleName: "postgres" })) {
     return true;
   }
 
@@ -495,28 +440,6 @@ function isTypeScriptPostgresSqlInitializer(node: ts.Node, checker: ts.TypeCheck
     expression.expression.name.text === "reserve"
   ) {
     return isTypeScriptPostgresTag(expression.expression.expression, checker);
-  }
-
-  return false;
-}
-
-function isTypeScriptIdentifierFromModule(
-  identifier: ts.Identifier,
-  checker: ts.TypeChecker,
-  moduleName: string,
-): boolean {
-  const symbol = checker.getSymbolAtLocation(identifier);
-
-  for (const declaration of symbol?.declarations ?? []) {
-    const importDeclaration = getTypeScriptImportDeclaration(declaration);
-
-    if (
-      importDeclaration &&
-      ts.isStringLiteral(importDeclaration.moduleSpecifier) &&
-      importDeclaration.moduleSpecifier.text === moduleName
-    ) {
-      return true;
-    }
   }
 
   return false;
@@ -566,74 +489,6 @@ function isTypeScriptTransactionSqlParameter(
   return false;
 }
 
-function getTypeScriptImportDeclaration(node: ts.Declaration): ts.ImportDeclaration | undefined {
-  if (ts.isImportClause(node) && ts.isImportDeclaration(node.parent)) {
-    return node.parent;
-  }
-
-  if (ts.isImportSpecifier(node)) {
-    const importDeclaration = node.parent.parent.parent;
-
-    if (ts.isImportDeclaration(importDeclaration)) {
-      return importDeclaration;
-    }
-  }
-
-  if (ts.isNamespaceImport(node)) {
-    const importDeclaration = node.parent.parent.parent;
-
-    if (ts.isImportDeclaration(importDeclaration)) {
-      return importDeclaration;
-    }
-  }
-
-  return undefined;
-}
-
-function isSymbolFromModule(
-  checker: ts.TypeChecker,
-  symbol: ts.Symbol | undefined,
-  moduleName: string,
-): boolean {
-  if (!symbol) {
-    return false;
-  }
-
-  const resolved = symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
-
-  for (const declaration of resolved.declarations ?? []) {
-    // Normalize separators so the match holds on Windows paths (`\`) too.
-    const fileName = declaration.getSourceFile().fileName.replace(/\\/g, "/");
-
-    if (fileName.includes(`/${moduleName}/`)) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-function findTypeScriptInitializer(
-  identifier: ts.Identifier,
-  checker: ts.TypeChecker,
-): ts.Expression | undefined {
-  const symbol = checker.getSymbolAtLocation(identifier);
-  const resolved =
-    symbol && (symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol);
-
-  for (const declaration of resolved?.declarations ?? []) {
-    if (ts.isVariableDeclaration(declaration) && declaration.initializer) {
-      return declaration.initializer;
-    }
-
-    if (ts.isBindingElement(declaration) && declaration.initializer) {
-      return declaration.initializer;
-    }
-  }
-
-  return undefined;
-}
-
 function isTypeScriptFragmentVariable(
   node: ts.TaggedTemplateExpression,
   checker: ts.TypeChecker,
@@ -658,7 +513,10 @@ function isTypeScriptInterpolatedAsFragment(
   identifier: ts.Identifier,
   checker: ts.TypeChecker,
 ): boolean {
-  const symbol = resolveTypeScriptSymbol(checker.getSymbolAtLocation(identifier), checker);
+  const symbol = ast.resolveAliasedSymbol({
+    checker,
+    symbol: checker.getSymbolAtLocation(identifier),
+  });
 
   if (!symbol) {
     return false;
@@ -720,7 +578,10 @@ function containsTypeScriptIdentifier(
     }
 
     if (ts.isIdentifier(current)) {
-      const currentSymbol = resolveTypeScriptSymbol(checker.getSymbolAtLocation(current), checker);
+      const currentSymbol = ast.resolveAliasedSymbol({
+        checker,
+        symbol: checker.getSymbolAtLocation(current),
+      });
 
       if (currentSymbol === symbol) {
         found = true;
@@ -733,17 +594,6 @@ function containsTypeScriptIdentifier(
 
   visit(node);
   return found;
-}
-
-function resolveTypeScriptSymbol(
-  symbol: ts.Symbol | undefined,
-  checker: ts.TypeChecker,
-): ts.Symbol | undefined {
-  if (!symbol) {
-    return undefined;
-  }
-
-  return symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
 }
 
 function buildSelectHelperSQL(value: StaticValue, columnNames: string[]): string | undefined {

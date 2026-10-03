@@ -1,0 +1,110 @@
+name: Performance
+
+# Benchmarks generate() and the lint rule on the PR and base branches on the same
+# runner, then compares. Timings vary ~3x across runners, so only the delta counts.
+
+on:
+  pull_request:
+    paths:
+      - "packages/generate/**"
+      - "packages/eslint-plugin/**"
+      - ".github/workflows/perf.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: perf-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.17.0
+          cache: "pnpm"
+
+      - name: Benchmark PR
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build --filter='./packages/**'
+          pnpm --filter @ts-safeql/generate bench "$GITHUB_WORKSPACE/pr-generate.json"
+          pnpm --filter @ts-safeql/eslint-plugin bench "$GITHUB_WORKSPACE/pr-eslint.json"
+
+      # No base ref on manual runs, so the comparison is PR-only.
+      - name: Checkout base
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: base
+          persist-credentials: false
+
+      - name: Benchmark base (PR harness, base library code)
+        if: github.event_name == 'pull_request'
+        run: |
+          # PR's harness against base's source, so the delta is the library change.
+          for pkg in generate eslint-plugin; do
+            rm -rf "base/packages/$pkg/bench"
+            cp -r "packages/$pkg/bench" "base/packages/$pkg/bench"
+            node -e "const f='base/packages/$pkg/package.json'; const p=require('./'+f); p.scripts.bench=p.scripts.bench||'tsx bench/bench.mts'; require('fs').writeFileSync(f, JSON.stringify(p,null,2))"
+          done
+          cd base
+          pnpm install --frozen-lockfile
+          pnpm build --filter='./packages/**'
+          pnpm --filter @ts-safeql/generate bench "$GITHUB_WORKSPACE/base-generate.json"
+          pnpm --filter @ts-safeql/eslint-plugin bench "$GITHUB_WORKSPACE/base-eslint.json"
+
+      - name: Compare
+        id: compare
+        if: github.event_name == 'pull_request'
+        run: |
+          rc=0
+          node packages/generate/bench/compare.mjs base-generate.json pr-generate.json msPerQueryDistinct 25 "generate() performance" >> perf-summary.md || rc=1
+          printf '\n' >> perf-summary.md
+          node packages/generate/bench/compare.mjs base-eslint.json pr-eslint.json msRuleOverhead 40 "check-sql lint-rule overhead" >> perf-summary.md || rc=1
+          cat perf-summary.md
+          exit $rc
+
+      - name: Comment on PR
+        if: always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            if (!fs.existsSync('perf-summary.md')) return;
+            const body = fs.readFileSync('perf-summary.md', 'utf8');
+            const marker = '<!-- safeql-perf -->';
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const { data: comments } = await github.rest.issues.listComments({ owner, repo, issue_number });
+            // only our own comment, not another bot's that quotes the marker
+            const existing = comments.find(
+              (c) => c.user?.login === "github-actions[bot]" && c.body?.includes(marker),
+            );
+            const fullBody = `${marker}\n${body}`;
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body: fullBody });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body: fullBody });
+            }

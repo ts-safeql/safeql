@@ -1,4 +1,5 @@
-import ts from "typescript";
+import type * as ts from "typescript";
+import { TS } from "../ts";
 
 type EnumKind =
   | { kind: "Const" }
@@ -8,13 +9,13 @@ type EnumKind =
 
 export const TSUtils = {
   isTypeUnion: (typeNode: ts.TypeNode | undefined): typeNode is ts.UnionTypeNode => {
-    return typeNode?.kind === ts.SyntaxKind.UnionType;
+    return typeNode?.kind === TS.SyntaxKind.UnionType;
   },
   isTsUnionType(type: ts.Type): type is ts.UnionType {
-    return type.flags === ts.TypeFlags.Union;
+    return type.flags === TS.TypeFlags.Union;
   },
   isTsTypeReference(type: ts.Type): type is ts.TypeReference {
-    return TSUtils.isTsObjectType(type) && type.objectFlags === ts.ObjectFlags.Reference;
+    return TSUtils.isTsObjectType(type) && type.objectFlags === TS.ObjectFlags.Reference;
   },
   isTsTupleType(checker: ts.TypeChecker, type: ts.Type): type is ts.TypeReference {
     return checker.isTupleType(type);
@@ -39,11 +40,11 @@ export const TSUtils = {
     return TSUtils.isTsUnionType(firstArgument);
   },
   isTsObjectType(type: ts.Type): type is ts.ObjectType {
-    return type.flags === ts.TypeFlags.Object;
+    return type.flags === TS.TypeFlags.Object;
   },
   getEnumKind(type: ts.Type): EnumKind | undefined {
     const symbol = type.getSymbol();
-    if (!symbol || !(symbol.flags & ts.SymbolFlags.Enum)) {
+    if (!symbol || !(symbol.flags & TS.SymbolFlags.Enum)) {
       return undefined; // Not an enum
     }
 
@@ -57,17 +58,17 @@ export const TSUtils = {
     const stringValues: string[] = [];
 
     for (const declaration of declarations) {
-      if (ts.isEnumDeclaration(declaration)) {
+      if (TS.isEnumDeclaration(declaration)) {
         for (const member of declaration.members) {
           const initializer = member.initializer;
 
           if (initializer) {
-            if (ts.isStringLiteralLike(initializer)) {
+            if (TS.isStringLiteralLike(initializer)) {
               hasString = true;
               stringValues.push(initializer.text);
             }
 
-            if (initializer.kind === ts.SyntaxKind.NumericLiteral) {
+            if (initializer.kind === TS.SyntaxKind.NumericLiteral) {
               hasNumeric = true;
             }
           } else {
@@ -79,7 +80,7 @@ export const TSUtils = {
     }
 
     // Determine the kind of enum
-    if (symbol.flags & ts.SymbolFlags.ConstEnum) {
+    if (symbol.flags & TS.SymbolFlags.ConstEnum) {
       return { kind: "Const" };
     }
 

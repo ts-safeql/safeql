@@ -1,5 +1,19 @@
 # @ts-safeql/zod-annotator
 
+## 5.0.4
+
+### Patch Changes
+
+- Updated dependencies [09fcf97]
+  - @ts-safeql/plugin-utils@5.3.0
+
+## 5.0.3
+
+### Patch Changes
+
+- Updated dependencies [4aa9ca9]
+  - @ts-safeql/plugin-utils@5.2.0
+
 ## 5.0.2
 
 ### Patch Changes

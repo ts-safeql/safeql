@@ -47,6 +47,24 @@ type ASTDescriptionContext = ASTDescriptionOptions & {
 
 export type ASTDescribedColumn = { name: string; type: ASTDescribedColumnType };
 
+const booleanAExprOperators = new Set([
+  "=",
+  "<>",
+  "!=",
+  "<",
+  ">",
+  "<=",
+  ">=",
+  "~~",
+  "!~~",
+  "~~*",
+  "!~~*",
+  "~",
+  "!~",
+  "~*",
+  "!~*",
+]);
+
 export type ASTDescribedColumnType =
   | { kind: "union"; value: ASTDescribedColumnType[] }
   | { kind: "array"; value: ASTDescribedColumnType }
@@ -435,6 +453,19 @@ function getDescribedAExpr({
   const operator = concatStringNodes(node.name);
 
   if (lnode === null || rnode === null) {
+    if (isBooleanAExprOperator(operator)) {
+      return [
+        {
+          name,
+          type: resolveType({
+            context,
+            nullable: !context.nonNullableColumns.has(name),
+            type: context.toTypeScriptType({ name: "bool" }),
+          }),
+        },
+      ];
+    }
+
     return [];
   }
 
@@ -1209,19 +1240,38 @@ function getColumnRefOrigins({
       // lookup in cte
       context.select.withClause?.ctes
         .find((cte) => cte.CommonTableExpr?.ctename === source)
-        ?.CommonTableExpr?.ctequery?.SelectStmt?.targetList?.find(
-          (x) => x.ResTarget?.name === column,
+        ?.CommonTableExpr?.ctequery?.SelectStmt?.targetList?.find((x) =>
+          resTargetMatchesColumn(x.ResTarget, column),
         ) ??
       // lookup in subselect
       findRangeSubselectByAlias({
         fromClause: context.select.fromClause,
         alias: source,
-      })?.subquery?.SelectStmt?.targetList?.find((x) => x.ResTarget?.name === column);
+      })?.subquery?.SelectStmt?.targetList?.find((x) =>
+        resTargetMatchesColumn(x.ResTarget, column),
+      );
 
     if (!origin) return undefined;
 
     return [origin];
   }
+}
+
+function resTargetMatchesColumn(
+  target: LibPgQueryAST.ResTarget | undefined,
+  column: string,
+): boolean {
+  if (target === undefined) {
+    return false;
+  }
+
+  const outputName = getAliasOrColumnRefName(target);
+  return outputName !== undefined && outputName === column;
+}
+
+function getAliasOrColumnRefName(target: LibPgQueryAST.ResTarget): string | undefined {
+  const name = getOutputColumnKey(target.name, target.val);
+  return name === "?column?" ? undefined : name;
 }
 
 function getContextForColumnRef(
@@ -1569,6 +1619,10 @@ function concatStringNodes(nodes: LibPgQueryAST.Node[] | undefined): string {
       .filter(Boolean)
       .join(".") ?? ""
   );
+}
+
+function isBooleanAExprOperator(operator: string): boolean {
+  return booleanAExprOperators.has(operator);
 }
 
 function hasColumnReference(node: LibPgQueryAST.Node | undefined): boolean {

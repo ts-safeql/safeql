@@ -64,24 +64,16 @@ export function getSources({
 }: SourcesOptions) {
   const nonNullableViewColumnsCache = new Map<string, Set<string> | undefined>();
 
-  const tableToSchema = new Map<string, string>();
+  function getSelectAnalysis(select: LibPgQueryAST.SelectStmt) {
+    const parsed: LibPgQueryAST.ParseResult = {
+      version: 0,
+      stmts: [{ stmt: { SelectStmt: select }, stmtLocation: 0, stmtLen: 0 }],
+    };
 
-  const publicCols = pgColsBySchemaAndTableName.get("public");
-
-  if (publicCols) {
-    for (const tableName of publicCols.keys()) {
-      tableToSchema.set(tableName, "public");
-    }
-  }
-
-  for (const [schemaName, cols] of pgColsBySchemaAndTableName) {
-    if (schemaName === "public") break;
-
-    for (const tableName of cols.keys()) {
-      if (!tableToSchema.has(tableName)) {
-        tableToSchema.set(tableName, schemaName);
-      }
-    }
+    return {
+      relations: flattenRelationsWithJoinsMap(getRelationsWithJoins(parsed)),
+      nonNullableColumns: getNonNullableColumns(parsed, { aggregateNames: pgAggregateNames }),
+    };
   }
 
   function getColumnCTEs(ctes: LibPgQueryAST.Node[]): Map<string, SourcesResolver> {
@@ -91,15 +83,17 @@ export function getSources({
       if (cte.CommonTableExpr?.ctequery?.SelectStmt === undefined) continue;
       if (cte.CommonTableExpr?.ctename === undefined) continue;
 
+      const cteSelect = cte.CommonTableExpr.ctequery.SelectStmt;
+      const analysis = getSelectAnalysis(cteSelect);
       const resolver = getSources({
         pgColsBySchemaAndTableName,
         pgViewsBySchemaAndName,
         pgAggregateNames,
         prevSources,
-        nonNullableColumns,
-        relations,
+        nonNullableColumns: analysis.nonNullableColumns,
+        relations: analysis.relations,
         visitedViews,
-        select: cte.CommonTableExpr.ctequery.SelectStmt,
+        select: cteSelect,
       });
 
       map.set(cte.CommonTableExpr.ctename, resolver);
@@ -183,6 +177,8 @@ export function getSources({
     }
 
     if (node.RangeSubselect?.subquery?.SelectStmt !== undefined) {
+      const subselect = node.RangeSubselect.subquery.SelectStmt;
+      const analysis = getSelectAnalysis(subselect);
       const combinedPrevSources = new Map([
         ...(prevSources?.entries() ?? []),
         ...sourcesArr.map((x) => [x.name, x] as const),
@@ -192,14 +188,14 @@ export function getSources({
         kind: "subselect",
         name: node.RangeSubselect.alias?.aliasname ?? "subselect",
         sources: getSources({
-          nonNullableColumns,
           pgColsBySchemaAndTableName,
           pgViewsBySchemaAndName,
           pgAggregateNames,
-          relations,
+          relations: analysis.relations,
           visitedViews,
           prevSources: combinedPrevSources,
-          select: node.RangeSubselect.subquery.SelectStmt,
+          nonNullableColumns: analysis.nonNullableColumns,
+          select: subselect,
         }),
       });
     }

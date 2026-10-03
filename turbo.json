@@ -13,7 +13,9 @@
       "dependsOn": ["^build"],
       "inputs": ["src/**/*.ts", "test/**/*.ts"]
     },
-    "lint": {},
+    "lint": {
+      "dependsOn": ["^build"]
+    },
     "publint": {
       "dependsOn": ["build"],
       "inputs": ["package.json", "dist/**"]

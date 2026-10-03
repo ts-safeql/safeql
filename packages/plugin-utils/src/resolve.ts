@@ -1,12 +1,17 @@
 import { createRequire } from "module";
 import path from "path";
-import type { PluginDescriptor, SafeQLPlugin } from "./index";
+import type { MigrateContext, PluginDescriptor, SafeQLPlugin } from "./index";
 import type { Sql } from "postgres";
 
 export type ResolvedConnection = {
   pluginName: string;
   cacheKey: string;
   handler: () => Promise<Sql>;
+};
+
+export type ResolvedMigrate = {
+  pluginName: string;
+  handler: (context: MigrateContext) => Promise<void>;
 };
 
 export class PluginManager {
@@ -30,6 +35,10 @@ export class PluginManager {
     return this.pickConnection(plugins);
   }
 
+  resolveMigrate(descriptors: PluginDescriptor[], projectDir: string): ResolvedMigrate | undefined {
+    return this.pickMigrate(this.resolvePluginsSync(descriptors, projectDir));
+  }
+
   resolvePluginsSync(descriptors: PluginDescriptor[], projectDir: string): SafeQLPlugin[] {
     return descriptors.map((d) => this.resolveOneSync(d, projectDir));
   }
@@ -50,6 +59,19 @@ export class PluginManager {
           cacheKey: plugin.createConnection.cacheKey,
           handler: plugin.createConnection.handler,
         };
+      }
+    }
+
+    return result;
+  }
+
+  // Last plugin with a `migrate` hook wins, mirroring `pickConnection`.
+  private pickMigrate(plugins: SafeQLPlugin[]): ResolvedMigrate | undefined {
+    let result: ResolvedMigrate | undefined;
+
+    for (const plugin of plugins) {
+      if (plugin.migrate) {
+        result = { pluginName: plugin.name, handler: plugin.migrate.bind(plugin) };
       }
     }
 

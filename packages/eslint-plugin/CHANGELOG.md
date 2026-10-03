@@ -1,5 +1,52 @@
 # @ts-safeql/eslint-plugin
 
+## 5.4.1
+
+### Patch Changes
+
+- 09fcf97: Validate the `<T>` annotation on raw `sql` fragments embedded in Kysely query-builder chains.
+
+  SafeQL now checks that annotation against the type the database returns and autofixes it on a mismatch. A selection like ``sql<number>`name || bio`.as("credit_line")`` whose column is `string` gets flagged; a ``.where(sql<number>`bio is not null`)`` condition gets corrected to `boolean`. Conditions accept both `SqlBool` and `boolean`, and fragments wrapped in parentheses or `as` are checked like bare ones.
+
+- 21e97b3: Point invalid-query errors at the offending identifier. When Postgres reports an unknown column, table, relation, type, or function, the squiggle now lands on that specific token instead of the whole query — most noticeably for Kysely builder chains, where the error previously underlined the entire embedded `sql` fragment.
+- Updated dependencies [09fcf97]
+  - @ts-safeql/plugin-utils@5.3.0
+
+## 5.4.0
+
+### Minor Changes
+
+- 4aa9ca9: Add `@ts-safeql/plugin-kysely`, a first-class Kysely integration for SafeQL.
+
+  The plugin validates Kysely raw `sql` templates and, when `kysely({ builder: true })` is enabled,
+  raw SQL fragments inside Kysely query-builder chains. Pure Kysely builder queries stay covered by
+  Kysely's own types; SafeQL focuses on the raw SQL it can reconstruct statically.
+
+  Kysely TypeScript migrations can now build the shadow database used during validation, so SafeQL
+  checks your queries against the schema your migrations actually produce — no separate database
+  setup required.
+
+  The shared plugin API now supports custom migration runners and non-template query resolution.
+  Those hooks keep the ESLint rule generic while letting plugins teach SafeQL how each SQL library
+  represents queries.
+
+### Patch Changes
+
+- 4f56bd9: Fix SQL type inference for nullable booleans, CTEs, and subselects.
+
+  Nullable boolean expressions (for example `CASE WHEN … THEN col = 1 ELSE NULL END`) now infer `boolean | null` instead of being dropped. Columns selected through CTEs or subselects keep the nullability from their defining query, including after `LEFT JOIN`. Column references inside those scopes also resolve against the selected output name, not only an explicit alias.
+
+- Updated dependencies [4aa9ca9]
+  - @ts-safeql/plugin-utils@5.2.0
+
+## 5.3.2
+
+### Patch Changes
+
+- db181a8: Fix a false "incorrect type annotation" error for columns whose names contain `", "`.
+
+  The type-equality check normalized ordering by re-sorting comma-separated fragments of the serialized type, which split such column names apart. Combined with a `transform` (e.g. `"{type}[]"`), this could report two identical shapes as a mismatch. The serialized form is already canonical, so the redundant pass was removed.
+
 ## 5.3.1
 
 ### Patch Changes

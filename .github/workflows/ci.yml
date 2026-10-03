@@ -16,10 +16,15 @@ concurrency:
 
 jobs:
   check:
+    name: check (${{ matrix.postgres-version }}${{ matrix.typescript != 6 && format(', ts{0}', matrix.typescript) || '' }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
         postgres-version: [16, 17]
+        typescript: [6]
+        include:
+          - postgres-version: 17
+            typescript: 5
       fail-fast: false
     services:
       postgres:
@@ -39,8 +44,12 @@ jobs:
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v6
         with:
-          node-version: 24
+          node-version: 24.17.0
           cache: "pnpm"
+      - if: matrix.typescript != 6
+        run: |
+          sed -i -E 's/^  "typescript": ".*"/  "typescript": "^${{ matrix.typescript }}.0.0"/' pnpm-workspace.yaml
+          pnpm install --no-frozen-lockfile
       - run: pnpm install
       - run: pnpm run setup
         env:

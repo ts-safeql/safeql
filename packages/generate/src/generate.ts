@@ -11,7 +11,7 @@ import {
 } from "@ts-safeql/shared";
 import * as LibPgQueryAST from "@ts-safeql/sql-ast";
 import { either } from "fp-ts";
-import * as parser from "libpg-query";
+import { createRequire } from "node:module";
 import postgres from "postgres";
 import { ASTDescribedColumn, getASTDescription } from "./ast-describe";
 import { ColType } from "./utils/colTypes";
@@ -20,6 +20,8 @@ import {
   isTableNullableDueToJoin,
 } from "./utils/get-relations-with-joins";
 import { isParsedInsertResult, validateInsertResult } from "./utils/validate-insert";
+
+const parser = createRequire(import.meta.url)("libpg-query") as typeof import("libpg-query");
 
 type JSToPostgresTypeMap = Record<string, unknown>;
 type Sql = postgres.Sql<JSToPostgresTypeMap>;
@@ -84,7 +86,74 @@ type Cache = {
     columns: Map<string, Map<string, Map<string, string>>>;
   };
   functions: Map<string, FunctionsMap>;
+  results: Map<CacheKey, Map<string, CachedQueryResult>>;
 };
+
+type CachedQueryResult = Pick<GenerateResult, "output" | "unknownColumns" | "stmt">;
+
+const MAX_RESULT_CACHE_ENTRIES = 5_000;
+
+function stableStringify(value: unknown): string {
+  if (value === undefined) {
+    return "undefined";
+  }
+  if (value === null || typeof value !== "object") {
+    return JSON.stringify(value) ?? "null";
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map(stableStringify).join(",")}]`;
+  }
+  const entries = Object.entries(value)
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([key, val]) => `${JSON.stringify(key)}:${stableStringify(val)}`);
+  return `{${entries.join(",")}}`;
+}
+
+function getResultCacheForKey(cache: Cache, cacheKey: CacheKey): Map<string, CachedQueryResult> {
+  let map = cache.results.get(cacheKey);
+  if (map === undefined) {
+    map = new Map();
+    cache.results.set(cacheKey, map);
+  }
+  return map;
+}
+
+function getCachedResult(
+  cache: Map<string, CachedQueryResult>,
+  key: string,
+): CachedQueryResult | undefined {
+  const hit = cache.get(key);
+  if (hit !== undefined) {
+    cache.delete(key);
+    cache.set(key, hit); // bump recency
+  }
+  return hit;
+}
+
+function deepFreeze<T>(value: T): T {
+  if (value !== null && typeof value === "object" && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const child of Object.values(value)) {
+      deepFreeze(child);
+    }
+  }
+  return value;
+}
+
+function setCachedResult(
+  cache: Map<string, CachedQueryResult>,
+  key: string,
+  value: CachedQueryResult,
+): void {
+  cache.delete(key); // bump recency
+  cache.set(key, deepFreeze(value));
+  if (cache.size > MAX_RESULT_CACHE_ENTRIES) {
+    const oldest = cache.keys().next().value;
+    if (oldest !== undefined) {
+      cache.delete(oldest);
+    }
+  }
+}
 
 function createEmptyCache(): Cache {
   return {
@@ -94,6 +163,7 @@ function createEmptyCache(): Cache {
       columns: new Map(),
     },
     functions: new Map(),
+    results: new Map(),
   };
 }
 
@@ -102,12 +172,17 @@ export function createGenerator() {
 
   return {
     generate: (params: GenerateParams) => generate(params, cache),
-    dropCacheKey: (cacheKey: CacheKey) => cache.base.delete(cacheKey),
+    dropCacheKey: (cacheKey: CacheKey) => {
+      cache.base.delete(cacheKey);
+      cache.results.delete(cacheKey);
+      cache.functions.clear();
+    },
     clearCache: () => {
       cache.base.clear();
       cache.overrides.types.clear();
       cache.overrides.columns.clear();
       cache.functions.clear();
+      cache.results.clear();
     },
   };
 }
@@ -144,47 +219,16 @@ async function generate(
     value: () => getDatabaseMetadata(sql),
   });
 
-  const typesMap = await getOrSetFromMapWithEnabled({
+  const typesMap = await resolveTypesMap({
+    overrides: params.overrides,
+    cache,
     shouldCache: cacheMetadata,
-    map: cache.overrides.types,
-    key: JSON.stringify(params.overrides?.types),
-    value: () => {
-      const map: TypesMap = new Map([["array", { override: false, value: "array" }]]);
-
-      for (const [key, value] of defaultTypesMap.entries()) {
-        map.set(key, { override: false, value });
-      }
-
-      for (const [k, v] of Object.entries(params.overrides?.types ?? {})) {
-        map.set(k, { override: true, value: typeof v === "string" ? v : v.return });
-      }
-
-      return map;
-    },
   });
 
-  const overridenColumnTypesMap = await getOrSetFromMapWithEnabled({
+  const overridenColumnTypesMap = await resolveColumnOverridesMap({
+    overrides: params.overrides,
+    cache,
     shouldCache: cacheMetadata,
-    map: cache.overrides.columns,
-    key: JSON.stringify(params.overrides?.columns),
-    value: () => {
-      const map: Map<string, Map<string, string>> = new Map();
-
-      for (const [colPath, type] of Object.entries(params.overrides?.columns ?? {})) {
-        const [table, column] = colPath.split(".");
-
-        if (table === undefined || column === undefined) {
-          throw new Error(`Invalid override column key: ${colPath}. Expected format: table.column`);
-        }
-
-        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-        map.has(table)
-          ? map.get(table)?.set(column, type)
-          : map.set(table, new Map([[column, type]]));
-      }
-
-      return map;
-    },
   });
 
   const functionsMap = await getOrSetFromMapWithEnabled({
@@ -225,16 +269,44 @@ async function generate(
     },
   });
 
+  const resultKey = stableStringify([
+    params.fieldTransform ?? null,
+    params.overrides ?? null,
+    query.text,
+  ]);
+  const resultCache = cacheMetadata ? getResultCacheForKey(cache, cacheKey) : undefined;
+
+  const cached = resultCache !== undefined ? getCachedResult(resultCache, resultKey) : undefined;
+  if (cached !== undefined) {
+    return either.right({ ...cached, query });
+  }
+
+  const cacheResult = (value: CachedQueryResult): CachedQueryResult => {
+    if (resultCache !== undefined) {
+      setCachedResult(resultCache, resultKey, value);
+    }
+    return value;
+  };
+
   try {
-    const result = await sql.unsafe(query.text, [], { prepare: true }).describe();
-    const parsed = await parser.parse(query.text);
+    const [describeOutcome, parseOutcome] = await Promise.allSettled([
+      sql.unsafe(query.text, [], { prepare: true }).describe(),
+      parser.parse(query.text),
+    ]);
+    if (describeOutcome.status === "rejected") throw describeOutcome.reason;
+    if (parseOutcome.status === "rejected") throw parseOutcome.reason;
+    const result = describeOutcome.value;
+    const parsed = parseOutcome.value;
 
     if (isParsedInsertResult(parsed)) {
       validateInsertResult(parsed, pgColsBySchemaAndTableName, query);
     }
 
     if (result.columns === undefined || result.columns === null || result.columns.length === 0) {
-      return either.right({ output: null, unknownColumns: [], stmt: result, query: query });
+      return either.right({
+        ...cacheResult({ output: null, unknownColumns: [], stmt: result }),
+        query,
+      });
     }
 
     const duplicateCols = result.columns.filter((col, index) =>
@@ -318,11 +390,13 @@ async function generate(
     };
 
     return either.right({
-      output: getTypedColumnEntries({ context }),
-      unknownColumns: columns
-        .filter((x) => x.astDescribed === undefined)
-        .map((x) => x.described.name),
-      stmt: result,
+      ...cacheResult({
+        output: getTypedColumnEntries({ context }),
+        unknownColumns: columns
+          .filter((x) => x.astDescribed === undefined)
+          .map((x) => x.described.name),
+        stmt: result,
+      }),
       query: query,
     });
   } catch (e) {
@@ -340,6 +414,61 @@ async function generate(
 
     throw e;
   }
+}
+
+function resolveTypesMap(params: {
+  overrides: GenerateParams["overrides"];
+  cache: Cache;
+  shouldCache: boolean;
+}): Promise<TypesMap> {
+  return getOrSetFromMapWithEnabled({
+    shouldCache: params.shouldCache,
+    map: params.cache.overrides.types,
+    key: JSON.stringify(params.overrides?.types),
+    value: () => {
+      const map: TypesMap = new Map([["array", { override: false, value: "array" }]]);
+
+      for (const [key, value] of defaultTypesMap.entries()) {
+        map.set(key, { override: false, value });
+      }
+
+      for (const [k, v] of Object.entries(params.overrides?.types ?? {})) {
+        map.set(k, { override: true, value: typeof v === "string" ? v : v.return });
+      }
+
+      return map;
+    },
+  });
+}
+
+function resolveColumnOverridesMap(params: {
+  overrides: GenerateParams["overrides"];
+  cache: Cache;
+  shouldCache: boolean;
+}): Promise<Map<string, Map<string, string>>> {
+  return getOrSetFromMapWithEnabled({
+    shouldCache: params.shouldCache,
+    map: params.cache.overrides.columns,
+    key: JSON.stringify(params.overrides?.columns),
+    value: () => {
+      const map: Map<string, Map<string, string>> = new Map();
+
+      for (const [colPath, type] of Object.entries(params.overrides?.columns ?? {})) {
+        const [table, column] = colPath.split(".");
+
+        if (table === undefined || column === undefined) {
+          throw new Error(`Invalid override column key: ${colPath}. Expected format: table.column`);
+        }
+
+        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+        map.has(table)
+          ? map.get(table)?.set(column, type)
+          : map.set(table, new Map([[column, type]]));
+      }
+
+      return map;
+    },
+  });
 }
 
 async function getDatabaseMetadata(sql: Sql) {
@@ -709,6 +838,7 @@ async function getPgCols(sql: Sql) {
           AND pg_class.relnamespace = pg_namespace.oid
           AND pg_attribute.attnum >= 1
       ORDER BY
+          pg_namespace.nspname,
           pg_class.relname,
           pg_attribute.attnum
   `;

@@ -35,7 +35,7 @@ const generator = createGenerator();
 const connections = createConnectionManager();
 const watchers = createWatchManager();
 
-async function handler(params: CheckSQLWorkerParams) {
+export async function handler(params: CheckSQLWorkerParams) {
   const strategy = getConnectionStartegyByRuleOptionConnection({
     connection: params.connection,
     projectDir: params.projectDir,
@@ -50,10 +50,7 @@ async function handler(params: CheckSQLWorkerParams) {
     });
   }
 
-  const result = await pipe(
-    TE.Do,
-    TE.chain(() => workerHandler(params)),
-  )();
+  const result = await workerHandler(params)();
 
   if (params.connection.keepAlive === false) {
     connections.close(strategy);
@@ -73,10 +70,16 @@ export type WorkerError =
   | GenerateError;
 export type WorkerResult = GenerateResult;
 
-function workerHandler(params: CheckSQLWorkerParams): TE.TaskEither<WorkerError, WorkerResult> {
+/**
+ * Shared by the query and schema-introspection paths so both hit the same shadow DB.
+ */
+function resolveConnectionPayload(params: {
+  connection: RuleOptionConnection;
+  projectDir: string;
+}): TE.TaskEither<WorkerError, ConnectionPayload> {
   const strategy = getConnectionStartegyByRuleOptionConnection(params);
 
-  const connnectionPayload: TE.TaskEither<WorkerError, ConnectionPayload> = match(strategy)
+  return match(strategy)
     .with({ type: "databaseUrl" }, ({ databaseUrl }) =>
       TE.right(connections.getOrCreate(databaseUrl)),
     )
@@ -102,10 +105,34 @@ function workerHandler(params: CheckSQLWorkerParams): TE.TaskEither<WorkerError,
       if (isFirst) {
         const migrationsPath = path.join(params.projectDir, migrationsDir);
 
+        // A plugin's migrate hook replaces the built-in `.sql` runner. Plugin resolution
+        // can throw synchronously, so surface it as a worker error rather than crashing.
+        let pluginMigrate: ReturnType<typeof connections.resolveMigrate>;
+        try {
+          pluginMigrate = params.connection.plugins?.length
+            ? connections.resolveMigrate(params.connection.plugins, params.projectDir)
+            : undefined;
+        } catch (error) {
+          return TE.left(error instanceof PluginError ? error : PluginError.from("unknown")(error));
+        }
+
+        const applyMigrations: TE.TaskEither<WorkerError, unknown> = pluginMigrate
+          ? TE.tryCatch(
+              () =>
+                pluginMigrate.handler({
+                  databaseUrl,
+                  sql,
+                  migrationsDir: migrationsPath,
+                  projectDir: params.projectDir,
+                }),
+              PluginError.from(pluginMigrate.pluginName),
+            )
+          : runMigrations({ migrationsPath, sql });
+
         return pipe(
           TE.Do,
           TE.chainW(() => initDatabase(migrationSql, connectionOptions.database)),
-          TE.chainW(() => runMigrations({ migrationsPath, sql })),
+          TE.chainW(() => applyMigrations),
           TE.map(() => connectionPayload),
         );
       }
@@ -113,9 +140,11 @@ function workerHandler(params: CheckSQLWorkerParams): TE.TaskEither<WorkerError,
       return TE.right(connectionPayload);
     })
     .exhaustive();
+}
 
+function workerHandler(params: CheckSQLWorkerParams): TE.TaskEither<WorkerError, WorkerResult> {
   return pipe(
-    connnectionPayload,
+    resolveConnectionPayload(params),
     TE.chainW(({ sql, databaseUrl, pluginName }) => {
       return TE.tryCatch(
         () =>
