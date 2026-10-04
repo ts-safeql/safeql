@@ -754,9 +754,6 @@ importers:
       postgres:
         specifier: 'catalog:'
         version: 3.4.7
-      quansync:
-        specifier: ^0.2.10
-        version: 0.2.10
       synckit:
         specifier: ^0.10.3
         version: 0.10.3
