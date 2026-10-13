@@ -37,8 +37,8 @@ catalogs:
       specifier: ^17.5.2
       version: 17.5.2
     postgres:
-      specifier: ^3.4.5
-      version: 3.4.7
+      specifier: ^3.4.9
+      version: 3.4.9
     prettier:
       specifier: ^3.5.3
       version: 3.5.3
@@ -103,7 +103,7 @@ importers:
         version: 24.12.0
       postgres:
         specifier: 'catalog:'
-        version: 3.4.7
+        version: 3.4.9
     devDependencies:
       '@eslint/js':
         specifier: 'catalog:'
@@ -128,7 +128,7 @@ importers:
         version: link:../../packages/eslint-plugin
       postgres:
         specifier: 'catalog:'
-        version: 3.4.7
+        version: 3.4.9
     devDependencies:
       '@eslint/js':
         specifier: 'catalog:'
@@ -159,7 +159,7 @@ importers:
         version: link:../../packages/eslint-plugin
       postgres:
         specifier: 'catalog:'
-        version: 3.4.7
+        version: 3.4.9
     devDependencies:
       '@eslint/js':
         specifier: 'catalog:'
@@ -190,7 +190,7 @@ importers:
         version: 24.12.0
       postgres:
         specifier: 'catalog:'
-        version: 3.4.7
+        version: 3.4.9
     devDependencies:
       '@eslint/js':
         specifier: 'catalog:'
@@ -218,7 +218,7 @@ importers:
         version: 24.12.0
       postgres:
         specifier: 'catalog:'
-        version: 3.4.7
+        version: 3.4.9
     devDependencies:
       '@eslint/js':
         specifier: 'catalog:'
@@ -243,7 +243,7 @@ importers:
         version: link:../../packages/eslint-plugin
       postgres:
         specifier: 'catalog:'
-        version: 3.4.7
+        version: 3.4.9
     devDependencies:
       '@eslint/js':
         specifier: 'catalog:'
@@ -274,7 +274,7 @@ importers:
         version: 24.12.0
       postgres:
         specifier: 'catalog:'
-        version: 3.4.7
+        version: 3.4.9
     devDependencies:
       '@eslint/js':
         specifier: 'catalog:'
@@ -302,7 +302,7 @@ importers:
         version: link:../../packages/eslint-plugin
       postgres:
         specifier: 'catalog:'
-        version: 3.4.7
+        version: 3.4.9
     devDependencies:
       '@eslint/js':
         specifier: 'catalog:'
@@ -330,7 +330,7 @@ importers:
         version: link:../../packages/eslint-plugin
       postgres:
         specifier: 'catalog:'
-        version: 3.4.7
+        version: 3.4.9
     devDependencies:
       '@eslint/js':
         specifier: 'catalog:'
@@ -361,7 +361,7 @@ importers:
         version: link:../../packages/plugins/auth-aws
       postgres:
         specifier: 'catalog:'
-        version: 3.4.7
+        version: 3.4.9
     devDependencies:
       '@eslint/js':
         specifier: 'catalog:'
@@ -466,7 +466,7 @@ importers:
         version: link:../../packages/eslint-plugin
       postgres:
         specifier: 'catalog:'
-        version: 3.4.7
+        version: 3.4.9
     devDependencies:
       '@eslint/js':
         specifier: 'catalog:'
@@ -500,7 +500,7 @@ importers:
         version: 24.12.0
       postgres:
         specifier: 'catalog:'
-        version: 3.4.7
+        version: 3.4.9
     devDependencies:
       '@eslint/js':
         specifier: 'catalog:'
@@ -559,7 +559,7 @@ importers:
     dependencies:
       postgres:
         specifier: 'catalog:'
-        version: 3.4.7
+        version: 3.4.9
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -713,7 +713,7 @@ importers:
         version: 2.7.0
       postgres:
         specifier: 'catalog:'
-        version: 3.4.7
+        version: 3.4.9
       ts-pattern:
         specifier: ^5.6.2
         version: 5.6.2
@@ -753,7 +753,7 @@ importers:
         version: 2.7.0
       postgres:
         specifier: 'catalog:'
-        version: 3.4.7
+        version: 3.4.9
       quansync:
         specifier: ^0.2.10
         version: 0.2.10
@@ -829,7 +829,7 @@ importers:
         version: 2.7.0
       postgres:
         specifier: 'catalog:'
-        version: 3.4.7
+        version: 3.4.9
     devDependencies:
       '@ts-safeql/shared':
         specifier: workspace:*
@@ -875,7 +875,7 @@ importers:
     dependencies:
       postgres:
         specifier: 'catalog:'
-        version: 3.4.7
+        version: 3.4.9
       tsx:
         specifier: 'catalog:'
         version: 4.19.3
@@ -912,7 +912,7 @@ importers:
         version: link:../../plugin-utils
       postgres:
         specifier: 'catalog:'
-        version: 3.4.7
+        version: 3.4.9
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -964,7 +964,7 @@ importers:
         version: 8.20.0
       postgres:
         specifier: 'catalog:'
-        version: 3.4.7
+        version: 3.4.9
       tsx:
         specifier: 'catalog:'
         version: 4.19.3
@@ -1003,7 +1003,7 @@ importers:
         version: 8.71.0(eslint@10.0.3(jiti@2.4.2))(typescript@6.0.3)
       postgres:
         specifier: 'catalog:'
-        version: 3.4.7
+        version: 3.4.9
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
@@ -1042,7 +1042,7 @@ importers:
         version: 8.71.0(eslint@10.0.3(jiti@2.4.2))(typescript@6.0.3)
       postgres:
         specifier: 'catalog:'
-        version: 3.4.7
+        version: 3.4.9
       slonik:
         specifier: ^48.13.2
         version: 48.13.2
@@ -1066,7 +1066,7 @@ importers:
         version: 10.2.4
       postgres:
         specifier: 'catalog:'
-        version: 3.4.7
+        version: 3.4.9
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -1130,7 +1130,7 @@ importers:
         version: 2.7.0
       postgres:
         specifier: 'catalog:'
-        version: 3.4.7
+        version: 3.4.9
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -4022,8 +4022,8 @@ packages:
   postgres-range@1.1.4:
     resolution: {integrity: sha512-i/hbxIE9803Alj/6ytL7UHQxRvZkI9O4Sy+J3HGc4F4oo/2eQAjTSNJ0bfxyse3bH0nuVesCk+3IRLaMtG3H6w==}
 
-  postgres@3.4.7:
-    resolution: {integrity: sha512-Jtc2612XINuBjIl/QTWsV5UvE8UHuNblcO3vVADSrKsrc6RqGX6lOW1cEo3CM2v0XG4Nat8nI+YM7/f26VxXLw==}
+  postgres@3.4.9:
+    resolution: {integrity: sha512-GD3qdB0x1z9xgFI6cdRD6xu2Sp2WCOEoe3mtnyB5Ee0XrrL5Pe+e4CCnJrRMnL1zYtRDZmQQVbvOttLnKDLnaw==}
     engines: {node: '>=12'}
 
   preact@10.26.4:
@@ -7842,7 +7842,7 @@ snapshots:
 
   postgres-range@1.1.4: {}
 
-  postgres@3.4.7: {}
+  postgres@3.4.9: {}
 
   preact@10.26.4: {}
 
