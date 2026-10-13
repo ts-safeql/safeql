@@ -37,7 +37,7 @@
     "@typescript-eslint/parser": "catalog:",
     "@typescript-eslint/rule-tester": "catalog:",
     "@typescript-eslint/utils": "catalog:",
-    "postgres": "catalog:",
+    "postgres": "^3.4.9",
     "typescript": "catalog:",
     "unbuild": "catalog:",
     "vitest": "catalog:"
