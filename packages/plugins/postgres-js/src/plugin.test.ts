@@ -131,6 +131,18 @@ const cases: Case[] = [
     output: { sql: 'SELECT "name", "age" FROM users' },
   },
   {
+    name: "ISql-typed client tag",
+    source:
+      'import type { ISql } from "postgres"; async function run(sql: ISql) { return sql`SELECT 1`; }',
+    output: { sql: "SELECT 1" },
+  },
+  {
+    name: "identifier helper on ISql-typed client",
+    source:
+      'import type { ISql } from "postgres"; async function run(sql: ISql) { return sql`SELECT ${sql("id")} FROM users`; }',
+    output: { sql: 'SELECT "id" FROM users' },
+  },
+  {
     name: "raw sql fragment helper",
     source:
       'import postgres from "postgres"; const sql = postgres(); sql`SELECT * FROM users ORDER BY ${sql`age DESC`}`',
