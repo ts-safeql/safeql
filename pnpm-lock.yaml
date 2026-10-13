@@ -37,7 +37,7 @@ catalogs:
       specifier: ^17.5.2
       version: 17.5.2
     postgres:
-      specifier: ^3.4.9
+      specifier: ^3.4.5
       version: 3.4.9
     prettier:
       specifier: ^3.5.3
@@ -1002,7 +1002,7 @@ importers:
         specifier: 'catalog:'
         version: 8.71.0(eslint@10.0.3(jiti@2.4.2))(typescript@6.0.3)
       postgres:
-        specifier: 'catalog:'
+        specifier: ^3.4.9
         version: 3.4.9
       typescript:
         specifier: 'catalog:'
