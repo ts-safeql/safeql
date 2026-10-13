@@ -78,7 +78,6 @@
     "fp-ts": "^2.16.9",
     "pg-connection-string": "2.7.0",
     "postgres": "catalog:",
-    "quansync": "^0.2.10",
     "synckit": "^0.10.3",
     "ts-pattern": "^5.6.2",
     "tsx": "catalog:",
