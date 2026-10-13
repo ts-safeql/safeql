@@ -406,7 +406,7 @@ function hasTypeScriptPostgresSymbol(type: ts.Type, checker: ts.TypeChecker): bo
       continue;
     }
 
-    if (["Sql", "TransactionSql", "ReservedSql"].includes(symbol.getName())) {
+    if (["Sql", "TransactionSql", "ReservedSql", "ISql"].includes(symbol.getName())) {
       return true;
     }
   }

@@ -186,7 +186,16 @@ section("wrapped", () => {
   });
 
   ruleTester.run("helper expressions", rules["check-sql"], {
-    valid: [],
+    valid: [
+      {
+        name: "ISql-typed client with identifier helper is valid",
+        options: withConnection(),
+        code: `import type { ISql } from "postgres";
+async function withISql(sql: ISql) {
+  return await sql<{ id: number | null }[]>\`SELECT \${sql("id")} FROM (VALUES (1), (NULL::integer)) AS records (id)\`;
+}`,
+      },
+    ],
     invalid: [
       {
         name: "identifier helper from string is linted",
