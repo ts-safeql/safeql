@@ -51,7 +51,6 @@ const nonNullFunctions: Set<string> = new Set([
   "random",
   "exists",
   "row_number",
-  "current_schema",
   "current_schemas",
   "inet_server_addr",
   "inet_server_port",
