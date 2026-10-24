@@ -68,6 +68,12 @@ export function getResolvedTargetByTypeNode(
     case TSESTree.AST_NODE_TYPES.TSTypeReference:
       return handleTypeReference(typeNode, params);
 
+    case TSESTree.AST_NODE_TYPES.TSIndexedAccessType:
+      return resolveType(
+        params.checker.getTypeFromTypeNode(params.parser.esTreeNodeToTSNodeMap.get(typeNode)),
+        params,
+      );
+
     case TSESTree.AST_NODE_TYPES.TSIntersectionType:
       return handleIntersectionType(typeNode, params);
 
