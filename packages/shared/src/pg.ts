@@ -21,6 +21,7 @@ export const defaultTypeMapping = {
   bigserial: "string",
 
   // Common string types
+  name: "string",
   uuid: "string",
   text: "string",
   varchar: "string",
