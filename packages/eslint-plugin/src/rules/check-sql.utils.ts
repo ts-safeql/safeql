@@ -29,6 +29,7 @@ import {
   zConnectionMigration,
 } from "./RuleOptions";
 import { ConnectionStrategy } from "@ts-safeql/connection-manager";
+import { TS } from "../ts";
 
 type TypeReplacerString = string;
 type TypeReplacerFromTo = [string, string];
@@ -524,6 +525,27 @@ export function normalizeAnyForComparison(
   return { expected: alignedExpected, generated: alignedGenerated };
 }
 
+function getUnionMembers(target: ComparableTarget): ComparableTarget[] {
+  if (target.kind === "union") return target.value.flatMap(getUnionMembers);
+  if (target.kind !== "type" || !target.value.includes("|")) return [target];
+
+  // Overrides can contain unions as opaque strings. Parse their top-level syntax so
+  // adding null or nesting a union cannot change the order used for comparison.
+  const source = TS.createSourceFile(
+    "override.ts",
+    `type Override = ${target.value}`,
+    TS.ScriptTarget.Latest,
+  );
+  const declaration = source.statements[0];
+  if (!declaration || !TS.isTypeAliasDeclaration(declaration)) return [target];
+  let type = declaration.type;
+  while (TS.isParenthesizedTypeNode(type)) type = type.type;
+  if (!TS.isUnionTypeNode(type)) return [target];
+  return type.types.flatMap((member) =>
+    getUnionMembers({ kind: "type", value: member.getText(source) }),
+  );
+}
+
 export function getResolvedTargetComparableString(params: {
   target: ExpectedResolvedTarget | ResolvedTarget;
   nullAsOptional: boolean;
@@ -547,19 +569,23 @@ export function getResolvedTargetComparableString(params: {
       return value === "null" ? nullType : value;
     }
     case "type":
-      return target.value === "null" ? nullType : target.value.replace(/"/g, "'");
-
     case "union":
       return unique(
-        target.value
-          .map((target) => getResolvedTargetComparableString({ ...params, target }))
+        getUnionMembers(target)
+          .map((member) =>
+            member.kind === "type"
+              ? member.value === "null"
+                ? nullType
+                : member.value.replace(/"/g, "'")
+              : getResolvedTargetComparableString({ ...params, target: member }),
+          )
           .sort(),
       ).join(" | ");
 
     case "array": {
       let arrayString = getResolvedTargetComparableString({ ...params, target: target.value });
 
-      if (target.value.kind === "union" && arrayString.includes("|")) {
+      if (getUnionMembers(target.value).length > 1 && arrayString.includes("|")) {
         arrayString = `(${arrayString})`;
       }
 
@@ -684,7 +710,7 @@ export function getResolvedTargetString(params: {
 
     case "array": {
       const arrayString = getResolvedTargetString({ ...params, target: target.value });
-      return target.value.kind === "union" && arrayString.includes("|")
+      return getUnionMembers(target.value).length > 1 && arrayString.includes("|")
         ? `(${arrayString})[]`
         : `${arrayString}[]`;
     }
