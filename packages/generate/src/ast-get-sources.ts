@@ -473,11 +473,6 @@ export function getSources({
     return result;
   }
 
-  /**
-   * Per-column non-null analysis of a view body. A set-operation column is non-null
-   * only if every branch proves it (sound for UNION/INTERSECT, conservative for EXCEPT);
-   * output names come from the leftmost branch, matching PostgreSQL.
-   */
   function analyzeSelectNonNull(
     select: LibPgQueryAST.SelectStmt,
     visited: Set<string>,

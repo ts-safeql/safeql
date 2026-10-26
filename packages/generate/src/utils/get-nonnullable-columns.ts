@@ -2,7 +2,6 @@ import { assertNever } from "@ts-safeql/shared";
 import * as LibPgQueryAST from "@ts-safeql/sql-ast";
 import { selectReturnsExactlyOneRow } from "./scalar-subquery-row-count";
 
-// Function names that are always non-nullable.
 const nonNullFunctions: Set<string> = new Set([
   "count",
   "now",
@@ -77,10 +76,6 @@ function concatStringNodes(nodes: LibPgQueryAST.Node[] | undefined): string {
   );
 }
 
-/**
- * `resolveColumnRefNonNull` lets the caller decide whether a column ref is non-null from
- * knowledge this function lacks (e.g. a view body's base-table NOT NULL constraints).
- */
 export function isColumnNonNullable(params: {
   val: LibPgQueryAST.Node | undefined;
   root: LibPgQueryAST.ParseResult;
@@ -125,7 +120,7 @@ export function isColumnNonNullable(params: {
         return true;
 
       case LibPgQueryAST.SubLinkType.ARRAY_SUBLINK:
-        return true; // while the array itself can be non-nullable, the elements can be nullable
+        return true;
 
       case LibPgQueryAST.SubLinkType.ALL_SUBLINK:
       case LibPgQueryAST.SubLinkType.ANY_SUBLINK:
@@ -194,7 +189,6 @@ export function isColumnNonNullable(params: {
   }
 
   if (val.CaseExpr) {
-    // A CASE with no ELSE clause is implicitly `ELSE NULL`, so it can always return NULL.
     if (val.CaseExpr.defresult === undefined) {
       return false;
     }

@@ -105,10 +105,6 @@ function isPlainObject(v: unknown): v is Obj {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
-/**
- * Deep-merge `defaults` into `target`. Values already present in `target` are
- * never overwritten; nested plain objects are merged recursively.
- */
 export function deepMergeDefaults<T extends Obj>(target: T, defaults: Obj): T {
   const result: Obj = { ...target };
 

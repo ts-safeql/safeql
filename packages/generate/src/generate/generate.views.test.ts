@@ -134,7 +134,7 @@ test("select a genuinely nullable expression from a view should remain nullable"
   });
 });
 
-test("UNION view should be non-nullable when both branches are non-null", async () => {
+test("UNION view should be non-nullable when both branches are non-null, named after the leftmost branch", async () => {
   await testQuery({
     schema: `
       CREATE VIEW v_union AS
@@ -156,6 +156,32 @@ test("UNION view should be nullable when one branch is nullable", async () => {
         SELECT nullable_col FROM test_nullability
     `,
     query: `SELECT first_name FROM v_union_mixed`,
+    expected: [["first_name", nullable(text)]],
+  });
+});
+
+test("INTERSECT view should be non-nullable when both branches are non-null", async () => {
+  await testQuery({
+    schema: `
+      CREATE VIEW v_intersect AS
+        SELECT id FROM member
+        INTERSECT
+        SELECT member_id FROM member_team
+    `,
+    query: `SELECT id FROM v_intersect`,
+    expected: [["id", int4]],
+  });
+});
+
+test("EXCEPT view should conservatively stay nullable when the excluded branch is nullable", async () => {
+  await testQuery({
+    schema: `
+      CREATE VIEW v_except_mixed AS
+        SELECT first_name FROM member
+        EXCEPT
+        SELECT nullable_col FROM test_nullability
+    `,
+    query: `SELECT first_name FROM v_except_mixed`,
     expected: [["first_name", nullable(text)]],
   });
 });

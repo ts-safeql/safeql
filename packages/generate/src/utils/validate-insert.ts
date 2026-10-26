@@ -29,7 +29,7 @@ export function validateInsertResult(
   const tableCols = pgColsBySchemaAndTableName.get(schemaName)?.get(tableName);
 
   if (tableCols === undefined) {
-    return; // Table not found in metadata
+    return;
   }
 
   const insertCols = getInsertColumns(insertStmt, tableCols);
@@ -39,7 +39,7 @@ export function validateInsertResult(
   );
 
   if (missing.length === 0) {
-    return; // No missing columns
+    return;
   }
 
   const position = (parsed.stmts[0]?.stmtLocation ?? 0) + 1;

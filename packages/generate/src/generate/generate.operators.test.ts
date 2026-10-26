@@ -345,14 +345,14 @@ test(`'{"a": 1, "b": 2}'::jsonb #- '{a}' => jsonb`, async () => {
   });
 });
 
-test("|/ 16 => number", async () => {
+test("|/ of an integer always yields float8", async () => {
   await testQuery({
     query: `SELECT |/ 16`,
     expected: [["?column?", { kind: "type", value: "number", type: "float8" }]],
   });
 });
 
-test("||/ 27 => number", async () => {
+test("||/ of an integer always yields float8", async () => {
   await testQuery({
     query: `SELECT ||/ 27`,
     expected: [["?column?", { kind: "type", value: "number", type: "float8" }]],

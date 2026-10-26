@@ -69,11 +69,7 @@ function parseConnection(databaseUrl: string): ConnectionOptions {
 
 async function initDatabase(connection: ConnectionOptions) {
   try {
-    try {
-      await dropDatabase(connection);
-    } catch {
-      // do nothing
-    }
+    await dropDatabase(connection).catch(ignoreDropFailure);
     await createDatabase(connection);
   } catch (e) {
     if (!(e instanceof Error)) {
@@ -84,6 +80,8 @@ async function initDatabase(connection: ConnectionOptions) {
     console.error("Failed initializing database:", e.toString());
   }
 }
+
+function ignoreDropFailure() {}
 
 function createDatabase(connection: ConnectionOptions) {
   const exec = spawn(
