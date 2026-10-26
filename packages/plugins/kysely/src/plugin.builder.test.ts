@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, describe, expect, it } from "vitest";
 import { PluginTestDriver, type ToSQLResult } from "@ts-safeql/plugin-utils/testing";
 import plugin from "./plugin";
 
@@ -70,7 +70,7 @@ const skipCases: Case[] = [
     output: { skipped: true },
   },
   {
-    name: "dynamic identifier in embedded sql is skipped (its free reference is out of sandbox scope)",
+    name: "dynamic identifier in embedded sql is skipped (its free reference cannot be resolved)",
     code: `db.selectFrom("person").select(sql\`\${sql.ref(col)}\`.as("x")).execute()`,
     output: { skipped: true },
   },
@@ -100,6 +100,48 @@ const skipCases: Case[] = [
     output: { skipped: true },
   },
 ];
+
+const ESCAPE_MARKER = "__safeqlBuilderEscape";
+const setEscapeMarker = JSON.stringify(`globalThis.${ESCAPE_MARKER} = true; return "x"`);
+
+const codeExecutionCases: Case[] = [
+  {
+    name: "a sql.raw argument reaching the Function constructor through `this`",
+    code: `db.selectFrom("person").select(sql\`\${sql.raw(this.constructor.constructor(${setEscapeMarker})())}\`.as("x")).execute()`,
+    output: { skipped: true },
+  },
+  {
+    name: "a chain reaching the Function constructor through `constructor` with static arguments",
+    code: `db.constructor.constructor(${setEscapeMarker})().selectFrom("person").select(sql<number>\`id\`.as("x")).execute()`,
+    output: { skipped: true },
+  },
+  {
+    name: "a chain reaching the Function constructor through `__proto__`",
+    code: `db.__proto__.constructor.constructor(${setEscapeMarker})().selectFrom("person").select(sql<number>\`id\`.as("x")).execute()`,
+    output: { skipped: true },
+  },
+  {
+    name: "a chain reaching the Function constructor through a builder method's `bind`",
+    code: `db.selectFrom.bind.constructor(${setEscapeMarker})().selectFrom("person").select(sql<number>\`id\`.as("x")).execute()`,
+    output: { skipped: true },
+  },
+  {
+    name: "a sql.raw argument computed by eval",
+    code: `db.selectFrom("person").select(sql\`\${sql.raw(eval("'x'"))}\`.as("x")).execute()`,
+    output: { skipped: true },
+  },
+];
+
+describe("kysely plugin — builder never executes code from the linted file", () => {
+  afterEach(() => Reflect.deleteProperty(globalThis, ESCAPE_MARKER));
+
+  for (const c of codeExecutionCases) {
+    it(c.name, () => {
+      expect(driver.toBuilderSQL(preamble + c.code)).toEqual(c.output);
+      expect(Reflect.get(globalThis, ESCAPE_MARKER)).toBeUndefined();
+    });
+  }
+});
 
 describe("kysely plugin — builder embedded-sql (valid)", () => {
   for (const c of validCases) {
