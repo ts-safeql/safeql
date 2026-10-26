@@ -47,6 +47,30 @@ const validCases: Case[] = [
     output: { sql: `select "first_name" as "n" from "person"` },
   },
   {
+    name: "a sql fragment held in a variable embeds its SQL",
+    code: `const hasBio = sql\`bio is not null\`;
+db.selectFrom("person").select("id").where(sql\`id > 1 and \${hasBio}\`).execute()`,
+    output: { sql: `select "id" from "person" where id > 1 and bio is not null` },
+  },
+  {
+    name: "a sql helper held in a variable embeds its SQL",
+    code: `const firstName = sql.ref("first_name");
+db.selectFrom("person").select(sql\`\${firstName}\`.as("n")).execute()`,
+    output: { sql: `select "first_name" as "n" from "person"` },
+  },
+  {
+    name: "a constant held in a variable stays a bound param",
+    code: `const threshold = 5;
+db.selectFrom("person").select("id").where(sql\`id > \${threshold}\`).execute()`,
+    output: { sql: `select "id" from "person" where id > $1` },
+  },
+  {
+    name: "a sql fragment that interpolates itself resolves without recursing forever",
+    code: `const loop: unknown = sql\`\${loop}\`;
+db.selectFrom("person").select("id").where(sql\`id > \${loop}\`).execute()`,
+    output: { sql: `select "id" from "person" where id > $1` },
+  },
+  {
     name: "a free variable in the value slot of a scalar where becomes a bound param",
     code: `db.selectFrom("person").select(sql<string>\`upper(first_name)\`.as("x")).where("id", ">", min).execute()`,
     output: { sql: `select upper(first_name) as "x" from "person" where "id" > $1` },

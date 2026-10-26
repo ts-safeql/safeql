@@ -501,6 +501,7 @@ function evaluateSqlExpressionChain(
 function evaluateEmbeddedSqlFragment(
   template: ts.TemplateLiteral,
   checker: ts.TypeChecker,
+  identifiersBeingResolved: ReadonlySet<ts.Symbol> = new Set(),
 ): unknown {
   if (ts.isNoSubstitutionTemplateLiteral(template)) {
     return callSqlTag([template.text], []);
@@ -509,7 +510,7 @@ function evaluateEmbeddedSqlFragment(
   const spans = template.templateSpans;
   const values = evaluateEach(
     spans.map((span) => span.expression),
-    (expression) => evaluateInterpolation(expression, checker),
+    (expression) => evaluateInterpolation(expression, checker, identifiersBeingResolved),
   );
   if (values === ast.UNRESOLVED) {
     return values;
@@ -518,18 +519,40 @@ function evaluateEmbeddedSqlFragment(
   return callSqlTag([template.head.text, ...spans.map((span) => span.literal.text)], values);
 }
 
-function evaluateInterpolation(expression: ts.Expression, checker: ts.TypeChecker): unknown {
+function evaluateInterpolation(
+  expression: ts.Expression,
+  checker: ts.TypeChecker,
+  identifiersBeingResolved: ReadonlySet<ts.Symbol>,
+): unknown {
   const u = ast.unwrap({ node: expression });
 
   if (isKyselySqlTaggedTemplate(u, checker)) {
-    return evaluateEmbeddedSqlFragment(u.template, checker);
+    return evaluateEmbeddedSqlFragment(u.template, checker, identifiersBeingResolved);
   }
 
   if (isKyselyHelperCall(u, checker)) {
     return evaluateSqlHelperCall(u, checker);
   }
 
+  if (ts.isIdentifier(u)) {
+    return evaluateIdentifierInterpolation(u, checker, identifiersBeingResolved);
+  }
+
   return BOUND_PARAM_STUB;
+}
+
+function evaluateIdentifierInterpolation(
+  identifier: ts.Identifier,
+  checker: ts.TypeChecker,
+  identifiersBeingResolved: ReadonlySet<ts.Symbol>,
+): unknown {
+  const symbol = checker.getSymbolAtLocation(identifier);
+  const initializer = ast.findInitializer({ identifier, checker });
+  if (symbol === undefined || initializer === undefined || identifiersBeingResolved.has(symbol)) {
+    return BOUND_PARAM_STUB;
+  }
+
+  return evaluateInterpolation(initializer, checker, new Set(identifiersBeingResolved).add(symbol));
 }
 
 function evaluateSqlHelperCall(call: KyselyHelperCall, checker: ts.TypeChecker): unknown {
