@@ -238,7 +238,7 @@ function resolveQueryFromPlugins(params: {
 
   let lazyTsType: ts.Type | undefined;
   let lazyTsTypeText: string | undefined;
-  const resolveContextSharedByPlugins = {
+  const sharedResolveContext = {
     checker: targetCtx.checker,
     parser: targetCtx.parser,
     precedingSQL: "",
@@ -265,7 +265,7 @@ function resolveQueryFromPlugins(params: {
       continue;
     }
 
-    const result = plugin.resolveQuery(resolveContextSharedByPlugins);
+    const result = plugin.resolveQuery(sharedResolveContext);
 
     if (result === "skip" || result === undefined) {
       continue;

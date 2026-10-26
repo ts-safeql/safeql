@@ -712,7 +712,7 @@ function getLastPositionedHelperKeyword(precedingSQL: string): HelperKeyword | u
 }
 
 function findLastKeyword(text: string, keyword: HelperKeyword): HelperKeywordMatch | undefined {
-  const pattern = new RegExp(`(?:^|[\\s(])${keyword}(?=$|[\\s(])`, "gi");
+  const pattern = new RegExp(`(?:^|[\\s(])${keyword}(?:$|[\\s(])`, "gi");
   let match = pattern.exec(text);
   let index: number | undefined;
 

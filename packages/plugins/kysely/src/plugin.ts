@@ -122,8 +122,6 @@ const singleBoundParamOperators = new Set([
   "<@",
 ]);
 
-const nonReconstructibleBuilderMembers = new Set(["with", "dynamic", "sql"]);
-
 const BOUND_PARAM_STUB = "1";
 
 const fragmentMarkerMethods = new Set(["as", "toOperationNode"]);
@@ -370,10 +368,6 @@ function renderBuilderChain(
   }
 
   if (ts.isPropertyAccessExpression(unwrapped)) {
-    if (nonReconstructibleBuilderMembers.has(unwrapped.name.text)) {
-      return undefined;
-    }
-
     const receiverText = renderBuilderChain(unwrapped.expression, checker, sourceFile, state);
     if (receiverText === undefined) {
       return undefined;

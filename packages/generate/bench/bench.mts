@@ -7,7 +7,7 @@ const ADMIN = "postgres://postgres:postgres@localhost:5432/postgres";
 const DB_NAME = "safeql_bench";
 const DB_URL = `postgres://postgres:postgres@localhost:5432/${DB_NAME}`;
 
-const PADDING_TABLES_FOR_REALISTIC_SCHEMA_SIZE = 200;
+const PADDING_TABLES = 200;
 
 const TEMPLATES: string[] = [
   `SELECT id, first_name, last_name FROM member WHERE id = {N}`,
@@ -40,7 +40,7 @@ async function setupDb() {
   const sql = postgres(DB_URL);
   await runMigrations(sql);
   let ddl = "";
-  for (let i = 0; i < PADDING_TABLES_FOR_REALISTIC_SCHEMA_SIZE; i++) {
+  for (let i = 0; i < PADDING_TABLES; i++) {
     ddl += `CREATE TABLE bulk_${i} (id int primary key, a text not null, b int, c timestamptz, d jsonb);\n`;
   }
   await sql.unsafe(ddl);
@@ -85,7 +85,7 @@ async function main() {
   const msPerQueryCached = await measure(hitResultCache);
 
   const metrics = {
-    schemaTables: PADDING_TABLES_FOR_REALISTIC_SCHEMA_SIZE,
+    schemaTables: PADDING_TABLES,
     queries: QUERIES,
     rounds: ROUNDS,
     msPerQueryDistinct: Number(msPerQueryUncached.toFixed(4)),

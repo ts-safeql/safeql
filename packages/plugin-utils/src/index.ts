@@ -34,9 +34,9 @@ export interface ResolveQueryContext {
   parser: ParserServices;
   precedingSQL: string;
   tsNode: ts.Node;
-  /** Resolved lazily on first access. */
+  /** May be computed lazily; read only when needed. */
   readonly tsType: ts.Type;
-  /** Resolved lazily on first access. */
+  /** May be computed lazily; read only when needed. */
   readonly tsTypeText: string;
 }
 
@@ -162,7 +162,11 @@ export type PluginResolvedTarget =
   | { kind: "array"; value: PluginResolvedTarget }
   | { kind: "object"; value: [string, PluginResolvedTarget][] };
 
-/** Whether `actual` (DB-resolved) is assignable to `expected` (user-declared) under TypeScript semantics. */
+/**
+ * Whether `actual` (DB-resolved) satisfies `expected` (user-declared): `any`/`unknown` accept
+ * anything, unions are compared member-wise, literals satisfy their base type, and objects must
+ * declare exactly the same properties.
+ */
 export function isAssignableTo(
   actual: PluginResolvedTarget,
   expected: PluginResolvedTarget,

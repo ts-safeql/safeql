@@ -127,7 +127,7 @@ async function main() {
 
   const onTimes: number[] = [];
   const overheads: number[] = [];
-  for (let interleavedOnOffRound = 0; interleavedOnOffRound < ROUNDS; interleavedOnOffRound++) {
+  for (let round = 0; round < ROUNDS; round++) {
     const on = await lint(true, files);
     const off = await lint(false, files);
     onTimes.push(on);

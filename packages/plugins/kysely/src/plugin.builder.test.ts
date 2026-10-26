@@ -90,8 +90,13 @@ const skipCases: Case[] = [
     output: { skipped: true },
   },
   {
-    name: "a CTE (.with) is skipped",
+    name: "a CTE (.with) is skipped (its query callback cannot be reconstructed)",
     code: `db.with("p", (qb) => qb.selectFrom("person").select("id")).selectFrom("p").select(sql<number>\`id\`.as("x")).execute()`,
+    output: { skipped: true },
+  },
+  {
+    name: "a db.dynamic reference is skipped (its runtime value drives the SQL text)",
+    code: `db.selectFrom("person").select([db.dynamic.ref("first_name"), sql<number>\`id\`.as("x")]).execute()`,
     output: { skipped: true },
   },
 ];
@@ -133,6 +138,17 @@ db.withSchema("audit").selectFrom("person").select(sql<string>\`upper(first_name
 import { Kysely, sql } from "kysely";
 interface DB { person: { id: number; first_name: string } }
 class AppDb extends Kysely<DB> {}
+declare const appDb: AppDb;
+appDb.selectFrom("person").select(sql<string>\`upper(first_name)\`.as("x")).execute()`,
+    output: { sql: `select upper(first_name) as "x" from "person"` },
+  },
+  {
+    name: "a subclass of a user subclass of Kysely is detected through its transitive base types",
+    source: `
+import { Kysely, sql } from "kysely";
+interface DB { person: { id: number; first_name: string } }
+class BaseDb extends Kysely<DB> {}
+class AppDb extends BaseDb {}
 declare const appDb: AppDb;
 appDb.selectFrom("person").select(sql<string>\`upper(first_name)\`.as("x")).execute()`,
     output: { sql: `select upper(first_name) as "x" from "person"` },
