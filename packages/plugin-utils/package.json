@@ -39,6 +39,7 @@
     "build": "unbuild",
     "dev": "unbuild --stub",
     "publint": "publint",
+    "test": "vitest",
     "typecheck": "tsc -b",
     "clean": "rm -rf dist"
   },
@@ -48,7 +49,8 @@
     "@typescript-eslint/utils": "catalog:",
     "publint": "catalog:",
     "typescript": "catalog:",
-    "unbuild": "catalog:"
+    "unbuild": "catalog:",
+    "vitest": "catalog:"
   },
   "dependencies": {
     "postgres": "catalog:",
