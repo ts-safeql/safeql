@@ -218,21 +218,20 @@ function isBoundValueAbsent(element: ts.BindingElement): boolean {
   const source = getBindingSource(element.parent);
   if (!source) return false;
 
+  const literal = unwrap({ node: source });
+
   if (TS.isObjectBindingPattern(element.parent)) {
-    return isPropertyAbsentFromObjectLiteral(element, source);
+    return isPropertyAbsentFromObjectLiteral(element, literal);
   }
 
   if (TS.isArrayBindingPattern(element.parent)) {
-    return isElementAbsentFromArrayLiteral(element, source);
+    return isElementAbsentFromArrayLiteral(element, literal);
   }
 
   return false;
 }
 
-function isPropertyAbsentFromObjectLiteral(
-  element: ts.BindingElement,
-  source: ts.Expression,
-): boolean {
+function isPropertyAbsentFromObjectLiteral(element: ts.BindingElement, source: ts.Node): boolean {
   if (!TS.isObjectLiteralExpression(source)) return false;
 
   const propertyName = getPropertyName({ node: element.propertyName ?? element.name });
@@ -245,10 +244,7 @@ function isPropertyAbsentFromObjectLiteral(
   });
 }
 
-function isElementAbsentFromArrayLiteral(
-  element: ts.BindingElement,
-  source: ts.Expression,
-): boolean {
+function isElementAbsentFromArrayLiteral(element: ts.BindingElement, source: ts.Node): boolean {
   if (!TS.isArrayLiteralExpression(source)) return false;
 
   const index = element.parent.elements.indexOf(element);

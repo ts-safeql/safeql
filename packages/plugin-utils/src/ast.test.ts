@@ -125,6 +125,22 @@ describe("getStaticValue", () => {
     assert.equal(getStaticValue({ node: getInitializerOf(sourceFile, "target"), checker }), 5);
   });
 
+  test("a destructuring default applies when a type assertion wraps the object literal source", () => {
+    const { checker, sourceFile } = createProject({
+      "main.ts": "const { a = 5 } = {} as { a?: number }; export const target = a;",
+    });
+
+    assert.equal(getStaticValue({ node: getInitializerOf(sourceFile, "target"), checker }), 5);
+  });
+
+  test("a destructuring default applies when a type assertion wraps the array literal source", () => {
+    const { checker, sourceFile } = createProject({
+      "main.ts": "const [first = 5] = [] as number[]; export const target = first;",
+    });
+
+    assert.equal(getStaticValue({ node: getInitializerOf(sourceFile, "target"), checker }), 5);
+  });
+
   test("a destructuring default is not the value when an accessor provides the key", () => {
     const { checker, sourceFile } = createProject({
       "main.ts": "const { a = 5 } = { get a() { return 3; } }; export const target = a;",
