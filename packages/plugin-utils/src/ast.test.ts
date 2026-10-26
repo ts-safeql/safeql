@@ -33,16 +33,21 @@ function createProject(files: Record<string, string>) {
 }
 
 function getInitializerOf(sourceFile: ts.SourceFile, variableName: string): ts.Expression {
-  for (const statement of sourceFile.statements) {
-    if (!TS.isVariableStatement(statement)) continue;
-    for (const declaration of statement.declarationList.declarations) {
-      if (TS.isIdentifier(declaration.name) && declaration.name.text === variableName) {
-        assert(declaration.initializer);
-        return declaration.initializer;
-      }
-    }
+  const initializer = findVariableInitializer(sourceFile, variableName);
+  if (!initializer) throw new Error(`variable ${variableName} not found`);
+  return initializer;
+}
+
+function findVariableInitializer(node: ts.Node, variableName: string): ts.Expression | undefined {
+  if (
+    TS.isVariableDeclaration(node) &&
+    TS.isIdentifier(node.name) &&
+    node.name.text === variableName
+  ) {
+    return node.initializer;
   }
-  throw new Error(`variable ${variableName} not found`);
+
+  return TS.forEachChild(node, (child) => findVariableInitializer(child, variableName));
 }
 
 describe("getStaticValue", () => {
@@ -66,6 +71,97 @@ describe("getStaticValue", () => {
       getStaticValue({ node: getInitializerOf(sourceFile, "target"), checker }),
       [1, 1],
     );
+  });
+
+  test("a destructuring default is not the value when the source is unknown", () => {
+    const { checker, sourceFile } = createProject({
+      "main.ts":
+        "declare function make(): { a?: number }; const { a = 5 } = make(); export const target = a;",
+    });
+
+    assert.equal(
+      getStaticValue({ node: getInitializerOf(sourceFile, "target"), checker }),
+      UNRESOLVED,
+    );
+  });
+
+  test("a parameter destructuring default is not the value of the parameter", () => {
+    const { checker, sourceFile } = createProject({
+      "main.ts":
+        "export function f({ b = 7 }: { b?: number }) { const target = b; return target; }",
+    });
+
+    assert.equal(
+      getStaticValue({ node: getInitializerOf(sourceFile, "target"), checker }),
+      UNRESOLVED,
+    );
+  });
+
+  test("a destructuring default is not the value when a spread may provide the key", () => {
+    const { checker, sourceFile } = createProject({
+      "main.ts":
+        "declare const other: { a?: number }; const { a = 5 } = { ...other }; export const target = a;",
+    });
+
+    assert.equal(
+      getStaticValue({ node: getInitializerOf(sourceFile, "target"), checker }),
+      UNRESOLVED,
+    );
+  });
+
+  test("a destructuring default applies when the object literal source lacks the key", () => {
+    const { checker, sourceFile } = createProject({
+      "main.ts": "// @ts-nocheck\nconst { a = 5 } = { b: 1 }; export const target = a;",
+    });
+
+    assert.equal(getStaticValue({ node: getInitializerOf(sourceFile, "target"), checker }), 5);
+  });
+
+  test("a destructuring default applies when the array literal source lacks the element", () => {
+    const { checker, sourceFile } = createProject({
+      "main.ts": "// @ts-nocheck\nconst [first, second = 5] = [1]; export const target = second;",
+    });
+
+    assert.equal(getStaticValue({ node: getInitializerOf(sourceFile, "target"), checker }), 5);
+  });
+
+  test("a destructuring default is not the value when an accessor provides the key", () => {
+    const { checker, sourceFile } = createProject({
+      "main.ts": "const { a = 5 } = { get a() { return 3; } }; export const target = a;",
+    });
+
+    assert.equal(
+      getStaticValue({ node: getInitializerOf(sourceFile, "target"), checker }),
+      UNRESOLVED,
+    );
+  });
+
+  test("a destructuring default is not the value when an array spread may provide the element", () => {
+    const { checker, sourceFile } = createProject({
+      "main.ts":
+        "declare const rest: number[]; const [first, second = 5] = [...rest]; export const target = second;",
+    });
+
+    assert.equal(
+      getStaticValue({ node: getInitializerOf(sourceFile, "target"), checker }),
+      UNRESOLVED,
+    );
+  });
+
+  test("a destructuring default applies when the array literal source has a hole at the element", () => {
+    const { checker, sourceFile } = createProject({
+      "main.ts": "const [first = 5] = [, 1]; export const target = first;",
+    });
+
+    assert.equal(getStaticValue({ node: getInitializerOf(sourceFile, "target"), checker }), 5);
+  });
+
+  test("a destructured binding resolves to the bound value over its default", () => {
+    const { checker, sourceFile } = createProject({
+      "main.ts": "const { a = 5 } = { a: 3 }; export const target = a;",
+    });
+
+    assert.equal(getStaticValue({ node: getInitializerOf(sourceFile, "target"), checker }), 3);
   });
 });
 

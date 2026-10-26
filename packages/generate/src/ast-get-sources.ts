@@ -490,11 +490,30 @@ export function getSources({
 
       return left.map((column, index) => ({
         name: column.name,
-        isNotNull: column.isNotNull && (right[index]?.isNotNull ?? false),
+        isNotNull: isSetOperationColumnNotNull(
+          op,
+          column.isNotNull,
+          right[index]?.isNotNull ?? false,
+        ),
       }));
     }
 
     return analyzePlainSelectNonNull(select, visited);
+  }
+
+  function isSetOperationColumnNotNull(
+    op: LibPgQueryAST.SetOperation,
+    isLeftNotNull: boolean,
+    isRightNotNull: boolean,
+  ): boolean {
+    switch (op) {
+      case LibPgQueryAST.SetOperation.SETOP_EXCEPT:
+        return isLeftNotNull;
+      case LibPgQueryAST.SetOperation.SETOP_INTERSECT:
+        return isLeftNotNull || isRightNotNull;
+      default:
+        return isLeftNotNull && isRightNotNull;
+    }
   }
 
   function analyzePlainSelectNonNull(

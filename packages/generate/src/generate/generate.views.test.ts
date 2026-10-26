@@ -134,7 +134,7 @@ test("select a genuinely nullable expression from a view should remain nullable"
   });
 });
 
-test("UNION view should be non-nullable when both branches are non-null, named after the leftmost branch", async () => {
+test("UNION view should be non-nullable when both branches are non-null", async () => {
   await testQuery({
     schema: `
       CREATE VIEW v_union AS
@@ -173,16 +173,55 @@ test("INTERSECT view should be non-nullable when both branches are non-null", as
   });
 });
 
-test("EXCEPT view should conservatively stay nullable when the excluded branch is nullable", async () => {
+test("INTERSECT view should be non-nullable when only one branch is non-null, since every row must match a non-null row", async () => {
   await testQuery({
     schema: `
-      CREATE VIEW v_except_mixed AS
+      CREATE VIEW v_intersect_mixed AS
+        SELECT nullable_col FROM test_nullability
+        INTERSECT
+        SELECT first_name FROM member
+    `,
+    query: `SELECT nullable_col FROM v_intersect_mixed`,
+    expected: [["nullable_col", text]],
+  });
+});
+
+test("INTERSECT view should be nullable when both branches are nullable", async () => {
+  await testQuery({
+    schema: `
+      CREATE VIEW v_intersect_nullable AS
+        SELECT nullable_col FROM test_nullability
+        INTERSECT
+        SELECT nullable_col FROM test_nullability
+    `,
+    query: `SELECT nullable_col FROM v_intersect_nullable`,
+    expected: [["nullable_col", nullable(text)]],
+  });
+});
+
+test("EXCEPT view should be non-nullable when the left branch is non-null, since it only returns left rows", async () => {
+  await testQuery({
+    schema: `
+      CREATE VIEW v_except_left_non_null AS
         SELECT first_name FROM member
         EXCEPT
         SELECT nullable_col FROM test_nullability
     `,
-    query: `SELECT first_name FROM v_except_mixed`,
-    expected: [["first_name", nullable(text)]],
+    query: `SELECT first_name FROM v_except_left_non_null`,
+    expected: [["first_name", text]],
+  });
+});
+
+test("EXCEPT view should be nullable when the left branch is nullable, even if the excluded branch is non-null", async () => {
+  await testQuery({
+    schema: `
+      CREATE VIEW v_except_left_nullable AS
+        SELECT nullable_col FROM test_nullability
+        EXCEPT
+        SELECT first_name FROM member
+    `,
+    query: `SELECT nullable_col FROM v_except_left_nullable`,
+    expected: [["nullable_col", nullable(text)]],
   });
 });
 

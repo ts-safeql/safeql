@@ -65,7 +65,10 @@ export function isSymbolImportedFrom(params: {
   );
 }
 
-/** Returns `UNRESOLVED` when the value isn't statically known, including cyclic initializers. */
+/**
+ * Returns `UNRESOLVED` when the value isn't statically known, including cyclic initializers and
+ * destructuring defaults whose source value is unknown.
+ */
 export function getStaticValue(params: {
   node: ts.Node | undefined;
   checker: ts.TypeChecker;
@@ -127,7 +130,10 @@ function evaluateStaticValue(
   return UNRESOLVED;
 }
 
-/** For a destructured binding, returns the value actually bound, not the binding's default. */
+/**
+ * Returns the expression a variable is bound to, or `undefined` when it can't be resolved.
+ * A destructuring default is returned only when the source is a literal known to lack that element.
+ */
 export function findInitializer(params: {
   identifier: ts.Identifier;
   checker: ts.TypeChecker;
@@ -146,7 +152,9 @@ export function findInitializer(params: {
     if (TS.isBindingElement(declaration)) {
       const bound = getBindingInitializer({ element: declaration });
       if (bound) return bound;
-      if (declaration.initializer) return declaration.initializer;
+      if (declaration.initializer && isBoundValueAbsent(declaration)) {
+        return declaration.initializer;
+      }
     }
   }
 
@@ -202,6 +210,54 @@ function getBindingSource(pattern: ts.BindingPattern): ts.Expression | undefined
   if (TS.isBindingElement(owner)) return getBindingInitializer({ element: owner });
 
   return undefined;
+}
+
+function isBoundValueAbsent(element: ts.BindingElement): boolean {
+  if (element.dotDotDotToken) return false;
+
+  const source = getBindingSource(element.parent);
+  if (!source) return false;
+
+  if (TS.isObjectBindingPattern(element.parent)) {
+    return isPropertyAbsentFromObjectLiteral(element, source);
+  }
+
+  if (TS.isArrayBindingPattern(element.parent)) {
+    return isElementAbsentFromArrayLiteral(element, source);
+  }
+
+  return false;
+}
+
+function isPropertyAbsentFromObjectLiteral(
+  element: ts.BindingElement,
+  source: ts.Expression,
+): boolean {
+  if (!TS.isObjectLiteralExpression(source)) return false;
+
+  const propertyName = getPropertyName({ node: element.propertyName ?? element.name });
+  if (!propertyName) return false;
+
+  return source.properties.every((property) => {
+    if (!property.name) return false;
+    const name = getPropertyName({ node: property.name });
+    return name !== undefined && name !== propertyName;
+  });
+}
+
+function isElementAbsentFromArrayLiteral(
+  element: ts.BindingElement,
+  source: ts.Expression,
+): boolean {
+  if (!TS.isArrayLiteralExpression(source)) return false;
+
+  const index = element.parent.elements.indexOf(element);
+  if (index < 0) return false;
+
+  if (source.elements.some(TS.isSpreadElement)) return false;
+
+  const value = source.elements[index];
+  return value === undefined || TS.isOmittedExpression(value);
 }
 
 function resolveObjectBindingElementInitializer(
