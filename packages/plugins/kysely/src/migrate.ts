@@ -7,13 +7,10 @@ import type { Migration, MigrationProvider } from "kysely";
 const MIGRATION_FILE = /\.(?:m|c)?[jt]s$/;
 const DECLARATION_FILE = /\.d\.(?:m|c)?ts$/;
 
-// Loads migration files via `tsx` so TS migrations run in the worker; Kysely's built-in provider uses
-// `import()`, which can't load `.ts` at runtime.
 export class TsxFileMigrationProvider implements MigrationProvider {
   constructor(private readonly migrationFolder: string) {}
 
   async getMigrations(): Promise<Record<string, Migration>> {
-    // Absolute path: `tsx.require` needs one and the folder may arrive relative.
     const folder = path.resolve(this.migrationFolder);
 
     if (!fs.existsSync(folder)) {
@@ -86,7 +83,6 @@ export async function migrate({ databaseUrl, migrationsDir }: MigrateContext): P
   const { Kysely, Migrator, PostgresDialect } = await loadKysely();
   const { Pool } = await loadPg();
 
-  // SafeQL owns the pool, so SafeQL ends it: `finally` runs even if the Kysely constructor throws.
   const pool = new Pool({ connectionString: databaseUrl });
 
   try {

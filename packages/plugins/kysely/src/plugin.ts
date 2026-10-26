@@ -62,8 +62,6 @@ function isKyselyBuilderRoot(node: ts.Node, checker: ts.TypeChecker): boolean {
   );
 }
 
-// `checker.getBaseTypes` yields only direct bases, so recurse to reach QueryCreator from a
-// Transaction/ControlledTransaction or a user subclass of Kysely.
 function typeDerivesFromKyselyBuilder(type: ts.Type, checker: ts.TypeChecker): boolean {
   const seen = new Set<ts.Type>();
   const visit = (current: ts.Type): boolean => {
@@ -101,12 +99,9 @@ const allowedBuilderPlugins = new Set([
   "HandleEmptyInListsPlugin",
 ]);
 
-// `(column, operator, value)` methods whose value slot is purely parameterized when the operator is scalar.
 const whereLikeMethods = new Set(["where", "having", "andWhere", "orWhere", "and", "or", "on"]);
 
-// Operators that compile a runtime value to a single bound param, so a free variable there is safe to stub.
-// Excludes operators whose value changes the SQL text (`in`, `is`, `any`/`all`/`some`).
-const safeValueOperators = new Set([
+const singleBoundParamOperators = new Set([
   "=",
   "==",
   "!=",
@@ -127,18 +122,19 @@ const safeValueOperators = new Set([
   "<@",
 ]);
 
-// Property names that introduce SQL we cannot statically reconstruct.
-const blockedBuilderMemberNames = new Set(["with", "dynamic", "sql"]);
+const nonReconstructibleBuilderMembers = new Set(["with", "dynamic", "sql"]);
 
-// Stub for a free variable in a safe value position; its value is irrelevant (Kysely emits `$N`).
-const SAFE_VALUE_STUB = "1";
+const BOUND_PARAM_STUB = "1";
+
+const fragmentMarkerMethods = new Set(["as", "toOperationNode"]);
+
+const DEBUG_BUILDER_ENV_VAR = "SAFEQL_DEBUG_KYSELY_BUILDER";
 
 export default definePlugin({
   name: "kysely",
   package: "@ts-safeql/plugin-kysely",
   setup(config: KyselyPluginConfig = {}) {
     const plugin = {
-      // No `targets`: `onTarget` is authoritative, validating only kysely `sql` tags.
       onTarget,
       onExpression,
       migrate,
@@ -179,7 +175,6 @@ function resolveBuilderQuery(
     );
   }
 
-  // Builder mode only lints embedded raw `sql`; a pure builder is covered by Kysely's own types.
   if (!state.hasEmbeddedSql) {
     return skipBuilderQuery(tsNode, sourceFile, "no embedded raw sql to validate");
   }
@@ -203,8 +198,6 @@ function resolveBuilderQuery(
   };
 }
 
-// Map compiled SQL back to the embedded fragment so DB errors squiggle source, not the generated
-// offset. One fragment → point at it; several (unattributable) → point at the whole chain.
 function buildBuilderSourcemaps(params: {
   state: RenderState;
   resultSql: string;
@@ -215,8 +208,8 @@ function buildBuilderSourcemaps(params: {
   const nodeStart = tsNode.getStart(sourceFile);
   const sourceText = sourceFile.text;
 
-  const target =
-    state.fragments.length === 1 ? state.fragments[0] : { start: nodeStart, end: tsNode.getEnd() };
+  const wholeChain = { start: nodeStart, end: tsNode.getEnd() };
+  const target = state.fragments.length === 1 ? state.fragments[0] : wholeChain;
 
   const text = sourceText.slice(target.start, target.end);
 
@@ -229,8 +222,6 @@ function buildBuilderSourcemaps(params: {
   ];
 }
 
-// Non-static queries are skipped silently (dynamic queries are idiomatic);
-// set `SAFEQL_DEBUG_KYSELY_BUILDER=1` to log validated/skipped counts and reasons.
 const builderStats = { validated: 0, skipped: 0 };
 
 function skipBuilderQuery(node: ts.Node, sourceFile: ts.SourceFile, reason: string): "skip" {
@@ -242,7 +233,7 @@ function skipBuilderQuery(node: ts.Node, sourceFile: ts.SourceFile, reason: stri
 }
 
 function logBuilderDebug(message: string): void {
-  if (process.env.SAFEQL_DEBUG_KYSELY_BUILDER) {
+  if (process.env[DEBUG_BUILDER_ENV_VAR]) {
     // eslint-disable-next-line no-console
     console.error(`[safeql:kysely:builder] ${message}`);
   }
@@ -270,7 +261,6 @@ function onTarget({
     return undefined;
   }
 
-  // Fragments (nested templates, `.as()`, builder-method args) aren't standalone queries.
   if (isFragmentUsage(tsNode)) {
     return false;
   }
@@ -371,19 +361,16 @@ function renderBuilderChain(
 ): string | undefined {
   const unwrapped = ast.unwrap({ node: node });
 
-  // The CallExpression guard keeps `db.withSchema(...)` — also `Kysely<DB>`-typed — in the chain
-  // rather than treating it as the root.
   if (!ts.isCallExpression(unwrapped) && isKyselyBuilderRoot(unwrapped, checker)) {
     return "__safeqlDb";
   }
 
-  // A statically-constructed Kysely plugin, e.g. `.withPlugin(new CamelCasePlugin())`.
   if (ts.isNewExpression(unwrapped)) {
     return renderPluginConstruction(unwrapped, checker);
   }
 
   if (ts.isPropertyAccessExpression(unwrapped)) {
-    if (blockedBuilderMemberNames.has(unwrapped.name.text)) {
+    if (nonReconstructibleBuilderMembers.has(unwrapped.name.text)) {
       return undefined;
     }
 
@@ -409,7 +396,6 @@ function renderBuilderChain(
     return `${calleeText}(${argsText})`;
   }
 
-  // Anything else here is a free variable in a structural position → not reconstructible.
   return undefined;
 }
 
@@ -434,46 +420,18 @@ function renderPluginConstruction(
   return `new ${node.expression.text}(${rendered.join(", ")})`;
 }
 
-// Only the value slot of a scalar where-like call may be a free variable (→ bound param); other args must be static.
 function renderCallArguments(
   call: ts.CallExpression,
   checker: ts.TypeChecker,
   sourceFile: ts.SourceFile,
   state: RenderState,
 ): string | undefined {
-  const methodName = ts.isPropertyAccessExpression(call.expression)
-    ? call.expression.name.text
-    : undefined;
-  const args = call.arguments;
-
-  if (
-    methodName !== undefined &&
-    whereLikeMethods.has(methodName) &&
-    args.length === 3 &&
-    !isKyselySqlExpression(args[0], checker)
-  ) {
-    const column = ast.getStaticValue({ node: args[0], checker: checker });
-    const operator = ast.getStaticValue({ node: args[1], checker: checker });
-    if (typeof column !== "string" || typeof operator !== "string") {
-      // Dynamic column/operator drives SQL structure → skip.
-      return undefined;
-    }
-
-    const value = ast.getStaticValue({ node: args[2], checker: checker });
-    let valueText: string;
-    if (value !== ast.UNRESOLVED) {
-      valueText = staticValueToSource(value);
-    } else if (safeValueOperators.has(operator)) {
-      valueText = SAFE_VALUE_STUB;
-    } else {
-      return undefined;
-    }
-
-    return [staticValueToSource(column), staticValueToSource(operator), valueText].join(", ");
+  if (isWhereLikeComparison(call, checker)) {
+    return renderWhereLikeComparisonArguments(call.arguments, checker);
   }
 
   const rendered: string[] = [];
-  for (const arg of args) {
+  for (const arg of call.arguments) {
     const argText = renderArgumentValue(arg, checker, sourceFile, state);
     if (argText === undefined) {
       return undefined;
@@ -484,12 +442,48 @@ function renderCallArguments(
   return rendered.join(", ");
 }
 
-/**
- * Render a single argument value: a static literal, an array of them, an
- * allowed plugin construction, or an embedded `sql` fragment (possibly with a
- * `.as(...)`/method chain). Anything else (callbacks, free variables in a
- * structural position) → `undefined` (skip).
- */
+function isWhereLikeComparison(call: ts.CallExpression, checker: ts.TypeChecker): boolean {
+  const methodName = getMethodName(call);
+  return (
+    methodName !== undefined &&
+    whereLikeMethods.has(methodName) &&
+    call.arguments.length === 3 &&
+    !isKyselySqlExpression(call.arguments[0], checker)
+  );
+}
+
+function renderWhereLikeComparisonArguments(
+  args: ts.NodeArray<ts.Expression>,
+  checker: ts.TypeChecker,
+): string | undefined {
+  const [columnArg, operatorArg, valueArg] = args;
+  const column = ast.getStaticValue({ node: columnArg, checker: checker });
+  const operator = ast.getStaticValue({ node: operatorArg, checker: checker });
+  if (typeof column !== "string" || typeof operator !== "string") {
+    return undefined;
+  }
+
+  const valueText = renderComparisonValue(valueArg, operator, checker);
+  if (valueText === undefined) {
+    return undefined;
+  }
+
+  return [staticValueToSource(column), staticValueToSource(operator), valueText].join(", ");
+}
+
+function renderComparisonValue(
+  valueArg: ts.Expression,
+  operator: string,
+  checker: ts.TypeChecker,
+): string | undefined {
+  const value = ast.getStaticValue({ node: valueArg, checker: checker });
+  if (value !== ast.UNRESOLVED) {
+    return staticValueToSource(value);
+  }
+
+  return singleBoundParamOperators.has(operator) ? BOUND_PARAM_STUB : undefined;
+}
+
 function renderArgumentValue(
   arg: ts.Expression,
   checker: ts.TypeChecker,
@@ -618,15 +612,18 @@ function renderInterpolation(
 ): string {
   const u = ast.unwrap({ node: expr });
 
-  // A kysely helper or nested `sql` fragment is evaluated as-is (dynamic arg throws → skip); anything else → value stub.
-  if (
-    isKyselySqlTaggedTemplate(u, checker) ||
-    (ts.isCallExpression(u) && isKyselyHelperCall(u, checker))
-  ) {
+  if (isKyselySqlBuildingBlock(u, checker)) {
     return u.getText(sourceFile);
   }
 
-  return SAFE_VALUE_STUB;
+  return BOUND_PARAM_STUB;
+}
+
+function isKyselySqlBuildingBlock(node: ts.Node, checker: ts.TypeChecker): boolean {
+  return (
+    isKyselySqlTaggedTemplate(node, checker) ||
+    (ts.isCallExpression(node) && isKyselyHelperCall(node, checker))
+  );
 }
 
 function escapeTemplateText(text: string): string {
@@ -647,7 +644,6 @@ function staticValueToSource(value: ast.StaticValue): string {
 }
 
 function buildBuilderDatabaseExpression(): string {
-  // No plugins on the base DB; identifier-rewriting plugins are applied inline via `.withPlugin(...)` in the chain.
   return `new Kysely({
     dialect: {
       createAdapter: () => new PostgresAdapter(),
@@ -688,7 +684,6 @@ function buildHelperSQL(
   switch (method) {
     case "val":
     case "value":
-      // Bare placeholder (no cast); let Postgres infer the type.
       return "$N";
 
     case "ref":
@@ -739,7 +734,6 @@ function buildJoinSQL(call: ts.CallExpression, checker: ts.TypeChecker): string 
 function getJoinSeparator(arg: ts.Expression | undefined, checker: ts.TypeChecker): string | false {
   if (arg === undefined) return ", ";
 
-  // Only a literal `sql`...`` separator is resolved; a variable separator skips the query rather than guessing.
   const expression = ast.unwrap({ node: arg });
   if (ts.isTaggedTemplateExpression(expression) && isKyselyTag(expression.tag, checker)) {
     const text = buildTemplateSQL(expression.template, checker);
@@ -789,8 +783,6 @@ function classifyTypedFragment(
   return undefined;
 }
 
-// Climb the transparent wrappers (parens, `as`, `!`) the render path also sees through, so a
-// wrapped `sql<T>` fragment — `.where((sql`...`))`, `(sql`...`).as("x")` — classifies like a bare one.
 function climbTransparentWrappers(node: ts.Node): ts.Node {
   let current = node;
   while (
@@ -818,9 +810,6 @@ function isConditionFragment(node: ts.TaggedTemplateExpression): boolean {
     return false;
   }
 
-  // Only the single-argument expression form — `.where(sql`...`)` — is itself the boolean
-  // condition. In the binary form `.where(lhs, op, rhs)` a fragment is an operand, not the
-  // condition, so its `<T>` must not be forced to `boolean`.
   const isSoleArgument =
     parent.arguments.length === 1 &&
     (parent.arguments[0] === current || ast.unwrap({ node: parent.arguments[0] }) === node);
@@ -840,7 +829,6 @@ function getSelectionAlias(
   node: ts.TaggedTemplateExpression,
   checker: ts.TypeChecker,
 ): string | undefined {
-  // `sql<T>`...`.as("alias")` — the template is the receiver of `.as`.
   const fragment = climbTransparentWrappers(node);
   const asAccess = fragment.parent;
   if (
@@ -876,8 +864,7 @@ function isFragmentUsage(tsNode: ts.TaggedTemplateExpression): boolean {
 
   while (parent) {
     if (ts.isPropertyAccessExpression(parent) && parent.expression === current) {
-      // `.as(...)` marks a selection fragment, never a standalone query.
-      if (["as", "toOperationNode"].includes(parent.name.text)) return true;
+      if (fragmentMarkerMethods.has(parent.name.text)) return true;
       current = parent;
       parent = current.parent;
       continue;
@@ -899,7 +886,6 @@ function isFragmentUsage(tsNode: ts.TaggedTemplateExpression): boolean {
     break;
   }
 
-  // Passed as a call argument (e.g. `.where(sql`...`)`) → fragment.
   return (
     parent !== undefined &&
     ts.isCallExpression(parent) &&

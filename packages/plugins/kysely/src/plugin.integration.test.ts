@@ -32,6 +32,9 @@ const kyselyPlugin = {
 const k = (code: string) =>
   `import { sql, Kysely } from "kysely"; declare const db: Kysely<any>; ${code}`;
 
+const toUnquotedPostgresIdentifier = (name: string) =>
+  name.replace(/[^a-z0-9_]/gi, "_").toLowerCase();
+
 const withBuilderConnection = (databaseName: string, overrides?: Record<string, unknown>) => [
   {
     connections: [
@@ -101,9 +104,7 @@ RuleTester.describe("kysely integration — sql tag", () => {
         code: k("sql<{ id: number }>`SELECT id FROM person`.execute(db)"),
       },
       {
-        // CamelCasePlugin users: snake_case columns map to camelCase via a
-        // `fieldTransform: "camel"` target (the plugin keeps onTarget authority).
-        name: "camelCase field transform",
+        name: "CamelCasePlugin users map snake_case columns via a camel fieldTransform target",
         options: withConnection({ targets: [{ tag: "sql", fieldTransform: "camel" }] }),
         code: k("sql<{ firstName: string }>`SELECT first_name FROM person`"),
       },
@@ -133,11 +134,7 @@ RuleTester.describe("kysely integration — sql tag", () => {
 });
 
 RuleTester.describe("kysely integration — migrations", () => {
-  // Sanitize to lowercase `[a-z0-9_]`: SafeQL's `CREATE DATABASE` is unquoted,
-  // so a `-` (which nanoid may emit) or uppercase would break it.
-  const databaseName = generateTestDatabaseName()
-    .replace(/[^a-z0-9_]/gi, "_")
-    .toLowerCase();
+  const databaseName = toUnquotedPostgresIdentifier(generateTestDatabaseName());
 
   RuleTester.afterAll(async () => {
     const root = postgres(POSTGRES_URL);
@@ -213,9 +210,6 @@ RuleTester.describe("kysely integration — builder embedded sql (opt-in)", () =
     await dropFn();
   });
 
-  // Builder mode compiles the whole chain — including its embedded `sql`
-  // fragments — and validates the resulting SQL against the database. A pure
-  // builder (no raw sql) is left to Kysely's own types.
   const kSql = (code: string) =>
     `import { Kysely, sql, type SqlBool } from "kysely";
 interface DB { person: { id: number; first_name: string; name: string; bio: string | null }; pet: { id: number; owner_id: number | null; name: string } }
@@ -248,6 +242,20 @@ ${code}`;
         options: withBuilderConnection(databaseName),
         code: kSql(
           `db.selectFrom("person").select("id").where(sql<boolean>\`bio is not null\`).execute();`,
+        ),
+      },
+      {
+        name: "embedded raw sql in .where() with a branded boolean is validated",
+        options: withBuilderConnection(databaseName),
+        code: kSql(
+          `db.selectFrom("person").select("id").where(sql<boolean & {}>\`bio is not null\`).execute();`,
+        ),
+      },
+      {
+        name: "embedded raw sql in .where() with a union including boolean is validated",
+        options: withBuilderConnection(databaseName),
+        code: kSql(
+          `db.selectFrom("person").select("id").where(sql<boolean | null>\`bio is not null\`).execute();`,
         ),
       },
       {
@@ -339,6 +347,14 @@ db.selectFrom("person").select(sql\`\${sql.ref(col)}\`.as("x")).execute();`,
           `db.selectFrom("person").select(sql<string>\`upper(nonexistent)\`.as("x")).execute();`,
         ),
         errors: [{ messageId: "invalidQuery", line: 4, column: 50, endLine: 4, endColumn: 61 }],
+      },
+      {
+        name: "an error among several embedded sql fragments is located within the whole chain",
+        options: withBuilderConnection(databaseName),
+        code: kSql(
+          `db.selectFrom("person").select([sql<string>\`upper(first_name)\`.as("a"), sql<string>\`upper(nonexistent)\`.as("b")]).execute();`,
+        ),
+        errors: [{ messageId: "invalidQuery", line: 4, column: 91, endLine: 4, endColumn: 102 }],
       },
       {
         name: "invalid function in embedded sql squiggles the function name",
