@@ -141,7 +141,6 @@ function check(params: {
       continue;
     }
 
-    // A builder query has no tag, so it validates regardless of the connection's tag `targets`.
     if (params.tag.type === "CallExpression") {
       const query = resolveQueryFromPlugins({
         node: params.tag,
@@ -153,8 +152,6 @@ function check(params: {
         continue;
       }
 
-      // A builder query has no tag/target to match on, so it validates against the
-      // first connection whose plugins resolve it (one query → one report).
       return reportCheck({
         context: params.context,
         projectDir: params.projectDir,
@@ -188,12 +185,10 @@ function anyPluginClaimsCallExpression(
   );
 }
 
-// Resolved once per file so the visitor gates without re-resolving plugins per node; returns []
-// (without resolving plugins) when no connection declares any, keeping the no-plugin case free.
 function collectCallExpressionSelectors(config: Config, projectDir: string): QueryNodeSelector[] {
   const connections = Array.isArray(config.connections) ? config.connections : [config.connections];
 
-  if (!connections.some((connection) => "plugins" in connection && connection.plugins?.length)) {
+  if (!connections.some(declaresPlugins)) {
     return [];
   }
 
@@ -208,6 +203,10 @@ function collectCallExpressionSelectors(config: Config, projectDir: string): Que
     }
   }
   return selectors;
+}
+
+function declaresPlugins(connection: RuleOptionConnection): boolean {
+  return "plugins" in connection && Boolean(connection.plugins?.length);
 }
 
 function getBaseNodeFromCheckNode(node: CheckNode): TSESTree.Node {
@@ -237,20 +236,18 @@ function resolveQueryFromPlugins(params: {
     return undefined;
   }
 
-  // Built once and shared across candidate plugins; the type is computed lazily on first
-  // access, so a plugin that gates syntactically and never reads it pays no checker cost.
-  let cachedType: ts.Type | undefined;
-  let cachedTypeText: string | undefined;
-  const resolveContext = {
+  let lazyTsType: ts.Type | undefined;
+  let lazyTsTypeText: string | undefined;
+  const resolveContextSharedByPlugins = {
     checker: targetCtx.checker,
     parser: targetCtx.parser,
     precedingSQL: "",
     tsNode,
     get tsType(): ts.Type {
-      return (cachedType ??= targetCtx.checker.getTypeAtLocation(tsNode));
+      return (lazyTsType ??= targetCtx.checker.getTypeAtLocation(tsNode));
     },
     get tsTypeText(): string {
-      return (cachedTypeText ??= targetCtx.checker.typeToString(this.tsType));
+      return (lazyTsTypeText ??= targetCtx.checker.typeToString(this.tsType));
     },
   };
 
@@ -268,7 +265,7 @@ function resolveQueryFromPlugins(params: {
       continue;
     }
 
-    const result = plugin.resolveQuery(resolveContext);
+    const result = plugin.resolveQuery(resolveContextSharedByPlugins);
 
     if (result === "skip" || result === undefined) {
       continue;
@@ -451,8 +448,6 @@ function isIncorrectTypeAnnotationReport(
   return "kind" in result && result.kind === "incorrect-type-annotation";
 }
 
-// Dispatches whatever a plugin's `typeCheck` returns: a structured annotation mismatch routes
-// through the core's standard incorrect-annotation report; a free-form report becomes a plugin error.
 function reportTypeCheckResult(params: {
   context: RuleContext;
   connection: RuleOptionConnection;
@@ -644,10 +639,10 @@ function reportCheck(params: {
           },
         });
 
-        // A terminal taking no `<T>` infers its row type from the builder's own
-        // schema; any embedded type checks are delegated to the plugin via
-        // `ResolvedQuery.typeCheck`.
-        if (tag.type === "CallExpression" && !calleeAcceptsTypeArgument(tag, checker, parser)) {
+        const isRowTypeInferredByBuilder =
+          tag.type === "CallExpression" && !calleeAcceptsTypeArgument(tag, checker, parser);
+
+        if (isRowTypeInferredByBuilder) {
           return reportResolvedQueryTypeCheck({
             context,
             connection,
@@ -974,8 +969,9 @@ export default createRule({
       },
     };
 
-    // Files without a builder plugin never pay the per-CallExpression visit.
-    if (callExpressionSelectors.length > 0) {
+    const hasBuilderPlugin = callExpressionSelectors.length > 0;
+
+    if (hasBuilderPlugin) {
       listener.CallExpression = (node) => {
         if (!callExpressionSelectors.some((selector) => matchesQueryNodeSelector(node, selector))) {
           return;

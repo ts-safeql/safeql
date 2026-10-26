@@ -103,6 +103,16 @@ ruleTester.run("tuple types as query parameters", checkSqlRule, {
       ],
     },
     {
+      name: "tuple with an element that has no PostgreSQL type is rejected rather than skipped",
+      options: withConnection(connections.base),
+      code: normalizeIndent`
+        function run(values: [string, { first_name: string }]) {
+          conn.query(sql\`SELECT \${values} AS col\`);
+        }
+      `,
+      errors: [{ messageId: "invalidQuery" }],
+    },
+    {
       name: "all-null tuple [null, null] is rejected",
       options: withConnection(connections.withTag),
       code: normalizeIndent`

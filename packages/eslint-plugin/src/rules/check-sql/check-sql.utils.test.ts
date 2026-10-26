@@ -161,4 +161,80 @@ describe("check-sql.utils type comparison", () => {
       }),
     ).toMatchObject({ isEqual: true });
   });
+
+  it("treats a union containing `any` as `any`, since TypeScript collapses `any | T` to `any`", () => {
+    const expected: ExpectedResolvedTarget = { kind: "type", value: "string" };
+
+    const generated: ResolvedTarget = {
+      kind: "union",
+      value: [
+        { kind: "type", value: "any", type: "jsonb" },
+        { kind: "type", value: "null", type: "null" },
+      ],
+    };
+
+    expect(
+      getResolvedTargetsEquality({
+        expected,
+        generated,
+        nullAsOptional: false,
+        nullAsUndefined: false,
+        inferLiterals: false,
+      }),
+    ).toMatchObject({ isEqual: true });
+  });
+
+  it("still reports a mismatched union member next to a member containing `any`", () => {
+    const expected: ExpectedResolvedTarget = {
+      kind: "union",
+      value: [
+        {
+          kind: "array",
+          value: { kind: "object", value: [["data", { kind: "type", value: "string" }]] },
+        },
+        { kind: "type", value: "number" },
+      ],
+    };
+
+    const generated: ResolvedTarget = {
+      kind: "union",
+      value: [
+        {
+          kind: "array",
+          value: {
+            kind: "object",
+            value: [["data", { kind: "type", value: "any", type: "jsonb" }]],
+          },
+        },
+        { kind: "type", value: "null", type: "null" },
+      ],
+    };
+
+    expect(
+      getResolvedTargetsEquality({
+        expected,
+        generated,
+        nullAsOptional: false,
+        nullAsUndefined: false,
+        inferLiterals: false,
+      }),
+    ).toMatchObject({ isEqual: false });
+  });
+
+  it("returns the original targets, not the `any`-normalized ones, for the error message", () => {
+    const expected: ExpectedResolvedTarget = { kind: "type", value: "string" };
+    const generated: ResolvedTarget = { kind: "type", value: "any", type: "jsonb" };
+
+    const result = getResolvedTargetsEquality({
+      expected,
+      generated,
+      nullAsOptional: false,
+      nullAsUndefined: false,
+      inferLiterals: false,
+    });
+
+    expect(result.isEqual).toBe(true);
+    expect(result.expected).toBe(expected);
+    expect(result.generated).toBe(generated);
+  });
 });

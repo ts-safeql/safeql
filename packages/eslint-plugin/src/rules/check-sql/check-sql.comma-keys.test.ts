@@ -2,14 +2,12 @@ import { checkSqlRule, ruleTester, setupCheckSqlRuleTester } from "./check-sql.t
 
 const { connections, withConnection } = setupCheckSqlRuleTester();
 
-// Regression: column names containing ", " must compare correctly, including
-// through a `transform: "{type}[]"`.
 const target = {
   wrapper: "conn.query",
   transform: "{type}[]" as const,
 };
 
-ruleTester.run("comma-containing column names", checkSqlRule, {
+ruleTester.run("comma-containing column names through a {type}[] transform", checkSqlRule, {
   valid: [
     {
       name: "matview columns whose names contain ', ' compare as equal",

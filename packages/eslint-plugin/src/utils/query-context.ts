@@ -71,15 +71,13 @@ export function getQueryContext(queryText: string): Context {
       const token = tokens[index++].toUpperCase();
 
       if (token === ")") {
-        // End of the current query context
         return context;
       }
 
       if (token === "(") {
-        // Start of a subquery
         const subquery = parseQuery();
         if (subquery.length > 0) {
-          context.push(subquery); // Add valid subquery
+          context.push(subquery);
         }
         continue;
       }
@@ -88,7 +86,7 @@ export function getQueryContext(queryText: string): Context {
       const nextToken = tokens[index]?.toUpperCase();
 
       if (isOneOf(["ORDER", "GROUP", "PARTITION"], token) && nextToken === "BY") {
-        index++; // Consume "BY"
+        index++;
         context.push(`${token} BY`);
         continue;
       }
@@ -113,8 +111,6 @@ export function getQueryContext(queryText: string): Context {
         context.push(token as Keyword);
         continue;
       }
-
-      // Skip non-keyword tokens (identifiers, literals, etc.)
     }
 
     return context;

@@ -11,15 +11,11 @@ declare module "vitest" {
   }
 }
 
-// Each split test file runs in its own fork, so the first rule test in every
-// file pays a cold start (TS projectService init + first DB introspection).
-// Under parallel CI load that can exceed 10s, so allow the same headroom as the
-// shared hook/test timeout.
-const RULE_TEST_TIMEOUT_MS = 30_000;
+const COLD_START_TOLERANT_TIMEOUT_MS = 30_000;
 
 RuleTester.describe = describe;
-RuleTester.it = (name, fn) => it(name, fn, RULE_TEST_TIMEOUT_MS);
-RuleTester.itOnly = (name, fn) => it.only(name, fn, RULE_TEST_TIMEOUT_MS);
+RuleTester.it = (name, fn) => it(name, fn, COLD_START_TOLERANT_TIMEOUT_MS);
+RuleTester.itOnly = (name, fn) => it.only(name, fn, COLD_START_TOLERANT_TIMEOUT_MS);
 RuleTester.afterAll = afterAll;
 
 const tsFixtureDir = path.resolve(__dirname, "../ts-fixture");

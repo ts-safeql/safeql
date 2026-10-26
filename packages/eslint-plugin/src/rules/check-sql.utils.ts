@@ -64,15 +64,6 @@ export function transformTypes(typeString: string, transform: TypeTransformer): 
   return transformed;
 }
 
-/**
- * Takes a generated result and a transform type and returns a result with the
- * transformed type.
- *
- * @param transform could be either:
- *  - a string that has {type} in it,
- *  - an array of tuples that behave as [valueToBeReplaced, typeToReplaceWith]
- *  - an array that has a mix of the above (such as ["{type}[]", ["colname", "x_colname"]])
- */
 export function getFinalResolvedTargetString(params: {
   target: ResolvedTarget;
   transform?: TypeTransformer;
@@ -396,16 +387,6 @@ function unique<T>(array: T[]): T[] {
   return Array.from(new Set(array));
 }
 
-/**
- * `json`/`jsonb` columns are generated as `any`, and `any` is a TypeScript
- * wildcard — assignable to and from every type — so any concrete annotation on
- * such a column is valid. A textual comparison would reject it, so we normalize
- * an `any` on either side to compatible before comparing.
- *
- * The expected and generated trees are the same shape but distinct types;
- * `ComparableTarget` is the common shape both widen into, keeping the
- * normalization a single cast-free recursion.
- */
 type ComparableTarget =
   | { kind: "type"; value: string }
   | { kind: "literal"; value: string; base: ComparableTarget }
@@ -418,7 +399,6 @@ const ANY: ComparableTarget = { kind: "type", value: "any" };
 const isAny = (target: ComparableTarget): boolean =>
   target.kind === "type" && target.value === "any";
 
-/** In TypeScript `any | T` is just `any`, so collapse any union containing `any`. */
 function collapseAny(target: ComparableTarget): ComparableTarget {
   switch (target.kind) {
     case "type":
@@ -439,11 +419,6 @@ function collapseAny(target: ComparableTarget): ComparableTarget {
   }
 }
 
-/**
- * Where either side is `any`, set both positions to `any` so they serialize
- * identically. Mismatched shapes are returned as-is for the regular textual
- * comparison, so a genuine mismatch is never hidden.
- */
 function alignAny(
   expected: ComparableTarget,
   generated: ComparableTarget,
@@ -479,10 +454,6 @@ function alignAny(
   }
 
   if (expected.kind === "union" && generated.kind === "union") {
-    // Members have no inherent order, so pair each expected member with the first
-    // unpaired generated member of the same kind. This reaches an `any` nested
-    // inside a member (e.g. `{ data: any }[] | null`); unpaired members stay as-is
-    // and the full union is still compared textually, so no real mismatch is masked.
     const generatedMembers = [...generated.value];
     const paired = new Set<number>();
 
@@ -611,18 +582,17 @@ export function getResolvedTargetsEquality(params: {
     };
   }
 
-  // Normalized only for the equality check; originals are returned for the error message.
-  const normalized = normalizeAnyForComparison(params.expected, params.generated);
+  const anyNormalized = normalizeAnyForComparison(params.expected, params.generated);
 
   let expectedString = getResolvedTargetComparableString({
-    target: normalized.expected,
+    target: anyNormalized.expected,
     nullAsOptional: false,
     nullAsUndefined: false,
     inferLiterals: params.inferLiterals,
   });
 
   let generatedString = getResolvedTargetComparableString({
-    target: normalized.generated,
+    target: anyNormalized.generated,
     nullAsOptional: params.nullAsOptional,
     nullAsUndefined: params.nullAsUndefined,
     inferLiterals: params.inferLiterals,
@@ -639,7 +609,6 @@ export function getResolvedTargetsEquality(params: {
   expectedString = expectedString.replace(/'/g, '"');
   generatedString = generatedString.replace(/'/g, '"');
 
-  // The comparable form is already canonical, so no further reordering is needed.
   if (params.transform !== undefined) {
     generatedString = transformTypes(generatedString, params.transform);
   }
