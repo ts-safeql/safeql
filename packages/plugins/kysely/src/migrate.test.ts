@@ -95,9 +95,7 @@ describe("migrate", () => {
   it("closes its connections after migrating", async () => {
     fs.writeFileSync(
       path.join(migrationsDir, "0001_create.ts"),
-      `import { sql } from "kysely";
-export async function up(db) { await sql\`create table person (id int)\`.execute(db); }
-`,
+      `export async function up(db) { await db.schema.createTable("person").addColumn("id", "integer").execute(); }\n`,
     );
 
     await runMigrations();
