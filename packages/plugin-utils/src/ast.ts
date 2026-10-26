@@ -43,7 +43,7 @@ export function isImportedFrom(params: {
   return isSymbolImportedFrom({ checker, symbol: checker.getSymbolAtLocation(root), moduleName });
 }
 
-// Falls back to a `node_modules/<moduleName>` path so re-exports (which detach the import chain) still resolve.
+/** Also matches symbols declared under `node_modules/<moduleName>`, so re-exported imports resolve. */
 export function isSymbolImportedFrom(params: {
   checker: ts.TypeChecker;
   symbol: ts.Symbol | undefined;
@@ -65,6 +65,7 @@ export function isSymbolImportedFrom(params: {
   );
 }
 
+/** Returns `UNRESOLVED` when the value isn't statically known, including cyclic initializers. */
 export function getStaticValue(params: {
   node: ts.Node | undefined;
   checker: ts.TypeChecker;
@@ -72,12 +73,10 @@ export function getStaticValue(params: {
   return evaluateStaticValue(params.node, params.checker, new Set());
 }
 
-// `visited` guards against cyclic initializers (`const a = b; const b = a`); it
-// grows only per resolution path, so sibling values still resolve independently.
 function evaluateStaticValue(
   node: ts.Node | undefined,
   checker: ts.TypeChecker,
-  visited: Set<ts.Symbol>,
+  symbolsOnResolutionPath: Set<ts.Symbol>,
 ): StaticValue | typeof UNRESOLVED {
   if (!node) return UNRESOLVED;
 
@@ -91,7 +90,7 @@ function evaluateStaticValue(
   if (expression.kind === TS.SyntaxKind.NullKeyword) return null;
 
   if (TS.isPrefixUnaryExpression(expression) && expression.operator === TS.SyntaxKind.MinusToken) {
-    const operand = evaluateStaticValue(expression.operand, checker, visited);
+    const operand = evaluateStaticValue(expression.operand, checker, symbolsOnResolutionPath);
     if (typeof operand === "number") return -operand;
     if (typeof operand === "bigint") return -operand;
     return UNRESOLVED;
@@ -102,7 +101,7 @@ function evaluateStaticValue(
       checker,
       symbol: checker.getSymbolAtLocation(expression),
     });
-    if (symbol && visited.has(symbol)) return UNRESOLVED;
+    if (symbol && symbolsOnResolutionPath.has(symbol)) return UNRESOLVED;
 
     const initializer = findInitializer({ identifier: expression, checker });
     if (!initializer) return UNRESOLVED;
@@ -110,7 +109,7 @@ function evaluateStaticValue(
     return evaluateStaticValue(
       initializer,
       checker,
-      symbol ? new Set(visited).add(symbol) : visited,
+      symbol ? new Set(symbolsOnResolutionPath).add(symbol) : symbolsOnResolutionPath,
     );
   }
 
@@ -118,7 +117,7 @@ function evaluateStaticValue(
     const values: StaticValue[] = [];
     for (const element of expression.elements) {
       if (TS.isSpreadElement(element)) return UNRESOLVED;
-      const value = evaluateStaticValue(element, checker, visited);
+      const value = evaluateStaticValue(element, checker, symbolsOnResolutionPath);
       if (value === UNRESOLVED) return UNRESOLVED;
       values.push(value);
     }
@@ -128,7 +127,7 @@ function evaluateStaticValue(
   return UNRESOLVED;
 }
 
-// For a destructured binding, resolves the value actually bound, not the binding's default.
+/** For a destructured binding, returns the value actually bound, not the binding's default. */
 export function findInitializer(params: {
   identifier: ts.Identifier;
   checker: ts.TypeChecker;

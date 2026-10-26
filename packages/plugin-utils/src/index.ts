@@ -34,16 +34,18 @@ export interface ResolveQueryContext {
   parser: ParserServices;
   precedingSQL: string;
   tsNode: ts.Node;
-  // Supplied lazily by the core; a resolver that gates syntactically and never reads them
-  // pays no checker cost.
+  /** Resolved lazily on first access. */
   readonly tsType: ts.Type;
+  /** Resolved lazily on first access. */
   readonly tsTypeText: string;
 }
 
-// Declarative selector for a non-tag query node. The core matches these syntactically and
-// never interprets what the names mean, so no library vocabulary leaks into the engine.
-// `callee.property.nameIn` admits a non-computed member call whose method name is listed;
-// omit it to admit every CallExpression (the plugin must then disown via `resolveQuery` "skip").
+/**
+ * Declarative selector for a non-tag query node, matched syntactically.
+ * `callee.property.nameIn` admits a non-computed member call whose method name is listed;
+ * omit it to admit every `CallExpression` (the plugin must then disown unwanted nodes by
+ * returning `"skip"` from `resolveQuery`).
+ */
 export type QueryNodeSelector =
   | { kind: "CallExpression"; callee?: { property?: { nameIn: string[] } } }
   | { kind: "TaggedTemplateExpression" };
@@ -73,9 +75,11 @@ export function matchesQueryNodeSelector(
   );
 }
 
-// Passed to `ResolvedQuery.typeCheck`, the deferred check the core runs once the query's row
-// type is known. A builder plugin uses it to validate the `<T>` a user wrote on an embedded
-// `sql` fragment against the type the database actually produced.
+/**
+ * Passed to `ResolvedQuery.typeCheck`, which runs once the query's row type is known.
+ * Use it to validate a user-written `<T>` on an embedded `sql` fragment against the type
+ * the database actually produced.
+ */
 export interface ResolvedQueryTypeCheckContext {
   terminal: TSESTree.CallExpression;
   output: PluginResolvedTarget | null;
@@ -83,12 +87,14 @@ export interface ResolvedQueryTypeCheckContext {
   parser: ParserServices;
   sourceCode: Readonly<TSESLint.SourceCode>;
   getComparableString(target: PluginResolvedTarget): string;
-  // Resolve a user-written `<T>` into the same shape the database output uses, so the two are comparable.
+  /** Resolves a user-written `<T>` into the same shape as the database output, so the two are comparable. */
   resolveExpectedType(typeNode: TSESTree.TypeNode): PluginResolvedTarget | null;
 }
 
-// A wrong `<T>` annotation. The core renders it like any other incorrect annotation: its
-// standard message plus an autofix that rewrites the type parameter to `actual`.
+/**
+ * A wrong `<T>` annotation. Reported like any other incorrect annotation: the standard
+ * message plus an autofix that rewrites the type parameter to `actual`.
+ */
 export interface IncorrectTypeAnnotationReport {
   kind: "incorrect-type-annotation";
   typeParameter: TSESTree.TSTypeParameterInstantiation;
@@ -102,13 +108,13 @@ export interface ResolvedQuery {
   kind: "sql";
   text: string;
   sourcemaps: QuerySourceMapEntry[];
-  // A query can embed several fragments, so the check reports one result per problem (none → `undefined`).
+  /** Returns one result per problem, or `undefined` when there are none. */
   typeCheck?: (
     ctx: ResolvedQueryTypeCheckContext,
   ) => readonly ResolvedQueryTypeCheckResult[] | undefined;
 }
 
-// The freshly-created, empty shadow database to apply the project's migrations to.
+/** The freshly created, empty shadow database to apply the project's migrations to. */
 export interface MigrateContext {
   databaseUrl: string;
   sql: Sql;
@@ -116,33 +122,33 @@ export interface MigrateContext {
   projectDir: string;
 }
 
-// The object a plugin's `setup` returns (plus `name`); each property is an optional pipeline hook.
+/** The object a plugin's `setup` returns (plus `name`); each property is an optional pipeline hook. */
 export interface SafeQLPlugin {
   name: string;
 
-  // Deep-merged into the connection config; user-provided values win.
+  /** Deep-merged into the connection config; user-provided values win. */
   connectionDefaults?: Record<string, unknown>;
 
   createConnection?: {
-    // Same key reuses an existing connection.
+    /** Connections with the same key are reused. */
     cacheKey: string;
     handler(): Promise<Sql>;
   };
 
-  // Apply project migrations to the shadow DB, replacing the built-in `.sql` runner. Throw to surface failures.
+  /** Applies project migrations to the shadow database, replacing the built-in `.sql` runner. Throw to surface failures. */
   migrate?(context: MigrateContext): Promise<void>;
 
-  // Returns a TargetMatch to check the tag, `false` to skip, `undefined` to defer.
+  /** Returns a `TargetMatch` to check the tag, `false` to skip, or `undefined` to defer. */
   onTarget?(params: {
     node: TSESTree.TaggedTemplateExpression;
     context: TargetContext;
   }): TargetMatch | false | undefined;
 
-  // Non-tag query entrypoint (e.g. builder chains). Rule-only hook (runs in the checker process).
+  /** Non-tag query entrypoints (e.g. builder chains), resolved by `resolveQuery`. Rule-only: runs in the checker process. */
   queryNodeKinds?: QueryNodeSelector[];
   resolveQuery?(params: ResolveQueryContext): ResolvedQuery | "skip";
 
-  // Per interpolated expression: a SQL fragment (`$N` placeholder), `false` to skip, `undefined` for default `$N::type`.
+  /** Per interpolated expression: a SQL fragment (`$N` placeholder), `false` to skip, or `undefined` for the default `$N::type`. */
   onExpression?(params: {
     node: TSESTree.Expression;
     context: ExpressionContext;
@@ -156,7 +162,7 @@ export type PluginResolvedTarget =
   | { kind: "array"; value: PluginResolvedTarget }
   | { kind: "object"; value: [string, PluginResolvedTarget][] };
 
-// Whether `actual` (DB-resolved) is assignable to `expected` (user-declared) under TypeScript semantics.
+/** Whether `actual` (DB-resolved) is assignable to `expected` (user-declared) under TypeScript semantics. */
 export function isAssignableTo(
   actual: PluginResolvedTarget,
   expected: PluginResolvedTarget,
@@ -223,7 +229,7 @@ export interface TypeCheckContext {
   getComparableString(target: PluginResolvedTarget): string;
 }
 
-// Return from `typeCheck` only on mismatch (`undefined` when types are correct).
+/** Return from `typeCheck` only on mismatch (`undefined` when types are correct). */
 export interface TypeCheckReport {
   message: string;
   node?: TSESTree.Node;
@@ -232,7 +238,7 @@ export interface TypeCheckReport {
 
 export interface TargetMatch {
   skipTypeAnnotations?: boolean;
-  // When set, SafeQL delegates type comparison to the plugin.
+  /** When set, SafeQL delegates type comparison to the plugin. */
   typeCheck?: (ctx: TypeCheckContext) => TypeCheckReport | undefined;
 }
 
@@ -242,7 +248,7 @@ export interface PluginDescriptor {
 }
 
 export interface DefinePluginOptions<TConfig> {
-  // Prefixed with `safeql-plugin-` automatically.
+  /** Prefixed with `safeql-plugin-` automatically. */
   name: string;
   package: string;
   setup: (config: TConfig) => Omit<SafeQLPlugin, "name">;
@@ -254,7 +260,7 @@ export type SafeQLPluginExport<TConfig> = ({} extends TConfig
   factory: (config: TConfig) => SafeQLPlugin;
 };
 
-// The returned function is both the user-facing config helper and (via `.factory`) the worker-side constructor.
+/** The returned function is both the user-facing config helper and (via `.factory`) the worker-side constructor. */
 export function definePlugin<TConfig extends Record<string, unknown> = {}>(
   options: DefinePluginOptions<TConfig>,
 ): SafeQLPluginExport<TConfig> {

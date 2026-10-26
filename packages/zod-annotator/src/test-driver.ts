@@ -32,14 +32,16 @@ export class AnnotatorTestDriver {
   private readonly tsconfigPath: string;
 
   constructor() {
-    // Create temp directory inside the package root
-    const tmpRoot = path.join(PACKAGE_ROOT, ".test-tmp");
-    fs.mkdirSync(tmpRoot, { recursive: true });
-    this.tmpDir = tmpRoot;
+    this.tmpDir = path.join(PACKAGE_ROOT, ".test-tmp");
+    fs.mkdirSync(this.tmpDir, { recursive: true });
     this.testFilePath = path.join(this.tmpDir, "test.ts");
     this.tsconfigPath = path.join(this.tmpDir, "tsconfig.json");
 
-    // Extend the package tsconfig to inherit lib resolution
+    this.writeTsconfigExtendingPackageTsconfig();
+    this.symlinkPackageNodeModules();
+  }
+
+  private writeTsconfigExtendingPackageTsconfig() {
     fs.writeFileSync(
       this.tsconfigPath,
       JSON.stringify(
@@ -56,8 +58,9 @@ export class AnnotatorTestDriver {
         2,
       ),
     );
+  }
 
-    // Symlink node_modules for pnpm package resolution
+  private symlinkPackageNodeModules() {
     const srcNodeModules = path.join(PACKAGE_ROOT, "node_modules");
     const dstNodeModules = path.join(this.tmpDir, "node_modules");
     if (fs.existsSync(srcNodeModules) && !fs.existsSync(dstNodeModules)) {
@@ -69,7 +72,6 @@ export class AnnotatorTestDriver {
     const source = this.buildSource(params);
     fs.writeFileSync(this.testFilePath, source);
 
-    // Create program anchored to PACKAGE_ROOT to properly resolve TypeScript libs
     const program = createProgram(this.tsconfigPath, PACKAGE_ROOT);
 
     const { ast, services } = parser.parseForESLint(source, {

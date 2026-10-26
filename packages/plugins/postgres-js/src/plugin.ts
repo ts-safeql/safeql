@@ -147,7 +147,7 @@ function buildTypeScriptDynamicHelperSQL(
   checker: ts.TypeChecker,
   precedingSQL: string,
 ): string | undefined {
-  const helperKind = getHelperKind(precedingSQL);
+  const helperKind = getLastPositionedHelperKeyword(precedingSQL);
   const firstValue = getTypeScriptStaticValue(call.arguments[0], checker);
   const columnNames = getTypeScriptColumnNames(call.arguments.slice(1), checker);
 
@@ -506,8 +506,7 @@ function isTypeScriptFragmentVariable(
   return isTypeScriptInterpolatedAsFragment(parent.name, checker);
 }
 
-// Memoize the per-symbol source-file walk; WeakMap entries GC with the program.
-const interpolatedFragmentCache = new WeakMap<ts.Symbol, boolean>();
+const interpolatedAsFragmentMemo = new WeakMap<ts.Symbol, boolean>();
 
 function isTypeScriptInterpolatedAsFragment(
   identifier: ts.Identifier,
@@ -522,7 +521,7 @@ function isTypeScriptInterpolatedAsFragment(
     return false;
   }
 
-  const cached = interpolatedFragmentCache.get(symbol);
+  const cached = interpolatedAsFragmentMemo.get(symbol);
 
   if (cached !== undefined) {
     return cached;
@@ -547,7 +546,7 @@ function isTypeScriptInterpolatedAsFragment(
   }
 
   visit(identifier.getSourceFile());
-  interpolatedFragmentCache.set(symbol, found);
+  interpolatedAsFragmentMemo.set(symbol, found);
   return found;
 }
 
@@ -699,9 +698,7 @@ const helperKeywords: HelperKeyword[] = [
   "returning",
 ];
 
-// Picks the last-positioned keyword, mirroring postgres.js's `Builder.build`.
-// See the "CAST ... AS parity" test for the edge case this implies.
-function getHelperKind(precedingSQL: string): HelperKeyword | undefined {
+function getLastPositionedHelperKeyword(precedingSQL: string): HelperKeyword | undefined {
   const matches = helperKeywords
     .map((keyword) => findLastKeyword(precedingSQL, keyword))
     .filter((match): match is HelperKeywordMatch => match !== undefined);
@@ -715,7 +712,6 @@ function getHelperKind(precedingSQL: string): HelperKeyword | undefined {
 }
 
 function findLastKeyword(text: string, keyword: HelperKeyword): HelperKeywordMatch | undefined {
-  // Trailing boundary is a lookahead so adjacent same-keyword matches aren't skipped.
   const pattern = new RegExp(`(?:^|[\\s(])${keyword}(?=$|[\\s(])`, "gi");
   let match = pattern.exec(text);
   let index: number | undefined;

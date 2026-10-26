@@ -21,7 +21,7 @@ export class PluginManager {
     descriptors: PluginDescriptor[],
     projectDir: string,
   ): ResolvedConnection | undefined {
-    return this.pickConnection(this.resolvePluginsSync(descriptors, projectDir));
+    return this.pickLastConnection(this.resolvePluginsSync(descriptors, projectDir));
   }
 
   getCachedConnection(
@@ -32,11 +32,11 @@ export class PluginManager {
       .map((d) => this.pluginCache.get(this.getCacheKey(d, projectDir)))
       .filter((p): p is SafeQLPlugin => p !== undefined);
 
-    return this.pickConnection(plugins);
+    return this.pickLastConnection(plugins);
   }
 
   resolveMigrate(descriptors: PluginDescriptor[], projectDir: string): ResolvedMigrate | undefined {
-    return this.pickMigrate(this.resolvePluginsSync(descriptors, projectDir));
+    return this.pickLastMigrate(this.resolvePluginsSync(descriptors, projectDir));
   }
 
   resolvePluginsSync(descriptors: PluginDescriptor[], projectDir: string): SafeQLPlugin[] {
@@ -49,7 +49,7 @@ export class PluginManager {
     }
   }
 
-  private pickConnection(plugins: SafeQLPlugin[]): ResolvedConnection | undefined {
+  private pickLastConnection(plugins: SafeQLPlugin[]): ResolvedConnection | undefined {
     let result: ResolvedConnection | undefined;
 
     for (const plugin of plugins) {
@@ -65,8 +65,7 @@ export class PluginManager {
     return result;
   }
 
-  // Last plugin with a `migrate` hook wins, mirroring `pickConnection`.
-  private pickMigrate(plugins: SafeQLPlugin[]): ResolvedMigrate | undefined {
+  private pickLastMigrate(plugins: SafeQLPlugin[]): ResolvedMigrate | undefined {
     let result: ResolvedMigrate | undefined;
 
     for (const plugin of plugins) {
@@ -151,21 +150,16 @@ function prop(obj: unknown, key: string): unknown {
 }
 
 function getFactory(mod: unknown): PluginFactory | undefined {
-  const defaultExport = prop(mod, "default");
+  const definePluginExport = prop(mod, "default");
+  const cjsDoubleWrappedExport = prop(definePluginExport, "default");
 
-  // definePlugin() attaches .factory to the default export
-  const factory = prop(defaultExport, "factory");
-  if (typeof factory === "function") return factory as PluginFactory;
+  return [definePluginExport, cjsDoubleWrappedExport, mod]
+    .map((candidate) => prop(candidate, "factory"))
+    .find(isPluginFactory);
+}
 
-  // CJS double-wraps: mod.default.default.factory
-  const nestedFactory = prop(prop(defaultExport, "default"), "factory");
-  if (typeof nestedFactory === "function") return nestedFactory as PluginFactory;
-
-  // Direct .factory on the module
-  const directFactory = prop(mod, "factory");
-  if (typeof directFactory === "function") return directFactory as PluginFactory;
-
-  return undefined;
+function isPluginFactory(value: unknown): value is PluginFactory {
+  return typeof value === "function";
 }
 
 function stableStringify(value: unknown): string {
