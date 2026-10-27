@@ -40,10 +40,10 @@
     "@typescript-eslint/utils": "catalog:",
     "postgres": "catalog:",
     "slonik": "^48.13.2",
-    "zod": "^4.3.6",
     "typescript": "catalog:",
     "unbuild": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "zod": "^4.6.7"
   },
   "peerDependencies": {
     "slonik": "^48.13.2"

@@ -15,7 +15,7 @@
     "slonik": "^48.13.2",
     "typescript": "catalog:",
     "typescript-eslint": "catalog:",
-    "zod": "^4.3.6"
+    "zod": "^4.6.7"
   },
   "dependencies": {
     "@ts-safeql/eslint-plugin": "workspace:*",

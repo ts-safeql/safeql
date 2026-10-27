@@ -16,7 +16,7 @@ allowBuilds:
   utf-8-validate: false
 
 catalog:
-  "@changesets/cli": "^2.28.1"
+  "@changesets/cli": "^2.31.1"
   "@eslint/js": "^10.0.1"
   "@types/node": "^24.12.0"
   "@typescript-eslint/eslint-plugin": "^8.58.0"
@@ -24,14 +24,15 @@ catalog:
   "@typescript-eslint/rule-tester": "^8.58.0"
   "@typescript-eslint/typescript-estree": "^8.58.0"
   "@typescript-eslint/utils": "^8.58.0"
-  "eslint": "^10.0.3"
+  "eslint": "^10.13.0"
   "libpg-query": "^17.5.2"
   "postgres": "^3.4.5"
   "prettier": "^3.5.3"
   "publint": "^0.3.18"
   "tsx": "^4.19.3"
-  "turbo": "^2.4.4"
+  "turbo": "^2.11.10"
   "typescript": "^6.0.0"
   "typescript-eslint": "^8.58.0"
-  "unbuild": "^3.5.0"
-  "vitest": "^4.1.0"
+  "unbuild": "^3.6.1"
+  "vite": "^6.4.4"
+  "vitest": "^4.1.12"

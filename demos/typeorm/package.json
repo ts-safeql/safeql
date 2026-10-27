@@ -26,6 +26,6 @@
     "@ts-safeql/sql-tag": "workspace:*",
     "pg": "^8.14.1",
     "reflect-metadata": "^0.2.2",
-    "typeorm": "0.3.21"
+    "typeorm": "0.3.31"
   }
 }
