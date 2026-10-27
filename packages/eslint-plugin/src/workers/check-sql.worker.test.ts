@@ -2,6 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
+import { E } from "../utils/fp-ts";
 import { handler } from "./check-sql.worker";
 
 describe("check-sql worker", () => {
@@ -84,5 +85,24 @@ export default {
       "right" in workerResult ? (workerResult.right as { query: { text: string } }) : undefined;
 
     expect(generateResult?.query.text).toBe("SELECT 1 AS one");
+  });
+
+  it("returns a plugin that fails to load during migrations as an error instead of throwing", async () => {
+    const result = await handler({
+      connection: {
+        keepAlive: false,
+        migrationsDir: ".",
+        databaseName: "safeql_worker_unloadable_migrate_plugin",
+        plugins: [{ package: path.join(tempDir, "missing-plugin.ts") }],
+      },
+      target: { tag: "sql" },
+      query: {
+        text: "SELECT 1 AS one",
+        sourcemaps: [],
+      },
+      projectDir: tempDir,
+    });
+
+    expect(result).toEqual(E.right(expect.stringContaining('"_tag":"Left"')));
   });
 });

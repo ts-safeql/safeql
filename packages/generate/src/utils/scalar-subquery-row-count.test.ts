@@ -33,7 +33,7 @@ test("aggregate with GROUP BY may return zero rows", async () => {
   ).toBe(false);
 });
 
-test("aggregate with LIMIT 0 returns zero rows", async () => {
+test("aggregate with LIMIT 0 (an empty ival node in libpg-query) returns zero rows", async () => {
   expect(
     selectReturnsExactlyOneRow(
       await parseSelect("SELECT count(*)::int FROM member LIMIT 0"),

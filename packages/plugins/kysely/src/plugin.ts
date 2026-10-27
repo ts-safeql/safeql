@@ -1,18 +1,4 @@
-import vm from "node:vm";
 import type { TSESTree } from "@typescript-eslint/utils";
-import {
-  CamelCasePlugin,
-  DummyDriver,
-  DeduplicateJoinsPlugin,
-  HandleEmptyInListsPlugin,
-  Kysely,
-  ParseJSONResultsPlugin,
-  PostgresAdapter,
-  PostgresIntrospector,
-  PostgresQueryCompiler,
-  WithSchemaPlugin,
-  sql as kyselySql,
-} from "kysely";
 import {
   ast,
   type QuerySourceMapEntry,
@@ -22,6 +8,15 @@ import {
   type TargetMatch,
 } from "@ts-safeql/plugin-utils";
 import ts from "typescript";
+import {
+  callMethod,
+  callSqlHelper,
+  callSqlTag,
+  constructPlugin,
+  createCompilerDatabase,
+  getCompiledSql,
+  readMember,
+} from "./builder-runtime";
 import { createBuilderTypeCheck, type TypedBuilderFragment } from "./builder-type-check";
 import { migrate } from "./migrate";
 
@@ -36,8 +31,6 @@ const terminalBuilderMethods = new Set([
   "compile",
   "stream",
 ]);
-
-const builderCompileTimeoutMs = 1000;
 
 const kyselyBuilderTypeNames = new Set([
   "QueryCreator",
@@ -62,8 +55,6 @@ function isKyselyBuilderRoot(node: ts.Node, checker: ts.TypeChecker): boolean {
   );
 }
 
-// `checker.getBaseTypes` yields only direct bases, so recurse to reach QueryCreator from a
-// Transaction/ControlledTransaction or a user subclass of Kysely.
 function typeDerivesFromKyselyBuilder(type: ts.Type, checker: ts.TypeChecker): boolean {
   const seen = new Set<ts.Type>();
   const visit = (current: ts.Type): boolean => {
@@ -93,20 +84,9 @@ function symbolIsKyselyBuilder(symbol: ts.Symbol | undefined, checker: ts.TypeCh
   return ast.isSymbolImportedFrom({ checker, symbol, moduleName: "kysely" });
 }
 
-const allowedBuilderPlugins = new Set([
-  "CamelCasePlugin",
-  "ParseJSONResultsPlugin",
-  "DeduplicateJoinsPlugin",
-  "WithSchemaPlugin",
-  "HandleEmptyInListsPlugin",
-]);
-
-// `(column, operator, value)` methods whose value slot is purely parameterized when the operator is scalar.
 const whereLikeMethods = new Set(["where", "having", "andWhere", "orWhere", "and", "or", "on"]);
 
-// Operators that compile a runtime value to a single bound param, so a free variable there is safe to stub.
-// Excludes operators whose value changes the SQL text (`in`, `is`, `any`/`all`/`some`).
-const safeValueOperators = new Set([
+const singleBoundParamOperators = new Set([
   "=",
   "==",
   "!=",
@@ -127,18 +107,17 @@ const safeValueOperators = new Set([
   "<@",
 ]);
 
-// Property names that introduce SQL we cannot statically reconstruct.
-const blockedBuilderMemberNames = new Set(["with", "dynamic", "sql"]);
+const BOUND_PARAM_STUB = 1;
 
-// Stub for a free variable in a safe value position; its value is irrelevant (Kysely emits `$N`).
-const SAFE_VALUE_STUB = "1";
+const fragmentMarkerMethods = new Set(["as", "toOperationNode"]);
+
+const DEBUG_BUILDER_ENV_VAR = "SAFEQL_DEBUG_KYSELY_BUILDER";
 
 export default definePlugin({
   name: "kysely",
   package: "@ts-safeql/plugin-kysely",
   setup(config: KyselyPluginConfig = {}) {
     const plugin = {
-      // No `targets`: `onTarget` is authoritative, validating only kysely `sql` tags.
       onTarget,
       onExpression,
       migrate,
@@ -167,11 +146,14 @@ function resolveBuilderQuery(
   }
 
   const sourceFile = tsNode.getSourceFile();
-  const chain = tsNode.expression;
-
-  const state: RenderState = { hasEmbeddedSql: false, fragments: [], typedFragments: [] };
-  const compileText = buildBuilderCompileText(chain, context.checker, sourceFile, state);
-  if (compileText === undefined) {
+  const state: EvaluationState = { hasEmbeddedSql: false, fragments: [], typedFragments: [] };
+  const builder = evaluateBuilderChain(
+    tsNode.expression.expression,
+    context.checker,
+    sourceFile,
+    state,
+  );
+  if (builder === ast.UNRESOLVED) {
     return skipBuilderQuery(
       tsNode,
       sourceFile,
@@ -179,15 +161,13 @@ function resolveBuilderQuery(
     );
   }
 
-  // Builder mode only lints embedded raw `sql`; a pure builder is covered by Kysely's own types.
   if (!state.hasEmbeddedSql) {
     return skipBuilderQuery(tsNode, sourceFile, "no embedded raw sql to validate");
   }
 
-  const resultSql = resolveBuilderQueryInSandbox(compileText);
-
+  const resultSql = getCompiledSql(callMethod(builder, "compile", []));
   if (!resultSql) {
-    return skipBuilderQuery(tsNode, sourceFile, "could not compile chain in sandbox");
+    return skipBuilderQuery(tsNode, sourceFile, "kysely could not compile the chain");
   }
 
   builderStats.validated += 1;
@@ -203,10 +183,8 @@ function resolveBuilderQuery(
   };
 }
 
-// Map compiled SQL back to the embedded fragment so DB errors squiggle source, not the generated
-// offset. One fragment → point at it; several (unattributable) → point at the whole chain.
 function buildBuilderSourcemaps(params: {
-  state: RenderState;
+  state: EvaluationState;
   resultSql: string;
   tsNode: ts.Node;
   sourceFile: ts.SourceFile;
@@ -215,8 +193,8 @@ function buildBuilderSourcemaps(params: {
   const nodeStart = tsNode.getStart(sourceFile);
   const sourceText = sourceFile.text;
 
-  const target =
-    state.fragments.length === 1 ? state.fragments[0] : { start: nodeStart, end: tsNode.getEnd() };
+  const wholeChain = { start: nodeStart, end: tsNode.getEnd() };
+  const target = state.fragments.length === 1 ? state.fragments[0] : wholeChain;
 
   const text = sourceText.slice(target.start, target.end);
 
@@ -229,8 +207,6 @@ function buildBuilderSourcemaps(params: {
   ];
 }
 
-// Non-static queries are skipped silently (dynamic queries are idiomatic);
-// set `SAFEQL_DEBUG_KYSELY_BUILDER=1` to log validated/skipped counts and reasons.
 const builderStats = { validated: 0, skipped: 0 };
 
 function skipBuilderQuery(node: ts.Node, sourceFile: ts.SourceFile, reason: string): "skip" {
@@ -242,7 +218,7 @@ function skipBuilderQuery(node: ts.Node, sourceFile: ts.SourceFile, reason: stri
 }
 
 function logBuilderDebug(message: string): void {
-  if (process.env.SAFEQL_DEBUG_KYSELY_BUILDER) {
+  if (process.env[DEBUG_BUILDER_ENV_VAR]) {
     // eslint-disable-next-line no-console
     console.error(`[safeql:kysely:builder] ${message}`);
   }
@@ -270,7 +246,6 @@ function onTarget({
     return undefined;
   }
 
-  // Fragments (nested templates, `.as()`, builder-method args) aren't standalone queries.
   if (isFragmentUsage(tsNode)) {
     return false;
   }
@@ -287,7 +262,9 @@ function onExpression({
   return buildExpressionSQL(context.tsNode, context.checker);
 }
 
-function isTerminalBuilderCall(node: ts.CallExpression): boolean {
+function isTerminalBuilderCall(
+  node: ts.CallExpression,
+): node is ts.CallExpression & { expression: ts.PropertyAccessExpression } {
   if (!ts.isPropertyAccessExpression(node.expression)) {
     return false;
   }
@@ -295,242 +272,170 @@ function isTerminalBuilderCall(node: ts.CallExpression): boolean {
   return terminalBuilderMethods.has(node.expression.name.text);
 }
 
-function resolveBuilderQueryInSandbox(chain: string): string | undefined {
-  const database = buildBuilderDatabaseExpression();
-  const source = `
-    const __safeqlDb = ${database};
-    const __safeqlCompiled = ${chain};
-    if (!__safeqlCompiled || typeof __safeqlCompiled.sql !== "string") {
-      throw new Error("kysely-builder-not-a-compilation-result");
-    }
-    __safeqlResultSql = __safeqlCompiled.sql;
-  `;
-
-  const context = createBuilderContext();
-  try {
-    vm.createContext(context);
-    const script = new vm.Script(source, { filename: "safeql-kysely-builder.js" });
-    script.runInContext(context, { timeout: builderCompileTimeoutMs });
-  } catch {
-    return undefined;
-  }
-
-  const value = context.__safeqlResultSql;
-  return typeof value === "string" ? value : undefined;
-}
-
-// Scope-limiting globals (not a security boundary — `vm` can be escaped): only these Kysely
-// building blocks are in scope, so any other free reference throws (→ skip) rather than
-// silently corrupting the compiled SQL.
-function createBuilderContext(): Record<string, unknown> {
-  return {
-    CamelCasePlugin,
-    ParseJSONResultsPlugin,
-    DeduplicateJoinsPlugin,
-    WithSchemaPlugin,
-    HandleEmptyInListsPlugin,
-    Kysely,
-    DummyDriver,
-    PostgresAdapter,
-    PostgresIntrospector,
-    PostgresQueryCompiler,
-    sql: kyselySql,
-    __safeqlResultSql: undefined,
-  };
-}
-
-interface RenderState {
+interface EvaluationState {
   hasEmbeddedSql: boolean;
   fragments: Array<{ start: number; end: number }>;
   typedFragments: TypedBuilderFragment[];
 }
 
-function buildBuilderCompileText(
-  expression: ts.Expression,
-  checker: ts.TypeChecker,
-  sourceFile: ts.SourceFile,
-  state: RenderState,
-): string | undefined {
-  if (!ts.isPropertyAccessExpression(expression)) {
+type KyselyHelperCall = ts.CallExpression & { expression: ts.PropertyAccessExpression };
+
+type MethodCall = { receiver: ts.Expression; name: string; call: ts.CallExpression };
+
+function asMethodCall(node: ts.Node): MethodCall | undefined {
+  if (!ts.isCallExpression(node)) {
     return undefined;
   }
 
-  const chainText = renderBuilderChain(expression.expression, checker, sourceFile, state);
-  if (chainText === undefined) {
+  const callee = ast.unwrap({ node: node.expression });
+  if (!ts.isPropertyAccessExpression(callee)) {
     return undefined;
   }
 
-  return `${chainText}.compile()`;
+  return { receiver: callee.expression, name: callee.name.text, call: node };
 }
 
-function renderBuilderChain(
+function evaluateBuilderChain(
   node: ts.Expression,
   checker: ts.TypeChecker,
   sourceFile: ts.SourceFile,
-  state: RenderState,
-): string | undefined {
+  state: EvaluationState,
+): unknown {
   const unwrapped = ast.unwrap({ node: node });
 
-  // The CallExpression guard keeps `db.withSchema(...)` — also `Kysely<DB>`-typed — in the chain
-  // rather than treating it as the root.
   if (!ts.isCallExpression(unwrapped) && isKyselyBuilderRoot(unwrapped, checker)) {
-    return "__safeqlDb";
+    return createCompilerDatabase();
   }
 
-  // A statically-constructed Kysely plugin, e.g. `.withPlugin(new CamelCasePlugin())`.
   if (ts.isNewExpression(unwrapped)) {
-    return renderPluginConstruction(unwrapped, checker);
+    return evaluatePluginConstruction(unwrapped, checker);
   }
 
   if (ts.isPropertyAccessExpression(unwrapped)) {
-    if (blockedBuilderMemberNames.has(unwrapped.name.text)) {
-      return undefined;
-    }
-
-    const receiverText = renderBuilderChain(unwrapped.expression, checker, sourceFile, state);
-    if (receiverText === undefined) {
-      return undefined;
-    }
-
-    return `${receiverText}.${unwrapped.name.text}`;
+    const receiver = evaluateBuilderChain(unwrapped.expression, checker, sourceFile, state);
+    return receiver === ast.UNRESOLVED ? receiver : readMember(receiver, unwrapped.name.text);
   }
 
-  if (ts.isCallExpression(unwrapped)) {
-    const calleeText = renderBuilderChain(unwrapped.expression, checker, sourceFile, state);
-    if (calleeText === undefined) {
-      return undefined;
-    }
-
-    const argsText = renderCallArguments(unwrapped, checker, sourceFile, state);
-    if (argsText === undefined) {
-      return undefined;
-    }
-
-    return `${calleeText}(${argsText})`;
+  const methodCall = asMethodCall(unwrapped);
+  if (methodCall === undefined) {
+    return ast.UNRESOLVED;
   }
 
-  // Anything else here is a free variable in a structural position → not reconstructible.
-  return undefined;
+  const receiver = evaluateBuilderChain(methodCall.receiver, checker, sourceFile, state);
+  if (receiver === ast.UNRESOLVED) {
+    return receiver;
+  }
+
+  const args = evaluateCallArguments(methodCall.call, checker, sourceFile, state);
+  return args === ast.UNRESOLVED ? args : callMethod(receiver, methodCall.name, args);
 }
 
-function renderPluginConstruction(
-  node: ts.NewExpression,
-  checker: ts.TypeChecker,
-): string | undefined {
-  if (!ts.isIdentifier(node.expression) || !allowedBuilderPlugins.has(node.expression.text)) {
-    return undefined;
+function evaluatePluginConstruction(node: ts.NewExpression, checker: ts.TypeChecker): unknown {
+  if (!ts.isIdentifier(node.expression)) {
+    return ast.UNRESOLVED;
   }
 
-  const args = node.arguments ?? [];
-  const rendered: string[] = [];
-  for (const arg of args) {
-    const value = ast.getStaticValue({ node: arg, checker: checker });
-    if (value === ast.UNRESOLVED) {
-      return undefined;
-    }
-    rendered.push(staticValueToSource(value));
-  }
-
-  return `new ${node.expression.text}(${rendered.join(", ")})`;
+  const args = evaluateEach(node.arguments ?? [], (arg) =>
+    ast.getStaticValue({ node: arg, checker: checker }),
+  );
+  return args === ast.UNRESOLVED ? args : constructPlugin(node.expression.text, args);
 }
 
-// Only the value slot of a scalar where-like call may be a free variable (→ bound param); other args must be static.
-function renderCallArguments(
+function evaluateCallArguments(
   call: ts.CallExpression,
   checker: ts.TypeChecker,
   sourceFile: ts.SourceFile,
-  state: RenderState,
-): string | undefined {
-  const methodName = ts.isPropertyAccessExpression(call.expression)
-    ? call.expression.name.text
-    : undefined;
-  const args = call.arguments;
-
-  if (
-    methodName !== undefined &&
-    whereLikeMethods.has(methodName) &&
-    args.length === 3 &&
-    !isKyselySqlExpression(args[0], checker)
-  ) {
-    const column = ast.getStaticValue({ node: args[0], checker: checker });
-    const operator = ast.getStaticValue({ node: args[1], checker: checker });
-    if (typeof column !== "string" || typeof operator !== "string") {
-      // Dynamic column/operator drives SQL structure → skip.
-      return undefined;
-    }
-
-    const value = ast.getStaticValue({ node: args[2], checker: checker });
-    let valueText: string;
-    if (value !== ast.UNRESOLVED) {
-      valueText = staticValueToSource(value);
-    } else if (safeValueOperators.has(operator)) {
-      valueText = SAFE_VALUE_STUB;
-    } else {
-      return undefined;
-    }
-
-    return [staticValueToSource(column), staticValueToSource(operator), valueText].join(", ");
+  state: EvaluationState,
+): unknown[] | typeof ast.UNRESOLVED {
+  if (isWhereLikeComparison(call, checker)) {
+    return evaluateWhereLikeComparisonArguments(call.arguments, checker);
   }
 
-  const rendered: string[] = [];
-  for (const arg of args) {
-    const argText = renderArgumentValue(arg, checker, sourceFile, state);
-    if (argText === undefined) {
-      return undefined;
-    }
-    rendered.push(argText);
-  }
-
-  return rendered.join(", ");
+  return evaluateEach(call.arguments, (arg) =>
+    evaluateArgumentValue(arg, checker, sourceFile, state),
+  );
 }
 
-/**
- * Render a single argument value: a static literal, an array of them, an
- * allowed plugin construction, or an embedded `sql` fragment (possibly with a
- * `.as(...)`/method chain). Anything else (callbacks, free variables in a
- * structural position) → `undefined` (skip).
- */
-function renderArgumentValue(
+function evaluateEach(
+  nodes: readonly ts.Expression[],
+  evaluate: (node: ts.Expression) => unknown,
+): unknown[] | typeof ast.UNRESOLVED {
+  const values: unknown[] = [];
+  for (const node of nodes) {
+    const value = ts.isSpreadElement(node) ? ast.UNRESOLVED : evaluate(node);
+    if (value === ast.UNRESOLVED) {
+      return ast.UNRESOLVED;
+    }
+    values.push(value);
+  }
+  return values;
+}
+
+function isWhereLikeComparison(call: ts.CallExpression, checker: ts.TypeChecker): boolean {
+  const methodName = getMethodName(call);
+  return (
+    methodName !== undefined &&
+    whereLikeMethods.has(methodName) &&
+    call.arguments.length === 3 &&
+    !isKyselySqlExpression(call.arguments[0], checker)
+  );
+}
+
+function evaluateWhereLikeComparisonArguments(
+  args: ts.NodeArray<ts.Expression>,
+  checker: ts.TypeChecker,
+): unknown[] | typeof ast.UNRESOLVED {
+  const [columnArg, operatorArg, valueArg] = args;
+  const column = ast.getStaticValue({ node: columnArg, checker: checker });
+  const operator = ast.getStaticValue({ node: operatorArg, checker: checker });
+  if (typeof column !== "string" || typeof operator !== "string") {
+    return ast.UNRESOLVED;
+  }
+
+  const value = evaluateComparisonValue(valueArg, operator, checker);
+  return value === ast.UNRESOLVED ? value : [column, operator, value];
+}
+
+function evaluateComparisonValue(
+  valueArg: ts.Expression,
+  operator: string,
+  checker: ts.TypeChecker,
+): unknown {
+  const value = ast.getStaticValue({ node: valueArg, checker: checker });
+  if (value !== ast.UNRESOLVED) {
+    return value;
+  }
+
+  return singleBoundParamOperators.has(operator) ? BOUND_PARAM_STUB : ast.UNRESOLVED;
+}
+
+function evaluateArgumentValue(
   arg: ts.Expression,
   checker: ts.TypeChecker,
   sourceFile: ts.SourceFile,
-  state: RenderState,
-): string | undefined {
+  state: EvaluationState,
+): unknown {
   const unwrapped = ast.unwrap({ node: arg });
 
   if (ts.isFunctionLike(unwrapped) || ts.isSpreadElement(unwrapped)) {
-    return undefined;
+    return ast.UNRESOLVED;
   }
 
   if (containsKyselySqlFragment(unwrapped, checker)) {
-    return renderSqlExpressionChain(unwrapped, checker, sourceFile, state);
+    return evaluateSqlExpressionChain(unwrapped, checker, sourceFile, state);
   }
 
   if (ts.isArrayLiteralExpression(unwrapped)) {
-    const elements: string[] = [];
-    for (const element of unwrapped.elements) {
-      if (ts.isSpreadElement(element)) {
-        return undefined;
-      }
-      const rendered = renderArgumentValue(element, checker, sourceFile, state);
-      if (rendered === undefined) {
-        return undefined;
-      }
-      elements.push(rendered);
-    }
-    return `[${elements.join(", ")}]`;
+    return evaluateEach(unwrapped.elements, (element) =>
+      evaluateArgumentValue(element, checker, sourceFile, state),
+    );
   }
 
   if (ts.isNewExpression(unwrapped)) {
-    return renderPluginConstruction(unwrapped, checker);
+    return evaluatePluginConstruction(unwrapped, checker);
   }
 
-  const value = ast.getStaticValue({ node: unwrapped, checker: checker });
-  if (value === ast.UNRESOLVED) {
-    return undefined;
-  }
-
-  return staticValueToSource(value);
+  return ast.getStaticValue({ node: unwrapped, checker: checker });
 }
 
 function isKyselySqlExpression(node: ts.Node, checker: ts.TypeChecker): boolean {
@@ -552,12 +457,12 @@ function isKyselySqlTaggedTemplate(
   return ts.isTaggedTemplateExpression(node) && isKyselyTag(node.tag, checker);
 }
 
-function renderSqlExpressionChain(
+function evaluateSqlExpressionChain(
   node: ts.Node,
   checker: ts.TypeChecker,
   sourceFile: ts.SourceFile,
-  state: RenderState,
-): string | undefined {
+  state: EvaluationState,
+): unknown {
   const u = ast.unwrap({ node: node });
 
   if (isKyselySqlTaggedTemplate(u, checker)) {
@@ -569,94 +474,108 @@ function renderSqlExpressionChain(
       state.typedFragments.push(typedFragment);
     }
 
-    return renderEmbeddedSqlFragment(u.template, checker, sourceFile);
-  }
-
-  if (ts.isCallExpression(u)) {
-    const callee = renderSqlExpressionChain(u.expression, checker, sourceFile, state);
-    if (callee === undefined) return undefined;
-
-    const args: string[] = [];
-    for (const arg of u.arguments) {
-      const rendered = renderArgumentValue(arg, checker, sourceFile, state);
-      if (rendered === undefined) return undefined;
-      args.push(rendered);
-    }
-    return `${callee}(${args.join(", ")})`;
+    return evaluateEmbeddedSqlFragment(u.template, checker);
   }
 
   if (ts.isPropertyAccessExpression(u)) {
-    const receiver = renderSqlExpressionChain(u.expression, checker, sourceFile, state);
-    if (receiver === undefined) return undefined;
-    return `${receiver}.${u.name.text}`;
+    const receiver = evaluateSqlExpressionChain(u.expression, checker, sourceFile, state);
+    return receiver === ast.UNRESOLVED ? receiver : readMember(receiver, u.name.text);
   }
 
-  return undefined;
+  const methodCall = asMethodCall(u);
+  if (methodCall === undefined) {
+    return ast.UNRESOLVED;
+  }
+
+  const receiver = evaluateSqlExpressionChain(methodCall.receiver, checker, sourceFile, state);
+  if (receiver === ast.UNRESOLVED) {
+    return receiver;
+  }
+
+  const args = evaluateEach(methodCall.call.arguments, (arg) =>
+    evaluateArgumentValue(arg, checker, sourceFile, state),
+  );
+  return args === ast.UNRESOLVED ? args : callMethod(receiver, methodCall.name, args);
 }
 
-function renderEmbeddedSqlFragment(
+function evaluateEmbeddedSqlFragment(
   template: ts.TemplateLiteral,
   checker: ts.TypeChecker,
-  sourceFile: ts.SourceFile,
-): string {
+  identifiersBeingResolved: ReadonlySet<ts.Symbol> = new Set(),
+): unknown {
   if (ts.isNoSubstitutionTemplateLiteral(template)) {
-    return `sql\`${escapeTemplateText(template.text)}\``;
+    return callSqlTag([template.text], []);
   }
 
-  let out = `sql\`${escapeTemplateText(template.head.text)}`;
-  for (const span of template.templateSpans) {
-    out += `\${${renderInterpolation(span.expression, checker, sourceFile)}}`;
-    out += escapeTemplateText(span.literal.text);
+  const spans = template.templateSpans;
+  const values = evaluateEach(
+    spans.map((span) => span.expression),
+    (expression) => evaluateInterpolation(expression, checker, identifiersBeingResolved),
+  );
+  if (values === ast.UNRESOLVED) {
+    return values;
   }
-  return `${out}\``;
+
+  return callSqlTag([template.head.text, ...spans.map((span) => span.literal.text)], values);
 }
 
-function renderInterpolation(
-  expr: ts.Expression,
+function evaluateInterpolation(
+  expression: ts.Expression,
   checker: ts.TypeChecker,
-  sourceFile: ts.SourceFile,
-): string {
-  const u = ast.unwrap({ node: expr });
+  identifiersBeingResolved: ReadonlySet<ts.Symbol>,
+): unknown {
+  const u = ast.unwrap({ node: expression });
 
-  // A kysely helper or nested `sql` fragment is evaluated as-is (dynamic arg throws → skip); anything else → value stub.
-  if (
-    isKyselySqlTaggedTemplate(u, checker) ||
-    (ts.isCallExpression(u) && isKyselyHelperCall(u, checker))
-  ) {
-    return u.getText(sourceFile);
+  if (isKyselySqlTaggedTemplate(u, checker)) {
+    return evaluateEmbeddedSqlFragment(u.template, checker, identifiersBeingResolved);
   }
 
-  return SAFE_VALUE_STUB;
+  if (isKyselyHelperCall(u, checker)) {
+    return evaluateSqlHelperCall(u, checker);
+  }
+
+  if (ts.isIdentifier(u)) {
+    return evaluateIdentifierInterpolation(u, checker, identifiersBeingResolved);
+  }
+
+  return BOUND_PARAM_STUB;
 }
 
-function escapeTemplateText(text: string): string {
-  return text.replace(/\\/g, "\\\\").replace(/`/g, "\\`").replace(/\$\{/g, "\\${");
+function evaluateIdentifierInterpolation(
+  identifier: ts.Identifier,
+  checker: ts.TypeChecker,
+  identifiersBeingResolved: ReadonlySet<ts.Symbol>,
+): unknown {
+  const symbol = checker.getSymbolAtLocation(identifier);
+  const initializer = ast.findInitializer({ identifier, checker });
+  if (symbol === undefined || initializer === undefined || identifiersBeingResolved.has(symbol)) {
+    return BOUND_PARAM_STUB;
+  }
+
+  return evaluateInterpolation(initializer, checker, new Set(identifiersBeingResolved).add(symbol));
 }
 
-function staticValueToSource(value: ast.StaticValue): string {
-  if (typeof value === "string") {
-    return JSON.stringify(value);
-  }
-  if (value === null) {
-    return "null";
-  }
-  if (Array.isArray(value)) {
-    return `[${value.map(staticValueToSource).join(", ")}]`;
-  }
-  return String(value);
+function evaluateSqlHelperCall(call: KyselyHelperCall, checker: ts.TypeChecker): unknown {
+  const args = evaluateEach(call.arguments, (arg) => evaluateSqlHelperArgument(arg, checker));
+  return args === ast.UNRESOLVED ? args : callSqlHelper(call.expression.name.text, args);
 }
 
-function buildBuilderDatabaseExpression(): string {
-  // No plugins on the base DB; identifier-rewriting plugins are applied inline via `.withPlugin(...)` in the chain.
-  return `new Kysely({
-    dialect: {
-      createAdapter: () => new PostgresAdapter(),
-      createDriver: () => new DummyDriver(),
-      createIntrospector: (db) => new PostgresIntrospector(db),
-      createQueryCompiler: () => new PostgresQueryCompiler(),
-    },
-    plugins: [],
-  })`;
+function evaluateSqlHelperArgument(arg: ts.Expression, checker: ts.TypeChecker): unknown {
+  const u = ast.unwrap({ node: arg });
+
+  if (isKyselySqlTaggedTemplate(u, checker)) {
+    return evaluateEmbeddedSqlFragment(u.template, checker);
+  }
+
+  if (isKyselyHelperCall(u, checker)) {
+    return evaluateSqlHelperCall(u, checker);
+  }
+
+  if (ts.isArrayLiteralExpression(u)) {
+    return evaluateEach(u.elements, (element) => evaluateSqlHelperArgument(element, checker));
+  }
+
+  return ast.getStaticValue({ node: u, checker: checker });
 }
 
 function buildExpressionSQL(node: ts.Node, checker: ts.TypeChecker): string | false | undefined {
@@ -688,7 +607,6 @@ function buildHelperSQL(
   switch (method) {
     case "val":
     case "value":
-      // Bare placeholder (no cast); let Postgres infer the type.
       return "$N";
 
     case "ref":
@@ -739,7 +657,6 @@ function buildJoinSQL(call: ts.CallExpression, checker: ts.TypeChecker): string 
 function getJoinSeparator(arg: ts.Expression | undefined, checker: ts.TypeChecker): string | false {
   if (arg === undefined) return ", ";
 
-  // Only a literal `sql`...`` separator is resolved; a variable separator skips the query rather than guessing.
   const expression = ast.unwrap({ node: arg });
   if (ts.isTaggedTemplateExpression(expression) && isKyselyTag(expression.tag, checker)) {
     const text = buildTemplateSQL(expression.template, checker);
@@ -789,8 +706,6 @@ function classifyTypedFragment(
   return undefined;
 }
 
-// Climb the transparent wrappers (parens, `as`, `!`) the render path also sees through, so a
-// wrapped `sql<T>` fragment — `.where((sql`...`))`, `(sql`...`).as("x")` — classifies like a bare one.
 function climbTransparentWrappers(node: ts.Node): ts.Node {
   let current = node;
   while (
@@ -818,9 +733,6 @@ function isConditionFragment(node: ts.TaggedTemplateExpression): boolean {
     return false;
   }
 
-  // Only the single-argument expression form — `.where(sql`...`)` — is itself the boolean
-  // condition. In the binary form `.where(lhs, op, rhs)` a fragment is an operand, not the
-  // condition, so its `<T>` must not be forced to `boolean`.
   const isSoleArgument =
     parent.arguments.length === 1 &&
     (parent.arguments[0] === current || ast.unwrap({ node: parent.arguments[0] }) === node);
@@ -840,7 +752,6 @@ function getSelectionAlias(
   node: ts.TaggedTemplateExpression,
   checker: ts.TypeChecker,
 ): string | undefined {
-  // `sql<T>`...`.as("alias")` — the template is the receiver of `.as`.
   const fragment = climbTransparentWrappers(node);
   const asAccess = fragment.parent;
   if (
@@ -876,8 +787,7 @@ function isFragmentUsage(tsNode: ts.TaggedTemplateExpression): boolean {
 
   while (parent) {
     if (ts.isPropertyAccessExpression(parent) && parent.expression === current) {
-      // `.as(...)` marks a selection fragment, never a standalone query.
-      if (["as", "toOperationNode"].includes(parent.name.text)) return true;
+      if (fragmentMarkerMethods.has(parent.name.text)) return true;
       current = parent;
       parent = current.parent;
       continue;
@@ -899,7 +809,6 @@ function isFragmentUsage(tsNode: ts.TaggedTemplateExpression): boolean {
     break;
   }
 
-  // Passed as a call argument (e.g. `.where(sql`...`)`) → fragment.
   return (
     parent !== undefined &&
     ts.isCallExpression(parent) &&
@@ -924,8 +833,12 @@ function isKyselyTag(node: ts.Node, checker: ts.TypeChecker): boolean {
   return ast.isImportedFrom({ node: node, checker: checker, moduleName: "kysely" });
 }
 
-function isKyselyHelperCall(call: ts.CallExpression, checker: ts.TypeChecker): boolean {
-  return ts.isPropertyAccessExpression(call.expression) && isKyselyTag(call.expression, checker);
+function isKyselyHelperCall(node: ts.Node, checker: ts.TypeChecker): node is KyselyHelperCall {
+  return (
+    ts.isCallExpression(node) &&
+    ts.isPropertyAccessExpression(node.expression) &&
+    isKyselyTag(node.expression, checker)
+  );
 }
 
 function getMethodName(call: ts.CallExpression): string | undefined {

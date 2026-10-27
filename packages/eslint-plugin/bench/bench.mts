@@ -1,5 +1,3 @@
-// Benchmarks the check-sql rule end to end via the ESLint API, base vs PR on the
-// same runner. msRuleOverhead is the lint pass with the rule on minus off.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -117,16 +115,19 @@ async function lint(ruleOn: boolean, files: string[]): Promise<number> {
   return performance.now() - s;
 }
 
+async function warmUp(files: string[]) {
+  await lint(true, files);
+}
+
 async function main() {
   await setupDb();
   const files = writeFixture();
 
-  await lint(true, files); // warm-up
+  await warmUp(files);
 
-  // interleaved on/off so the delta cancels system noise
   const onTimes: number[] = [];
   const overheads: number[] = [];
-  for (let r = 0; r < ROUNDS; r++) {
+  for (let round = 0; round < ROUNDS; round++) {
     const on = await lint(true, files);
     const off = await lint(false, files);
     onTimes.push(on);

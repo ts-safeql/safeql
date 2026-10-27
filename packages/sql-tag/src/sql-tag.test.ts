@@ -2,7 +2,7 @@ import assert from "assert";
 import { test } from "vitest";
 import { createTypedSqlTag, sql } from "./sql-tag";
 
-test("sql", () => {
+test("sql exposes text and values for node-pg", () => {
   const query = sql`SELECT * FROM users WHERE first_name = ${"John"}`;
 
   assert.deepEqual(query.text, "SELECT * FROM users WHERE first_name = $1");
@@ -23,7 +23,7 @@ test("sql with no values", () => {
   assert.deepEqual(query.values, []);
 });
 
-test("sql query and text should be the same", () => {
+test("sql exposes query for sequelize, identical to text", () => {
   const query = sql`SELECT * FROM users WHERE first_name = ${"John"}`;
   const actualQuery = "SELECT * FROM users WHERE first_name = $1";
 

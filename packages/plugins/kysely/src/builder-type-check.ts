@@ -6,8 +6,6 @@ import type {
 } from "@ts-safeql/plugin-utils";
 import ts from "typescript";
 
-// An embedded `sql<T>` fragment whose `<T>` the builder cannot verify on its own:
-// a selection (`sql<T>`...`.as("alias")`) or a `where`-like condition (always `boolean`).
 export type TypedBuilderFragment =
   | { kind: "column"; alias: string; tag: ts.TaggedTemplateExpression }
   | { kind: "condition"; tag: ts.TaggedTemplateExpression };
@@ -30,7 +28,6 @@ function checkFragment(
   fragment: TypedBuilderFragment,
   ctx: ResolvedQueryTypeCheckContext,
 ): IncorrectTypeAnnotationReport | undefined {
-  // `get` is typed non-null but returns `undefined` for a node absent from the map.
   const tag: TSESTree.Node | undefined = ctx.parser.tsNodeToESTreeNodeMap.get(fragment.tag);
   if (tag === undefined || tag.type !== "TaggedTemplateExpression") {
     return undefined;
@@ -44,7 +41,7 @@ function checkFragment(
 
   const actual = actualTypeOf(fragment, ctx.output);
   const expected = expectedTypeOf(fragment, annotation, ctx);
-  if (actual === null || expected === null || isComparablyEqual(expected, actual, ctx)) {
+  if (actual === null || expected === null || isEqualIgnoringQuoteStyle(expected, actual, ctx)) {
     return undefined;
   }
 
@@ -76,8 +73,6 @@ function expectedTypeOf(
   annotation: TSESTree.TypeNode,
   ctx: ResolvedQueryTypeCheckContext,
 ): PluginResolvedTarget | null {
-  // Kysely accepts `SqlBool`, `boolean`, or a boolean intersection in a condition; collapse them
-  // to `boolean` so an annotation the database considers correct isn't flagged on its spelling.
   if (fragment.kind === "condition" && isBooleanAnnotation(annotation, ctx)) {
     return BOOLEAN;
   }
@@ -93,8 +88,6 @@ function isBooleanAnnotation(
   return isBooleanType(ctx.checker.getTypeAtLocation(tsNode));
 }
 
-// Kysely conditions accept any boolean-ish annotation — `boolean`, the `SqlBool` alias, a branded
-// `boolean & {}`, or a union that includes a boolean — all of which the database produces as `boolean`.
 function isBooleanType(type: ts.Type): boolean {
   if ((type.flags & (ts.TypeFlags.Boolean | ts.TypeFlags.BooleanLiteral)) !== 0) {
     return true;
@@ -103,8 +96,7 @@ function isBooleanType(type: ts.Type): boolean {
   return type.isUnionOrIntersection() && type.types.some(isBooleanType);
 }
 
-// Mirrors the core's annotation comparison, which canonicalizes literal quotes before comparing.
-function isComparablyEqual(
+function isEqualIgnoringQuoteStyle(
   expected: PluginResolvedTarget,
   actual: PluginResolvedTarget,
   ctx: ResolvedQueryTypeCheckContext,

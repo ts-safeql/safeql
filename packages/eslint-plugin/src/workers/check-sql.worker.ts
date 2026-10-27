@@ -34,6 +34,7 @@ export type CheckSQLWorkerHandler = typeof handler;
 const generator = createGenerator();
 const connections = createConnectionManager();
 const watchers = createWatchManager();
+const ignoreNotice = () => {};
 
 export async function handler(params: CheckSQLWorkerParams) {
   const strategy = getConnectionStartegyByRuleOptionConnection({
@@ -70,9 +71,6 @@ export type WorkerError =
   | GenerateError;
 export type WorkerResult = GenerateResult;
 
-/**
- * Shared by the query and schema-introspection paths so both hit the same shadow DB.
- */
 function resolveConnectionPayload(params: {
   connection: RuleOptionConnection;
   projectDir: string;
@@ -96,17 +94,13 @@ function resolveConnectionPayload(params: {
       });
       const { sql, isFirst } = connections.getOrCreate(databaseUrl);
       const { sql: migrationSql } = connections.getOrCreate(connectionUrl, {
-        onnotice: () => {
-          /* silence notices */
-        },
+        onnotice: ignoreNotice,
       });
       const connectionPayload: ConnectionPayload = { sql, isFirst, databaseUrl };
 
       if (isFirst) {
         const migrationsPath = path.join(params.projectDir, migrationsDir);
 
-        // A plugin's migrate hook replaces the built-in `.sql` runner. Plugin resolution
-        // can throw synchronously, so surface it as a worker error rather than crashing.
         let pluginMigrate: ReturnType<typeof connections.resolveMigrate>;
         try {
           pluginMigrate = params.connection.plugins?.length

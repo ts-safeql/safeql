@@ -124,10 +124,14 @@ function getCachedResult(
 ): CachedQueryResult | undefined {
   const hit = cache.get(key);
   if (hit !== undefined) {
-    cache.delete(key);
-    cache.set(key, hit); // bump recency
+    setAsMostRecentlyUsed(cache, key, hit);
   }
   return hit;
+}
+
+function setAsMostRecentlyUsed<K, V>(cache: Map<K, V>, key: K, value: V): void {
+  cache.delete(key);
+  cache.set(key, value);
 }
 
 function deepFreeze<T>(value: T): T {
@@ -145,8 +149,7 @@ function setCachedResult(
   key: string,
   value: CachedQueryResult,
 ): void {
-  cache.delete(key); // bump recency
-  cache.set(key, deepFreeze(value));
+  setAsMostRecentlyUsed(cache, key, deepFreeze(value));
   if (cache.size > MAX_RESULT_CACHE_ENTRIES) {
     const oldest = cache.keys().next().value;
     if (oldest !== undefined) {
@@ -496,11 +499,6 @@ async function getDatabaseMetadata(sql: Sql) {
   };
 }
 
-/**
- * Parsed view/matview bodies, keyed by schema then view name. PostgreSQL reports every
- * view column as nullable, so we look through these definitions to recover non-nullability
- * (see ast-get-sources).
- */
 export type PgViewsBySchemaAndName = Map<string, Map<string, LibPgQueryAST.SelectStmt>>;
 
 interface PgViewRow {
@@ -524,7 +522,7 @@ async function getPgViews(sql: Sql): Promise<PgViewsBySchemaAndName> {
   `;
 
   const parsedRows = await Promise.all(
-    rows.map(async (row) => ({ row, select: await parseViewSelect(row.definition) })),
+    rows.map(async (row) => ({ row, select: await tryParseViewSelect(row.definition) })),
   );
 
   const map: PgViewsBySchemaAndName = new Map();
@@ -542,8 +540,7 @@ async function getPgViews(sql: Sql): Promise<PgViewsBySchemaAndName> {
   return map;
 }
 
-// Unparseable definitions resolve to `undefined`, leaving their columns nullable.
-function parseViewSelect(definition: string): Promise<LibPgQueryAST.SelectStmt | undefined> {
+function tryParseViewSelect(definition: string): Promise<LibPgQueryAST.SelectStmt | undefined> {
   return parser
     .parse(definition)
     .then((parsed) => parsed.stmts[0]?.stmt?.SelectStmt)

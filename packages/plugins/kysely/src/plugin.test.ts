@@ -50,6 +50,16 @@ const targetCases: Case[] = [
     output: { skipped: true },
   },
   {
+    name: ".as() marks a selection fragment even when held on its own",
+    source: imp("const n = sql<string>`first_name`.as('n')"),
+    output: { skipped: true },
+  },
+  {
+    name: ".toOperationNode() marks a fragment even when held on its own",
+    source: imp("const n = sql<string>`first_name`.toOperationNode()"),
+    output: { skipped: true },
+  },
+  {
     name: "sql tag passed as a call argument (builder fragment) is skipped",
     source: imp("declare function take(x: unknown): void; take(sql`now()`)"),
     output: { skipped: true },
@@ -136,6 +146,11 @@ const expressionCases: Case[] = [
     name: "sql.join with fragment separator",
     source: imp("sql`select ${sql.join(['a', 'b'], sql` AND `)}`"),
     output: { sql: "select $N AND $N" },
+  },
+  {
+    name: "sql.join with a separator held in a variable -> skip query rather than guess",
+    source: imp("const sep = sql` AND `; sql`select ${sql.join([1, 2], sep)}`"),
+    output: { sql: "select /* skipped */" },
   },
   {
     name: "nested sql fragment is spliced in",

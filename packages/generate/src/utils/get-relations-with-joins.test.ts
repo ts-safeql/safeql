@@ -171,7 +171,6 @@ const cases: {
     ],
   },
   {
-    // Base relation is a subselect, so `relName` falls back to its alias.
     query: `
       SELECT a.x, b.y, c.z
       FROM (SELECT 1 AS x) a

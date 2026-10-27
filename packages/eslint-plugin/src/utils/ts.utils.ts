@@ -7,6 +7,12 @@ type EnumKind =
   | { kind: "String"; values: string[] }
   | { kind: "Heterogeneous" };
 
+function isNumericEnumMember(member: ts.EnumMember): boolean {
+  return (
+    member.initializer === undefined || member.initializer.kind === TS.SyntaxKind.NumericLiteral
+  );
+}
+
 export const TSUtils = {
   isTypeUnion: (typeNode: ts.TypeNode | undefined): typeNode is ts.UnionTypeNode => {
     return typeNode?.kind === TS.SyntaxKind.UnionType;
@@ -45,7 +51,7 @@ export const TSUtils = {
   getEnumKind(type: ts.Type): EnumKind | undefined {
     const symbol = type.getSymbol();
     if (!symbol || !(symbol.flags & TS.SymbolFlags.Enum)) {
-      return undefined; // Not an enum
+      return undefined;
     }
 
     const declarations = symbol.getDeclarations();
@@ -62,24 +68,18 @@ export const TSUtils = {
         for (const member of declaration.members) {
           const initializer = member.initializer;
 
-          if (initializer) {
-            if (TS.isStringLiteralLike(initializer)) {
-              hasString = true;
-              stringValues.push(initializer.text);
-            }
+          if (initializer && TS.isStringLiteralLike(initializer)) {
+            hasString = true;
+            stringValues.push(initializer.text);
+          }
 
-            if (initializer.kind === TS.SyntaxKind.NumericLiteral) {
-              hasNumeric = true;
-            }
-          } else {
-            // Members without initializers are numeric by default
+          if (isNumericEnumMember(member)) {
             hasNumeric = true;
           }
         }
       }
     }
 
-    // Determine the kind of enum
     if (symbol.flags & TS.SymbolFlags.ConstEnum) {
       return { kind: "Const" };
     }

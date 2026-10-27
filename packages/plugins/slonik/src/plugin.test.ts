@@ -11,8 +11,8 @@ afterAll(() => driver.teardown());
 
 type Case = {
   name: string;
-  /** Extra imports. Set to `null` to omit the default slonik import. */
-  imports?: string[] | null;
+  extraImports?: string[];
+  omitSlonikImport?: boolean;
   input: string;
   output: ToSQLResult;
 };
@@ -21,7 +21,7 @@ const cases: Case[] = [
   { name: "sql.unsafe", input: "sql.unsafe`SELECT 1`", output: { sql: "SELECT 1" } },
   {
     name: "aliased slonik import",
-    imports: ['import { sql as slonikSql } from "slonik"'],
+    extraImports: ['import { sql as slonikSql } from "slonik"'],
     input: "slonikSql.unsafe`SELECT 1`",
     output: { sql: "SELECT 1" },
   },
@@ -33,7 +33,7 @@ const cases: Case[] = [
   },
   {
     name: "sql.type with zod schema",
-    imports: ['import { z } from "zod"'],
+    extraImports: ['import { z } from "zod"'],
     input: "sql.type(z.object({ id: z.number() }))`SELECT 1 AS id`",
     output: { sql: "SELECT 1 AS id" },
   },
@@ -44,7 +44,7 @@ const cases: Case[] = [
   },
   {
     name: "non-slonik sql tag is ignored",
-    imports: null,
+    omitSlonikImport: true,
     input: "const sql = { unsafe: String.raw }; sql.unsafe`TOTAL GARBAGE`",
     output: { skipped: true },
   },
@@ -212,8 +212,9 @@ describe("slonik plugin", () => {
   for (const c of cases) {
     it(c.name, () => {
       // ARRANGE
-      const imports =
-        c.imports === null ? [] : ['import { sql } from "slonik"', ...(c.imports ?? [])];
+      const imports = c.omitSlonikImport
+        ? []
+        : ['import { sql } from "slonik"', ...(c.extraImports ?? [])];
       const source = imports.length > 0 ? `${imports.join("; ")}; ${c.input}` : c.input;
 
       // ACT

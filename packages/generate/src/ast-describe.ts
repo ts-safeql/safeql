@@ -356,8 +356,6 @@ function getDescribedAExpr({
   const name = alias ?? "?column?";
 
   if (node.lexpr === undefined && node.rexpr !== undefined) {
-    // `|/` (square root) and `||/` (cube root) always yield double precision in
-    // PostgreSQL regardless of the operand type, but return NULL on NULL input.
     const prefixOperator = concatStringNodes(node.name);
     if (prefixOperator === "|/" || prefixOperator === "||/") {
       const operandType = getDescribedNode({ alias, node: node.rexpr, context }).at(0)?.type;
@@ -504,10 +502,6 @@ function getDescribedAExpr({
   const getType = (): ASTDescribedColumnType | undefined => {
     const nullable = getNullable();
 
-    // `->>` and `#>>` always return `text` in PostgreSQL. Resolve them directly
-    // rather than via the operand-keyed lookup below, which misses when the left
-    // operand's type is imprecise (e.g. `unknown` from `jsonb_array_elements`)
-    // and would otherwise collapse the expression to `unknown`.
     if (operator === "->>" || operator === "#>>") {
       return resolveType({ context, nullable, type: context.toTypeScriptType({ name: "text" }) });
     }
@@ -1224,37 +1218,38 @@ function getColumnRefOrigins({
   if (isColumnTableStarRef(node.fields)) {
     const source = node.fields[0].String.sval;
     return (
-      // lookup in cte
-      context.select.withClause?.ctes.find((cte) => cte.CommonTableExpr?.ctename === source)
-        ?.CommonTableExpr?.ctequery?.SelectStmt?.targetList ??
-      // lookup in subselect (including inside join trees, e.g. LATERAL)
-      findRangeSubselectByAlias({ fromClause: context.select.fromClause, alias: source })?.subquery
-        ?.SelectStmt?.targetList
+      findCteTargetList(context.select, source) ?? findSubselectTargetList(context.select, source)
     );
   }
 
   if (isColumnTableColumnRef(node.fields)) {
     const source = node.fields[0].String.sval;
     const column = node.fields[1].String.sval;
+    const isTargetColumn = (x: LibPgQueryAST.Node) => resTargetMatchesColumn(x.ResTarget, column);
     const origin =
-      // lookup in cte
-      context.select.withClause?.ctes
-        .find((cte) => cte.CommonTableExpr?.ctename === source)
-        ?.CommonTableExpr?.ctequery?.SelectStmt?.targetList?.find((x) =>
-          resTargetMatchesColumn(x.ResTarget, column),
-        ) ??
-      // lookup in subselect
-      findRangeSubselectByAlias({
-        fromClause: context.select.fromClause,
-        alias: source,
-      })?.subquery?.SelectStmt?.targetList?.find((x) =>
-        resTargetMatchesColumn(x.ResTarget, column),
-      );
+      findCteTargetList(context.select, source)?.find(isTargetColumn) ??
+      findSubselectTargetList(context.select, source)?.find(isTargetColumn);
 
     if (!origin) return undefined;
 
     return [origin];
   }
+}
+
+function findCteTargetList(
+  select: LibPgQueryAST.SelectStmt,
+  cteName: string,
+): LibPgQueryAST.Node[] | undefined {
+  return select.withClause?.ctes.find((cte) => cte.CommonTableExpr?.ctename === cteName)
+    ?.CommonTableExpr?.ctequery?.SelectStmt?.targetList;
+}
+
+function findSubselectTargetList(
+  select: LibPgQueryAST.SelectStmt,
+  alias: string,
+): LibPgQueryAST.Node[] | undefined {
+  return findRangeSubselectByAlias({ fromClause: select.fromClause, alias })?.subquery?.SelectStmt
+    ?.targetList;
 }
 
 function resTargetMatchesColumn(
@@ -1364,7 +1359,6 @@ function getDescribedColumnRefFromSchema({
   context,
   node,
 }: GetDescribedParamsOf<LibPgQueryAST.ColumnRef>): ASTDescribedColumn[] {
-  // select *
   if (isColumnStarRef(node.fields)) {
     return getDescribedColumnByResolvedColumns({
       alias: alias,
@@ -1373,7 +1367,6 @@ function getDescribedColumnRefFromSchema({
     });
   }
 
-  // select table.*
   if (isColumnTableStarRef(node.fields)) {
     return getDescribedColumnByResolvedColumns({
       alias: alias,
@@ -1382,7 +1375,6 @@ function getDescribedColumnRefFromSchema({
     });
   }
 
-  // "select column" or "select table"
   if (isColumnUnknownRef(node.fields)) {
     const resolved = context.resolver.getColumnsByTargetField({
       kind: "unknown",

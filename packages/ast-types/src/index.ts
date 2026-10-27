@@ -253,12 +253,10 @@ export interface Node {
 }
 
 export interface Integer {
-  /** machine integer */
   ival?: number;
 }
 
 export interface Float {
-  /** string */
   fval: string;
 }
 
@@ -267,12 +265,10 @@ export interface Boolean {
 }
 
 export interface String {
-  /** string */
   sval: string;
 }
 
 export interface BitString {
-  /** string */
   bsval: string;
 }
 

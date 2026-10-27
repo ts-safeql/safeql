@@ -428,7 +428,7 @@ test("select jsonb_agg(tbl) from (subselect) tbl", async () => {
   });
 });
 
-test("select jsonb_agg(jsonb_build_object(const, jsonb->>, const, ARRAY[jsonb->>])) from jsonb_array_elements subquery", async () => {
+test("->> on an untyped jsonb_array_elements value inside jsonb_agg still resolves to text", async () => {
   await testQuery({
     query: `
       SELECT

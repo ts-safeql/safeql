@@ -1,5 +1,3 @@
-// Benchmarks warm generate() ms/query, base vs PR on the same runner. distinct =
-// uncached path (the gate); repeated = result-cache path.
 import fs from "node:fs";
 import postgres from "postgres";
 import { createGenerator } from "../src/generate";
@@ -9,8 +7,7 @@ const ADMIN = "postgres://postgres:postgres@localhost:5432/postgres";
 const DB_NAME = "safeql_bench";
 const DB_URL = `postgres://postgres:postgres@localhost:5432/${DB_NAME}`;
 
-// pad to a realistic table count (the test migrations alone are too few)
-const EXTRA_TABLES = 200;
+const PADDING_TABLES = 200;
 
 const TEMPLATES: string[] = [
   `SELECT id, first_name, last_name FROM member WHERE id = {N}`,
@@ -27,6 +24,7 @@ const TEMPLATES: string[] = [
 
 const QUERIES = 2000;
 const ROUNDS = 8;
+const WARM_UP_QUERIES = 300;
 
 function median(xs: number[]): number {
   const sorted = xs.slice().sort((a, b) => a - b);
@@ -42,7 +40,7 @@ async function setupDb() {
   const sql = postgres(DB_URL);
   await runMigrations(sql);
   let ddl = "";
-  for (let i = 0; i < EXTRA_TABLES; i++) {
+  for (let i = 0; i < PADDING_TABLES; i++) {
     ddl += `CREATE TABLE bulk_${i} (id int primary key, a text not null, b int, c timestamptz, d jsonb);\n`;
   }
   await sql.unsafe(ddl);
@@ -50,6 +48,9 @@ async function setupDb() {
 }
 
 type Decorate = (text: string, round: number, index: number) => string;
+
+const bypassResultCache: Decorate = (text, round, index) => `${text} /*d${round}-${index}*/`;
+const hitResultCache: Decorate = (text) => text;
 
 async function measure(decorate: Decorate) {
   const sql = postgres(DB_URL);
@@ -65,7 +66,7 @@ async function measure(decorate: Decorate) {
       fieldTransform: undefined,
     });
 
-  for (let i = 0; i < 300; i++) await gen(decorate(base[i % base.length], -1, i));
+  for (let i = 0; i < WARM_UP_QUERIES; i++) await gen(decorate(base[i % base.length], -1, i));
 
   const perRound: number[] = [];
   for (let r = 0; r < ROUNDS; r++) {
@@ -80,15 +81,15 @@ async function measure(decorate: Decorate) {
 async function main() {
   await setupDb();
 
-  const distinct = await measure((text, round, index) => `${text} /*d${round}-${index}*/`);
-  const repeated = await measure((text) => text);
+  const msPerQueryUncached = await measure(bypassResultCache);
+  const msPerQueryCached = await measure(hitResultCache);
 
   const metrics = {
-    schemaTables: EXTRA_TABLES,
+    schemaTables: PADDING_TABLES,
     queries: QUERIES,
     rounds: ROUNDS,
-    msPerQueryDistinct: Number(distinct.toFixed(4)),
-    msPerQueryRepeated: Number(repeated.toFixed(4)),
+    msPerQueryDistinct: Number(msPerQueryUncached.toFixed(4)),
+    msPerQueryRepeated: Number(msPerQueryCached.toFixed(4)),
     nodeVersion: process.version,
   };
 

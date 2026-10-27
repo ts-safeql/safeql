@@ -397,10 +397,6 @@ function getPgTypeFromTsTypeIntersection(params: {
 }): E.Either<string, PgTypeStrategy | null> {
   const { types, checker, options } = params;
 
-  // A branded type intersects a base type with marker members that exist only in TypeScript
-  // (e.g. `{ __brand: "ID" }`). Keep the members that map to a Postgres type — the bases the
-  // value is assignable to — and drop the markers, which don't map. Unlike a union, an
-  // unmappable member is expected here (it's a marker), so it is skipped rather than fatal.
   const strategies: PgTypeStrategy[] = [];
 
   for (const member of types) {
@@ -433,9 +429,6 @@ function getPgTypeFromTsTypeTuple(params: {
 }): E.Either<string, PgTypeStrategy | null> {
   const { type, checker, options } = params;
 
-  // A tuple (`NonEmptyArray<T>` = `[T, ...T[]]`) has no Postgres type, but its elements share one.
-  // Resolve each via `checkType` (so branded elements still map) and return it as `T[]`, like an
-  // array. An unmappable element is fatal here, unlike an intersection marker (which is skipped).
   const elementTypes = checker.getTypeArguments(type);
 
   if (elementTypes.length === 0) {
@@ -554,7 +547,6 @@ function checkType(params: {
     return E.right({ kind: "cast", cast: isArray ? `${singularPgType}[]` : singularPgType });
   }
 
-  // Handle overrides
   const typesWithOverrides = { ...defaultTypeMapping, ...options.overrides?.types };
   const override = Object.entries(typesWithOverrides).find(([, tsType]) =>
     doesMatchPattern({
@@ -611,13 +603,10 @@ function checkType(params: {
     return E.right({ kind: "literal", value: `${type.value}`, cast: "int" });
   }
 
-  // Template-literal types (`${number}`) and string-mapping types (`Uppercase<string>`) are strings
-  // at runtime → `text`. Branded types like `Money` resolve here via their `${number}` base.
   if (type.flags & (TS.TypeFlags.TemplateLiteral | TS.TypeFlags.StringMapping)) {
     return E.right({ kind: "cast", cast: isArray ? "text[]" : "text" });
   }
 
-  // Handle union types
   if (type.isUnion()) {
     return pipe(
       getPgTypeFromTsTypeUnion({ types: type.types, checker, options }),
@@ -632,7 +621,6 @@ function checkType(params: {
     return E.right({ kind: "cast", cast: isArray ? `${pgType}[]` : pgType });
   }
 
-  // Fallback for unsupported types
   return E.left(normalizeIndent`
     The type "${typeStr}" has no corresponding PostgreSQL type.
     Please add it manually using the "overrides.types" option:

@@ -50,6 +50,7 @@ const cases: {
   { query: `SELECT ARRAY[null]`, expected: ["array"] },
   { query: `SELECT ARRAY(SELECT 1)`, expected: ["array"] },
   { query: `SELECT ARRAY(SELECT tbl.col FROM tbl WHERE tbl.col IS NOT NULL)`, expected: ["array"] },
+  { query: `SELECT ARRAY(SELECT tbl.col FROM tbl)`, expected: ["array"] },
   { query: `SELECT (SELECT 1 AS X)`, expected: ["x"], aggregateNames: testAggregates },
   {
     query: `SELECT (SELECT count(*) FROM member) AS c`,

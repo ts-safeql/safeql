@@ -212,23 +212,19 @@ sql\`SELECT \${sql.typed.rect({ x: 13, y: 37, width: 42, height: 80 })}\``,
     output: { sql: "SELECT 1" },
   },
   {
-    // Mirrors postgres.js: the `in` builder maps an empty array's "()" to "(null)".
-    name: "array value helper with empty array",
+    name: 'array value helper with empty array maps "()" to "(null)", mirroring the postgres.js `in` builder',
     source:
       'import postgres from "postgres"; const sql = postgres(); sql`SELECT * FROM users WHERE age IN ${sql([])}`',
     output: { sql: "SELECT * FROM users WHERE age IN (null)" },
   },
   {
-    // Mirrors postgres.js: the `values` builder emits "()" for an empty array.
-    name: "values helper with empty array",
+    name: 'values helper with empty array emits "()", mirroring the postgres.js `values` builder',
     source:
       'import postgres from "postgres"; const sql = postgres(); sql`SELECT * FROM (VALUES ${sql([])}) AS data(a)`',
     output: { sql: "SELECT * FROM (VALUES ()) AS data(a)" },
   },
   {
-    // Resolution follows the last-positioned keyword, so a trailing `AS` from an
-    // unrelated CAST selects the `as`/select builder — same as postgres.js.
-    name: "helper resolves via the last keyword (CAST ... AS parity)",
+    name: "helper resolves via the last-positioned keyword, so a CAST's `AS` selects the `as` builder, mirroring postgres.js `Builder.build`",
     source:
       'import postgres from "postgres"; const sql = postgres(); const row = { status: "active" }; sql`SELECT CAST(created_at AS date), ${sql(row)}`',
     output: { sql: 'SELECT CAST(created_at AS date), $N AS "status"' },

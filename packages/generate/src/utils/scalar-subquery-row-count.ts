@@ -8,12 +8,7 @@ function getConstantInteger(node: LibPgQueryAST.Node | undefined): number | unde
       return ival;
     }
 
-    if (ival.ival !== undefined) {
-      return ival.ival;
-    }
-
-    // libpg-query represents `LIMIT 0` as `{ ival: {} }`
-    return 0;
+    return ival.ival ?? 0;
   }
 
   if (node?.TypeCast?.arg !== undefined) {
@@ -118,7 +113,6 @@ function caseExpressionAlwaysOneRow(
   );
 }
 
-/** True when the select is guaranteed to return exactly one row (scalar subquery cannot be "empty"). */
 export function selectReturnsExactlyOneRow(
   select: LibPgQueryAST.SelectStmt,
   aggregateNames: Set<string>,

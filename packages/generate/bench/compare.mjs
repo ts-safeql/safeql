@@ -1,5 +1,3 @@
-// Compares two bench runs (base vs PR), renders every ms* metric, gates on one.
-//   node compare.mjs <base.json> <pr.json> <gateMetric> [thresholdPct=25] [title]
 import fs from "node:fs";
 
 const [baseFile, prFile, gateKey, thresholdArg, title] = process.argv.slice(2);

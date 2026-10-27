@@ -232,9 +232,7 @@ ruleTester.run("call expression plugin with a custom method name", checkSqlRule,
   ],
 });
 
-// A builder query has no tag, so it must still be validated when the connection also declares
-// tag `targets` (otherwise builder calls would be silently skipped on such connections).
-ruleTester.run("call expression plugin alongside tag targets", checkSqlRule, {
+ruleTester.run("builder calls are not skipped by connection tag targets", checkSqlRule, {
   valid: [
     {
       options: withConnection({
@@ -294,4 +292,53 @@ ruleTester.run("call expression plugin with multiple type arguments", checkSqlRu
       errors: [{ messageId: "invalidTypeAnnotations" }],
     },
   ],
+});
+
+ruleTester.run("builder call resolved by several connections", checkSqlRule, {
+  valid: [],
+  invalid: [
+    {
+      name: "is reported once, by the first connection that resolves it",
+      options: [
+        {
+          connections: [
+            { ...connections.base, keepAlive: false, targets: [], plugins: [callQueryPlugin] },
+            { ...connections.base, keepAlive: false, targets: [], plugins: [callQueryPlugin] },
+          ],
+        },
+      ],
+      code: normalizeIndent`
+        declare const db: {
+          run<T>(): Promise<T>;
+        };
+
+        db.run();
+      `,
+      output: normalizeIndent`
+        declare const db: {
+          run<T>(): Promise<T>;
+        };
+
+        db.run<{ one: number }>();
+      `,
+      errors: [{ messageId: "missingTypeAnnotations" }],
+    },
+  ],
+});
+
+ruleTester.run("builder terminal without a type parameter", checkSqlRule, {
+  valid: [
+    {
+      name: "infers its row type from the builder and needs no annotation",
+      options: options(),
+      code: normalizeIndent`
+        declare const db: {
+          run(): Promise<unknown>;
+        };
+
+        db.run();
+      `,
+    },
+  ],
+  invalid: [],
 });
