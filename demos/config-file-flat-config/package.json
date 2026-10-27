@@ -1,6 +1,6 @@
 {
   "name": "@ts-safeql-demos/config-file-flat-config",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "type": "module",
   "scripts": {
     "build": "tsc",
