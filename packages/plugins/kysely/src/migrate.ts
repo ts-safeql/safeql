@@ -117,9 +117,11 @@ async function loadKysely(): Promise<typeof import("kysely")> {
   }
 }
 
-async function loadKyselyMigration(): Promise<typeof import("kysely/migration")> {
+export async function loadKyselyMigration(
+  importModule: (specifier: string) => Promise<unknown> = (specifier) => import(specifier),
+): Promise<typeof import("kysely/migration")> {
   for (const specifier of ["kysely/migration", "kysely"]) {
-    const mod: unknown = await import(specifier).catch(() => undefined);
+    const mod = await importModule(specifier).catch(() => undefined);
     if (isKyselyMigrationModule(mod)) return mod;
   }
 
