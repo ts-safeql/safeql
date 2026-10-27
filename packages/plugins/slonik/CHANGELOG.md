@@ -1,5 +1,11 @@
 # @ts-safeql/plugin-slonik
 
+## 4.4.0
+
+### Minor Changes
+
+- 7cee2fd: Support Slonik 49. The `slonik` peer dependency now accepts `^48.13.2 || ^49.0.0`.
+
 ## 4.3.0
 
 ### Minor Changes

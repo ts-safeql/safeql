@@ -1,5 +1,11 @@
 # @ts-safeql/eslint-plugin
 
+## 5.4.3
+
+### Patch Changes
+
+- 7cee2fd: Update runtime dependencies, including the bundled `minimatch`, which picks up fixes for known `brace-expansion` vulnerabilities. The minimum `zod` version is now 4.6.7.
+
 ## 5.4.2
 
 ### Patch Changes
