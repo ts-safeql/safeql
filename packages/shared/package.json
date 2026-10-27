@@ -38,7 +38,7 @@
     "vitest": "catalog:"
   },
   "dependencies": {
-    "minimatch": "^10.0.1",
+    "minimatch": "^10.2.6",
     "postgres": "catalog:"
   }
 }

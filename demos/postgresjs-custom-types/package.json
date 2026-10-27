@@ -17,7 +17,7 @@
     "typescript-eslint": "catalog:"
   },
   "dependencies": {
-    "@js-joda/core": "^5.6.4",
+    "@js-joda/core": "^6.3.0",
     "@ts-safeql-demos/shared": "workspace:*",
     "@ts-safeql/eslint-plugin": "workspace:*",
     "postgres": "catalog:"

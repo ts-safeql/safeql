@@ -74,14 +74,14 @@
   },
   "dependencies": {
     "@ts-safeql/plugin-utils": "workspace:*",
-    "chokidar": "^4.0.3",
-    "fp-ts": "^2.16.9",
-    "pg-connection-string": "2.7.0",
+    "chokidar": "^6.0.0",
+    "fp-ts": "^2.16.11",
+    "pg-connection-string": "2.14.1",
     "postgres": "catalog:",
-    "synckit": "^0.10.3",
-    "ts-pattern": "^5.6.2",
+    "synckit": "^0.12.3",
+    "ts-pattern": "^5.9.2",
     "tsx": "catalog:",
-    "zod": "^4.3.6"
+    "zod": "^4.6.7"
   },
   "peerDependencies": {
     "@typescript-eslint/utils": ">=8.0.0",

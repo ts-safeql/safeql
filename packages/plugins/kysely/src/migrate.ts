@@ -2,7 +2,7 @@ import { createRequire } from "module";
 import fs from "fs";
 import path from "path";
 import type { MigrateContext } from "@ts-safeql/plugin-utils";
-import type { Migration, MigrationProvider } from "kysely";
+import type { Migration, MigrationProvider } from "kysely/migration";
 
 const MIGRATION_FILE = /\.(?:m|c)?[jt]s$/;
 const DECLARATION_FILE = /\.d\.(?:m|c)?ts$/;
@@ -80,7 +80,8 @@ function loadTsx(): { require: (id: string, fromFile: string) => unknown } {
 }
 
 export async function migrate({ databaseUrl, migrationsDir }: MigrateContext): Promise<void> {
-  const { Kysely, Migrator, PostgresDialect } = await loadKysely();
+  const { Kysely, PostgresDialect } = await loadKysely();
+  const { Migrator } = await loadKyselyMigration();
   const { Pool } = await loadPg();
 
   const pool = new Pool({ connectionString: databaseUrl });
@@ -114,6 +115,28 @@ async function loadKysely(): Promise<typeof import("kysely")> {
       { cause },
     );
   }
+}
+
+export async function loadKyselyMigration(
+  importModule: (specifier: string) => Promise<unknown> = (specifier) => import(specifier),
+): Promise<typeof import("kysely/migration")> {
+  for (const specifier of ["kysely/migration", "kysely"]) {
+    const mod = await importModule(specifier).catch(() => undefined);
+    if (isKyselyMigrationModule(mod)) return mod;
+  }
+
+  throw new Error(
+    'SafeQL could not load the Kysely migrator. Install "kysely" in your project to run Kysely migrations.',
+  );
+}
+
+function isKyselyMigrationModule(mod: unknown): mod is typeof import("kysely/migration") {
+  return (
+    typeof mod === "object" &&
+    mod !== null &&
+    "Migrator" in mod &&
+    typeof mod.Migrator === "function"
+  );
 }
 
 async function loadPg(): Promise<typeof import("pg")> {

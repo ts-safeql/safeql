@@ -4,7 +4,7 @@ import path from "path";
 import { generateTestDatabaseName, setupTestDatabase } from "@ts-safeql/test-utils";
 import type { Sql } from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { TsxFileMigrationProvider, migrate } from "./migrate";
+import { TsxFileMigrationProvider, loadKyselyMigration, migrate } from "./migrate";
 
 describe("TsxFileMigrationProvider", () => {
   let dir: string;
@@ -55,6 +55,31 @@ describe("TsxFileMigrationProvider", () => {
     } finally {
       fs.rmSync(empty, { recursive: true, force: true });
     }
+  });
+});
+
+describe("loadKyselyMigration", () => {
+  class Migrator {}
+  class LegacyMigrator {}
+
+  it("loads the migrator from kysely/migration (Kysely 0.29+)", async () => {
+    const modules: Record<string, unknown> = {
+      "kysely/migration": { Migrator },
+      kysely: { Migrator: LegacyMigrator },
+    };
+
+    const { Migrator: loaded } = await loadKyselyMigration(async (specifier) => modules[specifier]);
+
+    expect(loaded).toBe(Migrator);
+  });
+
+  it("falls back to the kysely root export when kysely/migration is missing (Kysely 0.27, 0.28)", async () => {
+    const { Migrator: loaded } = await loadKyselyMigration(async (specifier) => {
+      if (specifier === "kysely/migration") throw new Error("Cannot find module");
+      return { Migrator: LegacyMigrator };
+    });
+
+    expect(loaded).toBe(LegacyMigrator);
   });
 });
 

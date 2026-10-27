@@ -38,8 +38,7 @@ type CteSubselectSource = {
 type SelectSource = TableSelectSource | CteSubselectSource;
 
 export type TargetField =
-  | { kind: "unknown"; field: string }
-  | { kind: "column"; table: string; column: string };
+  { kind: "unknown"; field: string } | { kind: "column"; table: string; column: string };
 
 type SourcesOptions = {
   select: LibPgQueryAST.SelectStmt;
