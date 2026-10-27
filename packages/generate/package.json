@@ -55,8 +55,8 @@
     "vitest": "catalog:"
   },
   "dependencies": {
-    "fp-ts": "^2.16.9",
-    "pg-connection-string": "^2.7.0",
+    "fp-ts": "^2.16.11",
+    "pg-connection-string": "^2.14.1",
     "postgres": "catalog:"
   },
   "peerDependencies": {

@@ -15,7 +15,7 @@
     "@eslint/js": "catalog:",
     "@ts-safeql/eslint-plugin": "workspace:*",
     "@types/node": "catalog:",
-    "@types/pg": "^8.11.11",
+    "@types/pg": "^8.23.1",
     "eslint": "catalog:",
     "ts-node": "10.9.2",
     "tsx": "catalog:",
@@ -24,8 +24,8 @@
   },
   "dependencies": {
     "@ts-safeql/sql-tag": "workspace:*",
-    "pg": "^8.14.1",
+    "pg": "^8.23.1",
     "reflect-metadata": "^0.2.2",
-    "typeorm": "0.3.31"
+    "typeorm": "1.1.2"
   }
 }

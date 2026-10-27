@@ -617,13 +617,11 @@ function getResolvedTargetEntry(params: {
 
     return {
       kind: "union",
-      value: pgEnum.values.map(
-        (value): ResolvedTarget => ({
-          kind: "type",
-          value: `'${value}'`,
-          type: pgEnum.name,
-        }),
-      ),
+      value: pgEnum.values.map((value): ResolvedTarget => ({
+        kind: "type",
+        value: `'${value}'`,
+        type: pgEnum.name,
+      })),
     };
   };
 

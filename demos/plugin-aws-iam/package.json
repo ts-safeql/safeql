@@ -12,14 +12,14 @@
   "devDependencies": {
     "@eslint/js": "catalog:",
     "@types/node": "catalog:",
-    "dotenv": "^16.4.7",
+    "dotenv": "^18.0.9",
     "eslint": "catalog:",
     "typescript": "catalog:",
     "typescript-eslint": "catalog:"
   },
   "dependencies": {
-    "@ts-safeql/plugin-auth-aws": "workspace:*",
     "@ts-safeql/eslint-plugin": "workspace:*",
+    "@ts-safeql/plugin-auth-aws": "workspace:*",
     "postgres": "catalog:"
   }
 }

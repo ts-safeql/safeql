@@ -10,10 +10,10 @@
   "devDependencies": {
     "@eslint/js": "catalog:",
     "@types/node": "catalog:",
-    "@types/pg": "^8.11.10",
+    "@types/pg": "^8.23.1",
     "eslint": "catalog:",
-    "kysely": "^0.28.2",
-    "pg": "^8.13.1",
+    "kysely": "^0.29.7",
+    "pg": "^8.23.1",
     "tsx": "catalog:",
     "typescript": "catalog:",
     "typescript-eslint": "catalog:"
