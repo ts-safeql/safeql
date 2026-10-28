@@ -598,7 +598,17 @@ function getResolvedTargetEntry(params: {
   col: ColumnAnalysisResult;
   context: GenerateContext;
 }): ResolvedTargetEntry {
-  if (params.col.astDescribed !== undefined) {
+  const astType = params.col.astDescribed?.type;
+  const astMembers = astType?.kind === "union" ? astType.value : [astType];
+  const protocolType = params.context.pgTypes.get(params.col.described.type);
+  // PostgreSQL has already resolved the output type even when AST overload inference cannot.
+  const recoverUnknownScalar =
+    astMembers.some((type) => type?.kind === "type" && type.type === "unknown") &&
+    astMembers.every((type) => type?.kind === "type" && ["unknown", "null"].includes(type.type)) &&
+    ((protocolType !== undefined && params.context.overrides?.types.has(protocolType.name)) ||
+      params.context.pgEnums.has(params.col.described.type));
+
+  if (params.col.astDescribed !== undefined && !recoverUnknownScalar) {
     return [
       toCase(params.col.described.name, params.context.fieldTransform),
       params.col.astDescribed.type,
