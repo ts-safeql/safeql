@@ -1,9 +1,127 @@
 import { describe, expect, it } from "vitest";
 import { ExpectedResolvedTarget } from "../../utils/get-resolved-target-by-type-node";
 import { ResolvedTarget } from "@ts-safeql/generate";
-import { getResolvedTargetsEquality, getResolvedTargetComparableString } from "../check-sql.utils";
+import {
+  getResolvedTargetsEquality,
+  getResolvedTargetComparableString,
+  getResolvedTargetString,
+} from "../check-sql.utils";
 
 describe("check-sql.utils type comparison", () => {
+  it.each([
+    { override: "Date | number", members: ["Date", "null", "number"] },
+    { override: "(number | Date)", members: ["number", "Date", "null"] },
+    { override: "string | number", members: ["string", "null", "number"] },
+    { override: "'a | b' | number", members: ["'a | b'", "null", "number"] },
+    {
+      override: "Array<string | null> | number",
+      members: ["Array<string | null>", "null", "number"],
+    },
+    {
+      override: "(() => string | number) | Date",
+      members: ["(() => string | number)", "null", "Date"],
+    },
+  ])(
+    "flattens a nullable union override without splitting nested syntax: $override",
+    ({ override, members }) => {
+      const expected: ExpectedResolvedTarget = {
+        kind: "object",
+        value: [
+          [
+            "value",
+            {
+              kind: "union",
+              value: members.map((value) => ({ kind: "type", value })),
+            },
+          ],
+        ],
+      };
+      const generated: ResolvedTarget = {
+        kind: "object",
+        value: [
+          [
+            "value",
+            {
+              kind: "union",
+              value: [
+                { kind: "type", value: override, type: "custom" },
+                { kind: "type", value: "null", type: "null" },
+              ],
+            },
+          ],
+        ],
+      };
+      expect(
+        getResolvedTargetsEquality({
+          expected,
+          generated,
+          nullAsOptional: false,
+          nullAsUndefined: false,
+          inferLiterals: false,
+        }).isEqual,
+      ).toBe(true);
+    },
+  );
+
+  it("keeps narrower temporal annotations incorrect", () => {
+    const generated: ResolvedTarget = {
+      kind: "union",
+      value: [
+        { kind: "type", value: "Date | number", type: "timestamptz" },
+        { kind: "type", value: "null", type: "null" },
+      ],
+    };
+    for (const value of ["Date", "Date | number", "Date | null"]) {
+      expect(
+        getResolvedTargetsEquality({
+          expected: { kind: "type", value },
+          generated,
+          nullAsOptional: false,
+          nullAsUndefined: false,
+          inferLiterals: false,
+        }).isEqual,
+      ).toBe(false);
+    }
+  });
+
+  it("preserves the precedence of union-valued array elements", () => {
+    const generated: ResolvedTarget = {
+      kind: "array",
+      value: { kind: "type", value: "Date | number", type: "timestamptz" },
+    };
+    const options = { nullAsOptional: false, nullAsUndefined: false, inferLiterals: false };
+    expect(getResolvedTargetString({ target: generated, ...options })).toBe("(Date | number)[]");
+    expect(
+      getResolvedTargetsEquality({
+        expected: {
+          kind: "array",
+          value: {
+            kind: "union",
+            value: [
+              { kind: "type", value: "Date" },
+              { kind: "type", value: "number" },
+            ],
+          },
+        },
+        generated,
+        ...options,
+      }).isEqual,
+    ).toBe(true);
+    expect(
+      getResolvedTargetsEquality({
+        expected: {
+          kind: "union",
+          value: [
+            { kind: "type", value: "Date" },
+            { kind: "array", value: { kind: "type", value: "number" } },
+          ],
+        },
+        generated,
+        ...options,
+      }).isEqual,
+    ).toBe(false);
+  });
+
   it("considers both expected and generated unknown as equal", () => {
     const result = getResolvedTargetsEquality({
       expected: null,
