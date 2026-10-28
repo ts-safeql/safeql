@@ -2,6 +2,96 @@ import { checkSqlRule, ruleTester, setupCheckSqlRuleTester } from "./check-sql.t
 
 const { connections, withConnection } = setupCheckSqlRuleTester();
 
+const indexedSchema = `interface Database {
+  member: { id: number; first_name: string; middle_name: string | null };
+}`;
+const indexedQuery = "SELECT id, first_name, middle_name FROM member";
+
+ruleTester.run("indexed-access annotations", checkSqlRule, {
+  valid: [
+    {
+      name: "a row selected directly from an interface",
+      options: withConnection(connections.withTag),
+      code: `${indexedSchema}\nsql<Database['member']>\`${indexedQuery}\`;`,
+    },
+    {
+      name: "named and generic aliases of the same indexed row",
+      options: withConnection(connections.withTag),
+      code: `${indexedSchema}
+        type Member = Database['member'];
+        type Row<Table extends keyof Database> = Database[Table];
+        sql<Member>\`${indexedQuery}\`;
+        sql<Row<'member'>>\`${indexedQuery}\`;
+      `,
+    },
+    {
+      name: "indexed column types preserve scalar types and nullability",
+      options: withConnection(connections.withTag),
+      code: `${indexedSchema}
+        sql<{ id: Database['member']['id']; name: Database['member']['middle_name'] }>\`
+          SELECT id, middle_name AS name FROM member
+        \`;
+      `,
+    },
+    {
+      name: "an indexed row nested in an array annotation",
+      options: withConnection(connections.withTag, {
+        targets: [{ tag: "sql", transform: "{type}[]" }],
+      }),
+      code: `${indexedSchema}\nsql<Database['member'][]>\`${indexedQuery}\`;`,
+    },
+    {
+      name: "an indexed row imported from schema definitions",
+      options: withConnection(connections.withTag),
+      code: `import type { Database } from './indexed-schema';
+        sql<Database['member']>\`${indexedQuery}\`;
+      `,
+    },
+  ],
+  invalid: [
+    {
+      name: "an imported indexed row must still match the projection",
+      options: withConnection(connections.withTag),
+      code: `import type { Database } from './indexed-schema';
+        sql<Database['member']>\`SELECT id FROM member\`;
+      `,
+      output: `import type { Database } from './indexed-schema';
+        sql<{ id: number }>\`SELECT id FROM member\`;
+      `,
+      errors: [{ messageId: "incorrectTypeAnnotations" }],
+    },
+    {
+      name: "incorrect indexed column type is still rejected and repaired",
+      options: withConnection(connections.withTag),
+      code: `interface Database { member: { id: string } }
+        sql<Database['member']>\`SELECT id FROM member\`;
+      `,
+      output: `interface Database { member: { id: string } }
+        sql<{ id: number }>\`SELECT id FROM member\`;
+      `,
+      errors: [{ messageId: "incorrectTypeAnnotations" }],
+    },
+    {
+      name: "missing null in an indexed column type is still rejected",
+      options: withConnection(connections.withTag),
+      code: `interface Database { member: { middle_name: string } }
+        sql<Database['member']>\`SELECT middle_name FROM member\`;
+      `,
+      output: `interface Database { member: { middle_name: string } }
+        sql<{ middle_name: string | null }>\`SELECT middle_name FROM member\`;
+      `,
+      errors: [{ messageId: "incorrectTypeAnnotations" }],
+    },
+    {
+      name: "indexed rows must still match the selected projection",
+      options: withConnection(connections.withTag),
+      code: `${indexedSchema}\nsql<Database['member']>\`SELECT id FROM member\`;`,
+      output: `${indexedSchema}\nsql<{ id: number }>\`SELECT id FROM member\`;`,
+      errors: [{ messageId: "incorrectTypeAnnotations" }],
+    },
+  ],
+});
+
 ruleTester.run("local classes", checkSqlRule, {
   valid: [
     {
