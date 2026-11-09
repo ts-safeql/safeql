@@ -233,6 +233,10 @@ export function reportInvalidTypeAnnotations(params: {
   });
 }
 
+/**
+ * Derive a PostgreSQL-safe shadow database name from the project and migrations directories.
+ * An explicit `databaseName` is returned unchanged.
+ */
 export function getDatabaseName(params: {
   databaseName: string | undefined;
   migrationsDir: string;
@@ -244,11 +248,18 @@ export function getDatabaseName(params: {
     return databaseName;
   }
 
-  const projectDirName = path.basename(projectDir.replace(/\\/g, "/"));
+  const normalizedProjectDir = projectDir.replace(/\\/g, "/");
+  const projectDirName = path.basename(normalizedProjectDir);
   const projectUnderscoreName = projectDirName.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
-  const hash = crypto.createHash("sha1").update(migrationsDir).digest("hex").substring(0, 8);
+  const hash = crypto
+    .createHash("sha1")
+    .update(`${normalizedProjectDir}\0${migrationsDir}`)
+    .digest("hex")
+    .substring(0, 8);
+  const maxProjectNameLength = 63 - "safeql_".length - 1 - hash.length;
+  const truncatedProjectName = projectUnderscoreName.slice(0, maxProjectNameLength);
 
-  return `safeql_${projectUnderscoreName}_${hash}`;
+  return `safeql_${truncatedProjectName}_${hash}`;
 }
 
 export function shouldLintFile(params: { filename: string }) {

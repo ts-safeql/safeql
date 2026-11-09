@@ -42,4 +42,30 @@ describe("getDatabaseName", () => {
     expect(name).toMatch(/^safeql_[a-z0-9_]+_[0-9a-f]{8}$/);
     expect(name).not.toMatch(/[\\[\]^`]/);
   });
+
+  it("distinguishes projects that share a basename", () => {
+    const first = getDatabaseName({
+      databaseName: undefined,
+      migrationsDir: "./migrations",
+      projectDir: "/tmp/one/app",
+    });
+    const second = getDatabaseName({
+      databaseName: undefined,
+      migrationsDir: "./migrations",
+      projectDir: "/tmp/two/app",
+    });
+
+    expect(first).not.toBe(second);
+  });
+
+  it("keeps long project names within PostgreSQL's 63-byte limit", () => {
+    const name = getDatabaseName({
+      databaseName: undefined,
+      migrationsDir: "./migrations",
+      projectDir: `/tmp/${"a".repeat(48)}`,
+    });
+
+    expect(name.length).toBeLessThanOrEqual(63);
+    expect(name).toMatch(/^safeql_[a-z0-9_]+_[0-9a-f]{8}$/);
+  });
 });
