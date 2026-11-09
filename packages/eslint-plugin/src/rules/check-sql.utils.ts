@@ -244,8 +244,8 @@ export function getDatabaseName(params: {
     return databaseName;
   }
 
-  const projectDirName = projectDir.split("/").pop() ?? "";
-  const projectUnderscoreName = projectDirName.replace(/[^A-z0-9]/g, "_").toLowerCase();
+  const projectDirName = path.basename(projectDir.replace(/\\/g, "/"));
+  const projectUnderscoreName = projectDirName.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
   const hash = crypto.createHash("sha1").update(migrationsDir).digest("hex").substring(0, 8);
 
   return `safeql_${projectUnderscoreName}_${hash}`;
