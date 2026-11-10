@@ -709,20 +709,28 @@ function getDescribedCoalesceExpr({
   context,
   node,
 }: GetDescribedParamsOf<LibPgQueryAST.CoalesceExpr>): ASTDescribedColumn[] {
-  const firstArg = node.args.at(0);
-
   const unknownCoalesce: ASTDescribedColumn = {
     name: alias ?? "coalesce",
     type: context.toTypeScriptType({ name: "unknown" }),
   };
 
-  if (firstArg === undefined) {
+  if (node.args.length === 0) {
     return [unknownCoalesce];
   }
 
-  const type = getDescribedNode({ alias: undefined, node: firstArg, context })
-    .map((x) => asNonNullableType(x.type))
-    .at(0);
+  const describedArgs = node.args.map((arg) =>
+    getDescribedNode({ alias: undefined, node: arg, context }).at(0),
+  );
+  const firstDescribed = describedArgs[0];
+  const anyNonNullable = describedArgs.some(
+    (arg) => arg !== undefined && !isDescribedColumnNullable(arg.type),
+  );
+  const type =
+    firstDescribed === undefined
+      ? undefined
+      : anyNonNullable
+        ? asNonNullableType(firstDescribed.type)
+        : firstDescribed.type;
 
   if (type === undefined) {
     return [];
