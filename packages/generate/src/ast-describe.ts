@@ -723,7 +723,10 @@ function getDescribedCoalesceExpr({
   );
   const firstDescribed = describedArgs[0];
   const anyNonNullable = describedArgs.some(
-    (arg) => arg !== undefined && !isDescribedColumnNullable(arg.type),
+    (arg) =>
+      arg !== undefined &&
+      !(arg.type.kind === "type" && arg.type.value === "null") &&
+      !isDescribedColumnNullable(arg.type),
   );
   const type =
     firstDescribed === undefined

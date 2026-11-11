@@ -115,6 +115,31 @@ test("select coalesce with a non-null argument should be non-nullable", async ()
   });
 });
 
+test("select coalesce with a plain NULL argument should remain nullable", async () => {
+  await testQuery({
+    query: `SELECT coalesce(nullable_col, NULL) AS c FROM test_nullability`,
+    expected: [
+      [
+        "c",
+        {
+          kind: "union",
+          value: [
+            { kind: "type", value: "string", type: "text" },
+            { kind: "type", value: "null", type: "null" },
+          ],
+        },
+      ],
+    ],
+  });
+});
+
+test("select coalesce with a plain NULL and a non-null argument should be non-nullable", async () => {
+  await testQuery({
+    query: `SELECT coalesce(nullable_col, NULL, 'x') AS c FROM test_nullability`,
+    expected: [["c", { kind: "type", value: "string", type: "text" }]],
+  });
+});
+
 test("nullable columns in regular subselect should remain nullable", async () => {
   await testQuery({
     schema: `
