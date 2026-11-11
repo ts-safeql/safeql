@@ -251,9 +251,13 @@ export function getDatabaseName(params: {
   const normalizedProjectDir = projectDir.replace(/\\/g, "/");
   const projectDirName = path.basename(normalizedProjectDir);
   const projectUnderscoreName = projectDirName.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
+  // On POSIX, backslashes are valid filename characters, so `/tmp/foo\bar` and
+  // `/tmp/foo/bar` are distinct projects and must not share a shadow database.
+  // On Windows, both separators refer to the same path, so normalize them.
+  const hashInput = process.platform === "win32" ? normalizedProjectDir : projectDir;
   const hash = crypto
     .createHash("sha1")
-    .update(`${normalizedProjectDir}\0${migrationsDir}`)
+    .update(`${hashInput}\0${migrationsDir}`)
     .digest("hex")
     .substring(0, 8);
   const maxProjectNameLength = 63 - "safeql_".length - 1 - hash.length;

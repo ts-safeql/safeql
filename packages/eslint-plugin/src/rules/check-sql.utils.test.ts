@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { getDatabaseName } from "./check-sql.utils";
 
 describe("getDatabaseName", () => {
@@ -67,5 +67,58 @@ describe("getDatabaseName", () => {
 
     expect(name.length).toBeLessThanOrEqual(63);
     expect(name).toMatch(/^safeql_[a-z0-9_]+_[0-9a-f]{8}$/);
+  });
+
+  it.skipIf(process.platform === "win32")(
+    "distinguishes POSIX paths that differ only by a backslash",
+    () => {
+      const first = getDatabaseName({
+        databaseName: undefined,
+        migrationsDir: "./migrations",
+        projectDir: "/tmp/foo\\bar",
+      });
+      const second = getDatabaseName({
+        databaseName: undefined,
+        migrationsDir: "./migrations",
+        projectDir: "/tmp/foo/bar",
+      });
+
+      expect(first).not.toBe(second);
+
+      // Same basename on both sides, so only the hash can tell them apart.
+      const nestedFirst = getDatabaseName({
+        databaseName: undefined,
+        migrationsDir: "./migrations",
+        projectDir: "/tmp/foo\\bar/app",
+      });
+      const nestedSecond = getDatabaseName({
+        databaseName: undefined,
+        migrationsDir: "./migrations",
+        projectDir: "/tmp/foo/bar/app",
+      });
+
+      expect(nestedFirst).not.toBe(nestedSecond);
+    },
+  );
+
+  it("treats Windows separators as equivalent", () => {
+    const platform = vi.spyOn(process, "platform", "get").mockReturnValue("win32");
+
+    try {
+      const first = getDatabaseName({
+        databaseName: undefined,
+        migrationsDir: "./migrations",
+        projectDir: "C:\\Users\\me\\app",
+      });
+      const second = getDatabaseName({
+        databaseName: undefined,
+        migrationsDir: "./migrations",
+        projectDir: "C:/Users/me/app",
+      });
+
+      expect(first).toBe(second);
+    } finally {
+      platform.mockRestore();
+    }
   });
 });
