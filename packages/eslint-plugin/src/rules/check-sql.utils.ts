@@ -233,6 +233,10 @@ export function reportInvalidTypeAnnotations(params: {
   });
 }
 
+/**
+ * Derive a PostgreSQL-safe shadow database name from the project and migrations directories.
+ * An explicit `databaseName` is returned unchanged.
+ */
 export function getDatabaseName(params: {
   databaseName: string | undefined;
   migrationsDir: string;
@@ -244,11 +248,22 @@ export function getDatabaseName(params: {
     return databaseName;
   }
 
-  const projectDirName = projectDir.split("/").pop() ?? "";
-  const projectUnderscoreName = projectDirName.replace(/[^A-z0-9]/g, "_").toLowerCase();
-  const hash = crypto.createHash("sha1").update(migrationsDir).digest("hex").substring(0, 8);
+  const normalizedProjectDir = projectDir.replace(/\\/g, "/");
+  const projectDirName = path.basename(normalizedProjectDir);
+  const projectUnderscoreName = projectDirName.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
+  // On POSIX, backslashes are valid filename characters, so `/tmp/foo\bar` and
+  // `/tmp/foo/bar` are distinct projects and must not share a shadow database.
+  // On Windows, both separators refer to the same path, so normalize them.
+  const hashInput = process.platform === "win32" ? normalizedProjectDir : projectDir;
+  const hash = crypto
+    .createHash("sha1")
+    .update(`${hashInput}\0${migrationsDir}`)
+    .digest("hex")
+    .substring(0, 8);
+  const maxProjectNameLength = 63 - "safeql_".length - 1 - hash.length;
+  const truncatedProjectName = projectUnderscoreName.slice(0, maxProjectNameLength);
 
-  return `safeql_${projectUnderscoreName}_${hash}`;
+  return `safeql_${truncatedProjectName}_${hash}`;
 }
 
 export function shouldLintFile(params: { filename: string }) {
