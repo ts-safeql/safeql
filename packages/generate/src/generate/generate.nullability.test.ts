@@ -140,6 +140,42 @@ test("select coalesce with a plain NULL and a non-null argument should be non-nu
   });
 });
 
+test("select coalesce with a leading plain NULL should use the next argument's type", async () => {
+  await testQuery({
+    query: `SELECT coalesce(NULL, nullable_col) AS c FROM test_nullability`,
+    expected: [
+      [
+        "c",
+        {
+          kind: "union",
+          value: [
+            { kind: "type", value: "string", type: "text" },
+            { kind: "type", value: "null", type: "null" },
+          ],
+        },
+      ],
+    ],
+  });
+});
+
+test("select coalesce with a NULL cast should remain nullable", async () => {
+  await testQuery({
+    query: `SELECT coalesce(nullable_col, NULL::text) AS c FROM test_nullability`,
+    expected: [
+      [
+        "c",
+        {
+          kind: "union",
+          value: [
+            { kind: "type", value: "string", type: "text" },
+            { kind: "type", value: "null", type: "null" },
+          ],
+        },
+      ],
+    ],
+  });
+});
+
 test("nullable columns in regular subselect should remain nullable", async () => {
   await testQuery({
     schema: `
