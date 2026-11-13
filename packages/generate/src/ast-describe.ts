@@ -704,25 +704,44 @@ function getDescribedSelectStmt({
   return [];
 }
 
+/**
+ * Describe a COALESCE expression using the first non-NULL argument's type and
+ * the combined nullability of every argument.
+ */
 function getDescribedCoalesceExpr({
   alias,
   context,
   node,
 }: GetDescribedParamsOf<LibPgQueryAST.CoalesceExpr>): ASTDescribedColumn[] {
-  const firstArg = node.args.at(0);
-
   const unknownCoalesce: ASTDescribedColumn = {
     name: alias ?? "coalesce",
     type: context.toTypeScriptType({ name: "unknown" }),
   };
 
-  if (firstArg === undefined) {
+  if (node.args.length === 0) {
     return [unknownCoalesce];
   }
 
-  const type = getDescribedNode({ alias: undefined, node: firstArg, context })
-    .map((x) => asNonNullableType(x.type))
-    .at(0);
+  const describedArgs = node.args.map((arg) =>
+    getDescribedNode({ alias: undefined, node: arg, context }).at(0),
+  );
+  const firstDescribed = describedArgs[0];
+  const firstNonNullDescribed = describedArgs.find(
+    (arg) => arg !== undefined && !(arg.type.kind === "type" && arg.type.value === "null"),
+  );
+  const baseDescribed = firstNonNullDescribed ?? firstDescribed;
+  const anyNonNullable = describedArgs.some(
+    (arg) =>
+      arg !== undefined &&
+      !(arg.type.kind === "type" && arg.type.value === "null") &&
+      !isDescribedColumnNullable(arg.type),
+  );
+  const type =
+    baseDescribed === undefined
+      ? undefined
+      : anyNonNullable
+        ? asNonNullableType(baseDescribed.type)
+        : baseDescribed.type;
 
   if (type === undefined) {
     return [];
@@ -826,7 +845,12 @@ function getDescribedTypeCast({
   const baseType = context.toTypeScriptType({ name: typeName });
   const type: ASTDescribedColumnType = isArrayCast ? { kind: "array", value: baseType } : baseType;
   const innerDescribed = getDescribedNode({ alias, node: node.arg, context }).at(0);
-  const nullable = fmap(innerDescribed, (x) => isDescribedColumnNullable(x.type)) ?? true;
+  const nullable =
+    fmap(
+      innerDescribed,
+      (x) =>
+        (x.type.kind === "type" && x.type.value === "null") || isDescribedColumnNullable(x.type),
+    ) ?? true;
 
   switch (true) {
     case node.arg.FuncCall !== undefined: {
