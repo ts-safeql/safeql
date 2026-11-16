@@ -244,11 +244,19 @@ export function getDatabaseName(params: {
     return databaseName;
   }
 
-  const projectDirName = projectDir.split("/").pop() ?? "";
-  const projectUnderscoreName = projectDirName.replace(/[^A-z0-9]/g, "_").toLowerCase();
-  const hash = crypto.createHash("sha1").update(migrationsDir).digest("hex").substring(0, 8);
+  const normalizedProjectDir = projectDir.replace(/\\/g, "/");
+  const projectDirName = path.basename(normalizedProjectDir);
+  const projectUnderscoreName = projectDirName.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
+  const hashInput = process.platform === "win32" ? normalizedProjectDir : projectDir;
+  const hash = crypto
+    .createHash("sha1")
+    .update(`${hashInput}\0${migrationsDir}`)
+    .digest("hex")
+    .substring(0, 8);
+  const maxProjectNameLength = 63 - "safeql_".length - 1 - hash.length;
+  const truncatedProjectName = projectUnderscoreName.slice(0, maxProjectNameLength);
 
-  return `safeql_${projectUnderscoreName}_${hash}`;
+  return `safeql_${truncatedProjectName}_${hash}`;
 }
 
 export function shouldLintFile(params: { filename: string }) {
