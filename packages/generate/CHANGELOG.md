@@ -1,5 +1,12 @@
 # @ts-safeql/generate
 
+## 5.4.3
+
+### Patch Changes
+
+- ea9a74a: Infer `COALESCE` as nullable unless at least one argument is non-nullable, matching PostgreSQL semantics.
+- edd26d3: Escape quotes, backslashes, and control characters in inferred string literal and enum types, and use the same escaping when comparing existing annotations.
+
 ## 5.4.2
 
 ## 5.4.1

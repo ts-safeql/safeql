@@ -1,5 +1,13 @@
 # @ts-safeql/eslint-plugin
 
+## 5.4.3
+
+### Patch Changes
+
+- edd26d3: Escape quotes, backslashes, and control characters in inferred string literal and enum types, and use the same escaping when comparing existing annotations.
+- 7cee2fd: Update runtime dependencies, including the bundled `minimatch`, which picks up fixes for known `brace-expansion` vulnerabilities. The minimum `zod` version is now 4.6.7.
+- d1f153e: Use the project directory's basename and a stricter identifier sanitizer when deriving the default shadow database name, so `migrationsDir` works on Windows and with special characters in the folder name. The generated name also stays within PostgreSQL's 63-byte identifier limit and includes the full project path in its discriminator.
+
 ## 5.4.2
 
 ### Patch Changes
