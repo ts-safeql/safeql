@@ -704,10 +704,6 @@ function getDescribedSelectStmt({
   return [];
 }
 
-/**
- * Describe a COALESCE expression using the first non-NULL argument's type and
- * the combined nullability of every argument.
- */
 function getDescribedCoalesceExpr({
   alias,
   context,
