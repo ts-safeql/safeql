@@ -84,8 +84,12 @@ describe("getDatabaseName", () => {
       });
 
       expect(first).not.toBe(second);
+    },
+  );
 
-      // Same basename on both sides, so only the hash can tell them apart.
+  it.skipIf(process.platform === "win32")(
+    "distinguishes same-basename POSIX paths whose parents differ only by a backslash",
+    () => {
       const nestedFirst = getDatabaseName({
         databaseName: undefined,
         migrationsDir: "./migrations",

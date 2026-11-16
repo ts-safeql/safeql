@@ -233,10 +233,6 @@ export function reportInvalidTypeAnnotations(params: {
   });
 }
 
-/**
- * Derive a PostgreSQL-safe shadow database name from the project and migrations directories.
- * An explicit `databaseName` is returned unchanged.
- */
 export function getDatabaseName(params: {
   databaseName: string | undefined;
   migrationsDir: string;
@@ -251,9 +247,6 @@ export function getDatabaseName(params: {
   const normalizedProjectDir = projectDir.replace(/\\/g, "/");
   const projectDirName = path.basename(normalizedProjectDir);
   const projectUnderscoreName = projectDirName.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
-  // On POSIX, backslashes are valid filename characters, so `/tmp/foo\bar` and
-  // `/tmp/foo/bar` are distinct projects and must not share a shadow database.
-  // On Windows, both separators refer to the same path, so normalize them.
   const hashInput = process.platform === "win32" ? normalizedProjectDir : projectDir;
   const hash = crypto
     .createHash("sha1")
