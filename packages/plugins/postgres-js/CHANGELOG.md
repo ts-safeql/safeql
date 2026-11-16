@@ -1,5 +1,11 @@
 # @ts-safeql/plugin-postgres-js
 
+## 4.3.2
+
+### Patch Changes
+
+- 8eb170a: Fix TypeScript types failing to resolve in ESM projects.
+
 ## 4.3.1
 
 ### Patch Changes
