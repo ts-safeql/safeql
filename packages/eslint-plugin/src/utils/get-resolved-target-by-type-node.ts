@@ -1,3 +1,4 @@
+import { escapeStringLiteral } from "@ts-safeql/generate";
 import { ParserServices, TSESTree } from "@typescript-eslint/utils";
 import type * as ts from "typescript";
 import { TS } from "../ts";
@@ -110,7 +111,7 @@ function isReservedType(typeText: string, reservedTypes: Set<string>): boolean {
 
 function handleLiteralType(typeNode: TSESTree.TSLiteralType): ExpectedResolvedTarget {
   return typeNode.literal.type === TSESTree.AST_NODE_TYPES.Literal
-    ? { kind: "type", value: `'${typeNode.literal.value}'` }
+    ? { kind: "type", value: `'${escapeStringLiteral(String(typeNode.literal.value))}'` }
     : { kind: "type", value: "unknown" };
 }
 
@@ -213,7 +214,7 @@ function resolveType(
   if (primitive) return primitive;
 
   if (type.isLiteral()) {
-    return { kind: "type", value: `'${type.value}'` };
+    return { kind: "type", value: `'${escapeStringLiteral(String(type.value))}'` };
   }
 
   if (type.isUnion()) {

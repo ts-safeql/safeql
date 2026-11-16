@@ -15,6 +15,7 @@ import { createRequire } from "node:module";
 import postgres from "postgres";
 import { ASTDescribedColumn, getASTDescription } from "./ast-describe";
 import { ColType } from "./utils/colTypes";
+import { escapeStringLiteral } from "./utils/escape-string-literal";
 import {
   FlattenedRelationWithJoins,
   isTableNullableDueToJoin,
@@ -619,7 +620,7 @@ function getResolvedTargetEntry(params: {
       kind: "union",
       value: pgEnum.values.map((value): ResolvedTarget => ({
         kind: "type",
-        value: `'${value}'`,
+        value: `'${escapeStringLiteral(value)}'`,
         type: pgEnum.name,
       })),
     };

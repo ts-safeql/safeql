@@ -10,6 +10,7 @@ import {
 } from "./ast-decribe.utils";
 import { ResolvedColumn, SourcesResolver, getSources } from "./ast-get-sources";
 import { PgColRow, PgEnumsMaps, PgTypesMap, PgViewsBySchemaAndName } from "./generate";
+import { escapeStringLiteral } from "./utils/escape-string-literal";
 import { getNonNullableColumns, getOutputColumnKey } from "./utils/get-nonnullable-columns";
 import {
   FlattenedRelationWithJoins,
@@ -185,7 +186,7 @@ export function getASTDescription(params: ASTDescriptionOptions): {
           kind: "union",
           value: pgEnum.values.map((value) => ({
             kind: "type",
-            value: `'${value}'`,
+            value: `'${escapeStringLiteral(value)}'`,
             type: pgEnum.name,
           })),
         };
@@ -1563,7 +1564,7 @@ function getDescribedAConst({
       case node.sval !== undefined:
         return {
           kind: "literal",
-          value: `'${node.sval.sval}'`,
+          value: `'${escapeStringLiteral(node.sval.sval)}'`,
           base: context.toTypeScriptType({ name: "text" }),
         };
       default:
