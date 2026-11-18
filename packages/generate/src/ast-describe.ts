@@ -327,11 +327,7 @@ function getDescribedNode(params: {
   }
 
   if (node.MinMaxExpr !== undefined) {
-    return getDescribedNullSkippingExpr({
-      name: getOutputColumnKey(alias, node),
-      args: node.MinMaxExpr.args,
-      context,
-    }).map((column) => ({ ...column, type: getBaseType(column.type) }));
+    return getDescribedMinMaxExpr({ alias: alias, node: node.MinMaxExpr, context });
   }
 
   if (node.SubLink !== undefined) {
@@ -768,6 +764,35 @@ function getDescribedNullSkippingExpr({
   ];
 }
 
+function getDescribedMinMaxExpr({
+  alias,
+  context,
+  node,
+}: GetDescribedParamsOf<LibPgQueryAST.MinMaxExpr>): ASTDescribedColumn[] {
+  const [firstArgType, ...otherArgTypes] = node.args
+    .map((arg) => {
+      const described = getDescribedNode({ alias: undefined, node: arg, context }).at(0);
+      return described === undefined ? undefined : getScalarType(described.type);
+    })
+    .filter((type) => type?.value !== "null");
+
+  const argsShareType =
+    firstArgType !== undefined &&
+    otherArgTypes.every(
+      (type) => type?.value === firstArgType.value && type.type === firstArgType.type,
+    );
+
+  if (!argsShareType) {
+    return [];
+  }
+
+  return getDescribedNullSkippingExpr({
+    name: getOutputColumnKey(alias, { MinMaxExpr: node }),
+    args: node.args,
+    context,
+  }).map((column) => ({ ...column, type: getBaseType(column.type) }));
+}
+
 function getDescribedArrayExpr({
   alias,
   context,
@@ -1005,6 +1030,18 @@ function unwrapNullableUnionType(
   return nonNull[0];
 }
 
+function getScalarType(
+  type: ASTDescribedColumnType,
+): Extract<ASTDescribedColumnType, { kind: "type" }> | undefined {
+  return type.kind === "union"
+    ? unwrapNullableUnionType(type)
+    : type.kind === "type"
+      ? type
+      : type.kind === "literal" && type.base.kind === "type"
+        ? type.base
+        : undefined;
+}
+
 function getDescribedFuncCallByPgFn({
   alias,
   context,
@@ -1019,16 +1056,9 @@ function getDescribedFuncCallByPgFn({
       return [];
     }
 
-    const unwrapped =
-      described.type.kind === "union"
-        ? unwrapNullableUnionType(described.type)
-        : described.type.kind === "type"
-          ? described.type
-          : described.type.kind === "literal" && described.type.base.kind === "type"
-            ? described.type.base
-            : undefined;
+    const unwrapped = getScalarType(described.type);
 
-    return unwrapped?.kind === "type" ? [unwrapped.type] : [];
+    return unwrapped === undefined ? [] : [unwrapped.type];
   });
 
   if (functionName === undefined) {

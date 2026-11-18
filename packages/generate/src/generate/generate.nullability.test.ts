@@ -208,6 +208,22 @@ test("select least of literals should be typed as their base type", async () => 
   });
 });
 
+test("select greatest of different types should keep the PostgreSQL result type", async () => {
+  await testQuery({
+    query: `SELECT greatest(1::int4, 2::int8) AS g`,
+    expected: [["g", { kind: "type", value: "string", type: "int8" }]],
+    unknownColumns: ["g"],
+  });
+});
+
+test("select greatest of different object shapes should not keep the first shape", async () => {
+  await testQuery({
+    query: `SELECT greatest(jsonb_build_object('a', 1), jsonb_build_object('b', 2)) AS g`,
+    expected: [["g", { kind: "type", value: "any", type: "jsonb" }]],
+    unknownColumns: ["g"],
+  });
+});
+
 test("select sum of an expression with greatest should resolve the aggregate type", async () => {
   await testQuery({
     query: `SELECT sum(id * greatest(id, 1)) AS s FROM member`,
