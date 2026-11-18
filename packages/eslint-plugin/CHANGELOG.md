@@ -1,5 +1,11 @@
 # @ts-safeql/eslint-plugin
 
+## 5.4.4
+
+### Patch Changes
+
+- 193306e: Update bundled minimatch to address GHSA-g3hv-75wg-m249.
+
 ## 5.4.3
 
 ### Patch Changes
