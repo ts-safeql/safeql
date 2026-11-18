@@ -313,6 +313,24 @@ test(`jsonb subselect ->> key => string | null`, async () => {
   });
 });
 
+test(`greatest of jsonb columns ->> key => string | null`, async () => {
+  await testQuery({
+    query: `SELECT greatest(data, data) ->> 'myKey' as extracted_value FROM employee`,
+    expected: [
+      [
+        "extracted_value",
+        {
+          kind: "union",
+          value: [
+            { kind: "type", value: "string", type: "text" },
+            { kind: "type", value: "null", type: "null" },
+          ],
+        },
+      ],
+    ],
+  });
+});
+
 test(`jsonb_build_object with column ->> key => string | null`, async () => {
   await testQuery({
     query: `SELECT jsonb_build_object('name', member.last_name) ->> 'name' as extracted_value FROM member`,

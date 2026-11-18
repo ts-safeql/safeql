@@ -176,6 +176,56 @@ test("select coalesce with a NULL cast should remain nullable", async () => {
   });
 });
 
+test("select greatest with a non-null argument should be non-nullable", async () => {
+  await testQuery({
+    query: `SELECT greatest(nullable_col, 'x') AS c FROM test_nullability`,
+    expected: [["c", { kind: "type", value: "string", type: "text" }]],
+  });
+});
+
+test("select least with all nullable arguments should remain nullable", async () => {
+  await testQuery({
+    query: `SELECT least(nullable_col, nullable_col) AS c FROM test_nullability`,
+    expected: [
+      [
+        "c",
+        {
+          kind: "union",
+          value: [
+            { kind: "type", value: "string", type: "text" },
+            { kind: "type", value: "null", type: "null" },
+          ],
+        },
+      ],
+    ],
+  });
+});
+
+test("select least of literals should be typed as their base type", async () => {
+  await testQuery({
+    query: `SELECT least(2, 1)`,
+    expected: [["least", { kind: "type", value: "number", type: "int4" }]],
+  });
+});
+
+test("select sum of an expression with greatest should resolve the aggregate type", async () => {
+  await testQuery({
+    query: `SELECT sum(id * greatest(id, 1)) AS s FROM member`,
+    expected: [
+      [
+        "s",
+        {
+          kind: "union",
+          value: [
+            { kind: "type", value: "string", type: "int8" },
+            { kind: "type", value: "null", type: "null" },
+          ],
+        },
+      ],
+    ],
+  });
+});
+
 test("nullable columns in regular subselect should remain nullable", async () => {
   await testQuery({
     schema: `

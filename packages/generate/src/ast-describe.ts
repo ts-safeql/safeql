@@ -319,7 +319,19 @@ function getDescribedNode(params: {
   }
 
   if (node.CoalesceExpr !== undefined) {
-    return getDescribedCoalesceExpr({ alias: alias, node: node.CoalesceExpr, context });
+    return getDescribedNullSkippingExpr({
+      name: getOutputColumnKey(alias, node),
+      args: node.CoalesceExpr.args,
+      context,
+    });
+  }
+
+  if (node.MinMaxExpr !== undefined) {
+    return getDescribedNullSkippingExpr({
+      name: getOutputColumnKey(alias, node),
+      args: node.MinMaxExpr.args,
+      context,
+    }).map((column) => ({ ...column, type: getBaseType(column.type) }));
   }
 
   if (node.SubLink !== undefined) {
@@ -705,21 +717,25 @@ function getDescribedSelectStmt({
   return [];
 }
 
-function getDescribedCoalesceExpr({
-  alias,
+function getDescribedNullSkippingExpr({
+  name,
+  args,
   context,
-  node,
-}: GetDescribedParamsOf<LibPgQueryAST.CoalesceExpr>): ASTDescribedColumn[] {
-  const unknownCoalesce: ASTDescribedColumn = {
-    name: alias ?? "coalesce",
+}: {
+  name: string;
+  args: LibPgQueryAST.Node[];
+  context: ASTDescriptionContext;
+}): ASTDescribedColumn[] {
+  const unknownColumn: ASTDescribedColumn = {
+    name: name,
     type: context.toTypeScriptType({ name: "unknown" }),
   };
 
-  if (node.args.length === 0) {
-    return [unknownCoalesce];
+  if (args.length === 0) {
+    return [unknownColumn];
   }
 
-  const describedArgs = node.args.map((arg) =>
+  const describedArgs = args.map((arg) =>
     getDescribedNode({ alias: undefined, node: arg, context }).at(0),
   );
   const firstDescribed = describedArgs[0];
@@ -746,7 +762,7 @@ function getDescribedCoalesceExpr({
 
   return [
     {
-      name: alias ?? "coalesce",
+      name: name,
       type: type,
     },
   ];
@@ -1669,6 +1685,10 @@ function hasColumnReference(node: LibPgQueryAST.Node | undefined): boolean {
 
   if (node.CoalesceExpr !== undefined) {
     return node.CoalesceExpr.args.some(hasColumnReference);
+  }
+
+  if (node.MinMaxExpr !== undefined) {
+    return node.MinMaxExpr.args.some(hasColumnReference);
   }
 
   if (node.CaseExpr !== undefined) {

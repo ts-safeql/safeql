@@ -246,6 +246,14 @@ export function isColumnNonNullable(params: {
     }
   }
 
+  if (val.MinMaxExpr) {
+    for (const arg of val.MinMaxExpr.args) {
+      if (isColumnNonNullable({ val: arg, root, aggregateNames, resolveColumnRefNonNull })) {
+        return true;
+      }
+    }
+  }
+
   if (val.A_ArrayExpr) {
     // TODO: should we check the array elements?
     return true;
@@ -320,6 +328,10 @@ function getNodeName(node: LibPgQueryAST.Node | undefined): string {
 
   if (node?.CoalesceExpr !== undefined) {
     return "coalesce";
+  }
+
+  if (node?.MinMaxExpr !== undefined) {
+    return node.MinMaxExpr.op === LibPgQueryAST.MinMaxOp.IS_GREATEST ? "greatest" : "least";
   }
 
   return "?column?";

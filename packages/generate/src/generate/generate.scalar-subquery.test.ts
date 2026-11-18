@@ -452,3 +452,10 @@ test("scalar subquery with aggregate in CASE WHEN should be non-nullable", async
     expected: [["c", { kind: "type", value: "number", type: "int4" }]],
   });
 });
+
+test("scalar subquery with aggregate in GREATEST should be non-nullable", async () => {
+  await testQuery({
+    query: `SELECT (SELECT greatest(max(id), 0) FROM member WHERE false) AS m`,
+    expected: [["m", { kind: "type", value: "number", type: "int4" }]],
+  });
+});
