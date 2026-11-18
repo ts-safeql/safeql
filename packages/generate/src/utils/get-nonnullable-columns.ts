@@ -67,6 +67,15 @@ const nonNullFunctions: Set<string> = new Set([
   "similar_to_escape",
 ]);
 
+const nonNullWithNonNullArguments = new Set([
+  "hashtext",
+  "hashtextextended",
+  "pg_try_advisory_lock",
+  "pg_try_advisory_lock_shared",
+  "pg_try_advisory_xact_lock",
+  "pg_try_advisory_xact_lock_shared",
+]);
+
 function concatStringNodes(nodes: LibPgQueryAST.Node[] | undefined): string {
   return (
     nodes
@@ -102,6 +111,12 @@ export function isColumnNonNullable(params: {
 
   if (val.FuncCall) {
     const functionName = concatStringNodes(val.FuncCall.funcname);
+    const builtinName = functionName.replace(/^pg_catalog\./, "");
+    if (nonNullWithNonNullArguments.has(builtinName)) {
+      return (
+        val.FuncCall.args?.every((arg) => isColumnNonNullable({ ...params, val: arg })) ?? false
+      );
+    }
     return nonNullFunctions.has(functionName.toLowerCase());
   }
 

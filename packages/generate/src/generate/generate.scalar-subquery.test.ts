@@ -366,7 +366,7 @@ test("scalar subquery wrapping percentile_cont stays nullable on empty input", a
         {
           kind: "union",
           value: [
-            { kind: "type", value: "unknown", type: "unknown" },
+            { kind: "type", value: "number", type: "float8" },
             { kind: "type", value: "null", type: "null" },
           ],
         },
