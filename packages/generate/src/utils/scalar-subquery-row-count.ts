@@ -55,6 +55,10 @@ function expressionContainsAggregate(
     return node.CoalesceExpr.args.some((arg) => expressionContainsAggregate(arg, aggregateNames));
   }
 
+  if (node.MinMaxExpr !== undefined) {
+    return node.MinMaxExpr.args.some((arg) => expressionContainsAggregate(arg, aggregateNames));
+  }
+
   if (node.CaseExpr !== undefined) {
     if (
       node.CaseExpr.defresult !== undefined &&

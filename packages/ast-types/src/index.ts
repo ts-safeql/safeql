@@ -2711,11 +2711,11 @@ enum RowCompareType {
   UNRECOGNIZED = -1,
 }
 
-enum MinMaxOp {
-  MIN_MAX_OP_UNDEFINED = 0,
-  IS_GREATEST = 1,
-  IS_LEAST = 2,
-  UNRECOGNIZED = -1,
+export enum MinMaxOp {
+  MIN_MAX_OP_UNDEFINED = "MIN_MAX_OP_UNDEFINED",
+  IS_GREATEST = "IS_GREATEST",
+  IS_LEAST = "IS_LEAST",
+  UNRECOGNIZED = "UNRECOGNIZED",
 }
 
 enum SQLValueFunctionOp {

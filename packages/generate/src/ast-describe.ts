@@ -319,7 +319,17 @@ function getDescribedNode(params: {
   }
 
   if (node.CoalesceExpr !== undefined) {
-    return getDescribedCoalesceExpr({ alias: alias, node: node.CoalesceExpr, context });
+    return getDescribedNullSkippingExpr({
+      name: getOutputColumnKey(alias, node),
+      describedArgs: node.CoalesceExpr.args.map((arg) =>
+        getDescribedNode({ alias: undefined, node: arg, context }).at(0),
+      ),
+      context,
+    });
+  }
+
+  if (node.MinMaxExpr !== undefined) {
+    return getDescribedMinMaxExpr({ alias: alias, node: node.MinMaxExpr, context });
   }
 
   if (node.SubLink !== undefined) {
@@ -705,23 +715,24 @@ function getDescribedSelectStmt({
   return [];
 }
 
-function getDescribedCoalesceExpr({
-  alias,
+function getDescribedNullSkippingExpr({
+  name,
+  describedArgs,
   context,
-  node,
-}: GetDescribedParamsOf<LibPgQueryAST.CoalesceExpr>): ASTDescribedColumn[] {
-  const unknownCoalesce: ASTDescribedColumn = {
-    name: alias ?? "coalesce",
+}: {
+  name: string;
+  describedArgs: (ASTDescribedColumn | undefined)[];
+  context: ASTDescriptionContext;
+}): ASTDescribedColumn[] {
+  const unknownColumn: ASTDescribedColumn = {
+    name: name,
     type: context.toTypeScriptType({ name: "unknown" }),
   };
 
-  if (node.args.length === 0) {
-    return [unknownCoalesce];
+  if (describedArgs.length === 0) {
+    return [unknownColumn];
   }
 
-  const describedArgs = node.args.map((arg) =>
-    getDescribedNode({ alias: undefined, node: arg, context }).at(0),
-  );
   const firstDescribed = describedArgs[0];
   const firstNonNullDescribed = describedArgs.find(
     (arg) => arg !== undefined && !(arg.type.kind === "type" && arg.type.value === "null"),
@@ -746,10 +757,39 @@ function getDescribedCoalesceExpr({
 
   return [
     {
-      name: alias ?? "coalesce",
+      name: name,
       type: type,
     },
   ];
+}
+
+function getDescribedMinMaxExpr({
+  alias,
+  context,
+  node,
+}: GetDescribedParamsOf<LibPgQueryAST.MinMaxExpr>): ASTDescribedColumn[] {
+  const describedArgs = node.args.map((arg) =>
+    getDescribedNode({ alias: undefined, node: arg, context }).at(0),
+  );
+  const [firstArgType, ...otherArgTypes] = describedArgs
+    .map((described) => (described === undefined ? undefined : getScalarType(described.type)))
+    .filter((type) => type?.value !== "null");
+
+  const argsShareType =
+    firstArgType !== undefined &&
+    otherArgTypes.every(
+      (type) => type?.value === firstArgType.value && type.type === firstArgType.type,
+    );
+
+  if (!argsShareType) {
+    return [];
+  }
+
+  return getDescribedNullSkippingExpr({
+    name: getOutputColumnKey(alias, { MinMaxExpr: node }),
+    describedArgs,
+    context,
+  }).map((column) => ({ ...column, type: getBaseType(column.type) }));
 }
 
 function getDescribedArrayExpr({
@@ -989,6 +1029,18 @@ function unwrapNullableUnionType(
   return nonNull[0];
 }
 
+function getScalarType(
+  type: ASTDescribedColumnType,
+): Extract<ASTDescribedColumnType, { kind: "type" }> | undefined {
+  return type.kind === "union"
+    ? unwrapNullableUnionType(type)
+    : type.kind === "type"
+      ? type
+      : type.kind === "literal" && type.base.kind === "type"
+        ? type.base
+        : undefined;
+}
+
 function getDescribedFuncCallByPgFn({
   alias,
   context,
@@ -1003,16 +1055,9 @@ function getDescribedFuncCallByPgFn({
       return [];
     }
 
-    const unwrapped =
-      described.type.kind === "union"
-        ? unwrapNullableUnionType(described.type)
-        : described.type.kind === "type"
-          ? described.type
-          : described.type.kind === "literal" && described.type.base.kind === "type"
-            ? described.type.base
-            : undefined;
+    const unwrapped = getScalarType(described.type);
 
-    return unwrapped?.kind === "type" ? [unwrapped.type] : [];
+    return unwrapped === undefined ? [] : [unwrapped.type];
   });
 
   if (functionName === undefined) {
@@ -1669,6 +1714,10 @@ function hasColumnReference(node: LibPgQueryAST.Node | undefined): boolean {
 
   if (node.CoalesceExpr !== undefined) {
     return node.CoalesceExpr.args.some(hasColumnReference);
+  }
+
+  if (node.MinMaxExpr !== undefined) {
+    return node.MinMaxExpr.args.some(hasColumnReference);
   }
 
   if (node.CaseExpr !== undefined) {
