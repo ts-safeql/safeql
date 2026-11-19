@@ -224,6 +224,13 @@ test("select greatest of different object shapes should not keep the first shape
   });
 });
 
+test("select deeply nested greatest should describe each argument once", async () => {
+  await testQuery({
+    query: `SELECT ${"greatest(".repeat(30)}id${", 0)".repeat(30)} AS g FROM member`,
+    expected: [["g", { kind: "type", value: "number", type: "int4" }]],
+  });
+});
+
 test("select sum of an expression with greatest should resolve the aggregate type", async () => {
   await testQuery({
     query: `SELECT sum(id * greatest(id, 1)) AS s FROM member`,

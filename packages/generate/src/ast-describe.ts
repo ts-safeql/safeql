@@ -321,7 +321,9 @@ function getDescribedNode(params: {
   if (node.CoalesceExpr !== undefined) {
     return getDescribedNullSkippingExpr({
       name: getOutputColumnKey(alias, node),
-      args: node.CoalesceExpr.args,
+      describedArgs: node.CoalesceExpr.args.map((arg) =>
+        getDescribedNode({ alias: undefined, node: arg, context }).at(0),
+      ),
       context,
     });
   }
@@ -715,11 +717,11 @@ function getDescribedSelectStmt({
 
 function getDescribedNullSkippingExpr({
   name,
-  args,
+  describedArgs,
   context,
 }: {
   name: string;
-  args: LibPgQueryAST.Node[];
+  describedArgs: (ASTDescribedColumn | undefined)[];
   context: ASTDescriptionContext;
 }): ASTDescribedColumn[] {
   const unknownColumn: ASTDescribedColumn = {
@@ -727,13 +729,10 @@ function getDescribedNullSkippingExpr({
     type: context.toTypeScriptType({ name: "unknown" }),
   };
 
-  if (args.length === 0) {
+  if (describedArgs.length === 0) {
     return [unknownColumn];
   }
 
-  const describedArgs = args.map((arg) =>
-    getDescribedNode({ alias: undefined, node: arg, context }).at(0),
-  );
   const firstDescribed = describedArgs[0];
   const firstNonNullDescribed = describedArgs.find(
     (arg) => arg !== undefined && !(arg.type.kind === "type" && arg.type.value === "null"),
@@ -769,11 +768,11 @@ function getDescribedMinMaxExpr({
   context,
   node,
 }: GetDescribedParamsOf<LibPgQueryAST.MinMaxExpr>): ASTDescribedColumn[] {
-  const [firstArgType, ...otherArgTypes] = node.args
-    .map((arg) => {
-      const described = getDescribedNode({ alias: undefined, node: arg, context }).at(0);
-      return described === undefined ? undefined : getScalarType(described.type);
-    })
+  const describedArgs = node.args.map((arg) =>
+    getDescribedNode({ alias: undefined, node: arg, context }).at(0),
+  );
+  const [firstArgType, ...otherArgTypes] = describedArgs
+    .map((described) => (described === undefined ? undefined : getScalarType(described.type)))
     .filter((type) => type?.value !== "null");
 
   const argsShareType =
@@ -788,7 +787,7 @@ function getDescribedMinMaxExpr({
 
   return getDescribedNullSkippingExpr({
     name: getOutputColumnKey(alias, { MinMaxExpr: node }),
-    args: node.args,
+    describedArgs,
     context,
   }).map((column) => ({ ...column, type: getBaseType(column.type) }));
 }
