@@ -1,5 +1,9 @@
 # @ts-safeql/generate
 
+## 5.4.5
+
+No changes in this release.
+
 ## 5.4.4
 
 No changes in this release.
