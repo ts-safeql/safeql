@@ -45,7 +45,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Create the schema
-        run: psql "$DATABASE_URL" -f schema.sql
+        run: psql -v ON_ERROR_STOP=1 "$DATABASE_URL" -f schema.sql
       - run: npx eslint .
 ```
 
@@ -72,11 +72,12 @@ If your project uses [`migrationsDir`](/api/index.html#connections-migrationsdir
 ```js
 safeql.configs.connections({
   migrationsDir: "./migrations",
-  connectionUrl: process.env.SAFEQL_CONNECTION_URL,
+  connectionUrl: process.env.DATABASE_URL,
+  targets: [{ tag: "sql" }],
 });
 ```
 
-The database user must be allowed to create databases, because the shadow database is created next to the connection URL. The `postgres` superuser used in the workflow above already has that permission.
+The database user must be allowed to create databases, because the shadow database is created next to the connection URL. The `postgres` superuser used in the workflow above already has that permission, and `DATABASE_URL` points at that disposable server.
 
 ## Other CI providers
 
