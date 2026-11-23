@@ -1,10 +1,11 @@
 // @ts-check
 
+import { defineConfig } from "eslint/config";
 import tseslint from "typescript-eslint";
 import safeql from "@ts-safeql/eslint-plugin/config";
 import postgresjs from "@ts-safeql/plugin-postgres-js";
 
-export default tseslint.config({
+export default defineConfig({
   files: ["src/**/*.ts"],
   languageOptions: {
     parser: tseslint.parser,

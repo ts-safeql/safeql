@@ -40,9 +40,9 @@ dependencies and only loaded when migrations run.
 // eslint.config.js
 import safeql from "@ts-safeql/eslint-plugin/config";
 import kysely from "@ts-safeql/plugin-kysely";
-import tseslint from "typescript-eslint";
+import { defineConfig } from "eslint/config";
 
-export default tseslint.config(
+export default defineConfig(
   // ...
   safeql.configs.connections({
     databaseUrl: "postgres://user:pass@localhost:5432/db",
@@ -75,9 +75,9 @@ chains. SafeQL compiles the whole chain (through the fragments) and validates th
 // eslint.config.js
 import safeql from "@ts-safeql/eslint-plugin/config";
 import kysely from "@ts-safeql/plugin-kysely";
-import tseslint from "typescript-eslint";
+import { defineConfig } from "eslint/config";
 
-export default tseslint.config(
+export default defineConfig(
   // ...
   safeql.configs.connections({
     databaseUrl: "postgres://user:pass@localhost:5432/db",
@@ -127,9 +127,9 @@ database** from your Kysely migrations. The plugin runs your TypeScript migratio
 // eslint.config.js
 import safeql from "@ts-safeql/eslint-plugin/config";
 import kysely from "@ts-safeql/plugin-kysely";
-import tseslint from "typescript-eslint";
+import { defineConfig } from "eslint/config";
 
-export default tseslint.config(
+export default defineConfig(
   // ...
   safeql.configs.connections({
     migrationsDir: "migrations", // your Kysely migration files (up/down)

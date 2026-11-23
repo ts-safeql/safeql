@@ -1,11 +1,12 @@
 // @ts-check
 
+import { defineConfig } from "eslint/config";
 import "dotenv/config";
 import safeql from "@ts-safeql/eslint-plugin/config";
 import awsIamAuth from "@ts-safeql/plugin-auth-aws";
 import tseslint from "typescript-eslint";
 
-export default tseslint.config({
+export default defineConfig({
   files: ["src/**/*.ts"],
   languageOptions: {
     parser: tseslint.parser,
