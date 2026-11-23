@@ -60,6 +60,8 @@ export default defineConfig(
 );
 ```
 
+> `defineConfig` comes with ESLint 9.22 and later. On an older ESLint 9, export a plain array of the same config objects instead: `export default [{ ... }, safeql.configs.connections({ ... })];`
+
 == Legacy Config
 1. Add `@ts-safeql/eslint-plugin` to your plugins and set [`parserOptions.project`](https://typescript-eslint.io/docs/linting/typed-linting) (or `parserOptions.projectService` for typescript-eslint v8+):
 
