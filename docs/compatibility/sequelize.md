@@ -24,9 +24,9 @@ see [sql-template-strings](https://www.npmjs.com/package/sql-template-strings) a
 // eslint.config.js
 
 import safeql from "@ts-safeql/eslint-plugin/config";
-import tseslint from "typescript-eslint";
+import { defineConfig } from "eslint/config";
 
-export default tseslint.config(
+export default defineConfig(
   // ...
   safeql.configs.connections({
     // ... (read more about configuration in the API docs)

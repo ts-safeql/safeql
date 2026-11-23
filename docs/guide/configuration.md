@@ -17,10 +17,10 @@ Check out [@ts-safeql-demos/basic-flat-config](https://github.com/ts-safeql/safe
 
 ```js
 // eslint.config.js
-import tseslint from "typescript-eslint";
+import { defineConfig } from "eslint/config";
 import safeql from "@ts-safeql/eslint-plugin/config";
 
-export default tseslint.config(
+export default defineConfig(
   {
     languageOptions: {
       parserOptions: {
@@ -95,10 +95,10 @@ Check out [@ts-safeql-demos/multi-connections](https://github.com/ts-safeql/safe
 
 ```js
 // eslint.config.js
-import tseslint from "typescript-eslint";
+import { defineConfig } from "eslint/config";
 import safeql from "@ts-safeql/eslint-plugin/config";
 
-export default tseslint.config(
+export default defineConfig(
   {
     languageOptions: {
       parserOptions: {
@@ -181,10 +181,10 @@ Check out [@ts-safeql-demos/basic-migrations-raw](https://github.com/ts-safeql/s
 
 ```js
 // eslint.config.js
-import tseslint from "typescript-eslint";
+import { defineConfig } from "eslint/config";
 import safeql from "@ts-safeql/eslint-plugin/config";
 
-export default tseslint.config(
+export default defineConfig(
   {
     languageOptions: {
       parserOptions: {
@@ -274,10 +274,10 @@ Check out [@ts-safeql-demos/multi-connections](https://github.com/ts-safeql/safe
 
 ```js
 // eslint.config.js
-import tseslint from "typescript-eslint";
+import { defineConfig } from "eslint/config";
 import safeql from "@ts-safeql/eslint-plugin/config";
 
-export default tseslint.config(
+export default defineConfig(
   {
     languageOptions: {
       parserOptions: {
@@ -348,10 +348,10 @@ export default tseslint.config(
 
 ```js
 // eslint.config.js
-import tseslint from "typescript-eslint";
+import { defineConfig } from "eslint/config";
 import safeql from "@ts-safeql/eslint-plugin/config";
 
-export default tseslint.config(
+export default defineConfig(
   {
     languageOptions: {
       parserOptions: {
@@ -439,10 +439,10 @@ SafeQL uses [minimatch](https://github.com/isaacs/minimatch) to match the glob p
 
 ```js
 // eslint.config.js
-import tseslint from "typescript-eslint";
+import { defineConfig } from "eslint/config";
 import safeql from "@ts-safeql/eslint-plugin/config";
 
-export default tseslint.config(
+export default defineConfig(
   {
     languageOptions: {
       parserOptions: {
@@ -501,10 +501,10 @@ SafeQL can also use regex to match the sql tags.
 
 ```js
 // eslint.config.js
-import tseslint from "typescript-eslint";
+import { defineConfig } from "eslint/config";
 import safeql from "@ts-safeql/eslint-plugin/config";
 
-export default tseslint.config(
+export default defineConfig(
   {
     languageOptions: {
       parserOptions: {
@@ -575,10 +575,10 @@ function getName() {
 
 ```js
 // eslint.config.js
-import tseslint from "typescript-eslint";
+import { defineConfig } from "eslint/config";
 import safeql from "@ts-safeql/eslint-plugin/config";
 
-export default tseslint.config(
+export default defineConfig(
   {
     languageOptions: {
       parserOptions: {

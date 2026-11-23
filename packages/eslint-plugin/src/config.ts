@@ -1,4 +1,4 @@
-import { FlatConfig } from "@typescript-eslint/utils/ts-eslint";
+import type { Linter } from "eslint";
 import { RuleOptionConnection } from "./rules/RuleOptions";
 import safeqlPlugin from "./plugin";
 
@@ -8,7 +8,14 @@ type ConnectionInput = DistributiveOmit<RuleOptionConnection, "targets"> & {
   targets?: RuleOptionConnection["targets"];
 };
 
-export default {
+type SafeQLConfigs = {
+  configs: {
+    useConfigFile: Linter.Config;
+    connections: (connections: ConnectionInput | ConnectionInput[]) => Linter.Config;
+  };
+};
+
+const config: SafeQLConfigs = {
   configs: {
     /**
      * If you prefer configuring safeql via a config file (safeql.config.ts), use this config.
@@ -20,12 +27,12 @@ export default {
       rules: {
         "@ts-safeql/check-sql": ["error", { useConfigFile: true }],
       },
-    } satisfies FlatConfig.Config,
+    },
 
     /**
      * If you prefer configuring safeql via a flat config, use this config.
      */
-    connections: (connections: ConnectionInput | ConnectionInput[]): FlatConfig.Config => ({
+    connections: (connections) => ({
       plugins: {
         "@ts-safeql": safeqlPlugin,
       },
@@ -35,3 +42,5 @@ export default {
     }),
   },
 };
+
+export default config;

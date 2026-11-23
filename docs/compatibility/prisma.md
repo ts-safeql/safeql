@@ -17,9 +17,9 @@ Check out [@ts-safeql-demos/prisma](https://github.com/ts-safeql/safeql/tree/mai
 // eslint.config.js
 
 import safeql from "@ts-safeql/eslint-plugin/config";
-import tseslint from "typescript-eslint";
+import { defineConfig } from "eslint/config";
 
-export default tseslint.config(
+export default defineConfig(
   // ...
   safeql.configs.connections({
     // ... (read more about configuration in the API docs)

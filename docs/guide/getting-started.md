@@ -42,9 +42,9 @@ In order for SafeQL to be able to lint your queries, you need to specify either 
 // eslint.config.js
 
 import safeql from "@ts-safeql/eslint-plugin/config";
-import tseslint from "typescript-eslint";
+import { defineConfig } from "eslint/config";
 
-export default tseslint.config(
+export default defineConfig(
   {
     languageOptions: {
       parserOptions: {

@@ -20,9 +20,9 @@ npm install @ts-safeql/plugin-postgres-js
 // eslint.config.js
 import safeql from "@ts-safeql/eslint-plugin/config";
 import postgresjs from "@ts-safeql/plugin-postgres-js";
-import tseslint from "typescript-eslint";
+import { defineConfig } from "eslint/config";
 
-export default tseslint.config(
+export default defineConfig(
   // ...
   safeql.configs.connections({
     databaseUrl: "postgres://user:pass@localhost:5432/db",
@@ -88,9 +88,9 @@ If you prefer not to use the plugin, you can still configure SafeQL for plain po
 // eslint.config.js
 
 import safeql from "@ts-safeql/eslint-plugin/config";
-import tseslint from "typescript-eslint";
+import { defineConfig } from "eslint/config";
 
-export default tseslint.config(
+export default defineConfig(
   // ...
   safeql.configs.connections({
     targets: [{ tag: "sql", transform: "{type}[]" }],

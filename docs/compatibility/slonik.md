@@ -20,9 +20,9 @@ npm install @ts-safeql/plugin-slonik
 // eslint.config.js
 import safeql from "@ts-safeql/eslint-plugin/config";
 import slonik from "@ts-safeql/plugin-slonik";
-import tseslint from "typescript-eslint";
+import { defineConfig } from "eslint/config";
 
-export default tseslint.config(
+export default defineConfig(
   // ...
   safeql.configs.connections({
     databaseUrl: "postgres://user:pass@localhost:5432/db",
@@ -92,9 +92,9 @@ If you prefer not to use the plugin, you can configure SafeQL manually:
 // eslint.config.js
 
 import safeql from "@ts-safeql/eslint-plugin/config";
-import tseslint from "typescript-eslint";
+import { defineConfig } from "eslint/config";
 
-export default tseslint.config(
+export default defineConfig(
   // ...
   safeql.configs.connections({
     // ... (read more about configuration in the API docs)
