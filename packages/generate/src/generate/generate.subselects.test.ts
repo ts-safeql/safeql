@@ -106,6 +106,20 @@ test("select unaliased coalesce expression through cte", async () => {
   });
 });
 
+test("select unaliased greatest expression through cte", async () => {
+  await testQuery({
+    query: `
+      WITH t AS (
+        SELECT greatest(id, 0)
+        FROM member
+      )
+      SELECT t.greatest
+      FROM t
+    `,
+    expected: [["greatest", { kind: "type", type: "int4", value: "number" }]],
+  });
+});
+
 test("left join nullable column stays nullable through cte", async () => {
   await testQuery({
     query: `
