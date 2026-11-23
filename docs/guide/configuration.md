@@ -4,6 +4,8 @@ layout: doc
 
 # Configuration
 
+> The flat config examples use `defineConfig` from `eslint/config`, which comes with ESLint 9.22 and later. On an older ESLint 9, export a plain array of the same config objects instead.
+
 ## Example 1: Single database connected to your app
 
 Connect using the same database and credentials your app uses
