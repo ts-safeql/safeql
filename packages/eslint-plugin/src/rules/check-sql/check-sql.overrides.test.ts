@@ -5,6 +5,24 @@ const { connections, withConnection } = setupCheckSqlRuleTester();
 ruleTester.run("connection with overrides.types", checkSqlRule, {
   valid: [
     {
+      name: "nullable temporal union override",
+      options: withConnection(connections.withTag, {
+        overrides: { types: { timestamptz: "Date | number" } },
+      }),
+      code: "sql<{ colname: Date | number | null }>`select colname from test_nullable_timestamptz`",
+    },
+    {
+      name: "temporal unions in a referenced row type",
+      options: withConnection(connections.withTag, {
+        overrides: { types: { timestamptz: "Date | number" } },
+      }),
+      code: `
+        type Row = { id: number; created_at: Date | number; colname: Date | number | null };
+        sql<Row>\`select member.id, member.created_at, times.colname
+          from member cross join test_nullable_timestamptz times\`
+      `,
+    },
+    {
       name: 'with { int4: "Integer" }',
       options: withConnection(connections.withTag, {
         overrides: { types: { int4: "Integer" } },
@@ -147,6 +165,36 @@ ruleTester.run("connection with overrides.types", checkSqlRule, {
     },
   ],
   invalid: [
+    {
+      name: "generated nullable temporal annotation passes the autofix recheck",
+      options: withConnection(connections.withTag, {
+        overrides: { types: { timestamptz: "Date | number" } },
+      }),
+      code: "sql`select colname from test_nullable_timestamptz`",
+      output:
+        "sql<{ colname: Date | number | null }>`select colname from test_nullable_timestamptz`",
+      errors: [{ messageId: "missingTypeAnnotations" }],
+    },
+    {
+      name: "generated multi-column temporal annotation passes the autofix recheck",
+      options: withConnection(connections.withTag, {
+        overrides: { types: { timestamptz: "Date | number" } },
+      }),
+      code: "sql`select member.id, member.created_at, times.colname from member cross join test_nullable_timestamptz times`",
+      output:
+        "sql<{ id: number; created_at: Date | number; colname: Date | number | null }>`select member.id, member.created_at, times.colname from member cross join test_nullable_timestamptz times`",
+      errors: [{ messageId: "missingTypeAnnotations" }],
+    },
+    {
+      name: "narrow temporal annotation is repaired and then passes",
+      options: withConnection(connections.withTag, {
+        overrides: { types: { timestamptz: "Date | number" } },
+      }),
+      code: "sql<{ colname: Date }>`select colname from test_nullable_timestamptz`",
+      output:
+        "sql<{ colname: Date | number | null }>`select colname from test_nullable_timestamptz`",
+      errors: [{ messageId: "incorrectTypeAnnotations" }],
+    },
     {
       name: 'with { int4: "Integer" } while { id: number }',
       options: withConnection(connections.withTag, {
