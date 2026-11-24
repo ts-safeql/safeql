@@ -45,6 +45,7 @@ export default defineConfig({
           { text: "Introduction", link: "/guide/introduction" },
           { text: "Getting Started", link: "/guide/getting-started" },
           { text: "Configuration", link: "/guide/configuration" },
+          { text: "Running in CI", link: "/guide/ci" },
         ],
       },
       {
